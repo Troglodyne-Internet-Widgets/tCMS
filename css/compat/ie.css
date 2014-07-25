@@ -1,0 +1,6 @@
+a.rss, a.logo, a.usericon, a.avatar {
+ background-image: none !important;
+}
+p#linkcontainer {
+ width: 6em;
+}

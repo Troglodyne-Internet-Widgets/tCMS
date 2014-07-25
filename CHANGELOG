@@ -1,0 +1,21 @@
+BUGFIX RELEASE 1.1.1:
+
+Bug Fixes:
+*Made responsive JS/CSS more friendly to noscript users, made logic not so shitty
+*Added default favicon
+*Fixed lots of time related bugs in the linklog pages (microblog.inc, mbengine.inc, mbeditor.inc)
+*Made errors in linklog not cause php to die(), instead making it safely error out (so as not to mangle following dom)
+*Fixed a bug that prevented editing linklog posts
+*Fixed structure.css not loading on /sys/admin pages
+
+Misc. Code Changes:
+*Moved all json config files to sys/admin/config. No reason to have the main json definition in the toplevel directory for all to see.
+
+NEW WITH VERSION 1.1:
+
+*Design has been made more responsive, using only % and em values for width, positioning, etc. Also added a small JS file to further aid in responsiveness (the usual button show/hide stuff that JS is suited to).
+*Authoring, managing blog posts can now be done via the admin page, for those dissatisfied/unfamiliar with Drag and Drop blogging.
+
+Version 1.0 Release Notes:
+
+*Initial release. Not much to say other than that it has all the stuff I want out of a CMS. All changes from here on out will be bugfixing and feature addition, mostly as a boon to anyone who may choose to use tCMS. 

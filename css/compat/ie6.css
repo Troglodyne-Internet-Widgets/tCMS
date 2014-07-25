@@ -1,0 +1,14 @@
+body {
+ height: 100%;
+ overflow-y: auto;
+}
+div.topbar {
+ position: absolute;
+}
+#lefttitle {
+ visibility: hidden;
+ display: none;
+}
+#midtitle {
+ float: left;
+}

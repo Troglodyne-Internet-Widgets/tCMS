@@ -1,0 +1,30 @@
+div.linkbar {
+ float: left;
+ clear: none;
+}
+div.kontent {
+ float: right;
+ clear: none;
+}
+img.titlebar {
+}
+a.logo {
+ font-size: 1.5em;
+ font-family: courier;
+ color: white;
+ text-decoration: none;
+}
+a.logo:hover {
+ text-decoration: underline;
+}
+#lefttitle {
+ visibility: hidden;
+ display: none;
+}
+#midtitle {
+ float: left;
+ vertical-align: middle;
+}
+#righttitle {
+ float: right;
+}

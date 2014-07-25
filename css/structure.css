@@ -1,0 +1,91 @@
+/*First, we start off with specifying what parts of the DOM we want hidden*/
+/*Make sure it uses !important so that any JS helper for responsiveness doesn't override this*/
+#leftbar, #rightbar, #footbar, #midtitle {
+ display: none !important;
+}
+
+/*Now, on to positioning of the elements*/
+body {
+ position: relative;
+ margin: 0;
+ width: 100%;
+ min-height: 100vh;
+ max-height: 100%;
+}
+#topkek {
+ display: table;
+ position: fixed;
+ z-index: 2;
+ top: 0;
+ width: 100%;
+ height: 1.5em;
+}
+.toplel {
+ display: table-cell;
+}
+#lefttitle {
+ padding-left: .5em;
+ max-width: 50%;
+ min-width: 33%;
+}
+#midtitle {
+ width: 33%;
+}
+#righttitle {
+ min-width: 33%;
+ max-width: 50%;
+ padding-right: .5em;
+}
+#righttitle a, #configbar a {
+ display: inline-block;
+}
+#menubutton {
+ display: none;
+ min-width: 2%;
+ max-width: 33%;
+ padding-right: .5em;
+}
+#littlemenu {
+ display: none;
+ position: fixed;
+ z-index: 3;
+ top: 1.5em;
+ right: 0px;
+ padding: 0px .5em .5em .5em;
+}
+#littlemenu a {
+ display: block;
+}
+#kontainer {
+ display: table;
+ width: 100%;
+ padding-bottom: 2.5em;
+}
+.kontained {
+ display: table-cell;
+}
+#leftbar {
+ width: 6em;
+ padding-right: .5em;
+}
+#kontent {
+ padding: 2em .5em .5em .5em;
+ min-height: 50%;
+ max-width: 100%;
+ margin-top: 0px;
+}
+#rightbar {
+ width: 6em;
+ padding-left: .5em;
+}
+#footbar {
+ position: absolute;
+ bottom: 0;
+ width: 100%;
+ height: 1.5em;
+}
+#stories {
+ padding: 0px .5em .5em .5em;
+ width: 80%;
+ display: table-cell;
+}
