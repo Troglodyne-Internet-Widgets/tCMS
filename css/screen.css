@@ -9,7 +9,7 @@ body {
  color: black;
  background-color: gray;
  font-family: sans-serif;
- font-size: 150%;
+ font-size: 100%;
 }
 img {
  border: 0px;
@@ -121,10 +121,11 @@ textarea {
  background-size: 3em;
 }
 button#clickme {
- display: inline;
+ display: none;
  float: right;
  box-shadow: 0px 0px 0.5em #66CCFF;
  padding: 0 .25em;
+ margin: .25em;
  font-size: .60em;
  background-color: #333;
  border-radius: .5em;
@@ -236,4 +237,31 @@ p.posteditortitle {
 }
 #newpostlink {
  color: #990000;
+}
+/*Responsive design stuff that used to be in JS, modify as needed*/
+@media (max-width: 1024px) {
+  #lefttitle {
+    width: 100%;
+    max-width: 100%;
+  }  
+  #clickme {
+    display: table-cell !important;
+  }
+  #righttitle {
+    visibility: hidden;
+    position: fixed;
+    top: 2rem;
+    right: 0;
+    min-width: 0;
+    max-width: 100%;
+    background-color: rgba(0,0,0,.75);
+    border-bottom-left-radius: 1em;
+  }
+  #clickme:active ~ #righttitle, #clickme:focus ~ #righttitle, #righttitle:hover, #righttitle a:active  {
+    visibility: visible;
+  }
+  #righttitle a {
+    display: block;
+    border-right: 0;
+  }
 }

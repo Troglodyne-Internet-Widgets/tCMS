@@ -32,6 +32,7 @@
   ?>
   <meta charset="utf-8" />
   <meta name="description" content="A Simple CMS by teodesian.net"/>
+  <meta name="viewport" content="width=device-width">
   <link rel="stylesheet" type="text/css" href="css/structure.css" />
   <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="css/print.css" media="print" />
@@ -47,7 +48,6 @@
    <link rel="stylesheet" type="text/css" href="css/compat/ie6.css">
   <![endif]-->
   <link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />
-  <script src="index.js"></script>
   <title>
    <?php
     echo $htmltitle;

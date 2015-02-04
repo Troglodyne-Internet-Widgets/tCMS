@@ -1,85 +1,57 @@
 <?php
-include "config/users.inc";
-$badpost=false;
-$errmsg = array();
-if (isset($_POST["title"]) && $_POST["title"] != "") {
-	if (!isset($_POST['URL']) || $_POST["URL"] == "") {
-		$badpost = true;
-		$errmsg[] = "<em style=\"color: red\">* No url provided.</em><br />";
-	}
-	$url=stripslashes($_POST["URL"]);
-	//Error catching below
-	if (!filter_var($url,FILTER_VALIDATE_URL)) {
-		$badpost = true;
-		$errmsg[] = "<em style=\"color: red;\">* \"$url\" is not a valid ASCII URL.</em><br />";
-	}
-	if (!empty($_POST["IMG"]) && !filter_var(stripslashes($_POST["IMG"]),FILTER_VALIDATE_URL)) {
-    		$badpost = true;
-		$errmsg[] = "<em style=\"color: red;\">* Image \"$url\" is not a valid ASCII URL.</em><br />";
-  	}
-  	if (!empty($_POST["AUD"]) && !filter_var(stripslashes($_POST["AUD"]),FILTER_VALIDATE_URL)) {
-    		$badpost = true;
-		$errmsg[] = "<em style=\"color: red;\">* Audio \"$url\" is not a valid ASCII URL.</em><br />";
-  	}
-  	if (!isset($_POST["comment"]) || $_POST["comment"] == '') {
-    		$badpost = true;
-		$errmsg[] = "<em style=\"color: red;\">* Comment is blank.</em><br />";
-  	}
-	if (!$badpost) { 
-    		$title = stripslashes($_POST["title"]);
-    		$image = stripslashes($_POST["IMG"]);
-    		$audio = urlencode(stripslashes($_POST["AUD"]));
-    		$audiosrc = stripslashes($_POST["AUD"]);
-    		$comment = stripslashes($_POST["comment"]);
-    		$news2write = "<h3 class=\"blogtitles\"><a href=\"".$url."\">".$title."</a>";
-    		$news2write = $news2write."<a class=\"usericon ".$poster."\" href=\"index.php?nav=4\" title=\"Posted by ".$poster."\"></a>";
-    		$news2write = $news2write."</h3>";
-    		if ($image != "") {
-      			$news2write = $news2write."<img class=\"mblogimg\" src=\"".$image."\" />";
-    		}
-    		if ($audio != "") {
-      			$curlurl = "http://".$_SERVER["SERVER_NAME"]."/".$basedir.$microblog;
-      			$ch = curl_init($cur_url);
-      			curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
-      			curl_setopt($ch,CURLOPT_HEADER,false);
-      			$page_content = curl_exec($ch);
-      			$matches = array();
-      			preg_match('/audioplayer_[0-9]*/',$page_content,$matches);
-      			$numfound = count($matches);
-      			$audioinc = $numfound;
-      			++$audioinc;
-      			$news2write = $news2write."<p id=\"audioplayer_$audioinc\">Download Audio <a href=\"$audiosrc\">Here</a>.</p><script type=\"text/javascript\">AudioPlayer.embed(\"audioplayer_$audioinc\", {soundFile: \"$audio\"});</script><br />";
-    		};
-    		$news2write = $news2write.$comment."<hr />";
-		$tdtime = new DateTime(null, new DateTimeZone($timezone));
-    		$today = $tdtime->format('m.d.y');
-    		$now = $tdtime->format('H:i:s');
-    		$newsdir = $_SERVER["DOCUMENT_ROOT"].'/'.$basedir.$microblogdir;
-    		@mkdir($newsdir.$today);
-    		$fh = fopen($newsdir.$today."/".$now, 'w');
-		if (!$fh) die("ERROR: couldn't write $newsdir$today/$now to $newsdir$today, check permissions");
-		fwrite($fh,$news2write);
-		fclose($fh);
-	} else {
-		print "Could not post due to errors:<br />";
-		foreach ($errmsg as $err) {echo $err;}
-		print "POST Variable Dump below:<br /><em style=\"color: red\">";
-		var_dump($_POST);
-		print "</em>";
-	}
-} elseif ($_POST["id"] != "") {
-	if ($_POST["content"] == "") {
-		$res = unlink($_POST["id"]);
-		if (!$res) die("ERROR: couldn't delete ".$_POST['id'].", check permissions");
-		echo "Deleted ".$_POST["id"]."<br />";
-  } else {
-		$fh = fopen($_POST["id"], 'w');
-		if (!$fh) die("ERROR: couldn't write to ".$_POST['id'].", check permissions");
-    fwrite($fh,stripslashes($_POST["content"]));
-    fclose($fh);
-		echo "Edited ".$_POST["id"]."<br />";
+  //TODO have include file here for string size validation function
+  //Microblog Posting engine - also used to display a form for submitting stories
+  if (!empty($_POST["title"])) {//First check for a title in your POST data. If so, assume we're posting something new
+    $errors = array();//Create empty error array
+    //Validation checks
+    $url = stripslashes($_POST["URL"]);
+    if (empty($_POST['URL'])) {$errors[] = "No url provided.";}
+    else if (!filter_var($url,FILTER_VALIDATE_URL)) {$errors[] = '"'.$url.'" is not a valid ASCII URL.';}
+    if (!empty($_POST["IMG"]) && !filter_var(stripslashes($_POST["IMG"]),FILTER_VALIDATE_URL)) {$errors[] = 'Image "'.$url.'" is not a valid ASCII URL.';}
+    if (!empty($_POST["AUD"]) && !filter_var(stripslashes($_POST["AUD"]),FILTER_VALIDATE_URL)) {$errors[] = 'Audio "'.$url.'" is not a valid ASCII URL.';}
+    if (empty($_POST["comment"]) && empty($_POST["IMG"]) && empty($_POST["AUD"])) {$errors[] = "Post content is blank, Please add a comment or media to the posting.";}
+    //TODO Need to do extra validation here to prevent folks from doing something stupid like inserting executable code or large hex dumps of files
+    if (!count($errors)) {//All POST Vars needed to construct a coherent posting are here, let's format our data and write this thing
+      include_once("config/users.inc");//Import userland functions to figure out who's posting
+      $postBody = array(
+        "title"   => stripslashes($_POST["title"]),
+        "url"     => $url,
+        "image"   => stripslashes($_POST["IMG"]),
+        "audio"   => stripslashes($_POST["AUD"]),
+        "comment" => stripslashes($_POST["comment"]),
+        "poster"  => $poster
+      );
+      $tdtime = new DateTime(null, new DateTimeZone($timezone));
+      $today = $tdtime->format('m.d.y');
+      $now = $tdtime->format('H:i:s');
+      $newsdir = $_SERVER["DOCUMENT_ROOT"].'/'.$basedir.$microblogdir;
+      @mkdir($newsdir.$today);
+      $fh = fopen($newsdir.$today."/".$now, 'w');
+      if (!$fh) die("ERROR: couldn't write $newsdir$today/$now to $newsdir$today, check permissions");
+      fwrite($fh,json_encode($postBody));
+      fclose($fh);
+    } else {//Print errors at the top, since we didn't have what we needed from POST
+      $message = 'Could not post due to errors:<br /><ul style="color: red; list-type: disc;">';
+      foreach ($errors as $err) {$message .= "<li>$err</li>";}
+      $message .= '</ul>POST Variable Dump below:<br /><em style="color: red; font-size: .75em;">'.print_r($_POST, true).'</em>';
+      echo $message;
+    }
+  } elseif (!empty($_POST["id"])) {//If no title is supplied, let's see if we're editing/deleting a post.
+    if (empty($_POST["content"])) {//BLANKING IN PROGRESS
+      $res = unlink($_POST["id"]);
+      if (!$res) die("ERROR: couldn't delete ".$_POST['id'].", check permissions");
+      echo "Deleted ".$_POST["id"]."<br />";
+    } else {//Attempt editing, first detecting whether content is json
+      $fh = fopen($_POST["id"], 'w');
+      if (!$fh) die("ERROR: couldn't write to ".$_POST['id'].", check permissions");
+      if(is_null(json_decode($_POST["content"]))) {$content = stripslashes($_POST["content"]);}//Do some munging if it's just raw text
+      else {$content = $_POST["content"];}//JSON should be formatted correctly already
+      fwrite($fh,$content);//Just write the blob ,TODO validation
+      fclose($fh);
+      echo "Edited ".$_POST["id"]."<br />";
+    }
   }
-}
+  //DOM below
 ?>
 <div style="width: 100%; display: table;">
  <div style="width: 20%; display: table-cell;">
