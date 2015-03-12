@@ -1,7 +1,6 @@
 /*First, we start off with specifying what parts of the DOM we want hidden*/
-/*Make sure it uses !important so that any JS helper for responsiveness doesn't override this*/
 #leftbar, #rightbar, #footbar, #midtitle {
- display: none !important;
+ display: none;
 }
 
 /*Now, on to positioning of the elements*/
@@ -88,4 +87,9 @@ body {
  padding: 0px .5em .5em .5em;
  width: 80%;
  display: table-cell;
+}
+
+/*Some CSS rules below that I actually want to load on both print and screen views*/
+blockquote {
+  font-style: italic;
 }
