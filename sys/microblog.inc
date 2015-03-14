@@ -98,22 +98,29 @@
         if(is_null($json)) {
           echo $fc;
         } elseif (isset($json->title) && isset($json->url) && isset($json->poster)) {
-          $out = '<h3 class="blogtitles">';
-          $out = $out.'<a href="'.$json->url.'">'.$json->title.'</a>';
-          $out = $out.'<a class="usericon '.$json->poster.'" title="Posted by '.$json->poster.'"></a></h3>';
+          $out = '<h3 class="blogtitles">
+                    <a href="'.$json->url.'">'.$json->title.'</a>
+                    <a class="usericon '.$json->poster.'" title="Posted by '.$json->poster.'"></a>
+                  </h3>';
           if(isset($json->image)) {
-            $out = $out.'<img class="mblogimg" src="'.$json->image.'" />';
+            $out .= '<img class="mblogimg" src="'.$json->image.'" />';
           }
           if(isset($json->audio)) {
-            $out = $out.'<audio src="'.$json->audio.'" controls>Download Audio <a href="'.$json->audio.'">Here</a><br /></audio>';
+            $out .= '<audio src="'.$json->audio.'" controls>
+                       Download Audio 
+                       <a href="'.$json->audio.'">Here</a><br />
+                     </audio>';
           }
           if(isset($json->video)) {
-            $out = $out.'<video src="'.$json->video.'" controls>Download Video <a href="'.$json->video.'">Here</a><br /></video>';
+            $out .= '<video src="'.$json->video.'" controls>
+                       Download Video
+                       <a href="'.$json->video.'">Here</a><br />
+                     </video>';
           }
           if(isset($json->comment)) {
-            $out = $out.$json->comment;
+            $out .= $json->comment;
           }
-          $out = $out.'<hr />';
+          $out .= '<hr />';
           echo $out;
         } #Note that if nothing works out here, I'm just opting not to show anything.
         if ($editable) {

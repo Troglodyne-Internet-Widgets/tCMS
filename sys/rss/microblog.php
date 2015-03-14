@@ -1,4 +1,4 @@
-<?php
+<?php 
   //Import your config, set some stuff up, then construct the mining laser
   extract(json_decode(file_get_contents('../admin/config/main.json'),true));
   extract(json_decode(file_get_contents('../admin/config/users.json'),true));
@@ -21,34 +21,52 @@
   foreach ($files as $shitpost) {
     $storyPubDate =  date(DATE_RSS, strtotime(basename($shitpost)));
     $contents = file_get_contents($shitpost);
-    //HAHAHA You thought you needed an XML parser, didn't you?
-    $theRipper = explode("<",$contents);
-    $theRipper = explode(">",$theRipper[2]);
-    $storyTitle = $theRipper[1];
-    $theRipper = explode('"',$theRipper[0]);
-    $storyLink = htmlspecialchars($theRipper[1]);
-    $theRipper = explode("</h3>",$contents);
-    $theRipper = explode("<hr />",$theRipper[1]);
-    $storyText = $theRipper[0];
-    $theRipper = explode("title=\"Posted by ",$contents);
-    $theRipper = explode('"',$theRipper[1]);
-    $poster = $theRipper[0];
+    #Set some sane defaults for cases where no user exists
     $email = "null@example.com";
     $author = "X";
-    if(isset($tcmsUsers[$poster])) {
-        $email = $tcmsUsers[$poster]["email"];
-        $author = $tcmsUsers[$poster]["fullName"]; 
+    #Check the format, do needful based on what's here
+    $json = json_decode($contents);
+    if(is_null($json)) {
+      //HAHAHA You thought you needed an XML parser, didn't you?
+      $theRipper = explode("<",$contents);
+      $theRipper = explode(">",$theRipper[2]);
+      $storyTitle = $theRipper[1];
+      $theRipper = explode('"',$theRipper[0]);
+      $storyLink = htmlspecialchars($theRipper[1]);
+      $theRipper = explode("</h3>",$contents);
+      $theRipper = explode("<hr />",$theRipper[1]);
+      $storyText = $theRipper[0];
+      $theRipper = explode("title=\"Posted by ",$contents);
+      $theRipper = explode('"',$theRipper[1]);
+      $poster = $theRipper[0];
+      if(isset($tcmsUsers[$poster])) {
+          $email = $tcmsUsers[$poster]["email"];
+          $author = $tcmsUsers[$poster]["fullName"]; 
+      }
+      $feed .= '<item>
+                 <title>'.$storyTitle.'</title>
+                 <description><![CDATA['.$storyText.']]></description>
+                 <link>'.$storyLink.'</link>
+                 <guid isPermaLink="false">'.basename($shitpost).'-'.$_SERVER["SERVER_NAME"].'</guid>
+                 <pubDate>'.$storyPubDate.'</pubDate>
+                 <author>'.$email.' ('.$author.')</author>
+                </item>';
+    } elseif (isset($json->title) && isset($json->url) && isset($json->poster)) {
+        if(isset($tcmsUsers[$json->poster])) {
+            $email = $tcmsUsers[$json->poster]["email"];
+            $author = $tcmsUsers[$json->poster]["fullName"]; 
+        }
+        $feed .= '<item>
+                   <title>'.$json->title.'</title>
+                   <description><![CDATA['.$json->comment.']]></description>
+                   <link>'.$json->url.'</link>
+                   <guid isPermaLink="false">'.basename($shitpost).'-'.$_SERVER["SERVER_NAME"].'</guid>
+                   <pubDate>'.$storyPubDate.'</pubDate>
+                   <author>'.$email.' ('.$author.')</author>
+                  </item>';
     }
-    $feed .= '<item>
-               <title>'.$storyTitle.'</title>
-               <description><![CDATA['.$storyText.']]></description>
-               <link>'.$storyLink.'</link>
-               <guid isPermaLink="false">'.basename($shitpost).'-'.$_SERVER["SERVER_NAME"].'</guid>
-               <pubDate>'.$storyPubDate.'</pubDate>
-               <author>'.$email.' ('.$author.')</author>
-              </item>';
   }
   $feed .= ' </channel>
             </rss>';
   print_r($feed);
-?>
+ ?>
