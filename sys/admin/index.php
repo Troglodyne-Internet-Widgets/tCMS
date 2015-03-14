@@ -3,6 +3,7 @@
  <head>
   <meta charset="utf-8" />
   <meta name="description" content="tCMS Control Panel"/>
+  <meta name="viewport" content="width=device-width">
   <link rel="stylesheet" type="text/css" href="../../css/structure.css" />
   <link rel="stylesheet" type="text/css" href="../../css/screen.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="../../css/print.css" media="print" />
@@ -11,20 +12,15 @@
   <?php
    extract(json_decode(file_get_contents('config/main.json'),true));
   ?>
-  <script src="/sys/admin/index.js"></script>
  </head>
  <body>
   <div id="topkek" style="text-align: center; vertical-align: middle;">
+   <button title="Menu" id="clickme">&#9776;</button>
    <span id="configbar">
     <a class="topbar" title="Edit Various Settings" href="index.php">Settings</a>
     <a class="topbar" title="Blog Writer" href="index.php?nav=1">Blog Writer</a>
     <a class="topbar" title="Pop off about Stuff" href="index.php?nav=2">MicroBlogger</a>
    </span>
-   <button style="display: none;" id="menubutton" onClick="showMenu();return false;">
-    &#9776;
-   </button>
-  </div>
-  <div id="littlemenu" style="display: none;">
   </div>
   <div id="kontent" style="display: block;">
    <?php

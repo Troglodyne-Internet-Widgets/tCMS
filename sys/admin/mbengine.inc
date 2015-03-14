@@ -53,8 +53,8 @@
   }
   //DOM below
 ?>
-<div style="width: 100%; display: table;">
- <div style="width: 20%; display: table-cell;">
+<div id="mbengine">
+ <div id="submissions">
   <p class="title">Submissions:</p>
   <form id="Submissions" method="POST">
    Title<br /><input class="cooltext" type="text" name="title" />

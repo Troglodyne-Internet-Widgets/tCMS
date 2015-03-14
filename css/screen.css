@@ -93,6 +93,15 @@ textarea {
  background-color: black;
  text-align: center;
 }
+/* admin styles */
+#mbengine {
+ width: 100%;
+ display: table;
+}
+#submissions {
+ width: 20%;
+ display: table-cell;
+}
 #stories {
  vertical-align: top;
 }
@@ -247,7 +256,7 @@ p.posteditortitle {
   #clickme {
     display: table-cell !important;
   }
-  #righttitle {
+  #righttitle, #configbar {
     visibility: hidden;
     position: fixed;
     top: 2rem;
@@ -257,11 +266,21 @@ p.posteditortitle {
     background-color: rgba(0,0,0,.75);
     border-bottom-left-radius: 1em;
   }
-  #clickme:active ~ #righttitle, #clickme:focus ~ #righttitle, #righttitle:hover, #righttitle a:active  {
+  #clickme:active ~ #righttitle, #clickme:focus ~ #righttitle, #righttitle:hover, #righttitle a:active, #clickme:active ~ #configbar, #clickme:focus ~ #configbar, #configbar:hover, #configbar a:active  {
     visibility: visible;
   }
-  #righttitle a {
+  #righttitle a, #configbar a {
     display: block;
     border-right: 0;
+  }
+}
+@media (max-width: 700px) {
+  #mbengine {
+   width: 100%;
+   display: block;
+  }
+  #submissions {
+   width: 100%;
+   display: block;
   }
 }
