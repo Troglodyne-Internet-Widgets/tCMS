@@ -40,6 +40,9 @@ textarea {
  background-color: #333;
  height: 15em;
 }
+audio, video {
+ display: block;
+}
 
 /*Major DOM Element Styling goes below*/
 #topkek {

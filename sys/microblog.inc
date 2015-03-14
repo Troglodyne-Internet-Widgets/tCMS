@@ -21,8 +21,7 @@
         }
       </script>\n";
   }
-  echo '<p class="title"><a title="RSS" class="rss" href="/'.$basedir.$rssdir.'microblog.php"></a>';
-  echo $microblogtitle;
+  echo '<p class="title"><a title="RSS" class="rss" href="/'.$basedir.$rssdir.'microblog.php"></a> '.$microblogtitle;
   //Set important times - $tdtime is today's date, $oldtime is the oldest known date a tCMS install had nuze for - defaults to today then searches microblog dir for entries to set date
   $tdtime = new DateTime(null, new DateTimeZone($timezone));
   $oldtime = clone $tdtime;
@@ -95,7 +94,28 @@
         $fh = fopen($i,'r');
         $fc = fread($fh,10000); //If a microblog item is more than 1kb, you are doing something wrong.
         fclose($fh);
-        echo $fc;
+        $json = json_decode($fc);
+        if(is_null($json)) {
+          echo $fc;
+        } elseif (isset($json->title) && isset($json->url) && isset($json->poster)) {
+          $out = '<h3 class="blogtitles">';
+          $out = $out.'<a href="'.$json->url.'">'.$json->title.'</a>';
+          $out = $out.'<a class="usericon '.$json->poster.'" title="Posted by '.$json->poster.'"></a></h3>';
+          if(isset($json->image)) {
+            $out = $out.'<img class="mblogimg" src="'.$json->image.'" />';
+          }
+          if(isset($json->audio)) {
+            $out = $out.'<audio src="'.$json->audio.'" controls>Download Audio <a href="'.$json->audio.'">Here</a><br /></audio>';
+          }
+          if(isset($json->video)) {
+            $out = $out.'<video src="'.$json->video.'" controls>Download Video <a href="'.$json->video.'">Here</a><br /></video>';
+          }
+          if(isset($json->comment)) {
+            $out = $out.$json->comment;
+          }
+          $out = $out.'<hr />';
+          echo $out;
+        } #Note that if nothing works out here, I'm just opting not to show anything.
         if ($editable) {
           $id=basename($i);
 	  echo "
@@ -122,7 +142,5 @@
     if ($tmrw) {
       echo "<a style=\"float: right;\" href=\"".$_SERVER["PHP_SELF"]."?nav=2&date=".$tomorrow."\">Tomorrow's News</a>\n";
     }
-  } else {
-    //Do nothing - errors thrown above
   }
 ?>
