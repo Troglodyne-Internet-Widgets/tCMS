@@ -4,18 +4,18 @@
   <?php
    //SRSBIZNUSS below - you probably shouldn't edit this unless you know what you are doing
    //GET validation/sanitation and parameter variable definitions below
-   if (!$_SERVER["HTTPS"]) {
+   if (!empty($_SERVER["HTTPS"])) {
     $protocol = "http";
    } else {
     $protocol = "https";
    }
-   if (!$_GET['nav']) {
+   if (empty($_GET['nav'])) {
     $nav = '';
    }
    else {
     $nav = $_GET['nav'];
    }
-   if (!$_GET['post']) {
+   if (empty($_GET['post'])) {
     $post = '';
    }
    else {

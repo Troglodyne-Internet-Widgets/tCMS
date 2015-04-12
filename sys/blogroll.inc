@@ -7,7 +7,7 @@
 </p>
 <?php
 
-if ($_GET['post'] != "") {
+if (!empty($_GET['post'])) {
     $post=urldecode($_GET['post']);
     $statz = stat($post);
     $uid = $statz['uid'];
@@ -29,7 +29,7 @@ if ($_GET['post'] != "") {
 } else {
 
 $offset=0;
-if ($_GET['index'] != "" && !is_int($_GET['index'])) {
+if (!empty($_GET['index']) && !is_int($_GET['index'])) {
 	$offset = 10*$_GET['index'];
 }
 
@@ -87,7 +87,7 @@ if ($older) {
 	echo "<a href=\"".$_SERVER["PHP_SELF"]."?nav=3&index=$offset\">Older Posts</a>";
 }
 echo "</td><td style=\"text-align: right;\">";
-if ($_GET['index'] != "") {
+if (!empty($_GET['index'])) {
 	$offset=$_GET['index']-1;
 	if ($offset == 0) {
 		echo "<a href=\"".$_SERVER["PHP_SELF"]."?nav=3\">Newer Posts</a>";

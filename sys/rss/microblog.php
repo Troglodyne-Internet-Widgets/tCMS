@@ -51,7 +51,7 @@
                  <pubDate>'.$storyPubDate.'</pubDate>
                  <author>'.$email.' ('.$author.')</author>
                 </item>';
-    } elseif (isset($json->title) && isset($json->url) && isset($json->poster)) {
+    } elseif (!empty($json->title) && !empty($json->url) && !empty($json->poster)) {
         if(isset($tcmsUsers[$json->poster])) {
             $email = $tcmsUsers[$json->poster]["email"];
             $author = $tcmsUsers[$json->poster]["fullName"]; 
