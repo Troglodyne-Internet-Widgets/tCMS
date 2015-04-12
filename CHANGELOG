@@ -3,12 +3,11 @@ Version 1.2 "Maxim" Release Notes:
 *Made microblogger start writing posts in JSON notation. This will enable posts from here on out to have additional metadata, manipulation ability, etc.
   -Should mean less HTML knowledge required for editing your microblog postings
   -Falls back to old display/edit method if posting is not JSON so as not to crap on anything.
-*Blog writer also now uses JSON notation to store data.
-  -Stores poster regardless of filesystem permissions this way
-  -Automatically makes a snippet in linklog pointing to blog post on day of posting
 *No longer using Cortado or audioplayer.js to display audio/video, since HTML5 alternatives work well now
  -Video type postings can either be embed or the link to an actual file, if so, it'll validate filetype, etc. then display as HTML5 Video
-*Responsive JS waxed, CSS used instead - will make stuff like libreJS and NoScript irrelevant
+*Responsive JS waxed, CSS used instead - will make stuff like libreJS and NoScript irrelevant.
+ There is still some JS on the microblog editor page, I'll remove that eventually.
+ In any event, all this means is that the person editing posts has to use JS for the div to enable/disable correctly.
 
 GITHUGS RELEASE 1.1.2:
 *Bug fixes, code cleanup, mostly making it more friendly to the github platform
