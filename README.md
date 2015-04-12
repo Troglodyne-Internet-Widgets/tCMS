@@ -20,16 +20,19 @@ As of the latest version, there should be no upgrade issues,
 despite switching to using JSON to store new postings.
 The code anticipates and uses the legacy style of accessing old posts in that instance.
 
-TODO:
+TODO/Ideas:
  * Convert blog posts to use JSON, similar to microblog, mostly to enable storing better metadata.
+ * Theming importation ability, or a decent upgrading script for more effective cruise control.
  * Test code. I'll probably do this in perl,
    since I'm used to it's test harnesses and Selenium::Remote::Driver for functional automated testing.
+ * Support for torrent seedboxes tracking /fileshare to autoprovide magnet links to downloads
  * API conversion for signifigant functionality, mostly as a way to make it easier to extend tCMS.
    - For example, a cron that watches your install for new posts then crossposts to twitter, etc.
    - Distributed tCMS installs with gluster would be fun :D
  * Support for alternative authentication schemes (LDAP, etc.).
    I doubt a manual mapping table from what you've set HTTP auth users to in tCMS is everyone's cup o tea.
  * Add option for using an SQLite database to store posting data, configs, etc.
+ * ...And anything here too: http://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Appendix%2001-TODO.post
 
 Really, I don't wanna go too hog wild with features on this,
 since I've already accomplished pretty much 100% of what I want tCMS to do for me.
