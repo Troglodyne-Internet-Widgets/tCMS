@@ -47,6 +47,14 @@
   <!--[if IE 6]>
    <link rel="stylesheet" type="text/css" href="css/compat/ie6.css">
   <![endif]-->
+  <?php
+    if(file_exists($_SERVER['DOCUMENT_ROOT'].'/'.$basedir.'/css/custom/screen.css')) {
+      echo '<link rel="stylesheet" type="text/css" href="css/custom/screen.css" />';
+    }
+    if(file_exists($_SERVER['DOCUMENT_ROOT'].'/'.$basedir.'/css/custom/print.css')) {
+      echo '<link rel="stylesheet" type="text/css" href="css/custom/print.css" />';
+    }
+  ?>
   <link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />
   <title>
    <?php
