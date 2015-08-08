@@ -1,12 +1,10 @@
 {
-  "tcmsUsers" : {
-    "admin" : {
-      "fullName" : "The Administrator",
-      "email" : "admin@example.com"
-    },
-    "Nobody" : {
-      "fullName" : "Anonymous",
-      "email" : "dev@null.io"
-    }
+  "admin" : {
+    "fullName" : "The Administrator",
+    "email" : "admin@example.com"
+  },
+  "Nobody" : {
+    "fullName" : "Anonymous",
+    "email" : "dev@null.io"
   }
 }

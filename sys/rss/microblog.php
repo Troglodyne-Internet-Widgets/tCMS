@@ -1,7 +1,7 @@
 <?php 
   //Import your config, set some stuff up, then construct the mining laser
   extract(json_decode(file_get_contents('../admin/config/main.json'),true));
-  extract(json_decode(file_get_contents('../admin/config/users.json'),true));
+  $tcmsUsers = json_decode(file_get_contents('../admin/config/users.json'),true);
   date_default_timezone_set($timezone);
   $tiem = date(DATE_RSS);
   $today = date("m.d.y");
