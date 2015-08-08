@@ -61,8 +61,12 @@
     if(file_exists('css/custom/print.css')) {
       echo '<link rel="stylesheet" type="text/css" href="css/custom/print.css" />';
     }
+    if(file_exists('favicon.ico')) {
+      echo '<link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico" />';
+    } else {
+      echo '<link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />';
+    }
   ?>
-  <link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />
   <title>
    <?php
     echo $config['htmltitle'];
