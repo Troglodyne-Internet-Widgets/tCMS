@@ -7,6 +7,13 @@
   <link rel="stylesheet" type="text/css" href="../../css/structure.css" />
   <link rel="stylesheet" type="text/css" href="../../css/screen.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="../../css/print.css" media="print" />
+  <?php
+    if(file_exists('../../css/custom/avatars.css')) {
+      echo '<link rel="stylesheet" type="text/css" href="../../css/custom/avatars.css" />';
+    } else {
+      echo '<link rel="stylesheet" type="text/css" href="../../css/avatars.css" />';
+    }
+  ?>
   <link rel="icon" type="image/vnd.microsoft.icon" href="../../img/icon/favicon.ico" />
   <title>tCMS Admin</title>
   <?php

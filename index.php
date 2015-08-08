@@ -43,7 +43,13 @@
   <link rel="stylesheet" type="text/css" href="css/structure.css" />
   <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen" />
   <link rel="stylesheet" type="text/css" href="css/print.css" media="print" />
-  <link rel="stylesheet" type="text/css" href="css/avatars.css" />
+  <?php
+    if(file_exists('css/custom/avatars.css')) {
+      echo '<link rel="stylesheet" type="text/css" href="css/custom/avatars.css" />';
+    } else {
+      echo '<link rel="stylesheet" type="text/css" href="css/avatars.css" />';
+    }
+  ?>
   <!--Compatibility Stylesheets-->
   <!--[if lte IE 8]>
    <link rel="stylesheet" type="text/css" href="css/compat/ie.css">
