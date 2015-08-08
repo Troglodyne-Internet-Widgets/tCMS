@@ -13,14 +13,14 @@
         }
       </script>\n";
   }
-  echo '<p class="title"><a title="RSS" class="rss" href="/'.$basedir.$rssdir.'microblog.php"></a> '.$microblogtitle;
+  echo '<p class="title"><a title="RSS" class="rss" href="/'.$config['basedir'].$config['rssdir'].'microblog.php"></a> '.$config['microblogtitle'];
   //Set important times - $tdtime is today's date, $oldtime is the oldest known date a tCMS install had nuze for - defaults to today then searches microblog dir for entries to set date
-  $tdtime = new DateTime(null, new DateTimeZone($timezone));
+  $tdtime = new DateTime(null, new DateTimeZone($config['timezone']));
   $oldtime = clone $tdtime;
   //limit results of directory read to first entry -- much faster than doing it with PHP once you get a large filelist. 
-  exec("ls -tr1 ".$_SERVER["DOCUMENT_ROOT"].'/'.$basedir.$microblogdir." |head -1", $cmd_out);
+  exec("ls -tr1 ".$_SERVER["DOCUMENT_ROOT"].'/'.$config['basedir'].$config['microblogdir']." |head -1", $cmd_out);
   if(!empty($cmd_out[0])) {
-    $oldtime = $oldtime = DateTime::createFromFormat('m.d.y', $cmd_out[0], new DateTimeZone($timezone));
+    $oldtime = $oldtime = DateTime::createFromFormat('m.d.y', $cmd_out[0], new DateTimeZone($config['timezone']));
   }
   $oldtime->sub(new DateInterval('P1D'));
   /*$today and $tmrw refer to times relative to what is passed by GET params -
@@ -30,7 +30,7 @@
   $error = 0;
   $today = clone $tdtime;
   if(!empty($_GET["date"])) {
-    $today = DateTime::createFromFormat('m.d.y', $_GET["date"], new DateTimeZone ($timezone));
+    $today = DateTime::createFromFormat('m.d.y', $_GET["date"], new DateTimeZone ($config['timezone']));
     //Catch bogus input, set $tmwr to TRUE if $today was set to something other than today's date
     if (!filter_var($_GET["date"],FILTER_VALIDATE_REGEXP,array('options' => array('regexp' => "/^(0[1-9]|1[012])[.](0[1-9]|[12][0-9]|3[01])[.]\d\d/")))) {
       echo "</p>That's a funny looking date you provided there, mister.\n";
@@ -67,7 +67,7 @@
       }
       if ($todaysnews != "end") {
         //Get news from directory if any exists for that day, glob will return empty if nothing is in dir
-        $todaysnews = glob($_SERVER["DOCUMENT_ROOT"].'/'.$basedir.$microblogdir.$today->format('m.d.y')."/*");
+        $todaysnews = glob($_SERVER["DOCUMENT_ROOT"].'/'.$config['basedir'].$config['microblogdir'].$today->format('m.d.y')."/*");
         //Set display date for today's news, set $today to be yesterday in order to get while loop to recurse correctly
         $realtime = $today->format('m.d.y');
         if(!empty($_GET['fwd']) && $_GET['fwd']) {//Check whether we are traversing forward or backward in time

@@ -1,7 +1,7 @@
 <p class="title">
  <a title="RSS" href="sys/rss/blog.php" class="rss"></a>
  <?php
-  echo $blogtitle;
+  echo $config['blogtitle'];
  ?>
  <hr />
 </p>

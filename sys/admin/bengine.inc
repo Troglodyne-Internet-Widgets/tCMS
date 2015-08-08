@@ -51,11 +51,11 @@
  /*Initialize vars, get directory contents*/
  $postincrementer = 0;
  $JSAIDS = "";
- $dir = $_SERVER['DOCUMENT_ROOT'].$basedir.'/'.$blogdir;
+ $dir = $_SERVER['DOCUMENT_ROOT'].$config['basedir'].'/'.$config['blogdir'];
  $postlisting = scandir($dir);
  rsort($postlisting, SORT_NUMERIC);
  /*Post Manipulation*/
- if ($_POST["id"] != "") {
+ if (!empty($_POST["id"])) {
   /*Post Deletion*/
   if ($_POST["mod"] == "Delete Post") {
    $fh = unlink($_POST["id"]);
@@ -90,7 +90,7 @@
   $postlisting = scandir($dir);
   rsort($postlisting, SORT_NUMERIC);
   foreach ($postlisting as $key=>$val) {
-    $id = $_SERVER["DOCUMENT_ROOT"].$basedir.$blogdir.basename($val);
+    $id = $_SERVER["DOCUMENT_ROOT"].$config['basedir'].$config['blogdir'].basename($val);
     $posttitle = strstr($val,'.', true);
   if (!empty($posttitle)) {
    $postincrementer++;
@@ -109,7 +109,7 @@
       <input type=\"submit\" name=\"mod\" value=\"Delete Post\" class=\"coolbutton\">
      </form>
     </div>";
-   $JSAIDS.="document.getElementById('link".$postincrementer."').addEventListener('click',function () {loadpost('/".$basedir.$blogdir.$val."','innerHTML".$postincrementer."',false);});\nwindow.postsLoaded['innerHTML".$postincrementer."'] = false;";
+   $JSAIDS.="document.getElementById('link".$postincrementer."').addEventListener('click',function () {loadpost('/".$config['basedir'].$config['blogdir'].$val."','innerHTML".$postincrementer."',false);});\nwindow.postsLoaded['innerHTML".$postincrementer."'] = false;";
   }
  }
 print "<script type=\"text/javascript\">\n

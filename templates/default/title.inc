@@ -1,6 +1,6 @@
 <div id="lefttitle" class="toplel">
  <?php
-  echo $htmltitle;
+  echo $config['htmltitle'];
  ?>
 </div>
 <div id="midtitle" class="toplel">

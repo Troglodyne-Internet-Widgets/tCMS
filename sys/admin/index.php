@@ -10,7 +10,7 @@
   <link rel="icon" type="image/vnd.microsoft.icon" href="../../img/icon/favicon.ico" />
   <title>tCMS Admin</title>
   <?php
-   extract(json_decode(file_get_contents('config/main.json'),true));
+   $config = json_decode(file_get_contents('config/main.json'),true);
   ?>
  </head>
  <body>
@@ -24,19 +24,18 @@
   </div>
   <div id="kontent" style="display: block;">
    <?php
-    if ($_SERVER["HTTPS"] != "") {
+    if (!empty($_SERVER["HTTPS"])) {
      $protocol = "https";
     } else {
      $protocol = "http";
     }
-    $nav = $_GET['nav'];
-    if (empty($nav)) {
+    if (empty($_GET['nav'])) {
      $kontent = "settings.inc";
     }
-    elseif ($nav == 1) {
+    elseif ($_GET['nav'] == 1) {
      $kontent = "bengine.inc";
     }
-    elseif ($nav == 2) {
+    elseif ($_GET['nav'] == 2) {
      $kontent = "mbengine.inc";
     }
     include $kontent;

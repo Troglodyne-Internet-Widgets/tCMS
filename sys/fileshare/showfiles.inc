@@ -1,6 +1,5 @@
 <?php
- $dir = $_GET['dir'];
- $pwd = $dir;
+ $pwd = $_GET['dir'];
 
  //These variables are to check whether the directory we will link to exists, and to know what directory we are in 
  $check = @scandir($pwd.'/../', 1);
@@ -105,11 +104,11 @@
 					};
 				};
 			};
-			echo '<img class="icon" src='.$icondir.$ikon.' />';
+			echo '<img class="icon" src='.$config['icondir'].$ikon.' />';
 			echo '<a href="'.$link.$pwd.'/'.$ls[$n].'">'.$ls[$n].'</a><br />';
 		}
 		else {
-			echo '<img src="'.$icondir.'tsfolder.gif" />';
+			echo '<img src="'.$config['icondir'].'tsfolder.gif" />';
 			echo '<a href="index.php?nav=1&dir='.$pwd.'/'.$ls[$n].'">'.$ls[$n].'</a><br />'."\n";
 		}
 	}

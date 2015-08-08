@@ -102,7 +102,7 @@
  <div id="stories">
   <?php
    $editable = 1;
-   include $_SERVER["DOCUMENT_ROOT"].'/'.$basedir."sys/microblog.inc";
+   include $_SERVER["DOCUMENT_ROOT"].'/'.$config['basedir']."sys/microblog.inc";
   ?>
  </div>
 </div>
