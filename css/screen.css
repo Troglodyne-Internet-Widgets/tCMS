@@ -79,17 +79,11 @@ audio, video {
  background-color: rgba(0,0,0,.75);
  border-bottom-left-radius: 1em;
 }
-#leftbar {
-
-}
 #kontent {
  background: rgb(255,255,255); /*IE Fallback*/
  background: rgba(255,255,255,.90);
  border-radius: 0px 0px 1em 1em;
  box-shadow: 0 .5em 1em black;
-}
-#rightbar {
- 
 }
 #footbar {
  color: white;
