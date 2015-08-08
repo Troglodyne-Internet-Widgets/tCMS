@@ -130,7 +130,7 @@
 	//If we are not in the TLD, make a link to the previous dir
 	if ($prevdirname <> '') {
 
-		echo '<img src="'.$icondir.'tsfolder-up.gif" />';
+		echo '<img src="'.$config['icondir'].'tsfolder-up.gif" />';
 		echo '<a href="index.php?nav=1&dir='.$prevdirname.'">Up one level</a>'."\n";
 
 	}
