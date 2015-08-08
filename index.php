@@ -55,7 +55,7 @@
    <link rel="stylesheet" type="text/css" href="css/compat/ie6.css">
   <![endif]-->
   <?php
-    if(file_exists('/css/custom/screen.css')) {
+    if(file_exists('css/custom/screen.css')) {
       echo '<link rel="stylesheet" type="text/css" href="css/custom/screen.css" />';
     }
     if(file_exists('css/custom/print.css')) {
