@@ -2,9 +2,12 @@
 $tcmsUsers = json_decode(file_get_contents('config/users.json'),true);
 if (!empty($_SERVER['REMOTE_USER']) && !empty($tcmsUsers)) {
     $poster = "admin";
-    if(array_search($_SERVER['REMOTE_USER'], array_column($tcmsUsers, 'remoteUser')) == $_SERVER['REMOTE_USER']) {
-      $poster = $key;
-    }
+    foreach (array_keys($tcmsUsers) as $user) {
+        if( $tcmsUsers[$user]['remoteUser'] == $_SERVER['REMOTE_USER']) {
+            $poster = $user;
+            break;
+        }   
+    }   
 } else {
     $poster = "Nobody";
 }
