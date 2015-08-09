@@ -1,9 +1,15 @@
 <?php
+  header('Content-Type: application/rss+xml'); 
+  if (!empty($_SERVER["HTTPS"])) {
+    $protocol = "http";
+  } else {
+    $protocol = "https";
+  }
 	extract(json_decode(file_get_contents('../admin/config/main.json'),true));
     echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	echo "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n";
 	echo "<channel>\n";
-    $atomlink = "http://".$_SERVER["SERVER_NAME"]."/".$basedir.$rssdir."blog.php";
+    $atomlink = "$protocol://".$_SERVER["SERVER_NAME"]."/".$basedir.$rssdir."blog.php";
 	echo "<atom:link href=\"".$atomlink."\" rel=\"self\" type=\"application/rss+xml\" />";
 	echo "\t<title>".$htmltitle."</title>\n";
 	echo "\t<description>".$blogtitle."</description>\n";

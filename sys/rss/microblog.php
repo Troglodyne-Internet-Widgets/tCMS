@@ -1,11 +1,17 @@
-<?php 
+<?php
+  header('Content-Type: application/rss+xml'); 
+  if (!empty($_SERVER["HTTPS"])) {
+    $protocol = "http";
+  } else {
+    $protocol = "https";
+  }
   //Import your config, set some stuff up, then construct the mining laser
   extract(json_decode(file_get_contents('../admin/config/main.json'),true));
   $tcmsUsers = json_decode(file_get_contents('../admin/config/users.json'),true);
   date_default_timezone_set($timezone);
   $tiem = date(DATE_RSS);
   $today = date("m.d.y");
-  $atomlink = "http://".$_SERVER["SERVER_NAME"]."/".$basedir.$rssdir."microblog.php";
+  $atomlink = "$protocol://".$_SERVER["SERVER_NAME"]."/".$basedir.$rssdir."microblog.php";
   $newsdir = $_SERVER["DOCUMENT_ROOT"]."/".$basedir.$microblogdir;
   $files = glob($newsdir.$today."/*");
   $slen = count($files);
@@ -46,7 +52,7 @@
       $feed .= '<item>
                  <title>'.$storyTitle.'</title>
                  <description><![CDATA['.$storyText.']]></description>
-                 <link>'.$storyLink.'</link>
+                 <link>'.preg_replace('/&/', '&#038;', $storyLink).'</link>
                  <guid isPermaLink="false">'.basename($shitpost).'-'.$_SERVER["SERVER_NAME"].'</guid>
                  <pubDate>'.$storyPubDate.'</pubDate>
                  <author>'.$email.' ('.$author.')</author>
@@ -59,7 +65,7 @@
         $feed .= '<item>
                    <title>'.$json->title.'</title>
                    <description><![CDATA['.$json->comment.']]></description>
-                   <link>'.$json->url.'</link>
+                   <link>'.preg_replace('/&/', '&#038;', $json->url).'</link>
                    <guid isPermaLink="false">'.basename($shitpost).'-'.$_SERVER["SERVER_NAME"].'</guid>
                    <pubDate>'.$storyPubDate.'</pubDate>
                    <author>'.$email.' ('.$author.')</author>
