@@ -1,5 +1,5 @@
 <?php
-  if ($editable) { //Insert the Only JS the project should have, all it does is toggle a div
+  if ( !empty( $editable ) ) { //Insert the Only JS the project should have, all it does is toggle a div
     echo "
       <script type=\"text/javascript\">
         function switchMenu(obj) {
@@ -117,9 +117,9 @@
           $out .= '<hr />';
           echo $out;
         } #Note that if nothing works out here, I'm just opting not to show anything.
-        if ($editable) {
+        if ( !empty( $editable ) ) {
           $id=basename($i);
-	  $editblock = "
+		  $editblock = "
             <a style=\"display: inline-block;\" onclick=\"switchMenu('$id');\">[Edit]</a>
             <div style=\"display: none;\" id=\"$id\">
              <form style=\"display: inline\" method=\"POST\">
@@ -129,7 +129,8 @@
             $editblock .= "<textarea class=\"mbedit_text\" name=\"content\">$fc</textarea>";
           } else {
           $editblock .= '<input type="hidden" name="type" value="JSON" />
-            Title: <input class="cooltext" type="text" name="title" value="'.$json->title.'" /><br />
+            Title: <input class="cooltext" type="text" name="title"
+			value="' . preg_replace( '"' ,'\"' , $json->title ) .'" /><br />
             URL: <input class="cooltext" type="text" name="URL" value="'.$json->url.'" /><br />
             Image: <input class="cooltext" type="text" name="IMG" value="'.$json->image.'" /><br />
             Audio: <input class="cooltext" type="text" name="AUD" value="'.$json->audio.'" /><br />

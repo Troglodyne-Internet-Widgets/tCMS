@@ -1,0 +1,70 @@
+<!doctype html>
+<html dir="ltr" lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="description" content="tCMS"/>
+        <meta name="viewport" content="width=device-width">
+        <link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />
+        <title>
+            tCMS Requires Setup to Continue...
+        </title>
+        <style>
+            body, html {
+                font-size: 100%;
+                margin: 0;
+            }
+            nav {
+                padding: .5rem;
+                height: 2rem;
+                line-height: 2rem;
+                font-size: 1.5rem;
+                background-color: black;
+                color: white;
+            }
+            section {
+                display: block;
+                width: 100%;
+                margin: 1rem auto 0 auto;
+            }
+            @media( min-width: 768px ) {
+                section {
+                    width: 80%;
+                }
+            }
+            #notice {
+                display: table;
+                padding: .5rem;
+                background-color: rgba( 0, 0, 0, .75 );
+                color: #00FF00;
+                border-radius: .25rem;
+            }
+            #notice > img, #notice > span {
+                margin: .25rem;
+                display: table-cell;
+                vertical-align: middle;
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <strong>tCMS Configuration <!--Wizard--></strong>
+            <span style="float: right;">Step 1</span>
+        </nav>
+        <section>
+            <div id="notice">
+                <img alt="Icon indicating a missing file" src="img/mime/missing.gif" />
+                <span>
+                    [INFO] This page is being displayed because sys/admin/config/main.json is missing
+                    (or corrupted).
+                </span>
+            </div>
+            <p>
+                Please see the
+                <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter%2000-Introduction.post">
+                    tCMS Manual
+                </a>
+                for instructions on how configure tCMS.
+            </p>
+        </section>
+    </body>
+</html>
