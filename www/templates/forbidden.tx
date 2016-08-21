@@ -1,0 +1,5 @@
+403 Forbidden
+<br /><br />
+: if ( !$user ) {
+    Log in <a href="/login?to=<: $route :>">here</a>.
+: }

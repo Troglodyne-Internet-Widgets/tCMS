@@ -1,0 +1,109 @@
+/*First, we start off with specifying what parts of the DOM we want hidden*/
+#leftbar, #rightbar, #footbar {
+ display: none;
+}
+
+/*Now, on to positioning of the elements*/
+body {
+ position: relative;
+ margin: 0;
+ width: 100%;
+ min-height: 100vh;
+ max-height: 100%;
+}
+#topkek {
+ display: flex;
+ position: fixed;
+ z-index: 2;
+ top: 0;
+ width: 100%;
+ height: 2rem;
+}
+.toplel {
+ display: table-cell;
+}
+#lefttitle {
+ flex 1 0 33%;
+}
+#midtitle {
+ flex-grow: 1; 
+}
+#righttitle {
+ flex 1 0 33%;
+}
+#righttitle a, #configbar a {
+ display: inline-block;
+}
+#menubutton {
+ display: none;
+ min-width: 2%;
+ max-width: 33%;
+ padding-right: .5em;
+}
+#littlemenu {
+ display: none;
+ position: fixed;
+ z-index: 3;
+ top: 1.5em;
+ right: 0px;
+ padding: 0px .5em .5em .5em;
+}
+#littlemenu a {
+ display: block;
+}
+#kontainer {
+ display: table;
+ width: 100%;
+ padding-bottom: 2.5em;
+}
+.kontained {
+ display: table-cell;
+}
+#leftbar {
+ width: 6em;
+ padding-right: .5em;
+}
+#kontent {
+ padding: 3em .5em .5em .5em;
+ min-height: 50%;
+ max-width: 100%;
+ margin-top: 0px;
+ width:100%;
+}
+#rightbar {
+ width: 6em;
+ padding-left: .5em;
+}
+#footbar {
+ position: absolute;
+ bottom: 0;
+ width: 100%;
+ height: 1.5em;
+}
+#stories {
+ padding: 0px .5em .5em .5em;
+ width: 80%;
+ display: table-cell;
+}
+
+/*Some CSS rules below that I actually want to load on both print and screen views*/
+blockquote {
+  font-style: italic;
+}
+
+.inline {
+    display: inline;
+}
+
+.responsive { /*Close enough to 16:9*/
+    width: 35rem;
+    height: 20rem;
+}
+@media(max-width: 35rem) {
+    .responsive {
+        width: 100%;
+        height: 10rem;
+    }
+}
+
+

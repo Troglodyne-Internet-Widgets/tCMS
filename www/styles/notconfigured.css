@@ -1,0 +1,39 @@
+body, html {
+    font-size: 100%;
+    margin: 0;
+    background-color:white;
+}
+nav {
+    padding: .5rem;
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 1.5rem;
+    background-color: black;
+    color: white;
+}
+section {
+    display: block;
+    margin: 1rem auto 0 auto;
+    padding: 0 1rem;
+}
+#notice {
+    display: table;
+    padding: .5rem;
+    background-color: rgba( 0, 0, 0, .75 );
+    color: #00FF00;
+    border-radius: .25rem;
+}
+#notice > img, #notice > span {
+    margin: .25rem;
+    display: table-cell;
+    vertical-align: middle;
+}
+/* Styles for larger viewports */
+@media( min-width: 768px ) {
+    section {
+        width: 80%;
+    }
+    #notice {
+        width: calc( 100% - 1rem);
+    }
+}

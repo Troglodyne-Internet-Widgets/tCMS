@@ -1,3 +1,19 @@
+Version 3.0 Perlized [ALPHA]
+* Re-write with perl/psgi.
+* Re-architected to support multiple data backends, most important default one being elasticsearch
+* Simplified configuration model drastically
+* Multimedia content now first-class posts rather than junk in /fileman
+* Series of content now supported for easy category browsing
+* Private/Unlisted content now supported
+* User About pages now much easier to build
+* Theming massively simplified
+
+Version 2.0 IRONMAN SLOG development notes [ALPHA]:
+* tCMS now has an installer/updater in bin/installer. Makefile rules 'make install' and 'make update' also do this.
+* Fixed a bug where "" encapsulated titles in microblog editor would get baleeted on load.
+* Changed up the directory structure somewhat, mostly due to needing privately stored items.
+* Added an SVG logo.
+
 Version 1.2 "Maxim" Release Notes:
 *General mbengine.inc code cleanup, trying to play better golf while commenting more
 *Made microblogger start writing posts in JSON notation. This will enable posts from here on out to have additional metadata, manipulation ability, etc.

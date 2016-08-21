@@ -1,0 +1,7 @@
+Content<br /><textarea class="cooltext" name="data" placeholder="Potzrebie"><: $post.data :></textarea>
+<input type="hidden" name="app" value="<: $app :>" />
+<input type="hidden" name="to"  value="<: $route :>" />
+: if ( $post.id ) {
+<input type="hidden" name="id" value="<: $post.id :>" />
+: }
+<input class="coolbutton" type="submit" value="Publish" text="Publish" />

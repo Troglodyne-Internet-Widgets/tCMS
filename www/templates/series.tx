@@ -1,0 +1,12 @@
+<form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
+    Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+    ACL name *<br /><input required class="cooltext" type="text" name="series" <: $post.aclname :> />
+    : include "preview.tx";
+    Visibility<br />
+    <select class="cooltext" name="visibility">
+        : for $post_visibilities -> $visibility {
+            <option <: $post.visibility == $visibility ? 'selected' : '' :> value="<: $visibility :>"><: $visibility :></option>
+        : }
+    </select>
+    : include "form_common.tx";
+</form>

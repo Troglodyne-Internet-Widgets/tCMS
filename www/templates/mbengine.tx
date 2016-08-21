@@ -1,0 +1,10 @@
+<div id="mbengine">
+    : if ( !$id ) {
+    <div id="submissions">
+        : include $edittype ~ ".tx";
+    </div>
+    : }
+    <div id="stories">
+        : include "posts.tx";
+    </div>
+</div>

@@ -1,0 +1,46 @@
+: include "sysbar.tx";
+: include "jsalert.tx";
+<p class="title">
+ General settings:
+</p>
+This controls your Theme and Data Model used.
+The Data Model *must* be 0-configuration.
+If for example, you use mysql it will have to rely on either a local server, valid config file or connection proxy/pooler locally.
+<hr />
+<form class="Submissions Config" id="mainConfig" method="post" action="/config/save">
+    Theme:
+    <select class="cooltext" name="theme">
+        <option value="" <: if ( $current_theme == '' ) { :>selected<: } :> >default</option>
+        : for $themes -> $theme {
+        <option value="<: $theme :>" <: if ( $current_theme == $theme ) { :>selected<: } :> ><: $theme :></option>
+        : }
+    </select>
+    <div>
+    Data Model:
+    <select class="cooltext" name="data_model">
+        : for $data_models -> $dm {
+        <option value="<: $dm :>" <: if ( $current_data_model == $dm ) { :>selected<: } :> ><: $dm :></option>
+        : }
+    </select>
+    </div>
+    <br />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
+</form>
+<hr />
+<p class="title">
+ Theme cloner:
+</p>
+Want to write your own theme?
+Clone a theme here then see the <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter 03-Customization.post" title="GET UR MIND RITE">styling guide</a>
+for information on how tCMS' templates, image sets and CSS work in the theming system.
+<hr />
+<form class="Submissions" id="themeCloner" method="post" action="/themeclone">
+    Theme:
+    <select class="cooltext" name="theme">
+        : for $themes -> $theme {
+        <option value="<: $theme :>"><: $theme :></option>
+        : }
+    </select>
+    <input required type="text" class="cooltext" placeholder="newTheme" name="newtheme" />
+    <input type="submit" class="coolbutton" value="Clone" />
+</form>

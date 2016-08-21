@@ -1,0 +1,21 @@
+<nav>
+    <strong>tCMS Initial Setup</strong>
+</nav>
+<section>
+    <div id="notice">
+        <img alt="Icon indicating a missing file" src="/img/mime/missing.gif" />
+        <span>
+            [INFO] This page is being displayed because the main configuration file is missing
+            (or corrupted).
+        </span>
+    </div>
+    <p>
+        <strong>Note:</strong> Please see the
+        <a href="/manual">
+            tCMS Manual
+        </a>
+        for full instructions on how configure tCMS.
+        <br /><br />
+        Please <a href="/config" alt="Login">Log In</a> and Configure tCMS.
+    </p>
+</section>

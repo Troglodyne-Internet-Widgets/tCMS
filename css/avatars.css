@@ -1,6 +1,0 @@
-/*User Images set here*/
-a.Nobody {
- background-image: url(../img/avatar/humm.gif);
- filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='../img/avatar/hydra.png', sizingMethod='scale');
- -ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='../img/avatar/hydra.png', sizingMethod='scale')"
-}

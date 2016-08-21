@@ -1,0 +1,61 @@
+=head1 tCMS Manual
+
+=head2 First time setup
+
+Run these makefile targets:
+
+    make depend
+    make install
+
+From there, running tCMS is pretty simple:
+
+    starman --enable-ssl --ssl-key $MY_KEY_PATH --ssl-cert $MY_CERT_PATH www/server.psgi
+
+The application expects to run from the repository root.
+The first time you open the application, you will be presented with a first-time page that tells you to load /login.
+
+You will note that the submission button says 'Register' rather than 'Login'.
+The first user which logs in will be set up as the administrator, and all further users must be made by them via the /post/about route.
+
+You will want to do the following to make your user public:
+
+=over 4
+
+=item Create a user via the /post/about route using the name you just registered as.  This will require you to re-set your password.
+
+=item Ensure the 'public' visibility is chosen when submitting the form.
+
+=back
+
+=head2 Application Structure
+
+server.psgi is a very straightforward application router which serves requests based on routing modules.
+There are 3 routing modules you will need to know about:
+
+=over 4
+
+=item L<Trog::Routes::HTML> - Render various pages which (mostly) output text/html
+
+=item L<Trog::Routes::JSON> - Implement various application/json output routes
+
+=item Themed B<Routes> - Inside of any given theme in themes/ there will be a Routes.pm module defining custom routes for your theme.
+
+=back
+
+From there the routes are generally going to call out to the data model, which is configured via the /config route.
+There are only two relevant things to configure, which is what Theme and Data model to use.
+
+The configuration module is L<Trog::Config>.
+The Data model modules are all subclasses of L<Trog::Data>.
+
+We include a bogus data model for testing called 'DUMMY' which should not be used for production purposes.
+It is useful as an example for developers: L<Trog::Data::DUMMY>
+
+Authentication is accomplished via a cookie (tcmslogin) which we check against an sqlite database, ~/.tcms/auth.db
+Passwords are hashed and salted, and the only other thing stored there is what ACLs users have.
+The module controlling this is L<Trog::Auth>.
+
+=head2 Theming
+
+Themes are subdirectories of /themes, which mirror the structure of www/ internally.
+Stylesheets are included after the mainline ones, so that your styles will override the default.

@@ -1,0 +1,24 @@
+<div id="login">
+    : include "jsalert.tx";
+    <div>
+      <img id="logo" src="/img/icon/tCMS.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
+    </div>
+    <div id="spacer" style="clear: both;"><br /></div>
+    <form method="POST" action="/auth">
+      <input type="hidden" name="app" value="login" />
+      <input type="hidden" name="to" value="<: $to :>" />
+      Username<br />
+      <div class="input-group">
+        <label for="username">😎</span></label>
+        <input required name="username" id="username" placeholder="AzureDiamond" value="" type="text"></input>
+      </div>
+      <br />
+      Password<br />
+      <div class="input-group">
+        <label for="password">🔑</label>
+        <input required name="password" id="password" placeholder="hunter2" value="" type="password"></input>
+      </div>
+      <br />
+      <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
+    </form>
+</div>
