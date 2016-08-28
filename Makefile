@@ -3,4 +3,4 @@ test:
 	prove --exec 'php' t/*.t
 
 install:
-	php sys/admin/lib/configure.php install
+	php bin/install

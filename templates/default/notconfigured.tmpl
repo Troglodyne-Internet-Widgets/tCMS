@@ -23,13 +23,8 @@
             }
             section {
                 display: block;
-                width: 100%;
                 margin: 1rem auto 0 auto;
-            }
-            @media( min-width: 768px ) {
-                section {
-                    width: 80%;
-                }
+                padding: 0 1rem;
             }
             #notice {
                 display: table;
@@ -43,12 +38,20 @@
                 display: table-cell;
                 vertical-align: middle;
             }
+            /* Styles for larger viewports */
+            @media( min-width: 768px ) {
+                section {
+                    width: 80%;
+                }
+                #notice {
+                    width: calc( 100% - 1rem);
+                }
+            }
         </style>
     </head>
     <body>
         <nav>
-            <strong>tCMS Configuration <!--Wizard--></strong>
-            <span style="float: right;">Step 1</span>
+            <strong>tCMS Initial Setup</strong>
         </nav>
         <section>
             <div id="notice">
@@ -59,11 +62,13 @@
                 </span>
             </div>
             <p>
-                Please see the
+                <strong>Note:</strong> Please see the
                 <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter%2000-Introduction.post">
                     tCMS Manual
                 </a>
-                for instructions on how configure tCMS.
+                for full instructions on how configure tCMS.
+                <br /><br />
+                Please <a href="sys/admin?app=config" alt="Login">Log In</a> and Configure tCMS.
             </p>
         </section>
     </body>

@@ -1,6 +1,4 @@
 tCMS2 still left undone (will add to as I think of em)
-* 'make install' target that runs configure.php to do first time config and install.
-* 'configure.php' needs CLI run opts triggered on ARGV not being blank
 * config needs to be based on a model json file.
 * tests for config reading and comparison based on model
 * tests for config validation of user input (wanna make sure we *can* install
