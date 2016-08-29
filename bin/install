@@ -28,12 +28,21 @@ if( $private_base != $user_info['dir'] . "/.tCMS" ) {
     echo "        wish to prevent this information disclosure. Please press [enter] to continue.";
     get_string_from_stdin(); # Mostly just to make the user confirm they read this.
 }
-#TODO Add question here asking for administrator user setup. DO NOT ALLOW DEFAULT VALUES
+while( empty($username) ) {
+    echo "Please enter in the name you'd like to login to tCMS as (you can add more users later):";
+    $username = get_string_from_stdin();
+}
+while( empty($password) ) { # PHP has no standardized way to do this, so do it with shell, "pray it goes ok".
+    $password = shell_exec('read -s PW; echo $PW');
+}
 $wd = realpath( dirname( __FILE__ ) . "/../" );
 echo "[INFO] Installing private data to $private_base now...\n";
 $files = [ 'lib', 'templates' ];
 install( $private_base, $wd, $files );
 ensure_directories_exist( [ "$private_base/blog", "$private_base/microblog", "$private_base/conf" ] );
+echo "[INFO] Writing user configuration and generating 4096-bit RSA public/private keypair...\n";
+#HEREHERE pick up here
+#file_put_contents('');
 #TODO Generate private/public keypair with passphrase of user entered credentials.
 echo "[INFO] Installing public data to $public_base now...\n";
 $files = [ 'css', 'fileshare', 'img', 'index.php', 'sys' ];
