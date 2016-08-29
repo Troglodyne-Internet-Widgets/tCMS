@@ -6,4 +6,9 @@ tCMS2 still left undone (will add to as I think of em)
 * Un-Stubbify first time run wizard
 * Make config page in Admin work right
 
-*SINGLE USER INSTALL INFO TO MANUAL, MULTI-USER INSTALL INFO TO MANUAL
+* SINGLE USER INSTALL INFO TO MANUAL, MULTI-USER INSTALL INFO TO MANUAL
+* CRYPTO LOGIN YOU BAG BITER
+
+`make dist` to make release tarball
+
+Check licensing on all files, make sure all stuff we made is CC0, all stuff from external has proper attribs, etc.

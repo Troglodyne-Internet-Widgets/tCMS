@@ -28,16 +28,17 @@ if( $private_base != $user_info['dir'] . "/.tCMS" ) {
     echo "        wish to prevent this information disclosure. Please press [enter] to continue.";
     get_string_from_stdin(); # Mostly just to make the user confirm they read this.
 }
+#TODO Add question here asking for administrator user setup. DO NOT ALLOW DEFAULT VALUES
 $wd = realpath( dirname( __FILE__ ) . "/../" );
 echo "[INFO] Installing private data to $private_base now...\n";
 $files = [ 'lib', 'templates' ];
 install( $private_base, $wd, $files );
-foreach ( [ "$private_base/blog", "$private_base/microblog" ] as $dir ) {
-    if ( !file_exists( $dir ) ) mkdir( $dir );
-}
+ensure_directories_exist( [ "$private_base/blog", "$private_base/microblog", "$private_base/conf" ] );
+#TODO Generate private/public keypair with passphrase of user entered credentials.
 echo "[INFO] Installing public data to $public_base now...\n";
 $files = [ 'css', 'fileshare', 'img', 'index.php', 'sys' ];
 install( $public_base, $wd, $files );
+ensure_directories_exist( [ "$public_base/css/custom", "$public_base/img/icon/custom" ] );
 if( $private_base != $user_info['dir'] . "/.tCMS" ) {
     file_put_contents( "$public_base/basedir", $private_base );
 }
@@ -65,6 +66,16 @@ function install( $to, $from, $files2copy ) {
         echo "exec `$cmd`\n";
         $out = shell_exec($cmd);
         echo $out; 
+    }
+    return;
+}
+
+function ensure_directories_exist( $dirs ) {
+    foreach ( $dirs as $dir ) {
+        if ( !file_exists( $dir ) ) {
+            echo "exec `/bin/mkdir '$dir'`\n";
+            mkdir( $dir );
+        }
     }
     return;
 }

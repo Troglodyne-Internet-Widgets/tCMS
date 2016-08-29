@@ -1,95 +1,58 @@
 <?php
+# Get protocol bits, etc.
 $protocol = ( !empty($_SERVER["HTTPS"] ) ) ? 'https'       : 'http';
 $nav      = ( !empty($_GET['nav'] ) )      ? $_GET['nav']  : '';
 $post     = ( !empty($_GET['post'] ) )     ? $_GET['post'] : '';
+$docroot  = $_SERVER['DOCUMENT_ROOT'];
 
-if(file_exists('sys/admin/config/main.json')) {
-	$config = json_decode(file_get_contents('sys/admin/config/main.json'),true);
+# Grab the main configuration file. We need to see where that lives first though.
+if( file_exists( "$docroot/basedir" ) ) {
+    $fh = fopen( "$docroot/basedir" );
+    $basedir = trim(fgets( $fh )); # I only want the first line
+    fclose($fh);
 } else {
+    $basedir = posix_getpwuid(posix_geteuid())['dir'] . "/.tCMS";
+}
+
+if(!file_exists("$basedir/conf/main.json")) {
 	# XXX Need to have manual be hosted in repo under sys/admin/manual
-	include( "templates/default/notconfigured.tmpl" );
+	include( "$basedir/templates/default/notconfigured.tmpl" );
 	die();
 }
+$config = json_decode(file_get_contents("$basedir/conf/main.json"),true);
+// Not sure if I'll ever really even need to localize (see html tag attrs).
 ?>
 <!doctype html>
 <html dir="ltr" lang="en-US">
- <head>
-  <meta charset="utf-8" />
-  <meta name="description" content="A Simple CMS by teodesian.net"/>
-  <meta name="viewport" content="width=device-width">
-  <link rel="stylesheet" type="text/css" href="css/structure.css" />
-  <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen" />
-  <link rel="stylesheet" type="text/css" href="css/print.css" media="print" />
-  <?php
-    if(file_exists('css/custom/avatars.css')) {
-      echo '<link rel="stylesheet" type="text/css" href="css/custom/avatars.css" />';
-    } else {
-      echo '<link rel="stylesheet" type="text/css" href="css/avatars.css" />';
-    }
-  ?>
-  <!--Compatibility Stylesheets-->
-  <!--[if lte IE 8]>
-   <link rel="stylesheet" type="text/css" href="css/compat/ie.css">
-  <![endif]-->
-  <!--[if lte IE 7]>
-   <link rel="stylesheet" type="text/css" href="css/compat/ie6-7.css">
-  <[endif]-->
-  <!--[if IE 6]>
-   <link rel="stylesheet" type="text/css" href="css/compat/ie6.css">
-  <![endif]-->
-  <?php
-    if(file_exists('css/custom/screen.css')) {
-      echo '<link rel="stylesheet" type="text/css" href="css/custom/screen.css" />';
-    }
-    if(file_exists('css/custom/print.css')) {
-      echo '<link rel="stylesheet" type="text/css" href="css/custom/print.css" />';
-    }
-    if(file_exists('favicon.ico')) {
-      echo '<link rel="icon" type="image/vnd.microsoft.icon" href="favicon.ico" />';
-    } else {
-      echo '<link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />';
-    }
-  ?>
-  <title>
-   <?php
-    echo $config['htmltitle'];
-   ?>
-  </title>
- </head>
+ <?php include("$basedir/templates/" . $config['theme'] . "/header.tmpl"); ?>
  <body>
   <div id="topkek">
    <?php
     //Site's Titlebar comes in here
-    include $config['toptitle'];
+    include("$basedir/templates/" . $config['theme'] . "/nav.inc");
    ?>
   </div>
   <div id="littlemenu">
   </div>
   <div id="kontainer">
    <div id="leftbar" class="kontained">
-    <?php
-     include $config['leftbar'];
-    ?>
+    <?php include $config['leftbar']; ?>
    </div>
    <div id="kontent" class="kontained">
    <?php
-/*$kontent basically is just a handler for what PHP include needs to be loaded
-based on the context passed via GET params - if you wanna add another, add an
-elseif case then specify the next number in the nav index along with the
-corresponding file to include above.*/
-$destinations = [
-	$config['home'], $config['fileshare'], $config['microblog'], $config['blog'], $config['about'],
-	$config['postloader'], $config['codeloader'], $config['audioloader'], $config['videoloader'],
-	$config['imgloader'], $config['docloader']
-];
-if ( empty($nav) ) $nav = 0;
-if ( $nav === 1 || $nav > 5 ) {
-	$pwd = $post;
-	include 'sys/fileshare/sanitize.inc';
-}
-$kontent = $destinations[$nav];
-//Main Content Display Frame goes below
-include $kontent;
+    //XXX fileshare, etc. shouldn't be a config value. Home should refer to a template.
+    $destinations = [
+        $config['home'], $config['fileshare'], $config['microblog'], $config['blog'], $config['postloader'],
+        $config['codeloader'], $config['audioloader'], $config['videoloader'], $config['imgloader'],
+        $config['docloader']
+    ];
+    if ( empty($nav) ) $nav = 0;
+    if ( $nav === 1 || $nav > 4 ) {
+        $pwd = $post;
+        include 'sys/fileshare/sanitize.inc';
+    }
+    //Main Content Display Frame goes below
+    include $destinations[$nav];
    ?>
    </div>
    <div id="rightbar" class="kontained">

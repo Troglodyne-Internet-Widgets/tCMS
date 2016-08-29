@@ -1,3 +1,4 @@
 *.swp
 *.swo
 favicon.ico
+dist/

@@ -1,3 +1,9 @@
+Version 2.0 IRONMAN SLOG development notes [ALPHA]:
+* tCMS now has an installer in bin/installer.
+* Fixed a bug where "" encapsulated titles in microblog editor would get baleeted on load.
+* Changed up the directory structure somewhat, mostly due to needing privately stored items.
+* Added an SVG logo.
+
 Version 1.2 "Maxim" Release Notes:
 *General mbengine.inc code cleanup, trying to play better golf while commenting more
 *Made microblogger start writing posts in JSON notation. This will enable posts from here on out to have additional metadata, manipulation ability, etc.
