@@ -29,21 +29,37 @@ if( $private_base != $user_info['dir'] . "/.tCMS" ) {
     get_string_from_stdin(); # Mostly just to make the user confirm they read this.
 }
 while( empty($username) ) {
-    echo "Please enter in the name you'd like to login to tCMS as (you can add more users later):";
+    echo "Please enter in the name you'd like to login to tCMS as (you can add more users later): ";
     $username = get_string_from_stdin();
 }
-while( empty($password) ) { # PHP has no standardized way to do this, so do it with shell, "pray it goes ok".
-    $password = shell_exec('read -s PW; echo $PW');
+while( empty($password) ) {
+    echo "Please enter a password for the user: ";
+    $password = get_string_from_stdin(1);
 }
 $wd = realpath( dirname( __FILE__ ) . "/../" );
+
 echo "[INFO] Installing private data to $private_base now...\n";
 $files = [ 'lib', 'templates' ];
 install( $private_base, $wd, $files );
 ensure_directories_exist( [ "$private_base/blog", "$private_base/microblog", "$private_base/conf" ] );
-echo "[INFO] Writing user configuration and generating 4096-bit RSA public/private keypair...\n";
-#HEREHERE pick up here
-#file_put_contents('');
-#TODO Generate private/public keypair with passphrase of user entered credentials.
+
+echo "[INFO] Writing user configuration and generating 4096 bit RSA keypair now...\n";
+$openssl_config = [
+    'private_key_bits' => 4096,
+    'digest_alg'       => "sha512",
+    'private_key_type' => OPENSSL_KEYTYPE_RSA,
+];
+$cryptkeeper = openssl_pkey_new( $openssl_config );
+openssl_pkey_export( $cryptkeeper, $privkey, $password );
+$pubkey = openssl_pkey_get_details($cryptkeeper);
+$pubkey = $pubkey["key"];
+file_put_contents( "$private_base/conf/users.json", json_encode( [ $username => [ 'pubkey' => $pubkey ] ] ) );
+echo "*** PLEASE COPY THE BELOW PRIVATE KEY AND SAVE IT SOMEWHERE SAFE!!!! ***\n";
+echo "*** THIS IS IMPORTANT AS THIS KEY WILL BE USED FOR YOUR LOGIN!       ***\n\n";
+echo "$privkey\n\n";
+echo "Please press [ENTER] to continue.";
+get_string_from_stdin();
+
 echo "[INFO] Installing public data to $public_base now...\n";
 $files = [ 'css', 'fileshare', 'img', 'index.php', 'sys' ];
 install( $public_base, $wd, $files );
@@ -51,14 +67,17 @@ ensure_directories_exist( [ "$public_base/css/custom", "$public_base/img/icon/cu
 if( $private_base != $user_info['dir'] . "/.tCMS" ) {
     file_put_contents( "$public_base/basedir", $private_base );
 }
+
 echo "[INFO] Done.\n";
 exit(0);
 
-function get_string_from_stdin() {
+function get_string_from_stdin($noecho=0) {
+    if( $noecho ) system('stty -echo');
     $STDIN = fopen( "php://stdin", "r" );
     $input = fgets( $STDIN, 4096 ); # Not gonna read something longer than the maximum path length for ext
     $input = rtrim( $input ); # Trim any trailing spaces
     fclose( $STDIN );
+    if( $noecho ) system('stty echo');
     return $input;
 }
 
