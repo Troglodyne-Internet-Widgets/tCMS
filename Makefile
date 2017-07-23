@@ -4,3 +4,6 @@ test:
 
 install:
 	php bin/install
+
+update:
+	php bin/install --update

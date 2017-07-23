@@ -1,17 +1,25 @@
 #!/usr/bin/php
 <?php
-echo "[NOTE] Make sure the directories you install to are R+W accessible by your web server.\n";
+$update_only = 0;
+if( $argv[1] && stripos( $argv[1], "update") !== false ) $update_only = 1;
+
 $user_info = posix_getpwuid(posix_geteuid());
-echo "Please enter the directory you wish for tCMS' private data files to be stored under.\n";
-echo "Default [" . $user_info['dir'] . "/.tCMS]: ";
-$input = get_string_from_stdin();
-if( empty( $input ) ) {
-    $private_base = $user_info['dir'] . "/.tCMS";
-} else {
-    # At least *try* to get the real path. If not, can't do much other than trust it works.
-    $private_base = realpath( dirname( $input ) ) . "/" . basename( $input );
+$wd = realpath( dirname( __FILE__ ) . "/../" );
+
+if( !$update_only ) {
+    echo "[NOTE] Make sure the directories you install to are R+W accessible by your web server.\n";
+    echo "       On most shared hosts (cPanel, etc.) this is fine to leave in your home directory.\n\n";
+    echo "Please enter the directory you wish for tCMS' private data files to be stored under.\n";
+    echo "Default [" . $user_info['dir'] . "/.tCMS]: ";
+    $input = get_string_from_stdin();
+    if( empty( $input ) ) {
+        $private_base = $user_info['dir'] . "/.tCMS";
+    } else {
+        # At least *try* to get the real path. If not, can't do much other than trust it works.
+        $private_base = realpath( dirname( $input ) ) . "/" . basename( $input );
+    }
 }
-echo "Please enter the directory you wish for tCMS' public data files to be stored under.\n";
+echo "Please enter the directory you for tCMS' public data files.\n";
 echo "Default [" . $user_info['dir'] . "/public_html]: ";
 $input = get_string_from_stdin();
 if( empty( $input ) ) {
@@ -20,51 +28,52 @@ if( empty( $input ) ) {
     $public_base = realpath( dirname( $input ) ) . "/" . basename( $input );
 }
 # Make sure our webserver (and my horrible code) knows how to find your custom directory
-if( $private_base != $user_info['dir'] . "/.tCMS" ) {
-    echo "[WARN]: For tCMS to know where this directory we install to is, we will write the following\n";
-    echo "        into your document root for the default/virtual host you control on your Web Server:\n";
-    echo "            '$public_base/basedir'\n";
-    echo "        Please add an HTACCESS or similar blocker to prevent public acess to this file if you\n";
-    echo "        wish to prevent this information disclosure. Please press [enter] to continue.";
-    get_string_from_stdin(); # Mostly just to make the user confirm they read this.
-}
-while( empty($username) ) {
-    echo "Please enter in the name you'd like to login to tCMS as (you can add more users later): ";
-    $username = get_string_from_stdin();
-}
-while( empty($password) ) {
-    echo "Please enter a password for the user: ";
-    $password = get_string_from_stdin(1);
-}
-$wd = realpath( dirname( __FILE__ ) . "/../" );
+if( !$update_only ) {
+    if( $private_base != $user_info['dir'] . "/.tCMS" ) {
+        echo "[WARN]: For tCMS to know where this directory we install to is, we will write the following\n";
+        echo "        into your document root for the default/virtual host you control on your Web Server:\n";
+        echo "            '$public_base/basedir'\n";
+        echo "        Please add an HTACCESS or similar blocker to prevent public acess to this file if you\n";
+        echo "        wish to prevent this information disclosure. Please press [enter] to continue.";
+        get_string_from_stdin(); # Mostly just to make the user confirm they read this.
+    }
+    while( empty($username) ) {
+        echo "Please enter in the name you'd like to login to tCMS as (you can add more users later): ";
+        $username = get_string_from_stdin();
+    }
+    while( empty($password) ) {
+        echo "Please enter a password for the user: ";
+        $password = get_string_from_stdin(1);
+    }
 
-echo "[INFO] Installing private data to $private_base now...\n";
-$files = [ 'lib', 'templates' ];
-install( $private_base, $wd, $files );
-ensure_directories_exist( [ "$private_base/blog", "$private_base/microblog", "$private_base/conf" ] );
+    echo "[INFO] Installing private data to $private_base now...\n";
+    $files = [ 'lib', 'templates' ];
+    install( $private_base, $wd, $files );
+    ensure_directories_exist( [ "$private_base/blog", "$private_base/microblog", "$private_base/conf" ] );
 
-echo "[INFO] Writing user configuration and generating 4096 bit RSA keypair now...\n";
-$openssl_config = [
-    'private_key_bits' => 4096,
-    'digest_alg'       => "sha512",
-    'private_key_type' => OPENSSL_KEYTYPE_RSA,
-];
-$cryptkeeper = openssl_pkey_new( $openssl_config );
-openssl_pkey_export( $cryptkeeper, $privkey, $password );
-$pubkey = openssl_pkey_get_details($cryptkeeper);
-$pubkey = $pubkey["key"];
-file_put_contents( "$private_base/conf/users.json", json_encode( [ $username => [ 'pubkey' => $pubkey ] ] ) );
-echo "*** PLEASE COPY THE BELOW PRIVATE KEY AND SAVE IT SOMEWHERE SAFE!!!! ***\n";
-echo "*** THIS IS IMPORTANT AS THIS KEY WILL BE USED FOR YOUR LOGIN!       ***\n\n";
-echo "$privkey\n\n";
-echo "Please press [ENTER] to continue.";
-get_string_from_stdin();
+    echo "[INFO] Writing user configuration and generating 4096 bit RSA keypair now...\n";
+    $openssl_config = [
+        'private_key_bits' => 4096,
+        'digest_alg'       => "sha512",
+        'private_key_type' => OPENSSL_KEYTYPE_RSA,
+    ];
+    $cryptkeeper = openssl_pkey_new( $openssl_config );
+    openssl_pkey_export( $cryptkeeper, $privkey, $password );
+    $pubkey = openssl_pkey_get_details($cryptkeeper);
+    $pubkey = $pubkey["key"];
+    file_put_contents( "$private_base/conf/users.json", json_encode( [ $username => [ 'pubkey' => $pubkey ] ] ) );
+    echo "*** PLEASE COPY THE BELOW PRIVATE KEY AND SAVE IT SOMEWHERE SAFE!!!! ***\n";
+    echo "*** THIS IS IMPORTANT AS THIS KEY WILL BE USED FOR YOUR LOGIN!       ***\n\n";
+    echo "$privkey\n\n";
+    echo "Please press [ENTER] to continue.";
+    get_string_from_stdin();
+}
 
 echo "[INFO] Installing public data to $public_base now...\n";
 $files = [ 'css', 'fileshare', 'img', 'index.php', 'sys' ];
 install( $public_base, $wd, $files );
 ensure_directories_exist( [ "$public_base/css/custom", "$public_base/img/icon/custom" ] );
-if( $private_base != $user_info['dir'] . "/.tCMS" ) {
+if( !$update_only && $private_base != $user_info['dir'] . "/.tCMS" ) {
     file_put_contents( "$public_base/basedir", $private_base );
 }
 

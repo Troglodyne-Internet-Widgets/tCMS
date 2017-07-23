@@ -1,7 +1,7 @@
 tCMS2 still left undone (will add to as I think of em)
 * config needs to be based on a model json file.
 * tests for config reading and comparison based on model
-* tests for config validation of user input (wanna make sure we *can* install
+* tests for config validation of user input (wanna make sure we *can* install)
 * tests for config writing
 * Un-Stubbify first time run wizard
 * Make config page in Admin work right
