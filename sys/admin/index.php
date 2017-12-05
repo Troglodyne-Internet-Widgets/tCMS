@@ -1,3 +1,18 @@
+<?php
+    include_once("lib/auth.inc");
+	auth::ensure_auth();
+    if( empty($_GET['app']) || $_GET['app'] == 'config' ) {
+        $kontent = "settings.inc";
+    } elseif ($_GET['app'] == 'blog') {
+        $kontent = "bengine.inc";
+    } elseif ($_GET['app'] == 'microblog') {
+        $kontent = "mbengine.inc";
+    } elseif ($_GET['app'] == 'users' ) {
+        $kontent = "users.inc";
+    } else {
+        $kontent = "settings.inc";
+    }
+?>
 <!doctype html>
 <html dir="ltr" lang="en-US">
  <head>
@@ -31,21 +46,7 @@
   </div>
   <div id="kontent" style="display: block;">
    <?php
-    if (!empty($_SERVER["HTTPS"])) {
-     $protocol = "https";
-    } else {
-     $protocol = "http";
-    }
-    if (empty($_GET['nav'])) {
-     $kontent = "settings.inc";
-    }
-    elseif ($_GET['nav'] == 1) {
-     $kontent = "bengine.inc";
-    }
-    elseif ($_GET['nav'] == 2) {
-     $kontent = "mbengine.inc";
-    }
-    include $kontent;
+        include $kontent;
    ?>
   </div>
  </body>

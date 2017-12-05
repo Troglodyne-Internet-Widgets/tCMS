@@ -3,14 +3,16 @@
 $protocol = ( !empty($_SERVER["HTTPS"] ) ) ? 'https'       : 'http';
 $nav      = ( !empty($_GET['nav'] ) )      ? $_GET['nav']  : '';
 $post     = ( !empty($_GET['post'] ) )     ? $_GET['post'] : '';
-$docroot  = $_SERVER['DOCUMENT_ROOT'];
+# DOCUMENT_ROOT can be misconfigured, __FILE__, __DIR__, etc. can't be
+$docroot  = realpath( __DIR__ );
 
 # Grab the main configuration file. We need to see where that lives first though.
 if( file_exists( "$docroot/basedir" ) ) {
     $fh = fopen( "$docroot/basedir" );
     $basedir = trim(fgets( $fh )); # I only want the first line
     fclose($fh);
-} else {
+}
+if( empty( $basedir ) ) {
     $basedir = posix_getpwuid(posix_geteuid())['dir'] . "/.tCMS";
 }
 

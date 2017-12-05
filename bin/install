@@ -91,7 +91,7 @@ function get_string_from_stdin($noecho=0) {
 }
 
 function install( $to, $from, $files2copy ) {
-    if( empty($to), empty($from) || empty($files2copy) ) die("Bad arguments passed to 'install' function");
+    if( empty($to) || empty($from) || empty($files2copy) ) die("Bad arguments passed to 'install' function");
     if( file_exists( $to ) && !is_dir( $to ) ) {
         echo "[FATAL] $to already exists but is not a directory! Stopping here.\n";
         exit(1);
