@@ -65,7 +65,7 @@
             // Check it
             $conf_obj = new Config;
             $conf = $conf_obj->get('users');
-            if( empty($conf) return [ 'err' => 1, "msg" => "Login Failed: Configuration missing or malformed" ];
+            if( empty($conf) ) return [ 'err' => 1, "msg" => "Login Failed: Configuration missing or malformed" ];
             if( empty($conf[$user]) || empty($conf[$user]['auth_hash']) || !password_verify( $pass, $conf[$user]['auth_hash'] ) ) return [ 'err' => 1, 'msg' => "Login Failed" ];
 
             // Gotta have a touch of eval

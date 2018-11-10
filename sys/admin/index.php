@@ -8,8 +8,8 @@
     require_once "tCMS/Config.inc";
 
     // Get the config, set the theme (also set the basedir so we don't have to fetch it again).
-    $conf_obj->set_base_dir($basedir);
     $conf_obj = new Config;
+    $conf_obj->set_base_dir($basedir);
     $config = $conf_obj->get();
     $theme = ( !array_key_exists( 'theme', $config ) || empty($config['theme']) ? 'default' : $config['theme'] );
     $themedir = "$basedir/templates/$theme";
@@ -47,9 +47,9 @@
   <meta name="viewport" content="width=device-width">
   <?php
     $links  = '<link rel="stylesheet" type="text/css" href="../../themed/' . $theme . '/css/structure.css" />';
-    $links += '<link rel="stylesheet" type="text/css" href="../../themed/' . $theme . '/css/screen.css" media="screen" />';
-    $links += '<link rel="stylesheet" type="text/css" href="../../themed/' . $theme . '/css/print.css" media="print" />';
-    $links += '<link rel="icon" type="image/vnd.microsoft.icon" href="../../themed/' . $theme . '/img/icon/favicon.ico" />';
+    $links .= '<link rel="stylesheet" type="text/css" href="../../themed/' . $theme . '/css/screen.css" media="screen" />';
+    $links .= '<link rel="stylesheet" type="text/css" href="../../themed/' . $theme . '/css/print.css" media="print" />';
+    $links .= '<link rel="icon" type="image/vnd.microsoft.icon" href="../../themed/' . $theme . '/img/icon/favicon.ico" />';
     echo $links;
 
     // TODO inject avatars these via style tags based on config

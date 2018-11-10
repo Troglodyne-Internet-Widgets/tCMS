@@ -7,8 +7,8 @@
     require_once "tCMS/Config.inc";
 
     // Get the config, set the theme (also set the basedir so we don't have to fetch it again).
-    $conf_obj->set_base_dir($basedir);
     $conf_obj = new Config;
+    $conf_obj->set_base_dir($basedir);
     $config = $conf_obj->get();
     $theme = ( !array_key_exists( 'theme', $config ) || empty($config['theme']) ? 'default' : $config['theme'] );
     $themedir = "$basedir/templates/$theme";

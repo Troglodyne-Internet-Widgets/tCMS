@@ -4,7 +4,7 @@
         <meta charset="utf-8" />
         <meta name="description" content="tCMS"/>
         <meta name="viewport" content="width=device-width">
-        <link rel="icon" type="image/vnd.microsoft.icon" href="img/icon/favicon.ico" />
+        <link rel="icon" type="image/vnd.microsoft.icon" href="<?php echo "themed/$theme"; ?>/img/icon/favicon.ico" />
         <title>
             tCMS Requires Setup to Continue...
         </title>
@@ -55,9 +55,9 @@
         </nav>
         <section>
             <div id="notice">
-                <img alt="Icon indicating a missing file" src="img/mime/missing.gif" />
+                <img alt="Icon indicating a missing file" src="<?php echo "themed/$theme"; ?>/img/mime/missing.gif" />
                 <span>
-                    [INFO] This page is being displayed because sys/admin/config/main.json is missing
+                    [INFO] This page is being displayed because the main configuration file is missing
                     (or corrupted).
                 </span>
             </div>

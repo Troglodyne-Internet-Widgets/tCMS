@@ -4,7 +4,7 @@
         private $confdir = null;
         private $basedir = null;
         private $homedir = null;
-        private array $conf = [
+        private $conf = [
             'users' => [],
             'main'  => [],
         ];
@@ -21,8 +21,7 @@
         public function get_base_dir() {
             if( !empty($this->basedir) ) return $this->basedir;
             $homedir = $this->get_home_dir();
-            $tmp_basedir = ( file_exists( "$homedir/.tCMS_basedir") ? file_get_contents("$homedir/.tCMS_basedir") : "$homedir/.tCMS" );
-            $this->basedir = $tmp_basedir;
+            $this->basedir = ( file_exists( "$homedir/.tCMS_basedir") ? file_get_contents("$homedir/.tCMS_basedir") : "$homedir/.tCMS" );
             return $this->basedir;
         }
 
@@ -41,8 +40,7 @@
         public function get_home_dir() {
             if( !empty($this->homedir) ) return $this->homedir;
             $user_info = posix_getpwuid(posix_geteuid());
-            $homedir = ( $user_info['dir'] ? $user_info['dir'] : '/var/www/' );
-            $this->homedir = $tmp_confdir;
+            $this->homedir = ( $user_info['dir'] ? $user_info['dir'] : '/var/www/' );
             return $this->homedir;
         }
     }
