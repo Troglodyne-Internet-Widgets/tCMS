@@ -1,24 +1,24 @@
 <p class="title">
- tCMS General Settings - Edit these Locally (for now).
+ General settings:
 </p>
 <hr />
-<p class="title">
- Configuration Variables
-</p>
-For now, every big config variable is set in /sys/admin/config/main.json. Refer to it if you know what you are doing.<br /><br />
-Soon I will have a users.json defining what users are there (or alias http auth users).
-<p class="title">
-Themes: Coming soon.
-</p>
-<!--<form id="themeForm" method="post" name="themeForm">
-<select name="selectedTheme">
-  <?php
-    
+INSERT FORM HERE
+<hr />
 
-    //echo '<option></option>';
-  ?>
- </select>
-</form>-->
-<p>
-  Want to write your own theme (or modify one since I haven't finished the theme selector here)? Please see the <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter 03-Customization.post" title="GET UR MIND RITE">styling guide</a>.
+<p class="title">
+ User management:
 </p>
+<hr />
+INSERT USER TABLE W/USER DROPDOWN FORM HERE
+<hr />
+
+<p class="title">
+ Theme cloner:
+</p>
+<hr />
+<p>
+  Want to write your own theme?
+  Clone a theme here then see the <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter 03-Customization.post" title="GET UR MIND RITE">styling guide</a>
+  for information on how tCMS' templates, image sets and CSS work in the theming system.
+</p>
+INSERT FORM HERE

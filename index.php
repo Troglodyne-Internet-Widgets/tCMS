@@ -19,6 +19,7 @@
         die();
     }
 
+    $docroot  = realpath( __DIR__ );
     $nav      = ( !empty($_GET['nav'] ) )      ? $_GET['nav']  : '';
     $post     = ( !empty($_GET['post'] ) )     ? $_GET['post'] : '';
 
@@ -38,15 +39,17 @@
   </div>
   <div id="kontainer">
    <div id="leftbar" class="kontained">
-    <?php include $config['leftbar']; ?>
+    <?php include "$themedir/leftbar.inc"; ?>
    </div>
    <div id="kontent" class="kontained">
    <?php
-    //XXX fileshare, etc. shouldn't be a config value. Home should refer to a template.
+    // Home should refer to a template.
+    $home = ( array_key_exists( 'home', $config ) && !empty($config['home']) ? $config['home'] : "$docroot/sys/blogroll.inc" );
     $destinations = [
-        $config['home'], $config['fileshare'], $config['microblog'], $config['blog'], $config['postloader'],
-        $config['codeloader'], $config['audioloader'], $config['videoloader'], $config['imgloader'],
-        $config['docloader']
+        $config['home'], "$docroot/sys/fileshare/showfiles.inc", "$docroot/sys/microblog.inc",
+        "$docroot/sys/blogroll.inc", "$docroot/sys/fileshare/showpost.inc", "$docroot/sys/fileshare/showcode.inc",
+        "$docroot/sys/fileshare/showaudio.inc", "$docroot/sys/fileshare/showvideo.inc", "$docroot/sys/fileshare/showimg.inc",
+        "$docroot/sys/fileshare/showdoc.inc",
     ];
     if ( empty($nav) ) $nav = 0;
     if ( $nav === 1 || $nav > 4 ) {
@@ -59,13 +62,13 @@
    </div>
    <div id="rightbar" class="kontained">
     <?php
-     include $config['rightbar'];
+     include "$themedir/rightbar.inc";
     ?>
    </div>
   </div>
    <div id="footbar">
     <?php
-     include $config['footbar'];
+     include "$themedir/footbar.inc";
     ?>
    </div>
  </body>
