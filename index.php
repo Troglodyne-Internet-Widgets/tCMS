@@ -1,37 +1,37 @@
 <?php
-# Get protocol bits, etc.
-$protocol = ( !empty($_SERVER["HTTPS"] ) ) ? 'https'       : 'http';
-$nav      = ( !empty($_GET['nav'] ) )      ? $_GET['nav']  : '';
-$post     = ( !empty($_GET['post'] ) )     ? $_GET['post'] : '';
-# DOCUMENT_ROOT can be misconfigured, __FILE__, __DIR__, etc. can't be
-$docroot  = realpath( __DIR__ );
+    // Setup includes to work right. Much of this is duped in Config.inc, but gotta get this info to include it, so..
+    $user_info = posix_getpwuid(posix_geteuid());
+    $dir = ( $user_info['dir'] ? $user_info['dir'] : '/var/www/' );
+    $basedir = ( file_exists( $dir . "/.tCMS_basedir") ? file_get_contents("$dir/.tCMS_basedir") : "$dir/.tCMS" );
+    set_include_path(get_include_path() . PATH_SEPARATOR . "$basedir/lib");
+    require_once "tCMS/Config.inc";
 
-# Grab the main configuration file. We need to see where that lives first though.
-if( file_exists( "$docroot/basedir" ) ) {
-    $fh = fopen( "$docroot/basedir" );
-    $basedir = trim(fgets( $fh )); # I only want the first line
-    fclose($fh);
-}
-if( empty( $basedir ) ) {
-    $basedir = posix_getpwuid(posix_geteuid())['dir'] . "/.tCMS";
-}
+    // Get the config, set the theme (also set the basedir so we don't have to fetch it again).
+    $conf_obj->set_base_dir($basedir);
+    $conf_obj = new Config;
+    $config = $conf_obj->get();
+    $theme = ( !array_key_exists( 'theme', $config ) || empty($config['theme']) ? 'default' : $config['theme'] );
+    $themedir = "$basedir/templates/$theme";
 
-if(!file_exists("$basedir/conf/main.json")) {
-	# XXX Need to have manual be hosted in repo under sys/admin/manual
-	include( "$basedir/templates/default/notconfigured.tmpl" );
-	die();
-}
-$config = json_decode(file_get_contents("$basedir/conf/main.json"),true);
-// Not sure if I'll ever really even need to localize (see html tag attrs).
+    if(empty($config)) {
+        # XXX Need to have manual be hosted in repo under sys/admin/manual
+        include( "$themedir/notconfigured.tmpl" );
+        die();
+    }
+
+    $nav      = ( !empty($_GET['nav'] ) )      ? $_GET['nav']  : '';
+    $post     = ( !empty($_GET['post'] ) )     ? $_GET['post'] : '';
+
+    // Not sure if I'll ever really even need to localize (see html tag attrs).
 ?>
 <!doctype html>
 <html dir="ltr" lang="en-US">
- <?php include("$basedir/templates/" . $config['theme'] . "/header.tmpl"); ?>
+ <?php include "$themedir/header.tmpl"; ?>
  <body>
   <div id="topkek">
    <?php
     //Site's Titlebar comes in here
-    include("$basedir/templates/" . $config['theme'] . "/nav.inc");
+    include "$themedir/nav.inc";
    ?>
   </div>
   <div id="littlemenu">

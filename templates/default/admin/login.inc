@@ -18,8 +18,8 @@
         }
         $loginMsg = "Unknown Error";
         if( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
-            require_once("$basedir/lib/auth.inc"); //Authenticate
-            $auth = new auth;
+            require_once "tCMS/Auth.inc"; //Authenticate
+            $auth = new Auth;
             $login = $auth->do_auth( $args['username'], $args['password'] );
             if(!is_array($login) || !empty($login['err']) || empty( $login['success'] ) ) {
                 $loginFailure = 1;

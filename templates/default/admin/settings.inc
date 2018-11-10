@@ -20,5 +20,5 @@ Themes: Coming soon.
  </select>
 </form>-->
 <p>
-  Want to write your own theme (or modify one since I haven't finished the theme selector here)? Please see the <a href="teodesian.net/tCMS/index.php?nav=5&post=fileshare/manual/Chapter 03-Customization.post" title="GET UR MIND RITE">styling guide</a>.
+  Want to write your own theme (or modify one since I haven't finished the theme selector here)? Please see the <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter 03-Customization.post" title="GET UR MIND RITE">styling guide</a>.
 </p>

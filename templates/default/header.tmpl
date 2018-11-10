@@ -2,17 +2,14 @@
   <meta charset="utf-8" />
   <meta name="description" content="A Simple CMS by teodesian.net"/>
   <meta name="viewport" content="width=device-width">
-  <link rel="stylesheet" type="text/css" href="css/structure.css" />
-  <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen" />
-  <link rel="stylesheet" type="text/css" href="css/print.css" media="print" />
   <?php
-    foreach ( [ 'avatars', 'screen', 'print', 'favicon.ico' ] as $file ) {
-        $rel  = ( $file == 'favicon.ico' )    ? "icon"                     : "stylesheet";
-        $type = ( $file == 'favicon.ico' )    ? "image/vnd.microsoft.icon" : "text/css"; 
-        $dir  = ( $file == 'favicon.ico' )    ? "img/icon"                 : "css";
-        $href = ( file_exists( "$dir/$file" ) ? "$dir/custom/$file"        : "$dir/$file";
-        echo "<link rel=\"$rel\" type=\"$type\" href=\"$href\" />";
-    }
+    $links  = '<link rel="stylesheet" type="text/css" href="themed/' . $theme . '/css/structure.css" />';
+    $links += '<link rel="stylesheet" type="text/css" href="themed/' . $theme . '/css/screen.css" media="screen" />';
+    $links += '<link rel="stylesheet" type="text/css" href="themed/' . $theme . '/css/print.css" media="print" />';
+    $links += '<link rel="icon" type="image/vnd.microsoft.icon" href="themed/' . $theme . '/img/icon/favicon.ico" />';
+    echo $links;
+
+    // TODO inject avatars these via style tags based on config
   ?>
   <title>
    <?php echo $config['htmltitle']; ?>

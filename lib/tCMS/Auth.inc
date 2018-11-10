@@ -1,5 +1,7 @@
 <?php
-    class auth {
+    require_once "tCMS/Config.inc";
+
+    class Auth {
 
         public function __construct() {
             ini_set( "session.cookie_httponly", true );
@@ -30,7 +32,7 @@
             return session_id();
         }
 
-        public function invalidate_auth( $redirect=true, $to="" ) { 
+        public function invalidate_auth( $redirect=true, $to="" ) {
             // need to invalidate the session here, though we may not have loaded it yet, so do that first.
             $session_status = session_status();
             if( $session_status !== PHP_SESSION_ACTIVE || $session_status !== 2 ) session_start();
@@ -48,7 +50,7 @@
                 http_response_code(401);
                 header('Content-Type: application/json');
                 echo json_encode( [ 'code' => '401', 'message' => 'Unauthorized' ] );
-            }   
+            }
             die();
         }   
 
@@ -61,13 +63,9 @@
                 ini_set('session.entropy_length', '32');
             }
             // Check it
-            $user_info = posix_getpwuid(posix_geteuid());
-            $homedir = ( $user_info['dir'] ? $user_info['dir'] : '/var/www/' );
-            $confdir = ( file_exists( "$homedir/.tCMS_basedir") ? file_get_contents("$homedir/.tCMS_basedir") . "/conf" : "$homedir/.tCMS/conf" );
-            $conf = file_get_contents("$confdir/users.json");
-            if( $conf === false ) return [ 'err' => 1, "msg" => "Login Failed: Configuration missing" ];
-            $conf = json_decode( $conf, 1 );
-            if( $conf === null ) return [ 'err' => 1, "msg" => "Login Failed: Configuration malformed" ];
+            $conf_obj = new Config;
+            $conf = $conf_obj->get('users');
+            if( empty($conf) return [ 'err' => 1, "msg" => "Login Failed: Configuration missing or malformed" ];
             if( empty($conf[$user]) || empty($conf[$user]['auth_hash']) || !password_verify( $pass, $conf[$user]['auth_hash'] ) ) return [ 'err' => 1, 'msg' => "Login Failed" ];
 
             // Gotta have a touch of eval

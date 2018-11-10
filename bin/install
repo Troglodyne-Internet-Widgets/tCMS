@@ -61,9 +61,8 @@ if( !file_exists("$private_base/conf/users.json") ) {
 }
 
 echo "[INFO] Installing public data to $public_base now...\n";
-$files = [ 'css', 'fileshare', 'img', 'index.php', 'sys' ];
+$files = [ 'themed', 'fileshare', 'index.php', 'sys' ];
 install( $public_base, $wd, $files );
-ensure_directories_exist( [ "$public_base/css/custom", "$public_base/img/icon/custom" ] );
 
 echo "[INFO] Done.\n";
 exit(0);
