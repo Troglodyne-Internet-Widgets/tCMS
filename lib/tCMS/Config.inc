@@ -10,11 +10,10 @@
         ];
         private $conf_model = [
             'users' => [
-                'name'        => [ 'display' => true, 'masks' => 'parent', 'label' => 'Username', 'placeholder' => 'AzureDiamond', 'form_field' => 'input', 'field_type' => 'text' ],
-                'password'    => [ 'display' => true, 'masks' => 'auth_hash', 'label' => 'Password', 'placeholder' => 'hunter2', 'form_field' => 'input', 'field_type' => 'password' ],
-                'display_name' => [ 'display' => true, 'label' => 'Display Name', 'placeholder' => "Your Name", 'default' => 'Anonymous', 'form_field' => 'input', 'field_type' => 'text' ],
+                'name'         => [ 'masks' => 'parent', 'label' => 'Username', 'placeholder' => 'AzureDiamond', 'form_field' => 'input', 'field_type' => 'text' ],
+                'password'     => [ 'masks' => 'auth_hash', 'label' => 'Password', 'placeholder' => 'hunter2', 'form_field' => 'input', 'field_type' => 'password' ],
+                'display_name' => [ 'label' => 'Display Name', 'placeholder' => "Your Name", 'default' => 'Anonymous', 'form_field' => 'input', 'field_type' => 'text' ],
                 'avatar'       => [
-                    'display'      => true,
                     'label'        => 'User Avatar',
                     'default'      => "R0lGODlhGAAYAMIAAAAAAIYGBp2dndHR0QAAAAAAAAAAAAAAACH+EUNyZWF0ZWQgd2l0aCBHSU1QACH5BAEKAAQALAAAAAAYABgAAANySBQc+jDGMOpwMj96OdYShYmg9okAAazsWqIDIMz0nGaiJbercIeXls1H+00utWTRhOS1Gp+JjLibcSpRyFTp8YR2TpGPBBETz4DAjlzeKmnsCNi5isuTboFdSy2y9g95XBcldDxZJYmKIIiLG4SOOBEJADs=",
                     'form_field'   => 'input',
@@ -23,8 +22,8 @@
                 ],
              ],
             'main'  => [
-                'theme' => [ 'display' => true, 'label' => 'tCMS Theme', 'default' => 'default', 'form_field' => 'select', 'select_opts' => [ 'default' ] ],
-                'home'  => [ 'display' => true, 'label' => 'Default Home', 'default' => 'blog', 'form_field' => 'select', 'select_opts' => [ 'blog', 'microblog', 'fileshare' ] ],
+                'home'  => [ 'label' => 'Default Home', 'default' => 'blog', 'form_field' => 'select', 'select_opts' => [ 'blog', 'microblog', 'fileshare' ] ],
+                'theme' => [ 'label' => 'tCMS Theme', 'default' => 'default', 'form_field' => 'select', 'select_opts' => [ 'default' ] ],
             ],
         ];
 

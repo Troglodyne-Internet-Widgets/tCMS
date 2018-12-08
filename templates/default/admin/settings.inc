@@ -2,14 +2,66 @@
  General settings:
 </p>
 <hr />
-INSERT FORM HERE
+<form id="mainConfig" method="post" action="index.php">
+    <?php
+        $conf  = $conf_obj->get('main');
+        $model = $conf_obj->get_config_model('main');
+        $line = '<input type="hidden" name="conf_change_type" value="main"></input>';
+
+        # For now there's no use to the 'form_field' setting, as main only uses select, user only inputs
+        foreach ( $model as $key => $item ) {
+            $line .= '<label for="' . $key . '">' . $item['label'] . '</label>';
+            $line .= '<select name="' . $key '" id="' . $key . '">';
+            foreach ( $item['select_opts'] as $option ) {
+                $line .= '<option value="' . $option . '">' . $option . '</option>';
+            }
+            $line .= '</select>';
+            echo "$line\n";
+        }
+    ?>
+    <input type="submit" value="Commit Changes"></input>
+</form>
 <hr />
 
 <p class="title">
  User management:
 </p>
 <hr />
-INSERT USER TABLE W/USER DROPDOWN FORM HERE
+<form id="userConfig" method="post" action="index.php">
+    <?php
+        $conf  = $conf_obj->get('user');
+        $model = $conf_obj->get_config_model('user');
+        $line = '<input type="hidden" name="conf_change_type" value="user"></input>';
+        foreach ( $conf as $user => $data ) {
+            foreach ( $model as $key => $item ) {
+                $line .= '<label for="' . $key . '">' . $item['label'] . '</label>';
+                $val = "";
+                if( array_key_exists( $key, $data ) ) {
+
+                } else if( array_key_exists( 'masks', $conf ) ) {
+                    if( $conf['masks'] == 'parent' ) $val = 
+                }
+                $line .= '<input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="' . $val . '"></input><br />';
+                echo "$line\n";
+            }
+        }
+    ?>
+    <input type="submit" value="Commit Changes"></input>
+</form>
+<p class="title">
+ Add User:
+</p>
+<form id="addUser" method="post" action="index.php">
+    <input type="hidden" name="conf_change_type" value="user"></input>
+    <?php
+        foreach ( $model as $key => $item ) {
+            $line .= '<label for="' . $key . '">' . $item['label'] . '</label>';
+            $line .= '<input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value=""></input><br />';
+            echo "$line\n";
+        }
+    ?>
+    <input type="submit" value="Commit Changes"></input>
+</form>
 <hr />
 
 <p class="title">
