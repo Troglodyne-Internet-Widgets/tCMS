@@ -14,7 +14,7 @@
         foreach ( $model as $key => $item ) {
             $line .= '<tr>';
             $line .= '<td><label for="' . $key . '">' . $item['label'] . '</label></td>';
-            $line .= '<td><select name="' . $key . '" id="' . $key . '">';
+            $line .= '<td><select class="cooltext" name="' . $key . '" id="' . $key . '">';
             foreach ( $item['select_opts'] as $option ) {
                 $line .= '<option value="' . $option . '">' . $option . '</option>';
             }
@@ -24,7 +24,7 @@
     ?>
     </table>
     <br />
-    <input type="submit" value="Commit Changes" />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
 </form>
 <hr />
 
@@ -49,14 +49,14 @@
                 } else if( array_key_exists( 'masks', $item ) && $item['masks'] == 'parent' ) {
                     $val = $user;
                 }
-                $line .= '<td><input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="' . $val . '" /></td></tr>';
+                $line .= '<td><input class="cooltext" name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="' . $val . '" /></td></tr>';
             }
         }
         echo "$line\n";
     ?>
     </table>
     <br />
-    <input type="submit" value="Commit Changes" />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
 </form>
 <br />
 <p class="title">
@@ -69,13 +69,13 @@
         $line = '';
         foreach ( $model as $key => $item ) {
             $line .= '<td><label for="' . $key . '">' . $item['label'] . '</label></td>';
-            $line .= '<td><input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="" /></td></tr>';
+            $line .= '<td><input class="cooltext" name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="" /></td></tr>';
         }
         echo "$line\n";
     ?>
     </table>
     <br />
-    <input type="submit" value="Commit Changes" />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
 </form>
 <hr />
 
