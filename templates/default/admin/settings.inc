@@ -3,23 +3,28 @@
 </p>
 <hr />
 <form id="mainConfig" method="post" action="index.php">
+    <input type="hidden" name="conf_change_type" value="main" />
+    <table>
     <?php
         $conf  = $conf_obj->get('main');
         $model = $conf_obj->get_config_model('main');
-        $line = '<input type="hidden" name="conf_change_type" value="main"></input>';
+        $line = '';
 
         # For now there's no use to the 'form_field' setting, as main only uses select, user only inputs
         foreach ( $model as $key => $item ) {
-            $line .= '<label for="' . $key . '">' . $item['label'] . '</label>';
-            $line .= '<select name="' . $key '" id="' . $key . '">';
+            $line .= '<tr>';
+            $line .= '<td><label for="' . $key . '">' . $item['label'] . '</label></td>';
+            $line .= '<td><select name="' . $key . '" id="' . $key . '">';
             foreach ( $item['select_opts'] as $option ) {
                 $line .= '<option value="' . $option . '">' . $option . '</option>';
             }
-            $line .= '</select>';
-            echo "$line\n";
+            $line .= '</select></td></tr>';
         }
+        echo "$line\n";
     ?>
-    <input type="submit" value="Commit Changes"></input>
+    </table>
+    <br />
+    <input type="submit" value="Commit Changes" />
 </form>
 <hr />
 
@@ -28,39 +33,49 @@
 </p>
 <hr />
 <form id="userConfig" method="post" action="index.php">
+    <input type="hidden" name="conf_change_type" value="user" />
+    <table>
     <?php
-        $conf  = $conf_obj->get('user');
-        $model = $conf_obj->get_config_model('user');
-        $line = '<input type="hidden" name="conf_change_type" value="user"></input>';
+        $conf  = $conf_obj->get('users');
+        $model = $conf_obj->get_config_model('users');
+        $line = '';
         foreach ( $conf as $user => $data ) {
+            $line .= "<tr><td colspan=2><em>Manage user '$user'</em></td></tr>";
             foreach ( $model as $key => $item ) {
-                $line .= '<label for="' . $key . '">' . $item['label'] . '</label>';
+                $line .= '<tr><td><label for="' . $key . '">' . $item['label'] . '</label></td>';
                 $val = "";
                 if( array_key_exists( $key, $data ) ) {
-
-                } else if( array_key_exists( 'masks', $conf ) ) {
-                    if( $conf['masks'] == 'parent' ) $val = 
+                    $val = $data[$key];
+                } else if( array_key_exists( 'masks', $item ) && $item['masks'] == 'parent' ) {
+                    $val = $user;
                 }
-                $line .= '<input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="' . $val . '"></input><br />';
-                echo "$line\n";
+                $line .= '<td><input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="' . $val . '" /></td></tr>';
             }
         }
+        echo "$line\n";
     ?>
-    <input type="submit" value="Commit Changes"></input>
+    </table>
+    <br />
+    <input type="submit" value="Commit Changes" />
 </form>
+<br />
 <p class="title">
  Add User:
 </p>
 <form id="addUser" method="post" action="index.php">
-    <input type="hidden" name="conf_change_type" value="user"></input>
+    <input type="hidden" name="conf_change_type" value="user" />
+    <table>
     <?php
+        $line = '';
         foreach ( $model as $key => $item ) {
-            $line .= '<label for="' . $key . '">' . $item['label'] . '</label>';
-            $line .= '<input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value=""></input><br />';
-            echo "$line\n";
+            $line .= '<td><label for="' . $key . '">' . $item['label'] . '</label></td>';
+            $line .= '<td><input name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="" /></td></tr>';
         }
+        echo "$line\n";
     ?>
-    <input type="submit" value="Commit Changes"></input>
+    </table>
+    <br />
+    <input type="submit" value="Commit Changes" />
 </form>
 <hr />
 

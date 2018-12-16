@@ -19,6 +19,7 @@
                     'form_field'   => 'input',
                     'field_type'   => 'file',
                     'field_accept' => "image/*",
+                    'placeholder'  => '',
                 ],
              ],
             'main'  => [
