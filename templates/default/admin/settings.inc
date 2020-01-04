@@ -10,15 +10,19 @@
         $model = $conf_obj->get_config_model('main');
         $line = '';
 
-        # For now there's no use to the 'form_field' setting, as main only uses select, user only inputs
         foreach ( $model as $key => $item ) {
             $line .= '<tr>';
             $line .= '<td><label for="' . $key . '">' . $item['label'] . '</label></td>';
-            $line .= '<td><select class="cooltext" name="' . $key . '" id="' . $key . '">';
-            foreach ( $item['select_opts'] as $option ) {
-                $line .= '<option value="' . $option . '">' . $option . '</option>';
+            if($item['form_field'] == 'select') {
+                $line .= '<td><select class="cooltext" name="' . $key . '" id="' . $key . '">';
+                foreach ( $item['select_opts'] as $option ) {
+                    $line .= '<option value="' . $option . '">' . $option . '</option>';
+                }
+                $line .= '</select></td>';
+            } elseif($item['form_field'] == 'input') {
+                $line .= '<td><input type="text" class="cooltext" name="' . $key . '" id="' . $key . '" placeholder="'.$item['default'].'" />';
             }
-            $line .= '</select></td></tr>';
+            $line .= '</tr>';
         }
         echo "$line\n";
     ?>
