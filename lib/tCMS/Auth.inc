@@ -25,7 +25,7 @@
                 || ( $session_status !== PHP_SESSION_ACTIVE || $session_status !== 2 )
                 || ( isset( $_SESSION['LAST_ACTIVITY'] ) && ( time() - $_SESSION['LAST_ACTIVITY'] > 3600 ) )
                 || $_SESSION['REMOTE_ADDR'] !== $_SERVER['REMOTE_ADDR'] ) {
-                $to = ( $_GET['app'] ) ? "&to=" . $_GET['app'] : "";
+                $to = ( !empty($_GET['app']) ) ? "&to=" . $_GET['app'] : "";
                 auth::invalidate_auth( $redirect, $to );
             }
             $_SESSION['LAST_ACTIVITY'] = time();
