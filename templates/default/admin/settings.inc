@@ -1,3 +1,22 @@
+<?php
+    if(!empty($args['conf_change_type'])) {
+        $conf  = $conf_obj->get($args['conf_change_type']);
+        $model = $conf_obj->get_config_model($args['conf_change_type']);
+        $saved = false;
+        foreach( $model as $key => $item ) {
+            if(!empty($args[$key])) {
+                $conf[$key] = $args[$key];
+            }
+            $conf_obj->set($args['conf_change_type'], $conf);
+            $saved = $conf_obj->save($args['conf_change_type']);
+        }
+        if($saved) {
+            echo "<p>Successfully saved $saved bytes to " . $conf_obj->get_conf_dir() . '/' . $args['conf_change_type'] . ".json</p>";
+        } else {
+            echo '<p style="color:red;">Failed to save to ' . $conf_obj->get_conf_dir() . '/' . $args['conf_change_type'] . '.json!</p>';
+        }
+    }
+?>
 <p class="title">
  General settings:
 </p>
@@ -20,7 +39,8 @@
                 }
                 $line .= '</select></td>';
             } elseif($item['form_field'] == 'input') {
-                $line .= '<td><input type="text" class="cooltext" name="' . $key . '" id="' . $key . '" placeholder="'.$item['default'].'" />';
+                $val = !empty($conf[$key]) ? $conf[$key] : '';
+                $line .= '<td><input type="text" class="cooltext" name="' . $key . '" id="' . $key . '" placeholder="'.$item['default'].'" value="'.$val.'" />';
             }
             $line .= '</tr>';
         }

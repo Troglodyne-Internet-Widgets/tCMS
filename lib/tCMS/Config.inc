@@ -73,7 +73,7 @@
         }
 
         public function save( $type='main' ) {
-            return file_put_contents($this->get_conf_dir()."/$type.json", $this->get($type));
+            return file_put_contents($this->get_conf_dir()."/$type.json", json_encode($this->get($type)));
         }
     }
 ?>
