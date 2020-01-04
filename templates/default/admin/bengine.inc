@@ -59,12 +59,12 @@
  if (!empty($_POST["id"])) {
   /*Post Deletion*/
   if ($_POST["mod"] == "Delete Post") {
-   $fh = unlink($_POST["id"]);
+   $fh = unlink($dir.'/'.$_POST["id"]);
    if (!$fh) die("ERROR: couldn't delete ".$_POST['id'].", check permissions");
    echo "Deleted ".$_POST["id"]."<br />";
   /*Post Editing*/
   } elseif ($_POST["mod"] == "Commit Edit") {
-   $fh = fopen($_POST["id"], 'w');
+   $fh = fopen($dir.'/'.$_POST["id"], 'w');
    if (!$fh) die("ERROR: couldn't write to ".$_POST['id'].", check permissions");
    fwrite($fh,stripslashes($_POST["content"]));
    fclose($fh);
@@ -106,6 +106,7 @@
      <input type=\"hidden\" name=\"id\" value=\"$id\" />
       <textarea id=\"innerHTML".$postincrementer."\" name=\"content\" \">
       </textarea><br />
+      <input type=\"hidden\" name=\"app\" value=\"blog\" />
       <input type=\"submit\" name=\"mod\" value=\"Commit Edit\" class=\"coolbutton\">
       <input type=\"submit\" name=\"mod\" value=\"Delete Post\" class=\"coolbutton\">
      </form>
