@@ -30,6 +30,12 @@
     if( empty($args['app']) || $args['app'] == 'config' ) {
         $kontent = "$themedir/admin/settings.inc";
     } elseif ($args['app'] == 'blog') {
+        if(!empty($args['get_fragment'])) {
+            # Need to sanitize
+            $path = realpath("$basedir/blog/".$args['get_fragment']);
+            if(strpos($path, "$basedir/blog") !== 0 ) die("Forbidden: Tried to load $path, but $basedir/blog is not the start of the real path.");
+            die(file_get_contents("$basedir/blog/".$args['get_fragment']));
+        }
         $kontent = "$themedir/admin/bengine.inc";
     } elseif ($args['app'] == 'microblog') {
         $kontent = "$themedir/admin/mbengine.inc";

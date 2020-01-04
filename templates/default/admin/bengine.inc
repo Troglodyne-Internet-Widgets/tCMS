@@ -110,7 +110,7 @@
       <input type=\"submit\" name=\"mod\" value=\"Delete Post\" class=\"coolbutton\">
      </form>
     </div>";
-   $JSAIDS.="document.getElementById('link".$postincrementer."').addEventListener('click',function () {loadpost('".$val."','innerHTML".$postincrementer."',false);});\nwindow.postsLoaded['innerHTML".$postincrementer."'] = false;";
+   $JSAIDS.="document.getElementById('link".$postincrementer."').addEventListener('click',function () {loadpost('index.php?app=blog&get_fragment=".urlencode($val)."','innerHTML".$postincrementer."',false);});\nwindow.postsLoaded['innerHTML".$postincrementer."'] = false;";
   }
  }
 print "<script type=\"text/javascript\">\n
