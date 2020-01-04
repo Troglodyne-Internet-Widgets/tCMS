@@ -42,7 +42,7 @@ if( !file_exists($user_info['dir'] . "/.tCMS_basedir") ) {
     echo "            '" . $user_info["dir"] . "/.tCMS_basedir'\n";
     echo "        Please press [enter] to continue.";
     get_string_from_stdin(); # Mostly just to make the user confirm they read this.
-    file_put_contents( $user_info['dir'] . "/.tCMS_basedir", $private_base );
+    file_put_contents( $user_info['dir'] . "/.tCMS_basedir", realpath($private_base) );
 }
 
 # Create admin user
