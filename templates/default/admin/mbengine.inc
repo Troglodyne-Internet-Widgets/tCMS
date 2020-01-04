@@ -2,7 +2,7 @@
   //TODO have include file here for string size validation function on titles, XSS Prevention (?)
 
   // Function for creating a post, used twice in the code below (thus it is encapsulated).
-  function write_post($fh=null) {
+  function write_post($fh=null, $basedir) {
     //Pull in config due to function scoping
     extract(json_decode(file_get_contents('config/main.json'),true));
     $errors = array();//Create empty error array
@@ -37,10 +37,10 @@
         "poster"  => $poster
       );//XXX Note here that if editing, it changes poster to whoever last edited the post
       if(empty($fh)) {//If none was passed in, we need to make one
-        $tdtime = new DateTime(null, new DateTimeZone($timezone));
+        $tdtime = new DateTime();
         $today = $tdtime->format('m.d.y');
         $now = $tdtime->format('H:i:s');
-        $newsdir = $_SERVER["DOCUMENT_ROOT"].'/'.$basedir.$microblogdir;
+        $newsdir = "$basedir/microblog/";
         @mkdir($newsdir.$today);
         $fh = fopen($newsdir.$today."/".$now, 'w');
         if (!$fh) die("ERROR: couldn't write $newsdir$today/$now to $newsdir$today, check permissions");
@@ -58,7 +58,7 @@
   //Microblog Posting engine - also used to display a form for submitting stories
   if($_SERVER['REQUEST_METHOD'] == 'POST') {//Don't do anything unless we are POSTing 
     if(empty($_POST["id"])) {//See if we need to post something new
-      write_post(); 
+      write_post(null, $basedir); 
     } else {//OK, so we've established that the post has an ID. Let's see if we're editing/deleting a post.
       if (!empty($_POST["action"]) && $_POST["action"] == 'Delete') {//BLANKING IN PROGRESS
         $res = unlink($_POST["id"]);
@@ -76,7 +76,7 @@
         if(empty($_POST["type"]) && !empty($_POST["content"])) {//Do some munging if it's just raw text
           $content = stripslashes($_POST["content"]);
         } else {//Process the JSON Post, write to file
-          write_post($fh);
+          write_post($fh, $basedir);
         }
         fwrite($fh,$content);//Just write the blob ,TODO validation
         fclose($fh);
@@ -96,13 +96,14 @@
    Audio<br /><input class="cooltext" type="text" name="AUD" placeholder="https://soundclod.com/static.mp3"/>
    Video<br /><input class="cooltext" type="text" name="VID" placeholder="https://youvimeo.tv/infomercial.mp4" />
    Comments:<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"></textarea>
+   <input type="hidden" name="app" value="microblog" />
    <input class="coolbutton" type="submit" value="Publish" text="Publish" />
   </form>
  </div>
  <div id="stories">
   <?php
    $editable = 1;
-   include $_SERVER["DOCUMENT_ROOT"].'/'.$config['basedir']."sys/microblog.inc";
+   include $_SERVER["DOCUMENT_ROOT"].'/sys/microblog.inc';
   ?>
  </div>
 </div>

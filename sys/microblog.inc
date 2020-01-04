@@ -13,14 +13,15 @@
         }
       </script>\n";
   }
-  echo '<p class="title"><a title="RSS" class="rss" href="/'.$config['basedir'].$config['rssdir'].'microblog.php"></a> '.$config['microblogtitle'];
+  $title = !empty($config['microblogtitle']) ? $config['microblogtitle'] : "Microblog";
+  echo "<p class=\"title\"><a title=\"RSS\" class=\"rss\" href=\"sys/rss/microblog.php\"></a> $title";
   //Set important times - $tdtime is today's date, $oldtime is the oldest known date a tCMS install had nuze for - defaults to today then searches microblog dir for entries to set date
-  $tdtime = new DateTime(null, new DateTimeZone($config['timezone']));
+  $tdtime = new DateTime();
   $oldtime = clone $tdtime;
   //limit results of directory read to first entry -- much faster than doing it with PHP once you get a large filelist. 
-  exec("ls -tr1 ".$_SERVER["DOCUMENT_ROOT"].'/'.$config['basedir'].$config['microblogdir']." |head -1", $cmd_out);
+  exec("ls -tr1 $basedir/microblog |head -1", $cmd_out);
   if(!empty($cmd_out[0])) {
-    $oldtime = $oldtime = DateTime::createFromFormat('m.d.y', $cmd_out[0], new DateTimeZone($config['timezone']));
+    $oldtime = $oldtime = DateTime::createFromFormat('m.d.y', $cmd_out[0]);
   }
   $oldtime->sub(new DateInterval('P1D'));
   /*$today and $tmrw refer to times relative to what is passed by GET params -
@@ -30,7 +31,7 @@
   $error = 0;
   $today = clone $tdtime;
   if(!empty($_GET["date"])) {
-    $today = DateTime::createFromFormat('m.d.y', $_GET["date"], new DateTimeZone ($config['timezone']));
+    $today = DateTime::createFromFormat('m.d.y', $_GET["date"]);
     //Catch bogus input, set $tmwr to TRUE if $today was set to something other than today's date
     if (!filter_var($_GET["date"],FILTER_VALIDATE_REGEXP,array('options' => array('regexp' => "/^(0[1-9]|1[012])[.](0[1-9]|[12][0-9]|3[01])[.]\d\d/")))) {
       echo "</p>That's a funny looking date you provided there, mister.\n";
@@ -67,7 +68,7 @@
       }
       if ($todaysnews != "end") {
         //Get news from directory if any exists for that day, glob will return empty if nothing is in dir
-        $todaysnews = glob($_SERVER["DOCUMENT_ROOT"].'/'.$config['basedir'].$config['microblogdir'].$today->format('m.d.y')."/*");
+        $todaysnews = glob("$basedir/microblog/".$today->format('m.d.y')."/*");
         //Set display date for today's news, set $today to be yesterday in order to get while loop to recurse correctly
         $realtime = $today->format('m.d.y');
         if(!empty($_GET['fwd']) && $_GET['fwd']) {//Check whether we are traversing forward or backward in time
@@ -130,16 +131,18 @@
           } else {
           $editblock .= '<input type="hidden" name="type" value="JSON" />
             Title: <input class="cooltext" type="text" name="title"
-			value="' . preg_replace( '"' ,'\"' , $json->title ) .'" /><br />
+			value="' . str_replace( '"' ,'&quot;' , $json->title ) .'" /><br />
             URL: <input class="cooltext" type="text" name="URL" value="'.$json->url.'" /><br />
             Image: <input class="cooltext" type="text" name="IMG" value="'.$json->image.'" /><br />
             Audio: <input class="cooltext" type="text" name="AUD" value="'.$json->audio.'" /><br />
             Video: <input class="cooltext" type="text" name="VID" value="'.$json->video.'" /><br />
             Comments: <textarea class="cooltext" name="comment">'.$json->comment.'</textarea>';
           }
-          $editblock .= "<input class=\"coolbutton mbedit_button\" type=\"submit\" Value=\"Edit\" />
+          $editblock .= "<input type=\"hidden\" name=\"app\" value=\"microblog\" />
+             <input class=\"coolbutton mbedit_button\" type=\"submit\" Value=\"Edit\" />
              </form>
              <form style=\"display: inline\" method=\"POST\">
+              <input type=\"hidden\" name=\"app\" value=\"microblog\" />
               <input type=\"hidden\" name=\"id\" value=\"$i\" />
               <input type='hidden' name='action' value='Delete' />
               <input class=\"coolbutton mbedit_button\" type=\"submit\" value=\"Delete\" />
