@@ -43,6 +43,7 @@
    or if additional help is required.
   </span>
   <textarea id="newposttext" name="content"></textarea><br />
+  <input type="hidden" name="app" value="blog" />
   <input type="submit" name="mod" value="Create Post" class="coolbutton" />
  </form>
  <hr />
