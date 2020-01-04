@@ -3,12 +3,10 @@ tCMS2 still left undone (will add to as I think of em)
 * tests for config reading and comparison based on model
 * tests for config validation of user input (wanna make sure we *can* install)
 * tests for config writing
-* Un-Stubbify first time run wizard
 * Make config page in Admin work right
 * Need rel=alternate 'link' tags in HEAD for RSS feeds
 
 * SINGLE USER INSTALL INFO TO MANUAL, MULTI-USER INSTALL INFO TO MANUAL
-* CRYPTO LOGIN YOU BAG BITER
 
 `make dist` to make release tarball
 
