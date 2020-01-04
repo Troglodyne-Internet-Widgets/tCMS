@@ -51,7 +51,7 @@
  /*Initialize vars, get directory contents*/
  $postincrementer = 0;
  $JSAIDS = "";
- $dir = $_SERVER['DOCUMENT_ROOT'].$config['basedir'].'/'.$config['blogdir'];
+ $dir = $basedir.'/blog/';
  $postlisting = scandir($dir);
  rsort($postlisting, SORT_NUMERIC);
  /*Post Manipulation*/
@@ -90,7 +90,7 @@
   $postlisting = scandir($dir);
   rsort($postlisting, SORT_NUMERIC);
   foreach ($postlisting as $key=>$val) {
-    $id = $_SERVER["DOCUMENT_ROOT"].$config['basedir'].$config['blogdir'].basename($val);
+    $id = basename($val);
     $posttitle = strstr($val,'.', true);
   if (!empty($posttitle)) {
    $postincrementer++;
@@ -109,7 +109,7 @@
       <input type=\"submit\" name=\"mod\" value=\"Delete Post\" class=\"coolbutton\">
      </form>
     </div>";
-   $JSAIDS.="document.getElementById('link".$postincrementer."').addEventListener('click',function () {loadpost('/".$config['basedir'].$config['blogdir'].$val."','innerHTML".$postincrementer."',false);});\nwindow.postsLoaded['innerHTML".$postincrementer."'] = false;";
+   $JSAIDS.="document.getElementById('link".$postincrementer."').addEventListener('click',function () {loadpost('".$val."','innerHTML".$postincrementer."',false);});\nwindow.postsLoaded['innerHTML".$postincrementer."'] = false;";
   }
  }
 print "<script type=\"text/javascript\">\n
