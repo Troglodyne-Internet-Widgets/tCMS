@@ -67,5 +67,13 @@
         public function get_config_model($type='main') {
             return $this->conf_model[$type];
         }
+
+        public function set( $type='main', $new_value=array() ) {
+            return $this->conf[$type] = $new_value;
+        }
+
+        public function save( $type='main' ) {
+            return file_put_contents($this->get_conf_dir()."/$type.json", $this->get($type));
+        }
     }
 ?>
