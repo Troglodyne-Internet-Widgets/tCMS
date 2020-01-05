@@ -27,6 +27,7 @@
                 'theme' => [ 'label' => 'tCMS Theme', 'default' => 'default', 'form_field' => 'select', 'select_opts' => [ 'default' ] ],
                 'htmltitle' => [ 'label' => 'Website Title', 'default' => 'Just another tCMS Blog', 'form_field' => 'input', 'field_type' => 'text' ],
                 'microblogtitle' => [ 'label' => 'Microblog Title', 'default' => 'Microblog', 'form_field' => 'input', 'field_type' => 'text' ],
+                'blogtitle' => [ 'label' => 'Blog Title', 'default' => 'Blog', 'form_field' => 'input', 'field_type' => 'text' ],
             ],
         ];
 

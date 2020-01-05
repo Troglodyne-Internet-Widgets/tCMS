@@ -35,7 +35,7 @@ if (!empty($_GET['index']) && !is_int($_GET['index'])) {
 
 
 	//slurp up the files
-	$files = glob("blog/*.post");
+	$files = glob($basedir . "/blog/*.post");
 	$guid = count($files);
 
 	//sort by filename
