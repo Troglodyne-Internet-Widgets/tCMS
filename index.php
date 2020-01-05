@@ -44,14 +44,17 @@
    <div id="kontent" class="kontained">
    <?php
     // Home should refer to a template.
-    $home = ( array_key_exists( 'home', $config ) && !empty($config['home']) ? $config['home'] : "$docroot/sys/blogroll.inc" );
+    $home = ( array_key_exists( 'home', $config ) && !empty($config['home']) ? $config['home'] : "blog" );
+    $home_map = [ 'blog' => 3, 'microblog' => 2, 'fileshare' => 1 ]; 
     $destinations = [
         $config['home'], "$docroot/sys/fileshare/showfiles.inc", "$docroot/sys/microblog.inc",
         "$docroot/sys/blogroll.inc", "$docroot/sys/fileshare/showpost.inc", "$docroot/sys/fileshare/showcode.inc",
         "$docroot/sys/fileshare/showaudio.inc", "$docroot/sys/fileshare/showvideo.inc", "$docroot/sys/fileshare/showimg.inc",
         "$docroot/sys/fileshare/showdoc.inc",
     ];
-    if ( empty($nav) ) $nav = 0;
+    if ( empty($nav) || $nav == 0 ) {
+        $nav = $home_map[$home];
+    }
     if ( $nav === 1 || $nav > 4 ) {
         $pwd = $post;
         include 'sys/fileshare/sanitize.inc';
