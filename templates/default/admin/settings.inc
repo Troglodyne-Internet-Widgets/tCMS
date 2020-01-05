@@ -1,15 +1,29 @@
 <?php
     if(!empty($args['conf_change_type'])) {
         $conf  = $conf_obj->get($args['conf_change_type']);
+        if($args['conf_change_type'] == 'users' ) {
+            $real_conf = $conf;
+            $conf = $real_conf[$args['name']];
+        }
         $model = $conf_obj->get_config_model($args['conf_change_type']);
         $saved = false;
         foreach( $model as $key => $item ) {
             if(!empty($args[$key])) {
-                $conf[$key] = $args[$key];
+                if($key == 'password') {
+                    # Hash it, save to correct param
+                    $conf['auth_hash'] = password_hash( $args[$key], PASSWORD_DEFAULT );
+                } else {
+                    $conf[$key] = $args[$key];
+                }
             }
-            $conf_obj->set($args['conf_change_type'], $conf);
-            $saved = $conf_obj->save($args['conf_change_type']);
         }
+        if($args['conf_change_type'] == 'users' ) {
+            unset($conf['name']);
+            $real_conf[$args['name']] = $conf;
+            $conf = $real_conf;
+        }
+        $conf_obj->set($args['conf_change_type'], $conf);
+        $saved = $conf_obj->save($args['conf_change_type']);
         if($saved) {
             echo "<p>Successfully saved $saved bytes to " . $conf_obj->get_conf_dir() . '/' . $args['conf_change_type'] . ".json</p>";
         } else {
@@ -57,7 +71,7 @@
 </p>
 <hr />
 <form id="userConfig" method="post" action="index.php">
-    <input type="hidden" name="conf_change_type" value="user" />
+    <input type="hidden" name="conf_change_type" value="users" />
     <table>
     <?php
         $conf  = $conf_obj->get('users');
