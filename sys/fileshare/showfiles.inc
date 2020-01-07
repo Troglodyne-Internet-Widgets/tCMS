@@ -104,11 +104,11 @@
 					};
 				};
 			};
-			echo '<img class="icon" src='.$config['icondir'].$ikon.' />';
+			echo '<img class="icon" src="/themed/'.$theme.'/img/mime/'.$ikon.'" />';
 			echo '<a href="'.$link.$pwd.'/'.$ls[$n].'">'.$ls[$n].'</a><br />';
 		}
 		else {
-			echo '<img src="'.$config['icondir'].'tsfolder.gif" />';
+			echo '<img src="/themed/'.$theme.'/img/mime/tsfolder.gif" />';
 			echo '<a href="index.php?nav=1&dir='.$pwd.'/'.$ls[$n].'">'.$ls[$n].'</a><br />'."\n";
 		}
 	}
