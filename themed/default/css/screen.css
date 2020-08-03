@@ -282,3 +282,7 @@ p.posteditortitle {
    display: block;
   }
 }
+.manageUserEntry {
+    border: .25rem dashed black;
+    padding: .5rem;
+}

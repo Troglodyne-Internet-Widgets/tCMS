@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+umask(007);
 $user_info = posix_getpwuid(posix_geteuid());
 $wd = realpath( dirname( __FILE__ ) . "/../" );
 

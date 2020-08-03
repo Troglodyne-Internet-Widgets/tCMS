@@ -147,7 +147,7 @@
           </table>
         </div>
         <div>
-          <img id="logo" src="../../img/icon/tCMS.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
+          <img id="logo" src="../../themed/default/img/icon/tCMS.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
         </div>
         <div id="spacer" style="clear: both;"><br /></div>
         <form method="POST" action="index.php">

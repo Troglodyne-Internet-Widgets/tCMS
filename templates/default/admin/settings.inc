@@ -72,13 +72,15 @@
 <hr />
 <form id="userConfig" method="post" action="index.php">
     <input type="hidden" name="conf_change_type" value="users" />
-    <table>
     <?php
         $conf  = $conf_obj->get('users');
         $model = $conf_obj->get_config_model('users');
         $line = '';
         foreach ( $conf as $user => $data ) {
-            $line .= "<tr><td colspan=2><em>Manage user '$user'</em></td></tr>";
+            $line .= "<table class='manageUserEntry'><tr><td><em>Manage user '$user'</em></td>";
+            $line .= "<td style='text-align: right;'><label for='delete_$user'>Delete user?</label>";
+            $line .= "<input id='delete_$user' type='checkbox' />";
+            $line .= "</td></tr>";
             foreach ( $model as $key => $item ) {
                 $line .= '<tr><td><label for="' . $key . '">' . $item['label'] . '</label></td>';
                 $val = "";
@@ -89,10 +91,10 @@
                 }
                 $line .= '<td><input class="cooltext" name="' . $key . '" id="' . $key . '" type="' . $item['field_type'] . '" placeholder="' . $item['placeholder'] . '" value="' . $val . '" /></td></tr>';
             }
+            $line .= '</table>';
         }
         echo "$line\n";
     ?>
-    </table>
     <br />
     <input type="submit" class="coolbutton" value="Commit Changes" />
 </form>
