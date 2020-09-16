@@ -1,3 +1,6 @@
+Version 3.0 Perlized
+* TODO
+
 Version 2.0 IRONMAN SLOG development notes [ALPHA]:
 * tCMS now has an installer/updater in bin/installer. Makefile rules 'make install' and 'make update' also do this.
 * Fixed a bug where "" encapsulated titles in microblog editor would get baleeted on load.
