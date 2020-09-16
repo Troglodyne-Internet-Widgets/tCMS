@@ -1,0 +1,4 @@
+<p class="title"><a title="RSS" class="rss" href="/sys/rss/microblog.php"></a> Headline Nudes (<: $date :>):</p>
+: for $posts -> $post {
+:   $post.data | mark_raw
+: }

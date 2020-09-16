@@ -1,0 +1,12 @@
+{
+  "bambam" : {
+    "fullName" : "The Administrator",
+    "email" : "admin@example.com",
+    "remoteUser: "barney"
+  },
+  "wilma" : {
+    "fullName" : "Mr. Magoo",
+    "email" : "dev@null.io",
+    "remoteUser: "fred"
+  }
+}

@@ -1,0 +1,41 @@
+<p class="title">
+ General settings:
+</p>
+<hr />
+<form id="mainConfig" method="post" action="/config/save">
+    TODO configuration form here
+    <br />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
+</form>
+<hr />
+
+<p class="title">
+ User management:
+</p>
+<hr />
+<form id="userConfig" method="post" action="/posts/save">
+    TODO include the posts/ view here to show all users so we can b&
+    <br />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
+</form>
+<br />
+<p class="title">
+ Add User:
+</p>
+<form id="addUser" method="post" action="index.php">
+    TODO include the /post view here so we can add new user entries which *don't* have a domain email account
+    <br />
+    <input type="submit" class="coolbutton" value="Commit Changes" />
+</form>
+<hr />
+
+<p class="title">
+ Theme cloner:
+</p>
+<hr />
+<p>
+  Want to write your own theme?
+  Clone a theme here then see the <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter 03-Customization.post" title="GET UR MIND RITE">styling guide</a>
+  for information on how tCMS' templates, image sets and CSS work in the theming system.
+</p>
+INSERT FORM HERE

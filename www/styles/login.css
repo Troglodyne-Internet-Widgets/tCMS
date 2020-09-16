@@ -1,0 +1,63 @@
+body {
+    background-color: gray;
+    font-family: sans-serif;
+}
+#login {
+    margin: 0 auto;
+    max-width: 25rem;
+    color: white;
+}
+#logo {
+    display: block;
+    max-width: 90%;
+    margin: 0 0 0 5%;
+    height: 2rem;
+}
+#login form {
+    max-width: 85%;
+    display: block;
+    margin: 0 auto;
+}
+#maximumGo {
+    width: calc(100% - 1rem);
+}
+#copyright {
+    font-size: .75rem;
+    text-align: center;
+}
+#jsalert {
+    margin: 1rem;
+    border-radius: .75rem;
+    border-color: rgba(255,0,0,.75);
+    padding: 1rem;
+}
+.alert-danger {
+    background-color: rgba(255,0,0,.25);
+}
+.alert-success {
+    background-color: rgba(0,255,0,.25);
+}
+input {
+    box-sizing: border-box;
+    border-radius: .5em;
+    border: .25em solid black;
+    color: white;
+    padding: .25em;
+    margin: .25em;
+}
+.input-group {
+    display: table;
+    width: 100%;
+}
+.input-group > input, .input-group > label {
+    display: table-cell;
+}
+.input-group > input {
+    width: calc(100% - 1rem);
+    background-color: #333;
+}
+input[type="submit"] {
+    box-shadow: 0 0 .5em black;
+    background-color: #333;
+    color: white;
+}

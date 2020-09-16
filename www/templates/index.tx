@@ -1,0 +1,35 @@
+<div id="topkek">
+    <div id="lefttitle" class="toplel">
+        <: $htmltitle | mark_raw :>
+    </div>
+    <div id="midtitle" class="toplel">
+        <: $midtitle | mark_raw :>
+    </div>
+    <button title="Menu" id="clickme">&#9776;</button>
+    <div id="righttitle" class="toplel">
+        <a href="/news"  title="Micro Blog" class="topbar">LinkLog</a>
+        <a href="/blog"  title="Blog" class="topbar">Blog</a>
+        <a href="/wiki"  title="Wiki" class="topbar">Wiki</a>
+        <a href="/video" title="Video" class="topbar">Video</a>
+        <a href="/audio" title="Audio" class="topbar">Audio</a>
+        <a href="/files" title="Files" class="topbar">Files</a>
+        <a href="/about" title="About" class="topbar">About</a>
+        <a href="/config" title="config" class="topbar usericon <: $user :>"></a>
+    </div>
+</div>
+<div id="littlemenu">
+</div>
+<div id="kontainer">
+    <div id="leftbar" class="kontained">
+      <: $leftbar | mark_raw :>
+    </div>
+    <div id="kontent" class="kontained">
+        <: $content | mark_raw :>
+    </div>
+    <div id="rightbar" class="kontained">
+        <: $rightbar | mark_raw :>
+    </div>
+</div>
+<div id="footbar">
+    <: $footbar | mark_raw :>
+</div>

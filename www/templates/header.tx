@@ -1,0 +1,20 @@
+<!doctype html>
+<html dir="<: $dir :>" lang="<: $lang :>">
+    <head>
+        <title><: $title :></title>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/vnd.microsoft.icon" href="<: $theme_dir :>/img/icon/favicon.ico" />
+        <meta name="description" content="A Simple CMS by teodesian.net"/>
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" type="text/css" href="styles/structure.css" />
+        <link rel="stylesheet" type="text/css" href="styles/screen.css" media="screen" />
+        <link rel="stylesheet" type="text/css" href="styles/print.css" media="print" />
+        <!-- Stylesheets !-->
+        : for $stylesheets -> $stylesheet {
+        <link rel="stylesheet" type="text/css" href="<: $stylesheet :>" media="screen" />
+        : }
+        : for $scripts -> $script {
+        <script type="text/javascript" src="scripts/<: $script :>"></script>
+        : }
+    </head>
+    <body>
