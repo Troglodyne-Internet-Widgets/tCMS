@@ -1,0 +1,18 @@
+<div id="mbengine">
+    <div id="submissions">
+        <p id="subtitle" class="title">Submissions:</p>
+        <form id="posttype">
+            New post Type:
+            <select class="cooltext" name="type" onchange="this.form.submit()" >
+                : for $types -> $type {
+                    <option value="<: $type :>" <: if ($edittype == $type) { :>selected<: } :> ><: $type :></option>
+                : }
+            </select>
+            <hr />
+        </form>
+        : include $edittype ~ ".tx";
+    </div>
+    <div id="stories">
+        : include "posts.tx";
+    </div>
+</div>

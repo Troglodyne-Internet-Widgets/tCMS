@@ -1,0 +1,10 @@
+<form class="Submissions" action="/post/save" method="POST">
+    Title *<br /><input class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" />
+    URL *<br /><input class="cooltext" type="text" name="URL" placeholder="https://oneweirdtrick.scam" />
+    Image<br /><input class="cooltext" type="text" name="IMG" placeholder="https://gifdump.tld/Advice_Dog.jpg" />
+    Audio<br /><input class="cooltext" type="text" name="AUD" placeholder="https://soundclod.com/static.mp3"/>
+    Video<br /><input class="cooltext" type="text" name="VID" placeholder="https://youvimeo.tv/infomercial.mp4" />
+    Comments<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"></textarea>
+    <input type="hidden" name="app" value="microblog" />
+    <input class="coolbutton" type="submit" value="Publish" text="Publish" />
+</form>

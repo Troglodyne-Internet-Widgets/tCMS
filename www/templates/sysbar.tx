@@ -1,0 +1,9 @@
+<div id="topkek" style="text-align: center; vertical-align: middle;">
+    <button title="Menu" id="clickme">☰</button>
+    <span id="configbar">
+        <a class="topbar" title="Back home" href="/">Home</a>
+        <a class="topbar" title="Edit Various Settings" href="/config">Settings</a>
+        <a class="topbar" title="Compose Posts" href="/post">Post</a>
+    </span>
+</div>
+<div style="height:3rem;">hidon</div>

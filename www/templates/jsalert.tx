@@ -1,0 +1,50 @@
+<script>
+    document.addEventListener("DOMContentLoaded", function(event) {
+        var loginFailure = <: $failure :>;
+        if( loginFailure === -1 ) {
+            document.querySelector('#jsalert').style.cssText = 'visibility: hidden;';
+        } else if ( loginFailure === 1 ) {
+            document.querySelector('#jsalert').classList.remove("alert-success");
+            document.querySelector('#jsalert').classList.add("alert-danger");
+            document.querySelector('#msgIcon').innerHTML = "❌";
+            document.querySelector('#message').innerHTML = "<: $message :>";
+        } else {
+            document.querySelector('#jsalert').classList.remove("alert-danger");
+            document.querySelector('#jsalert').classList.add("alert-success");
+            document.querySelector('#msgIcon').innerHTML = "✓";
+            document.querySelector('#message').innerHTML = "<: $message :>";
+            //JS redir better ux than 302
+            window.setTimeout(function() {
+                window.location="<: $to :>";
+            }, 500);
+        }
+    });
+</script>
+
+<style>
+    #jsalert {
+        margin: 1rem;
+        border-radius: .75rem;
+        border-color: rgba(255,0,0,.75);
+        padding: 1rem;
+    }
+    .alert-danger {
+        background-color: rgba(255,0,0,.25);
+    }
+    .alert-success {
+        background-color: rgba(0,255,0,.25);
+    }
+</style>
+
+<div id="jsalert" class="alert-danger">
+  <table>
+    <tr>
+      <td id="msgIcon">
+        ⚠
+      </td>
+      <td id="message" style="padding-left: 1rem;">
+        Please enable JavaScript on this domain.
+      </td>
+    </tr>
+  </table>
+</div>

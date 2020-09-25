@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS user (
+    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    salt TEXT NOT NULL,
+    hash TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS session (
+    id TEXT PRIMARY KEY UNIQUE,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES user(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS username_idx ON user(name);
+
+CREATE VIEW IF NOT EXISTS sess_user AS SELECT user.name AS name, session.id AS session FROM user JOIN session ON session.user_id=user.id;

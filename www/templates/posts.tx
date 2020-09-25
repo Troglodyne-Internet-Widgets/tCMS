@@ -1,4 +1,23 @@
-<p class="title"><a title="RSS" class="rss" href="/sys/rss/microblog.php"></a> Headline Nudes (<: $date :>):</p>
+<p class="title">
+<a title="RSS" class="rss" href="<: $route :>?format=rss"></a>
+<: $category :> (<: $date :>):
+</p>
 : for $posts -> $post {
-:   $post.data | mark_raw
+    <hr>
+    <h3 class='blogtitles'>
+        <a href='<: $post.href :>'><: $post.title :></a>
+        <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
+    </h3>
+    : $post.data | mark_raw;
+    : if ( $can_edit ) {
+    <br />
+    <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>');">[Edit]</a>
+    <div id="<: $post.id :>" style="display:none;">
+        : include $post.type ~ ".tx";
+        <form class="Submissions" action="/post/delete" class="inline">
+            <input type="hidden" name="id" value="<: $post.id :>"></input>
+            <input class="coolbutton" type="submit" value="Delete"></input>
+        </form>
+    </div>
+    : }
 : }

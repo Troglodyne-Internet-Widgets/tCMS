@@ -12,11 +12,13 @@ use Plack::MIME  ();
 use Mojo::File   ();
 use DateTime::Format::HTTP();
 use Encode qw{encode_utf8};
+use CGI::Cookie ();
 
 #Grab our custom routes
 use lib 'lib';
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
+use Trog::Auth;
 
 # Troglodyne philosophy - simple as possible
 
@@ -58,6 +60,22 @@ my $app = sub {
     $query = URL::Encode::url_params_mixed($env->{QUERY_STRING}) if $env->{QUERY_STRING};
     my $path = $env->{PATH_INFO};
 
+    # Let's open up our default route before we bother to see if users even exist
+    return $routes{default}{callback}->($query,$env->{'psgi.input'}, \&_render) unless -f "$ENV{HOME}/.tcms/setup";
+
+    my $cookies = {};
+    if ($env->{HTTP_COOKIE}) {
+        $cookies = CGI::Cookie->parse($env->{HTTP_COOKIE});
+    }
+
+    my $active_user = '';
+    if (exists $cookies->{tcmslogin}) {
+         $active_user = Trog::Auth::session2user($cookies->{tcmslogin}->value);
+    }
+    $query->{user}   = $active_user;
+    $query->{domain} = $env->{HTTP_HOST};
+    $query->{route}  = $path;
+
     #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if (index($path,'/templates') == 0 || $path =~ m/.*\.psgi$/i ) {
         return [ 403, [$content_types{plain}], ["STAY OUT YOU RED MENACE"]];
@@ -70,10 +88,9 @@ my $app = sub {
     return [ 404, [$content_types{plain}], ["RETURN TO SENDER"]] unless exists $routes{$path};
     return [ 400, [$content_types{plain}], ["BAD REQUEST"]] unless $routes{$path}{method} eq $env->{REQUEST_METHOD};
 
-    #TODO fish out what user is in cookie
-    $query->{user} = 'Nobody';
+    @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
 
-    my $output =  $routes{$path}{callback}->($query,$env->{input}, \&_render);
+    my $output =  $routes{$path}{callback}->($query,$env->{'psgi.input'}, \&_render);
     return $output;
 };
 
@@ -108,7 +125,7 @@ sub _serve ($path, $last_fetch=0) {
     return [ 403, [$content_types{plain}], ["STAY OUT YOU RED MENACE"]];
 }
 
-sub _render ($template, $vars) {
+sub _render ($template, $vars, @headers) {
 
     my $processor = Text::Xslate->new(
         path   => 'www/templates',
@@ -125,10 +142,14 @@ sub _render ($template, $vars) {
     #XXX Need to have minification detection, use Typescript
     $vars->{scripts} //= [];
 
+    # Absolute-ize the paths for scripts & stylesheets
+    @{$vars->{stylesheets}} = map { index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{stylesheets}};
+    @{$vars->{scripts}}     = map { index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{scripts}};
+
     $vars->{contenttype} //= $content_types{html};
     $vars->{cachecontrol} //= $cache_control{revalidate};
 
-    my @headers = ($vars->{contenttype});
+    push(@headers, $vars->{contenttype});
     push(@headers,$vars->{contentdisposition}) if $vars->{contentdisposition};
     push(@headers, $vars->{cachecontrol}) if $vars->{cachecontrol};
     my $h = join("\n",@headers);

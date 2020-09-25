@@ -164,13 +164,13 @@ button#clickme:active {
  background-color: #333;
  width: 100%;
 }
-#Submissions input, #Submissions textarea {
+.Submissions input, .Submissions textarea {
  width: 95%;
  display: block;
  margin-right: auto;
  margin-left: auto;
 }
-#Submissions textarea {
+.Submissions textarea {
  height: 20em;
  vertical-align: top;
 }

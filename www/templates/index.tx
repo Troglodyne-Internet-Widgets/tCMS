@@ -7,14 +7,22 @@
     </div>
     <button title="Menu" id="clickme">&#9776;</button>
     <div id="righttitle" class="toplel">
-        <a href="/news"  title="Micro Blog" class="topbar">LinkLog</a>
-        <a href="/blog"  title="Blog" class="topbar">Blog</a>
-        <a href="/wiki"  title="Wiki" class="topbar">Wiki</a>
-        <a href="/video" title="Video" class="topbar">Video</a>
-        <a href="/audio" title="Audio" class="topbar">Audio</a>
-        <a href="/files" title="Files" class="topbar">Files</a>
-        <a href="/about" title="About" class="topbar">About</a>
+        <a href="/news"   title="Micro Blog" class="topbar">News</a>
+        <a href="/blog"   title="Blog" class="topbar">Blog</a>
+        <a href="/image" title="Images" class="topbar">Images</a>
+        <a href="/video"  title="Video" class="topbar">Video</a>
+        <a href="/audio"  title="Audio" class="topbar">Audio</a>
+        <a href="/files"  title="Files" class="topbar">Files</a>
+        <a href="/series" title="Series" class="topbar">Series</a>
+        <a href="/about"  title="About" class="topbar">About</a>
+        <form action="<: $route :>" method="GET" class="inline">
+            <input type="text" name="like"></input>
+            <input type="submit" value="🔎"></input>
+            <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
+        </form>
+        : if ($user) {
         <a href="/config" title="config" class="topbar usericon <: $user :>"></a>
+        : }
     </div>
 </div>
 <div id="littlemenu">

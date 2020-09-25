@@ -94,3 +94,7 @@ body {
 blockquote {
   font-style: italic;
 }
+
+.inline {
+    display: inline;
+}

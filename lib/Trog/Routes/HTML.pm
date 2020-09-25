@@ -6,11 +6,15 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
+use File::Touch();
+
 use Trog::Config;
+use Trog::Data;
+
 my $conf = Trog::Config::get();
 my $template_dir = 'www/templates';
 my $theme_dir;
-$theme_dir = "themes/$conf->{'general.theme'}" if $conf->{'general.theme'} && -d "www/themes/$conf->{'general.theme'}";
+$theme_dir = "themes/".$conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/".$conf->param('general.theme');
 
 use lib 'www';
 
@@ -23,20 +27,25 @@ our $leftbar      = 'leftbar.tx';
 our $footbar      = 'footbar.tx';
 
 our %routes = (
+    default => {
+        callback => \&Trog::Routes::HTML::setup,
+    },
     '/' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::index,
     },
-    '/setup' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::setup,
-    },
+# This should only be enabled to debug
+#    '/setup' => {
+#        method   => 'GET',
+#        callback => \&Trog::Routes::HTML::setup,
+#    },
     '/login' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::login,
     },
     '/auth' => {
         method   => 'POST',
+        nostatic => 1,
         callback => \&Trog::Routes::HTML::login,
     },
     '/config' => {
@@ -47,7 +56,7 @@ our %routes = (
     '/config/save' => {
         method   => 'POST',
         auth     => 1,
-        callback => \&Trog::Routes::HTML::config,
+        callback => \&Trog::Routes::HTML::config_save,
     },
     '/post' => {
         method   => 'GET',
@@ -63,27 +72,37 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
     },
-    '/files' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::files
+    '/profile' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::profile,
+    },
+    '/themeclone' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::themeclone,
     },
 );
 
 # Build aliases for /post with extra data
-my @post_aliases = qw{news blog wiki video audio about};
+my @post_aliases = qw{news blog image video audio about files};
 @routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data} = { tag => [$_] }; \%copy } @post_aliases;
 
 # Grab theme routes
+my $themed = 0;
 if ($theme_dir) {
     my $theme_mod = "$theme_dir/routes.pm";
-    if (-f $theme_mod ) {
+    if (-f "www/$theme_mod" ) {
         require $theme_mod;
         @routes{keys(%Theme::routes)} = values(%Theme::routes);
+        $themed = 1;
     }
 }
 
+# TODO build a sitemap.xml based on the above routing table, and robots.txt
+
 sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
-    $input->{theme_dir}  = $theme_dir || '';
+    $query->{theme_dir}  = $theme_dir || '';
 
     my $processor = Text::Xslate->new(
         path   => $template_dir,
@@ -94,7 +113,7 @@ sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
         path =>  "www/$theme_dir/templates",
     ) if $theme_dir;
 
-    $content ||= _pick_processor($rightbar,$processor,$t_processor)->render($landing_page,$input);
+    $content ||= _pick_processor($rightbar,$processor,$t_processor)->render($landing_page,$query);
 
     my @styles = ('/styles/avatars.css'); #TODO generate file for users
     if ($theme_dir) {
@@ -105,21 +124,27 @@ sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
 
     #TODO allow theming of print css
 
+    my $search_info = Trog::Data->new($conf);
+
     return $render_cb->('index.tx',{
         user        => $query->{user},
+        search_lang => $search_info->{lang},
+        search_help => $search_info->{help},
+        route       => $query->{route},
         theme_dir   => $theme_dir,
         content     => $content,
-        title       => $conf->{'general.title'},
-        htmltitle   => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$input),
-        midtitle    => _pick_processor("templates/$midtitle" ,$processor,$t_processor)->render($midtitle,$input),
-        rightbar    => _pick_processor("templates/$rightbar" ,$processor,$t_processor)->render($rightbar,$input),
-        leftbar     => _pick_processor("templates/$leftbar"  ,$processor,$t_processor)->render($leftbar,$input),
-        footbar     => _pick_processor("templates/$footbar"  ,$processor,$t_processor)->render($footbar,$input),
+        title       => $conf->param('general.title'), #TODO control in theme instead
+        htmltitle   => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
+        midtitle    => _pick_processor("templates/$midtitle" ,$processor,$t_processor)->render($midtitle,$query),
+        rightbar    => _pick_processor("templates/$rightbar" ,$processor,$t_processor)->render($rightbar,$query),
+        leftbar     => _pick_processor("templates/$leftbar"  ,$processor,$t_processor)->render($leftbar,$query),
+        footbar     => _pick_processor("templates/$footbar"  ,$processor,$t_processor)->render($footbar,$query),
         stylesheets => \@styles,
     });
 }
 
 sub setup ($query, $input, $render_cb) {
+    File::Touch::touch("$ENV{HOME}/.tcms/setup");
     return $render_cb->('notconfigured.tx', {
         title => 'tCMS Requires Setup to Continue...',
         stylesheets => _build_themed_styles('notconfigured.css'),
@@ -127,33 +152,159 @@ sub setup ($query, $input, $render_cb) {
 }
 
 sub login ($query, $input, $render_cb) {
-    # TODO actually do login processing
+
+    # Redirect if we actually have a logged in user.
+    # Note to future me -- this user value is overwritten explicitly in server.psgi.
+    # If that ever changes, you will die
+    $query->{to} //= '/config';
+    if ($query->{user}) {
+        return $routes{$query->{to}}{callback}->($query,$input,$render_cb);
+    }
+
+    #Set the cookiez and issue a 302 back to ourselves if we have good creds
+    my $postdata = _input2postdata($input);
+
+    #Check and see if we have no users.  If so we will just accept whatever creds are passed.
+    my $hasusers = -f "$ENV{HOME}/.tcms/has_users";
+    my $btnmsg = $hasusers ? "Log In" : "Register";
+
+    my @headers;
+    if ($postdata->{username} && $postdata->{password}) {
+        if (!$hasusers) {
+            # Make the first user
+            Trog::Auth::useradd($postdata->{username}, $postdata->{password});
+            File::Touch::touch("$ENV{HOME}/.tcms/has_users");
+        }
+
+        $query->{failed} = 1;
+        my $cookie = Trog::Auth::mksession($postdata->{username}, $postdata->{password});
+        if ($cookie) {
+            # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
+            @headers = (
+                "Set-Cookie: tcmslogin=$cookie; HttpOnly",
+            );
+            $query->{failed} = 0;
+        }
+    }
 
     $query->{failed} //= -1;
     return $render_cb->('login.tx', {
         title         => 'tCMS 2 ~ Login',
-        to            => $query->{to} || '/config',
-        login_failure => int( $query->{failed} ),
-        login_message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
+        to            => $query->{to},
+        failure => int( $query->{failed} ),
+        message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
+        btnmsg        => $btnmsg,
         stylesheets   => _build_themed_styles('login.css'),
-    });
+    }, @headers);
 }
 
 sub config ($query, $input, $render_cb) {
+    if (!$query->{user}) {
+        $query->{to} = '/config';
+        return login($query,$input,$render_cb);
+    }
+    my $tags = ['profile'];
+    my $posts = _post_helper($query, $tags);
+    my $css   = _build_themed_styles('config.css');
+    my $js    = _build_themed_scripts('post.js');
+    push(@$css, '/styles/avatars.css');
+
+    $query->{failure} //= -1;
+
     return $render_cb->('config.tx', {
-        title => 'Configure tCMS',
-        stylesheets => _build_themed_styles('config.css'),
+        title         => 'Configure tCMS',
+        stylesheets   => $css,
+        scripts       => $js,
+        themes        => _get_themes(),
+        data_models   => _get_data_models(),
+        current_theme => $conf->param('general.theme'),
+        current_data_model => $conf->param('general.data_model'),
+        route       => '/about',
+        category    => '/about',
+        types       => ['profile'],
+        can_edit    => 1,
+        posts       => $posts,
+        edittype    => 'profile',
+        message     => $query->{message},
+        failure     => $query->{failure},
+        to          => '/config',
     });
 }
 
+sub _get_themes {
+    my $dir = 'www/themes';
+    opendir(my $dh, $dir) || die "Can't opendir $dir: $!";
+    my @tdirs = grep { !/^\./ && -d "$dir/$_" } readdir($dh);
+    closedir $dh;
+    return \@tdirs;
+}
+
+sub _get_data_models {
+    my $dir = 'lib/Trog/Data';
+    opendir(my $dh, $dir) || die "Can't opendir $dir: $!";
+    my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);
+    closedir $dh;
+    return \@dmods
+}
+
 sub config_save ($query, $input, $render_cb) {
+    my $postdata = _input2postdata($input);
+    $conf->param( 'general.theme',      $postdata->{theme} )      if defined $postdata->{theme};
+    $conf->param( 'general.data_model', $postdata->{data_model} ) if $postdata->{data_model};
+
+    $query->{failure} = 1;
+    $query->{message} = "Failed to save configuration!";
+    if ($conf->save()) {
+        $query->{failure} = 0;
+        $query->{message} = "Configuration updated succesfully.";
+    }
+    # TODO we need to soft-restart the server at this point.  Maybe we can just hot-load config on each page when we get to have static renders?  Probably not worth the perf hit for paywall users.
+    return config($query, $input, $render_cb);
+}
+
+# TODO actually do stuff
+sub profile ($query, $input, $render_cb) {
+    return config($query, $input, $render_cb);
+}
+
+sub themeclone ($query, $input, $render_cb) {
+    my $postdata = _input2postdata($input);
+    my ($theme, $newtheme) = ($postdata->{theme},$postdata->{newtheme});
+
+    my $themedir = 'www/themes';
+
+    $query->{failure} = 1;
+    $query->{message} = "Failed to clone theme '$theme' as '$newtheme'!";
+    require File::Copy::Recursive;
+    if ($theme && $newtheme && File::Copy::Recursive::dircopy( "$themedir/$theme", "$themedir/$newtheme" )) {
+        $query->{failure} = 0;
+        $query->{message} = "Successfully cloned theme '$theme' as '$newtheme'.";
+    }
     return config($query, $input, $render_cb);
 }
 
 sub post ($query, $input, $render_cb) {
+    if (!$query->{user}) {
+        $query->{to} = '/config';
+        return login($query,$input,$render_cb);
+    }
+
+    my $tags  = _coerce_array($query->{tag});
+    my $posts = _post_helper($query, $tags);
+    my $css   = _build_themed_styles('post.css');
+    my $js    = _build_themed_scripts('post.js');
+    push(@$css, '/styles/avatars.css');
+
     return $render_cb->('post.tx', {
-        title => 'New Post',
-        stylesheets => _build_themed_styles('post.css'),
+        title       => 'New Post',
+        stylesheets => $css,
+        scripts     => $js,
+        posts       => $posts,
+        can_edit    => 1,
+        types       => [qw{microblog blog file}],
+        route       => '/posts',
+        category    => '/posts',
+        edittype    => $query->{type} || 'microblog',
     });
 }
 
@@ -163,9 +314,10 @@ sub post_save ($query, $input, $render_cb) {
 
 sub posts ($query, $input, $render_cb) {
     my $tags = _coerce_array($query->{tag});
+    my $posts = _post_helper($query, $tags);
 
-    require Trog::Data;
-    my $data = Trog::Data->new($conf);
+    my $fmt = $query->{format} || '';
+    return _rss($posts) if $fmt eq 'rss';
 
     my $processor ||= Text::Xslate->new(
         path   => _dir_for_resource('posts.tx'),
@@ -174,21 +326,33 @@ sub posts ($query, $input, $render_cb) {
     my $styles = _build_themed_styles('posts.css');
 
     my $content = $processor->render('posts.tx', {
-        title => "Posts tagged @$tags",
-        date  => 'TODO',
-        posts => $data->get(
-            tags  => $tags,
-            like => $query->{like},
-        ),
+        title    => "Posts tagged @$tags",
+        date     => 'TODO',
+        posts    => $posts,
+        route    => $query->{route},
+        category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
 }
 
-sub files ($query, $input, $render_cb) {
-    return $render_cb->('fileman.tx', {
-        title => 'tCMS File Browser',
-        stylesheets => _build_themed_styles('fileman.css'),
-    });
+sub _post_helper ($query, $tags) {
+    my $data = Trog::Data->new($conf);
+    return $data->get(
+        tags => $tags,
+        like => $query->{like},
+    );
+}
+
+sub _rss ($posts) {
+    return [200, ["Content-type: text/plain\n"], ["TODO"]];
+}
+
+sub _input2postdata ($input) {
+    #Set the cookiez and issue a 302 back to ourselves if we have good creds
+    my ($slurpee,$postdata) = ('',{});
+    while (<$input>) { $slurpee .= $_ }
+    $postdata = URL::Encode::url_params_mixed($slurpee) if $slurpee;
+    return $postdata;
 }
 
 # Deal with Params which may or may not be arrays
@@ -201,8 +365,15 @@ sub _coerce_array ($param) {
 sub _build_themed_styles ($style) {
     my @styles = ("/styles/$style");
     my $ts = _themed_style($style);
-    push(@styles, $ts) if $theme_dir && -f $ts;
+    push(@styles, $ts) if $theme_dir && -f "www/$ts";
     return \@styles;
+}
+
+sub _build_themed_scripts ($script) {
+    my @scripts = ("/scripts/$script");
+    my $ts = _themed_style($script);
+    push(@scripts, $ts) if $theme_dir && -f "www/$ts";
+    return \@scripts;
 }
 
 sub _pick_processor($file, $normal, $themed) {
@@ -213,8 +384,13 @@ sub _pick_processor($file, $normal, $themed) {
 sub _dir_for_resource ($resource) {
     return $theme_dir && -f "www/$theme_dir/$resource" ? $theme_dir : $template_dir;
 }
+
 sub _themed_style ($resource) {
     return _dir_for_resource("styles/$resource")."/styles/$resource";
+}
+
+sub _themed_script ($resource) {
+    return _dir_for_resource("scripts/$resource")."/scripts/$resource";
 }
 
 1;

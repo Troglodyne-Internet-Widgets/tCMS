@@ -1,38 +1,5 @@
-<script>
-    document.addEventListener("DOMContentLoaded", function(event) {
-        var loginFailure = <: $login_failure :>;
-        if( loginFailure === -1 ) {
-            document.querySelector('#jsalert').style.cssText = 'visibility: hidden;';
-        } else if ( loginFailure === 1 ) {
-            document.querySelector('#jsalert').classList.remove("alert-success");
-            document.querySelector('#jsalert').classList.add("alert-danger");
-            document.querySelector('#msgIcon').innerHTML = "❌";
-            document.querySelector('#message').innerHTML = "<: $login_message :>";
-        } else {
-            document.querySelector('#jsalert').classList.remove("alert-danger");
-            document.querySelector('#jsalert').classList.add("alert-success");
-            document.querySelector('#msgIcon').innerHTML = "✓";
-            document.querySelector('#message').innerHTML = "<: $login_message :>";
-            //JS redir better ux than 302
-            window.setTimeout(function() {
-              window.location="<: $to :>";
-            }, 500);
-        }
-    });
-</script>
 <div id="login">
-    <div id="jsalert" class="alert-danger">
-      <table>
-        <tr>
-          <td id="msgIcon">
-            ⚠
-          </td>
-          <td id="message" style="padding-left: 1rem;">
-            Please enable JavaScript on this domain.
-          </td>
-        </tr>
-      </table>
-    </div>
+    : include "jsalert.tx";
     <div>
       <img id="logo" src="img/icon/tCMS.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
     </div>
@@ -52,6 +19,6 @@
         <input name="password" id="password" placeholder="hunter2" value="" type="password"></input>
       </div>
       <br />
-      <input type="submit" id="maximumGo" value="Log in"></input>
+      <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
 </div>

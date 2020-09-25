@@ -8,8 +8,8 @@ use feature qw{signatures};
 
 #It's just a factory
 
-sub new($class,$config) {
-    my $module = "Trog::Data::$config->{'general.data_model'}";
+sub new( $class, $config ) {
+    my $module = "Trog::Data::".$config->param('general.data_model');
     my $req = $module;
     $req =~ s/::/\//g;
     require "$req.pm";
