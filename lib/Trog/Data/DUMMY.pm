@@ -132,6 +132,13 @@ sub new ($class, $config) {
 # These have to be sorted as requested by the client
 sub get ($self, %request) {
     my @filtered = @$example_posts;
+
+    # First, paginate
+    my $offset = int($request{limit});
+    $offset = @filtered < $offset ? @filtered : $offset;
+    @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit}; 
+
+    # Next, handle the query
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
     @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 

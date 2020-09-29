@@ -1,11 +1,12 @@
 <p class="title">
 <a title="RSS" class="rss" href="<: $route :>?format=rss"></a>
-<: $category :> (<: $date :>):
+<: $category :>:
 </p>
 : for $posts -> $post {
     <hr>
     <h3 class='blogtitles'>
         <a href='<: $post.href :>'><: $post.title :></a>
+        <span id="<: $post.id :>-time" style="float:right;"><: $post.created :></span>
         <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
     </h3>
     : if ( $post.is_video ) {
@@ -35,4 +36,14 @@
         </form>
     </div>
     : }
+    <script type="text/javascript">
+        // Fix post dates to be localized
+        document.addEventListener("DOMContentLoaded", function(event) {
+            var e = document.getElementById("<: $post.id :>-time");
+            var d = new Date(Date(e.innerText));
+            e.innerHTML = "&nbsp;" + d.toDateString();
+        });
+    </script>
 : }
+<hr />
+: include "paginator.tx";

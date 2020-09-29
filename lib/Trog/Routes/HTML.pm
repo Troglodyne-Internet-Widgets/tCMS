@@ -304,6 +304,9 @@ sub post ($query, $input, $render_cb) {
         types       => [qw{microblog blog file}],
         route       => '/posts',
         category    => '/posts',
+        page        => int($query->{page} || 1),
+        limit       => int($query->{limit} || 1),
+        sizes       => [25,50,100],
         edittype    => $query->{type} || 'microblog',
     });
 }
@@ -327,9 +330,11 @@ sub posts ($query, $input, $render_cb) {
 
     my $content = $processor->render('posts.tx', {
         title    => "Posts tagged @$tags",
-        date     => 'TODO',
         posts    => $posts,
         route    => $query->{route},
+        page     => int($query->{page} || 1),
+        limit    => int($query->{limit} || 1),
+        sizes    => [25,50,100],
         category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
@@ -338,8 +343,10 @@ sub posts ($query, $input, $render_cb) {
 sub _post_helper ($query, $tags) {
     my $data = Trog::Data->new($conf);
     return $data->get(
-        tags => $tags,
-        like => $query->{like},
+        page  => int($query->{page} || 1),
+        limit => int($query->{limit} || 25),
+        tags  => $tags,
+        like  => $query->{like},
     );
 }
 
