@@ -40,14 +40,3 @@ section {
 a.topbar {
     margin-top: .5rem;
 }
-
-iframe.responsive, video.responsive { /*Close enough to 16:9*/
-  width: 35rem;
-  height: 20rem;
-}
-@media(max-width: 35rem) {
-  iframe.responsive, video.responsive {
-    width: 100%;
-    height: 10rem;
-  }
-}

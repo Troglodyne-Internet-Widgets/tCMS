@@ -80,6 +80,7 @@ my $example_posts = [
         tags         => ['image', 'files', 'profile-image'],
         created      => time(),
         version      => 0,
+        preview      => '/img/avatar/humm.gif',
     },
     {
         content_type => "audio/mpeg",
@@ -92,6 +93,7 @@ my $example_posts = [
         tags         => ["audio", "files"],
         created      => time(),
         version      => 0,
+        preview      => '/img/sys/testpattern.jpg',
     },
     {
         content_type => "video/ogg",
@@ -104,6 +106,7 @@ my $example_posts = [
         tags         => ["video", "files"],
         created      => time(),
         version      => 0,
+        preview      => '/img/sys/testpattern.jpg',
     },
 ];
 
@@ -134,6 +137,8 @@ sub get ($self, %request) {
 
     # Next, go ahead and build the "post type"
     @filtered = _add_post_type(@filtered);
+    # Next, add the type of post this is
+    @filtered = _add_media_type(@filtered);
 
     return \@filtered;
 }
@@ -145,6 +150,16 @@ sub _add_post_type (@posts) {
         $type = 'blog' if grep { $_ eq 'blog' } @{$post->{tags}};
         $type = 'microblog' if grep { $_ eq 'news' } @{$post->{tags}};
         $post->{type} = $type;
+        $post
+    } @posts;
+}
+
+sub _add_media_type (@posts) {
+    return map {
+        my $post = $_;
+        $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;
+        $post->{is_audio} = 1 if $post->{content_type} =~ m/^audio\//;
+        $post->{is_image} = 1 if $post->{content_type} =~ m/^image\//;
         $post
     } @posts;
 }
