@@ -68,6 +68,13 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::post,
     },
+    '/posts/(.*)' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::posts,
+        captures => ['id'],
+    },
+
     '/posts' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
@@ -86,7 +93,11 @@ our %routes = (
 
 # Build aliases for /post with extra data
 my @post_aliases = qw{news blog image video audio about files};
-@routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data} = { tag => [$_] }; \%copy } @post_aliases;
+@routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data}{tag} = [$_]; \%copy } @post_aliases;
+
+# Build aliases for /post/(.*) with extra data
+@routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/posts/(.*)'}}; \%copy } @post_aliases;
+
 
 # Grab theme routes
 my $themed = 0;
@@ -127,6 +138,7 @@ sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
     my $search_info = Trog::Data->new($conf);
 
     return $render_cb->('index.tx',{
+        code        => $query->{code},
         user        => $query->{user},
         search_lang => $search_info->{lang},
         search_help => $search_info->{help},
@@ -142,6 +154,33 @@ sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
         stylesheets => \@styles,
     });
 }
+
+=head1 ADMIN ROUTES
+
+These are things that issue returns other than 200, and are not directly accessible by users via any defined route.
+
+=cut
+
+sub notfound ($query,$input,$render_cb) {
+    $query->{code} = 404;
+
+    my $processor = Text::Xslate->new(
+        path   => _dir_for_resource('notfound.tx'),
+    );
+
+    my $styles = _build_themed_styles('notfound.css');
+    my $content = $processor->render('notfound.tx', {
+        title    => "Return to Sender, Address unknown",
+        route    => $query->{route},
+    });
+    return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
+}
+
+=head1 NORMAL ROUTES
+
+These are expected to either return a 200, or redirect to something which does.
+
+=cut
 
 sub setup ($query, $input, $render_cb) {
     File::Touch::touch("$ENV{HOME}/.tcms/setup");
@@ -319,10 +358,12 @@ sub posts ($query, $input, $render_cb) {
     my $tags = _coerce_array($query->{tag});
     my $posts = _post_helper($query, $tags);
 
+    return notfound($query,$input,$render_cb) unless @$posts;
+
     my $fmt = $query->{format} || '';
     return _rss($posts) if $fmt eq 'rss';
 
-    my $processor ||= Text::Xslate->new(
+    my $processor = Text::Xslate->new(
         path   => _dir_for_resource('posts.tx'),
     );
 
@@ -335,6 +376,7 @@ sub posts ($query, $input, $render_cb) {
         page     => int($query->{page} || 1),
         limit    => int($query->{limit} || 1),
         sizes    => [25,50,100],
+        rss      => !$query->{id},
         category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
@@ -347,6 +389,7 @@ sub _post_helper ($query, $tags) {
         limit => int($query->{limit} || 25),
         tags  => $tags,
         like  => $query->{like},
+        id    => $query->{id},
     );
 }
 

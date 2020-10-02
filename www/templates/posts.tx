@@ -1,11 +1,14 @@
 <p class="title">
+: if ( $rss ) {
 <a title="RSS" class="rss" href="<: $route :>?format=rss"></a>
 <: $category :>:
+: }
 </p>
 : for $posts -> $post {
     <hr>
     <h3 class='blogtitles'>
-        <a href='<: $post.href :>'><: $post.title :></a>
+        <a href='/posts/<: $post.id :>'><: $post.title :></a>
+        <a class="undecorated" href='<: $post.href :>'>🔗</a>
         <span id="<: $post.id :>-time" style="float:right;"><: $post.created :></span>
         <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
     </h3>
@@ -45,5 +48,7 @@
         });
     </script>
 : }
+: if ( $rss ) {
 <hr />
 : include "paginator.tx";
+: }

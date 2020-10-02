@@ -84,8 +84,24 @@ my $app = sub {
     # If it's just a file, serve it up
     return _serve("www/$path", $last_fetch) if -f "www/$path";
 
+    #Handle regex/capture routes
+    if (!exists $routes{$path}) {
+        my @captures;
+        foreach my $pattern (keys(%routes)) {
+            @captures = $path =~ m/^$pattern$/;
+            if (@captures) {
+                $path = $pattern;
+                foreach my $field (@{$routes{$path}{captures}}) {
+                    $routes{$path}{data} //= {};
+                    $routes{$path}{data}{$field} = shift @captures;
+                }
+                last;
+            }
+        }
+    }
+
     #TODO reject inappropriate content-lengths
-    return [ 404, [$content_types{plain}], ["RETURN TO SENDER"]] unless exists $routes{$path};
+    return Trog::Routes::HTML::notfound($query,$env->{'psgi.input'}, \&_render) unless exists $routes{$path};
     return [ 400, [$content_types{plain}], ["BAD REQUEST"]] unless $routes{$path}{method} eq $env->{REQUEST_METHOD};
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
@@ -149,13 +165,15 @@ sub _render ($template, $vars, @headers) {
     $vars->{contenttype} //= $content_types{html};
     $vars->{cachecontrol} //= $cache_control{revalidate};
 
+    $vars->{code} ||= 200;
+
     push(@headers, $vars->{contenttype});
     push(@headers,$vars->{contentdisposition}) if $vars->{contentdisposition};
     push(@headers, $vars->{cachecontrol}) if $vars->{cachecontrol};
     my $h = join("\n",@headers);
 
     my $body = $processor->render($template,$vars);
-    return [200, [$h], [encode_utf8($body)]];
+    return [$vars->{code}, [$h], [encode_utf8($body)]];
 }
 
 

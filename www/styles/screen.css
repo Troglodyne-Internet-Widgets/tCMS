@@ -288,3 +288,7 @@ p.posteditortitle {
     border: .25rem dashed black;
     padding: .5rem;
 }
+
+.undecorated {
+    text-decoration: none;
+}

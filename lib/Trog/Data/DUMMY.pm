@@ -82,6 +82,19 @@ my $example_posts = [
         version      => 0,
         preview      => '/img/avatar/humm.gif',
     },
+    { 
+        content_type => "image/jpeg",
+        data         => "Test Pattern",
+        href         => "/img/sys/testpattern.jpg",
+        local_href   => "/img/sys/testpattern.jpg",
+        title        => "testpattern.jpg",
+        user         => 'Nobody',
+        id           => 90210,
+        tags         => ['image', 'files'],
+        created      => time(),
+        version      => 0,
+        preview      => '/img/sys/testpattern.jpg',
+    },
     {
         content_type => "audio/mpeg",
         data         => "Test recording for tCMS",
@@ -132,6 +145,9 @@ sub new ($class, $config) {
 # These have to be sorted as requested by the client
 sub get ($self, %request) {
     my @filtered = @$example_posts;
+
+    # If an ID is passed, just get that
+    @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
 
     # First, paginate
     my $offset = int($request{limit});

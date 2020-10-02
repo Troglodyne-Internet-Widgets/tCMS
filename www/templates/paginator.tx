@@ -1,0 +1,16 @@
+Page <: $page :>
+<div style="float:right;">
+    <a href="?page=<: $page + 1 :>&limit=<: $limit :>">Next</a>
+    : if ( $page > 1 ) {
+    <a href="?page=<: $page - 1 :>&limit=<: $limit :>">Prev</a>
+    : }
+    Size:
+    <form style="display:inline;">
+        <input type="hidden" name="page"  value="<: $page :>" />
+        <select name="limit" class="coolbutton">
+            : for $sizes -> $size {
+            <option value="<: $size :>"><: $size :></option>
+            : }
+        </select>
+    </form>
+</div>
