@@ -4,6 +4,12 @@
     Image<br /><input class="cooltext" type="text" name="IMG" placeholder="https://gifdump.tld/Advice_Dog.jpg" />
     Audio<br /><input class="cooltext" type="text" name="AUD" placeholder="https://soundclod.com/static.mp3"/>
     Video<br /><input class="cooltext" type="text" name="VID" placeholder="https://youvimeo.tv/infomercial.mp4" />
+    Visibility<br />
+    <select class="cooltext" name="visibility">
+        : for $post_visibilities -> $visibility {
+            <option value="<: $visibility :>"><: $visibility :></option>
+        : }
+    </select>
     Comments<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"></textarea>
     <input type="hidden" name="app" value="microblog" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />

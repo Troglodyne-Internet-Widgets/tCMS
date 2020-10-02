@@ -18,13 +18,12 @@ $theme_dir = "themes/".$conf->param('general.theme') if $conf->param('general.th
 
 use lib 'www';
 
-# TODO Things which should be themable
-our $landing_page = 'default.tx';
+our $landing_page  = 'default.tx';
 our $htmltitle     = 'title.tx';
 our $midtitle      = 'midtitle.tx';
-our $rightbar     = 'rightbar.tx';
-our $leftbar      = 'leftbar.tx';
-our $footbar      = 'footbar.tx';
+our $rightbar      = 'rightbar.tx';
+our $leftbar       = 'leftbar.tx';
+our $footbar       = 'footbar.tx';
 
 our %routes = (
     default => {
@@ -159,26 +158,49 @@ sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
 
 These are things that issue returns other than 200, and are not directly accessible by users via any defined route.
 
+=head2 notfound, forbidden, badrequest
+
+Implements the 4XX status codes.  Override templates named the same for theming this.
+
 =cut
 
-sub notfound ($query,$input,$render_cb) {
-    $query->{code} = 404;
+sub _generic_route ($rname, $code, $title, $query,$input,$render_cb) {
+    $query->{code} = $code;
 
     my $processor = Text::Xslate->new(
-        path   => _dir_for_resource('notfound.tx'),
+        path   => _dir_for_resource("$rname.tx"),
     );
 
-    my $styles = _build_themed_styles('notfound.css');
-    my $content = $processor->render('notfound.tx', {
-        title    => "Return to Sender, Address unknown",
+    my $styles = _build_themed_styles("$rname.css");
+    my $content = $processor->render("$rname.tx", {
+        title    => $title,
         route    => $query->{route},
+        styles   => $styles,
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
 }
 
+sub notfound (@args) {
+    return _generic_route('notfound',404,"Return to sender, Address unknown", @args);
+}
+
+sub forbidden (@args) {
+    return _generic_route('forbidden', 403, "STAY OUT YOU RED MENACE", @args);
+}
+
+sub badrequest (@args) {
+    return _generic_route('badrequest', 400, "Bad Request", @args);
+}
+
+# TODO Rate limiting route
+
 =head1 NORMAL ROUTES
 
 These are expected to either return a 200, or redirect to something which does.
+
+=head2 setup
+
+One time setup page; should only display to the first user to visit the site which we presume to be the administrator.
 
 =cut
 
@@ -189,6 +211,12 @@ sub setup ($query, $input, $render_cb) {
         stylesheets => _build_themed_styles('notconfigured.css'),
     });
 }
+
+=head2 login
+
+Sets the user cookie if the provided user exists, or sets up the user as an admin with the provided credentials in the event that no users exist.
+
+=cut
 
 sub login ($query, $input, $render_cb) {
 
@@ -236,6 +264,12 @@ sub login ($query, $input, $render_cb) {
         stylesheets   => _build_themed_styles('login.css'),
     }, @headers);
 }
+
+=head2 config
+
+Renders the configuration page, or redirects you back to the login page.
+
+=cut
 
 sub config ($query, $input, $render_cb) {
     if (!$query->{user}) {
@@ -286,6 +320,12 @@ sub _get_data_models {
     return \@dmods
 }
 
+=head2 config_save
+
+Implements /config/save route.  Saves what little configuration we actually use to ~/.tcms/tcms.conf
+
+=cut
+
 sub config_save ($query, $input, $render_cb) {
     my $postdata = _input2postdata($input);
     $conf->param( 'general.theme',      $postdata->{theme} )      if defined $postdata->{theme};
@@ -293,7 +333,7 @@ sub config_save ($query, $input, $render_cb) {
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
-    if ($conf->save()) {
+    if ($conf->save($Trog::Config::home_config)) {
         $query->{failure} = 0;
         $query->{message} = "Configuration updated succesfully.";
     }
@@ -305,6 +345,12 @@ sub config_save ($query, $input, $render_cb) {
 sub profile ($query, $input, $render_cb) {
     return config($query, $input, $render_cb);
 }
+
+=head2 themeclone
+
+Clone a theme by copying a directory.
+
+=cut
 
 sub themeclone ($query, $input, $render_cb) {
     my $postdata = _input2postdata($input);
@@ -322,6 +368,12 @@ sub themeclone ($query, $input, $render_cb) {
     return config($query, $input, $render_cb);
 }
 
+=head2 post
+
+Display the route for making new posts.
+
+=cut
+
 sub post ($query, $input, $render_cb) {
     if (!$query->{user}) {
         $query->{to} = '/config';
@@ -336,6 +388,7 @@ sub post ($query, $input, $render_cb) {
 
     return $render_cb->('post.tx', {
         title       => 'New Post',
+        post_visibilities => ['public', 'private', 'unlisted'],
         stylesheets => $css,
         scripts     => $js,
         posts       => $posts,
@@ -350,9 +403,16 @@ sub post ($query, $input, $render_cb) {
     });
 }
 
+#TODO actually do stuff
 sub post_save ($query, $input, $render_cb) {
     return post($query, $input, $render_cb);
 }
+
+=head2 posts
+
+Display multi or single posts, supports RSS and pagination.
+
+=cut
 
 sub posts ($query, $input, $render_cb) {
     my $tags = _coerce_array($query->{tag});
