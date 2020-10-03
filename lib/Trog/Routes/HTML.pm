@@ -285,13 +285,13 @@ sub config ($query, $input, $render_cb) {
     $query->{failure} //= -1;
 
     return $render_cb->('config.tx', {
-        title         => 'Configure tCMS',
-        stylesheets   => $css,
-        scripts       => $js,
-        themes        => _get_themes(),
-        data_models   => _get_data_models(),
-        current_theme => $conf->param('general.theme'),
-        current_data_model => $conf->param('general.data_model'),
+        title              => 'Configure tCMS',
+        stylesheets        => $css,
+        scripts            => $js,
+        themes             => _get_themes(),
+        data_models        => _get_data_models(),
+        current_theme      => $conf->param('general.theme') // '',
+        current_data_model => $conf->param('general.data_model') // 'DUMMY',
         route       => '/about',
         category    => '/about',
         types       => ['profile'],
