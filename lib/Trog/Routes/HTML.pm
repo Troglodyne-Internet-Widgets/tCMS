@@ -292,6 +292,7 @@ sub config ($query, $input, $render_cb) {
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
         current_data_model => $conf->param('general.data_model') // 'DUMMY',
+        post_visibilities  => [qw{public private unlisted}],
         route       => '/about',
         category    => '/about',
         types       => ['profile'],

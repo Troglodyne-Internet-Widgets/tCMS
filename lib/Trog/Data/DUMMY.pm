@@ -170,8 +170,9 @@ sub _add_post_type (@posts) {
     return map {
         my $post = $_;
         my $type = 'file';
-        $type = 'blog' if grep { $_ eq 'blog' } @{$post->{tags}};
-        $type = 'microblog' if grep { $_ eq 'news' } @{$post->{tags}};
+        $type = 'blog'      if grep { $_ eq 'blog' }    @{$post->{tags}};
+        $type = 'microblog' if grep { $_ eq 'news' }    @{$post->{tags}};
+        $type = 'profile'   if grep { $_ eq 'profile' } @{$post->{tags}};
         $post->{type} = $type;
         $post
     } @posts;
