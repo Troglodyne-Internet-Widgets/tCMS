@@ -15,9 +15,10 @@
         <a href="/files"  title="Files" class="topbar">Files</a>
         <a href="/series" title="Series" class="topbar">Series</a>
         <a href="/about"  title="About" class="topbar">About</a>
+        <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <form action="<: $route :>" method="GET" class="inline">
             <input type="text" name="like"></input>
-            <input type="submit" value="🔎"></input>
+            <input class="coolbutton" type="submit" value="🔎"></input>
             <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
         </form>
         : if ($user) {
