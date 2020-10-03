@@ -88,6 +88,14 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::themeclone,
     },
+    '/series', => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::series,
+    },
+    '/sitemap', => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+    },
 );
 
 # Build aliases for /post with extra data
@@ -452,6 +460,71 @@ sub _post_helper ($query, $tags) {
         like  => $query->{like},
         id    => $query->{id},
     );
+}
+
+#TODO actually do stuff
+sub series ($query, $input, $render_cb) {
+    return Trog::Routes::HTML::index($query,$input,$render_cb);
+}
+
+=head2 sitemap
+
+Return the sitemap index unless the static or a set of dynamic routes is requested.
+We have a maximum of 99,990,000 posts we can make under this model
+As we have 10,000 * 10,000 posts which are indexable via the sitemap format.
+1 top level index slot (10k posts) is taken by our static routes, the rest will be /posts.
+
+=cut
+
+sub sitemap ($query, $input, $render_cb) {
+
+    my (@to_map, $is_index, $route_type);
+    my $warning = '';
+    $query->{map} //= '';
+    if ($query->{map} eq 'static') {
+        # Return the map of static routes
+        $route_type = 'Static Routes';
+        @to_map = grep { !defined $routes{$_}->{captures} && $_ ne 'default' } keys(%routes);
+    } elsif ( !$query->{map} ) {
+        # Return the index instead
+        @to_map = ('static');
+        my $data = Trog::Data->new($conf);
+        my $tot = $data->total_posts();
+        my $size = 50000;
+        my $pages = int($tot / $size) + (($tot % $size) ? 1 : 0);
+
+        # Truncate pages at 10k due to standard
+        my $clamped = $pages > 49999 ? 49999 : $pages;
+        $warning = "More posts than possible to represent in sitemaps & index!  Old posts have been truncated." if $pages > 49999;
+
+        foreach my $page ($clamped..1) {
+            push(@to_map, "$page");
+        }
+        $is_index = 1;
+    } else {
+        $route_type = "Posts: Page $query->{map}";
+        # Return the map of the particular range of dynamic posts
+        $query->{limit} = 50000;
+        $query->{page} = $query->{map};
+        @to_map = @{_post_helper($query, ['public'])};
+    }
+
+    @to_map = sort @to_map unless $is_index;
+    my $processor = Text::Xslate->new(
+        path   => _dir_for_resource('sitemap.tx'),
+    );
+
+    my $styles = _build_themed_styles('sitemap.css');
+
+    my $content = $processor->render('sitemap.tx', {
+        title      => "Site Map",
+        to_map     => \@to_map,
+        is_index   => $is_index,
+        route_type => $route_type,
+        route      => $query->{route},
+    });
+
+    return Trog::Routes::HTML::index($query,$input,$render_cb,$content,$styles);
 }
 
 sub _rss ($posts) {

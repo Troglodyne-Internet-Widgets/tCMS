@@ -1,0 +1,33 @@
+: if ( $is_index ) {
+    <h3>Sitemap Index</h3>
+    <p>
+    Each page of posts is at maximum 50,000 entries due to the <a href="https://www.sitemaps.org/faq.html#faq_sitemap_size">limitations of the sitemap format</a>.
+    This means this map will only show the most recent 2,499,950 posts.
+    </p>
+    : if ( $warning ) {
+        <: $warning :><br /><br />
+    : }
+    : for $to_map -> $map {
+        <a href="?map=<: $map :>">
+        : if ( $map != 'static' ) {
+        Posts Page
+        : }
+        <: $map :>
+        </a><br />
+    : }
+: } else {
+    <h3>Sitemap of <: $route_type :></h3>
+    <p>
+        <a href="/sitemap">Back</a>
+    </p>
+    : for $to_map -> $map {
+        : if ( $route_type == 'static' ) {
+            <a href="<: $map :>">
+            <: $map :>
+        : } else {
+            <a href="/posts/<: $map.id :>">
+            <: $map.title :>
+        : }
+        </a><br />
+    : }
+: }

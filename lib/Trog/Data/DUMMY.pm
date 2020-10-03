@@ -41,7 +41,7 @@ my $example_posts = [
         title        => 'Example Post',
         user         => 'Nobody',
         id           => 665,
-        tags         => ['news'],
+        tags         => ['news', 'public'],
         created      => time(),
         version      => 0,
     },
@@ -53,7 +53,7 @@ my $example_posts = [
         title        => 'Muh Blog',
         user         => 'Nobody',
         id           => 666,
-        tags         => ['blog'],
+        tags         => ['blog', 'public'],
         created      => time(),
         version      => 0,
     },
@@ -65,7 +65,7 @@ my $example_posts = [
         title        => 'Nobody',
         user         => 'Nobody',
         id           => 669,
-        tags         => ['about', 'profile'],
+        tags         => ['about', 'profile', 'public'],
         created      => time(),
         version      => 0,
     },
@@ -77,7 +77,7 @@ my $example_posts = [
         title        => "humm.gif",
         user         => 'Nobody',
         id           => 420,
-        tags         => ['image', 'files', 'profile-image'],
+        tags         => ['image', 'files', 'profile-image', 'public'],
         created      => time(),
         version      => 0,
         preview      => '/img/avatar/humm.gif',
@@ -90,7 +90,7 @@ my $example_posts = [
         title        => "testpattern.jpg",
         user         => 'Nobody',
         id           => 90210,
-        tags         => ['image', 'files'],
+        tags         => ['image', 'files', 'public'],
         created      => time(),
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
@@ -103,7 +103,7 @@ my $example_posts = [
         title        => "test.mp3",
         user         => "Nobody",
         id           => 111,
-        tags         => ["audio", "files"],
+        tags         => ["audio", "files", 'public'],
         created      => time(),
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
@@ -116,7 +116,7 @@ my $example_posts = [
         title        => "test.ogv",
         user         => "Nobody",
         id           => "222",
-        tags         => ["video", "files"],
+        tags         => ["video", "files", 'public'],
         created      => time(),
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
@@ -164,6 +164,10 @@ sub get ($self, %request) {
     @filtered = _add_media_type(@filtered);
 
     return \@filtered;
+}
+
+sub total_posts {
+    return scalar(@$example_posts);
 }
 
 sub _add_post_type (@posts) {
