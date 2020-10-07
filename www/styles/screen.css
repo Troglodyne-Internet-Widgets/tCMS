@@ -58,7 +58,7 @@ audio, video {
  font-size: 1em;
  font-weight: bold;
 }
-#midtitle {
+#midtitle, .midtitle {
  text-align: center;
 }
 #righttitle {
@@ -291,4 +291,14 @@ p.posteditortitle {
 
 .undecorated {
     text-decoration: none;
+}
+
+.tile {
+    display: inline-block;
+}
+
+.preview {
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }

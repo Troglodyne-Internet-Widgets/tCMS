@@ -5,48 +5,57 @@
 : }
 </p>
 : for $posts -> $post {
-    <hr>
-    <h3 class='blogtitles'>
-        <a href='/posts/<: $post.id :>'><: $post.title :></a>
-        <a class="undecorated" href='<: $post.href :>'>🔗</a>
-        <span id="<: $post.id :>-time" style="float:right;"><: $post.created :></span>
-        <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
-    </h3>
-    : if ( $post.is_video ) {
-        <video class="responsive" controls poster="<: $post.preview :>" >
-            <source src="<: $post.href :>" type="<: $post.content_type :>" />
-            Your browser does not support the video tag.
-        </video>
+    :if ( $tiled ) {
+        <a href="<: $route :>/<: $post.id :>" class="tile">
+            <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
+            <p class="midtitle"><: $post.title :></p>
+        </a>
+    : } else {
+        <div class="post">
+            <hr class="divider">
+            <h3 class='blogtitles'>
+                <a href='/posts/<: $post.id :>'><: $post.title :></a>
+                <a class="undecorated" href='<: $post.href :>'>🔗</a>
+                <span id="<: $post.id :>-time" style="float:right;"><: $post.created :></span>
+                <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
+            </h3>
+            : if ( $post.is_video ) {
+                <video class="responsive" controls poster="<: $post.preview :>" >
+                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                    Your browser does not support the video tag.
+                </video>
+            : }
+            : if ( $post.is_audio ) {
+                <audio controls>
+                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                    Your browser does not support the audio tag.
+                </audio>
+            : }
+            : if ( $post.is_image ) {
+                <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
+            : }
+            : $post.data | mark_raw;
+            : if ( $can_edit ) {
+            <br />
+            <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>');">[Edit]</a>
+            <div id="<: $post.id :>" style="display:none;">
+                : include $post.type ~ ".tx";
+                <form class="Submissions" action="/post/delete" class="inline">
+                    <input type="hidden" name="id" value="<: $post.id :>"></input>
+                    <input class="coolbutton" type="submit" value="Delete"></input>
+                </form>
+            </div>
+            : }
+            <script type="text/javascript">
+                // Fix post dates to be localized
+                document.addEventListener("DOMContentLoaded", function(event) {
+                    var e = document.getElementById("<: $post.id :>-time");
+                    var d = new Date(Date(e.innerText));
+                    e.innerHTML = "&nbsp;" + d.toDateString();
+                });
+            </script>
+        </div>
     : }
-    : if ( $post.is_audio ) {
-        <audio controls>
-            <source src="<: $post.href :>" type="<: $post.content_type :>" />
-            Your browser does not support the audio tag.
-        </audio>
-    : }
-    : if ( $post.is_image ) {
-        <img src="<: $post.href :>" alt="image" class="responsive" /><br />
-    : }
-    : $post.data | mark_raw;
-    : if ( $can_edit ) {
-    <br />
-    <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>');">[Edit]</a>
-    <div id="<: $post.id :>" style="display:none;">
-        : include $post.type ~ ".tx";
-        <form class="Submissions" action="/post/delete" class="inline">
-            <input type="hidden" name="id" value="<: $post.id :>"></input>
-            <input class="coolbutton" type="submit" value="Delete"></input>
-        </form>
-    </div>
-    : }
-    <script type="text/javascript">
-        // Fix post dates to be localized
-        document.addEventListener("DOMContentLoaded", function(event) {
-            var e = document.getElementById("<: $post.id :>-time");
-            var d = new Date(Date(e.innerText));
-            e.innerHTML = "&nbsp;" + d.toDateString();
-        });
-    </script>
 : }
 : if ( $rss ) {
 <hr />

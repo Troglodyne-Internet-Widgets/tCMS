@@ -446,6 +446,7 @@ sub posts ($query, $input, $render_cb) {
         limit    => int($query->{limit} || 1),
         sizes    => [25,50,100],
         rss      => !$query->{id},
+        tiled    => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image}),
         category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
