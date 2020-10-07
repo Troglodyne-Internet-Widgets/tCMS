@@ -1,9 +1,10 @@
-<p class="title">
+<span class="title">
 : if ( $rss ) {
 <a title="RSS" class="rss" href="<: $route :>?format=rss"></a>
 <: $category :>:
 : }
-</p>
+</span>
+<hr class="divider" />
 : for $posts -> $post {
     :if ( $tiled ) {
         <a href="<: $route :>/<: $post.id :>" class="tile">
@@ -12,7 +13,6 @@
         </a>
     : } else {
         <div class="post">
-            <hr class="divider">
             <h3 class='blogtitles'>
                 <a href='/posts/<: $post.id :>'><: $post.title :></a>
                 <a class="undecorated" href='<: $post.href :>'>🔗</a>
@@ -55,9 +55,9 @@
                 });
             </script>
         </div>
+        <hr class="divider" />
     : }
 : }
 : if ( $rss ) {
-<hr />
 : include "paginator.tx";
 : }
