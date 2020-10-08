@@ -48,6 +48,16 @@ my %cache_control = (
     static     => "$cc: public, max-age=604800, immutable",
 );
 
+=head2 $app
+
+Dispatches requests based on %routes built above.
+
+The dispatcher here does *not* do anything with the authn/authz data.  It sets those in the 'user' and 'acls' parameters of the query object passed to routes.
+
+If a path passed is not a defined route (or regex route), but exists as a file under www/, it will be served up immediately.
+
+=cut
+
 my $app = sub {
     my $env = shift;
 
@@ -68,10 +78,13 @@ my $app = sub {
         $cookies = CGI::Cookie->parse($env->{HTTP_COOKIE});
     }
 
-    my $active_user = '';
+    my ($active_user,$user_id) = ('','');
     if (exists $cookies->{tcmslogin}) {
-         $active_user = Trog::Auth::session2user($cookies->{tcmslogin}->value);
+         ($active_user,$user_id) = Trog::Auth::session2user($cookies->{tcmslogin}->value);
     }
+
+    $query->{acls} = Trog::Auth::acls4user($user_id) // [] if $user_id;
+
     $query->{user}   = $active_user;
     $query->{domain} = $env->{HTTP_HOST};
     $query->{route}  = $path;

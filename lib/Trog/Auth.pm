@@ -22,20 +22,37 @@ Throws exceptions in the event the session database cannot be accessed.
 
 =head1 FUNCTIONS
 
-=head2 session2user(sessid) = STRING
+=head2 session2user(sessid) = (STRING, INT)
 
-Translate a session UUID into a username.
+Translate a session UUID into a username and id.
 
-Returns empty string on no active session.
+Returns empty strings on no active session.
 
 =cut
 
 sub session2user ($sessid) {
     my $dbh = _dbh();
-    my $rows = $dbh->selectall_arrayref("SELECT name FROM sess_user WHERE session=?",{ Slice => {} }, $sessid);
-    return '' unless ref $rows eq 'ARRAY' && @$rows;
-    return $rows->[0]->{name};
+    my $rows = $dbh->selectall_arrayref("SELECT name,id FROM sess_user WHERE session=?",{ Slice => {} }, $sessid);
+    return ('','') unless ref $rows eq 'ARRAY' && @$rows;
+    return ($rows->[0]->{name},$rows->[0]->{id});
 }
+
+=head2 acls4user(user_id) = ARRAYREF
+
+Return the list of ACLs belonging to the user.
+The function of ACLs are to allow you to access content tagged 'private' which are also tagged with the ACL name.
+
+The 'admin' ACL is the only special one, as it allows for authoring posts, configuring tCMS, adding series (ACLs) and more.
+
+=cut
+
+sub acls4user($user_id) {
+    my $dbh = _dbh();
+    my $records = $dbh->selectall_arrayref("SELECT acl FROM user_acl WHERE user_id = ?", { Slice => {} }, $user_id);
+    return () unless ref $records eq 'ARRAY' && @$records;
+    my @acls = map { $_->{acl} } @$records;
+    return \@acls;
+ }
 
 =head2 mksession(user, pass) = STRING
 
@@ -67,11 +84,18 @@ Returns True or False (likely false when user already exists).
 
 =cut
 
-sub useradd ($user, $pass) {
+sub useradd ($user, $pass, $acls) {
     my $dbh = _dbh();
     my $salt = create_uuid();
     my $hash = sha256($pass.$salt);
-    return $dbh->do("INSERT INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash);
+    my $res =  $dbh->do("INSERT INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash);
+    return unless $res && ref $acls eq 'ARRAY';
+
+    #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
+    foreach my $acl (@$acls) {
+        return unless $dbh->do("INSERT INTO user_acl (user_id,acl) VALUES ((SELECT id FROM user WHERE name=?),?)", undef, $user, $acl);
+    }
+    return 1;
 }
 
 my $dbh;

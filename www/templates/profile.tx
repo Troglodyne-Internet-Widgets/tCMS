@@ -4,10 +4,16 @@
     Avatar *<br /><input class="cooltext" type="file" name="file" />
     Wallpaper<br /><input type="file" class="cooltext" name="wallpaper" placeholder="PROMO.JPG"></input>
     Title  <br /><input class="cooltext" type="text" name="title" />
-    Visibility<br />
+    Profile Visibility<br />
     <select class="cooltext" name="visibility">
         : for $post_visibilities -> $visibility {
             <option value="<: $visibility :>"><: $visibility :></option>
+        : }
+    </select>
+    ACLs / Series<br/ >
+    <select multiple class="cooltext" name="acls">
+        : for $acls -> $acl {
+            <option value="<: $acl.title :>"><: $acl.data :></option>
         : }
     </select>
     Content<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"></textarea>

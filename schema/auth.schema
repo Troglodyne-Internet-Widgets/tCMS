@@ -12,4 +12,9 @@ CREATE TABLE IF NOT EXISTS session (
 
 CREATE INDEX IF NOT EXISTS username_idx ON user(name);
 
-CREATE VIEW IF NOT EXISTS sess_user AS SELECT user.name AS name, session.id AS session FROM user JOIN session ON session.user_id=user.id;
+CREATE VIEW IF NOT EXISTS sess_user AS SELECT user.name AS name, user.id AS id, session.id AS session FROM user JOIN session ON session.user_id=user.id;
+
+CREATE TABLE IF NOT EXISTS user_acl (
+    user_id INTEGER NOT NULL UNIQUE REFERENCES user(id) ON DELETE CASCADE,
+    acl TEXT NOT NULL
+);

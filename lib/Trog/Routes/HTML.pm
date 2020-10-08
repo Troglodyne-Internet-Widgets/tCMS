@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 no warnings 'experimental';
-use feature qw{signatures};
+use feature qw{signatures state};
 
 use File::Touch();
 
@@ -91,6 +91,14 @@ our %routes = (
     '/series', => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::series,
+    },
+    '/config/series' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::series_edit,
+    },
+    '/config/series/save' => {
+        method   => 'POST',
+        callback => \&Trog::Routes::HTML::series_edit,
     },
     '/sitemap', => {
         method   => 'GET',
@@ -183,6 +191,7 @@ sub _generic_route ($rname, $code, $title, $query,$input,$render_cb) {
     my $content = $processor->render("$rname.tx", {
         title    => $title,
         route    => $query->{route},
+        user     => $query->{user},
         styles   => $styles,
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
@@ -247,7 +256,7 @@ sub login ($query, $input, $render_cb) {
     if ($postdata->{username} && $postdata->{password}) {
         if (!$hasusers) {
             # Make the first user
-            Trog::Auth::useradd($postdata->{username}, $postdata->{password});
+            Trog::Auth::useradd($postdata->{username}, $postdata->{password}, ['admin'] );
             File::Touch::touch("$ENV{HOME}/.tcms/has_users");
         }
 
@@ -284,6 +293,8 @@ sub config ($query, $input, $render_cb) {
         $query->{to} = '/config';
         return login($query,$input,$render_cb);
     }
+    return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     my $tags = ['profile'];
     my $posts = _post_helper($query, $tags);
     my $css   = _build_themed_styles('config.css');
@@ -304,6 +315,7 @@ sub config ($query, $input, $render_cb) {
         route       => '/about',
         category    => '/about',
         types       => ['profile'],
+        acls        => _post_helper({}, ['acl']),
         can_edit    => 1,
         posts       => $posts,
         edittype    => 'profile',
@@ -385,9 +397,10 @@ Display the route for making new posts.
 
 sub post ($query, $input, $render_cb) {
     if (!$query->{user}) {
-        $query->{to} = '/config';
+        $query->{to} = '/post';
         return login($query,$input,$render_cb);
     }
+    return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags  = _coerce_array($query->{tag});
     my $posts = _post_helper($query, $tags);
@@ -453,7 +466,7 @@ sub posts ($query, $input, $render_cb) {
 }
 
 sub _post_helper ($query, $tags) {
-    my $data = Trog::Data->new($conf);
+    state $data = Trog::Data->new($conf);
     return $data->get(
         page  => int($query->{page} || 1),
         limit => int($query->{limit} || 25),
@@ -465,6 +478,16 @@ sub _post_helper ($query, $tags) {
 
 #TODO actually do stuff
 sub series ($query, $input, $render_cb) {
+    return Trog::Routes::HTML::index($query,$input,$render_cb);
+}
+
+sub series_edit ($query, $input, $render_cb) {
+    if (!$query->{user}) {
+        $query->{to} = '/series/edit';
+        return login($query,$input,$render_cb);
+    }
+    return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     return Trog::Routes::HTML::index($query,$input,$render_cb);
 }
 

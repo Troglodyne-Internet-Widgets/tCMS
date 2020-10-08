@@ -121,6 +121,19 @@ my $example_posts = [
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
     },
+    {
+        content_type => 'text/plain',
+        data         => "Admin ACL",
+        href         => "/config",
+        local_href   => '/config',
+        title        => 'admin',
+        user         => 'Nobody',
+        id           => "900",
+        tags         => ['acl'],
+        created      => time(),
+        version      => 0,
+        preview      => '/img/sys/testpattern.jpg',
+    }
 ];
 
 =head1 CONSTRUCTOR
