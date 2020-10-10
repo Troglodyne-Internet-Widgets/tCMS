@@ -293,10 +293,11 @@ sub config ($query, $input, $render_cb) {
         $query->{to} = '/config';
         return login($query,$input,$render_cb);
     }
+    #NOTE: we are relying on this to skip the ACL check with 'admin', this may not be viable in future?
     return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags = ['profile'];
-    my $posts = _post_helper($query, $tags);
+    my $posts = _post_helper($query, $tags, $query->{acls});
     my $css   = _build_themed_styles('config.css');
     my $js    = _build_themed_scripts('post.js');
     push(@$css, '/styles/avatars.css');
@@ -315,7 +316,7 @@ sub config ($query, $input, $render_cb) {
         route       => '/about',
         category    => '/about',
         types       => ['profile'],
-        acls        => _post_helper({}, ['acl']),
+        acls        => _post_helper({}, ['acl'], $query->{acls}),
         can_edit    => 1,
         posts       => $posts,
         edittype    => 'profile',
@@ -403,7 +404,7 @@ sub post ($query, $input, $render_cb) {
     return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags  = _coerce_array($query->{tag});
-    my $posts = _post_helper($query, $tags);
+    my $posts = _post_helper($query, $tags, $query->{acls});
     my $css   = _build_themed_styles('post.css');
     my $js    = _build_themed_scripts('post.js');
     push(@$css, '/styles/avatars.css');
@@ -438,7 +439,10 @@ Display multi or single posts, supports RSS and pagination.
 
 sub posts ($query, $input, $render_cb) {
     my $tags = _coerce_array($query->{tag});
-    my $posts = _post_helper($query, $tags);
+
+    #TODO If we have a direct ID query, we should show unlisted videos as well as public ones IFF they have a valid campaign ID attached to query
+    push(@{$query->{acls}}, 'public');
+    my $posts = _post_helper($query, $tags, $query->{acls});
 
     return notfound($query,$input,$render_cb) unless @$posts;
 
@@ -465,12 +469,13 @@ sub posts ($query, $input, $render_cb) {
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
 }
 
-sub _post_helper ($query, $tags) {
+sub _post_helper ($query, $tags, $acls) {
     state $data = Trog::Data->new($conf);
     return $data->get(
         page  => int($query->{page} || 1),
         limit => int($query->{limit} || 25),
         tags  => $tags,
+        acls  => $acls,
         like  => $query->{like},
         id    => $query->{id},
     );
@@ -530,7 +535,7 @@ sub sitemap ($query, $input, $render_cb) {
         # Return the map of the particular range of dynamic posts
         $query->{limit} = 50000;
         $query->{page} = $query->{map};
-        @to_map = @{_post_helper($query, ['public'])};
+        @to_map = @{_post_helper($query, {}, ['public'])};
     }
 
     @to_map = sort @to_map unless $is_index;

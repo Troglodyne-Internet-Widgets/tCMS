@@ -153,6 +153,22 @@ sub new ($class, $config) {
 
 =head1 METHODS
 
+=head2 get(%request)
+
+Queries the data model in the way a "real" data model module ought to.
+
+    id   => Filter down to just the post by ID.  May be subsequently filtered by ACL, resulting in a 404 (which is good, as it does not disclose info).
+
+    tags => ARRAYREF of tags, any one of which is required to give a result.  If none are passed, no filtering is performed.
+
+    acls => ARRAYREF of acl tags, any one of which is required to give result. Filter applies after tags.  'admin' ACL being present skips this filter.
+
+    page => Offset multiplier for pagination.
+
+    limit => Offset for pagination.
+
+    like => Search query, as might be passed in the search bar.
+
 =cut
 
 # These have to be sorted as requested by the client
@@ -167,8 +183,9 @@ sub get ($self, %request) {
     $offset = @filtered < $offset ? @filtered : $offset;
     @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit}; 
 
-    # Next, handle the query
+    # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
+    @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};    
     @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 
     # Next, go ahead and build the "post type"
