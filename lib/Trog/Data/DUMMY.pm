@@ -133,7 +133,20 @@ my $example_posts = [
         created      => time(),
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
-    }
+    },
+    { 
+        content_type => "image/svg",
+        data         => "tCMS Logo",
+        href         => "/img/icon/tCMS.svg",
+        local_href   => "/img/icon/tCMS.svg",
+        title        => "tCMS.svg",
+        user         => 'Nobody',
+        id           => 90211,
+        tags         => ['image', 'files', 'admin'],
+        created      => time(),
+        version      => 0,
+        preview      => '/img/icon/tCMS.svg',
+    },
 ];
 
 =head1 CONSTRUCTOR
