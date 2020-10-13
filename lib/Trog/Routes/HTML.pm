@@ -88,14 +88,6 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::themeclone,
     },
-    '/config/series' => {
-        method => 'GET',
-        callback => \&Trog::Routes::HTML::series_edit,
-    },
-    '/config/series/save' => {
-        method   => 'POST',
-        callback => \&Trog::Routes::HTML::series_edit,
-    },
     '/sitemap', => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
@@ -412,7 +404,7 @@ sub post ($query, $input, $render_cb) {
         scripts     => $js,
         posts       => $posts,
         can_edit    => 1,
-        types       => [qw{microblog blog file}],
+        types       => [qw{microblog blog file series}],
         route       => '/posts',
         category    => '/posts',
         page        => int($query->{page} || 1),
@@ -475,16 +467,6 @@ sub _post_helper ($query, $tags, $acls) {
         like  => $query->{like},
         id    => $query->{id},
     );
-}
-
-sub series_edit ($query, $input, $render_cb) {
-    if (!$query->{user}) {
-        $query->{to} = '/series/edit';
-        return login($query,$input,$render_cb);
-    }
-    return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
-
-    return Trog::Routes::HTML::index($query,$input,$render_cb);
 }
 
 =head2 sitemap

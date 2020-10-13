@@ -126,10 +126,10 @@ my $example_posts = [
         data         => "Admin ACL",
         href         => "/config",
         local_href   => '/config',
-        title        => 'admin',
+        title        => 'Administrative Posts',
         user         => 'Nobody',
         id           => "900",
-        tags         => ['series'],
+        tags         => ['series', 'private'],
         created      => time(),
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
@@ -220,6 +220,7 @@ sub _add_post_type (@posts) {
         $type = 'blog'      if grep { $_ eq 'blog' }    @{$post->{tags}};
         $type = 'microblog' if grep { $_ eq 'news' }    @{$post->{tags}};
         $type = 'profile'   if grep { $_ eq 'profile' } @{$post->{tags}};
+        $type = 'series'    if grep { $_ eq 'series'  } @{$post->{tags}};
         $post->{type} = $type;
         $post
     } @posts;
