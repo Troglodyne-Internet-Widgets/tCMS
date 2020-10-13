@@ -1,6 +1,6 @@
 <form class="Submissions" action="/profile" method="POST">
-    Username *<br /><input class="cooltext" type="text" name="title" placeholder="AzureDiamond" />
-    Password *<br /><input class="cooltext" type="text" name="password" placeholder="hunter2" />
+    Username *<br /><input required class="cooltext" type="text" name="title" placeholder="AzureDiamond" />
+    Password *<br /><input required class="cooltext" type="password" name="password" placeholder="hunter2" />
     Avatar *<br /><input class="cooltext" type="file" name="file" />
     Wallpaper<br /><input type="file" class="cooltext" name="wallpaper" placeholder="PROMO.JPG"></input>
     Title  <br /><input class="cooltext" type="text" name="title" />

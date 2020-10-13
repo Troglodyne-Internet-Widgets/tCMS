@@ -41,6 +41,6 @@ for information on how tCMS' templates, image sets and CSS work in the theming s
         <option value="<: $theme :>"><: $theme :></option>
         : }
     </select>
-    <input type="text" class="cooltext" placeholder="newTheme" name="newtheme" />
+    <input required type="text" class="cooltext" placeholder="newTheme" name="newtheme" />
     <input type="submit" class="coolbutton" value="Clone" />
 </form>

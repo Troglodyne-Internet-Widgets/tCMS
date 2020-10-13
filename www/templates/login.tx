@@ -10,13 +10,13 @@
       Username<br />
       <div class="input-group">
         <label for="username">😎</span></label>
-        <input name="username" id="username" placeholder="AzureDiamond" value="" type="text"></input>
+        <input required name="username" id="username" placeholder="AzureDiamond" value="" type="text"></input>
       </div>
       <br />
       Password<br />
       <div class="input-group">
         <label for="password">🔑</label>
-        <input name="password" id="password" placeholder="hunter2" value="" type="password"></input>
+        <input required name="password" id="password" placeholder="hunter2" value="" type="password"></input>
       </div>
       <br />
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
