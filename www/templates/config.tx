@@ -27,15 +27,6 @@ If for example, you use mysql it will have to rely on either a local server, val
     <input type="submit" class="coolbutton" value="Commit Changes" />
 </form>
 <hr />
-
-<p class="title">
- User management:
-</p>
-Users and their sessions are stored in ~/.tcms/auth.db (sqlite3).  All other user data is considered a post like any other.
-<hr />
-: include "mbengine.tx";
-<hr />
-
 <p class="title">
  Theme cloner:
 </p>

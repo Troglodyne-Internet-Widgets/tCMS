@@ -67,13 +67,17 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::post,
     },
-    '/posts/(.*)' => {
+    '/post/(.*)' => {
         method   => 'GET',
         auth     => 1,
+        callback => \&Trog::Routes::HTML::post,
+        captures => ['id'],
+    },
+    '/posts/(.*)' => {
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
         captures => ['id'],
     },
-
     '/posts' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
@@ -94,13 +98,20 @@ our %routes = (
     },
 );
 
-# Build aliases for /post with extra data
+# Build aliases for /posts and /post with extra data
 my @post_aliases = qw{news blog image video audio about files series};
 @routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data}{tag} = [$_]; \%copy } @post_aliases;
 
-# Build aliases for /post/(.*) with extra data
-@routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/posts/(.*)'}}; \%copy } @post_aliases;
+#TODO clean this up so we don't need _build_post_type
+@routes{map { "/post/$_" } qw{image video audio files}} = map { my %copy = %{$routes{'/post'}}; $copy{data}{tag} = [$_]; $copy{data}{type} = 'file'; \%copy } qw{image video audio files};
+$routes{'/post/news'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['news'],    type => 'microblog' } };
+$routes{'/post/blog'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['blog'],    type => 'blog'      } };
+$routes{'/post/about'}   = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['profile'], type => 'profile'   } };
+$routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['series'],  type => 'series'    } };
 
+# Build aliases for /posts/(.*) and /post/(.*) with extra data
+@routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/posts/(.*)'}}; \%copy } @post_aliases;
+@routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
 
 # Grab theme routes
 my $themed = 0;
@@ -284,11 +295,8 @@ sub config ($query, $input, $render_cb) {
     #NOTE: we are relying on this to skip the ACL check with 'admin', this may not be viable in future?
     return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
-    my $tags = ['profile'];
-    my $posts = _post_helper($query, $tags, $query->{acls});
     my $css   = _build_themed_styles('config.css');
     my $js    = _build_themed_scripts('post.js');
-    push(@$css, '/styles/avatars.css');
 
     $query->{failure} //= -1;
 
@@ -300,14 +308,6 @@ sub config ($query, $input, $render_cb) {
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
         current_data_model => $conf->param('general.data_model') // 'DUMMY',
-        post_visibilities  => [qw{public private unlisted}],
-        route       => '/about',
-        category    => '/about',
-        types       => ['profile'],
-        acls        => _post_helper({}, ['series'], $query->{acls}),
-        can_edit    => 1,
-        posts       => $posts,
-        edittype    => 'profile',
         message     => $query->{message},
         failure     => $query->{failure},
         to          => '/config',
@@ -404,12 +404,14 @@ sub post ($query, $input, $render_cb) {
         scripts     => $js,
         posts       => $posts,
         can_edit    => 1,
-        types       => [qw{microblog blog file series}],
+        types       => [qw{microblog blog file series profile}],
         route       => '/posts',
         category    => '/posts',
         page        => int($query->{page} || 1),
         limit       => int($query->{limit} || 1),
         sizes       => [25,50,100],
+        id          => $query->{id},
+        acls        => _post_helper({}, ['series'], $query->{acls}),
         edittype    => $query->{type} || 'microblog',
     });
 }
