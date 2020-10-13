@@ -88,10 +88,6 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::themeclone,
     },
-    '/series', => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::series,
-    },
     '/config/series' => {
         method => 'GET',
         callback => \&Trog::Routes::HTML::series_edit,
@@ -107,7 +103,7 @@ our %routes = (
 );
 
 # Build aliases for /post with extra data
-my @post_aliases = qw{news blog image video audio about files};
+my @post_aliases = qw{news blog image video audio about files series};
 @routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data}{tag} = [$_]; \%copy } @post_aliases;
 
 # Build aliases for /post/(.*) with extra data
@@ -316,7 +312,7 @@ sub config ($query, $input, $render_cb) {
         route       => '/about',
         category    => '/about',
         types       => ['profile'],
-        acls        => _post_helper({}, ['acl'], $query->{acls}),
+        acls        => _post_helper({}, ['series'], $query->{acls}),
         can_edit    => 1,
         posts       => $posts,
         edittype    => 'profile',
@@ -463,7 +459,7 @@ sub posts ($query, $input, $render_cb) {
         limit    => int($query->{limit} || 1),
         sizes    => [25,50,100],
         rss      => !$query->{id},
-        tiled    => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image}),
+        tiled    => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series}),
         category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
@@ -479,11 +475,6 @@ sub _post_helper ($query, $tags, $acls) {
         like  => $query->{like},
         id    => $query->{id},
     );
-}
-
-#TODO actually do stuff
-sub series ($query, $input, $render_cb) {
-    return Trog::Routes::HTML::index($query,$input,$render_cb);
 }
 
 sub series_edit ($query, $input, $render_cb) {
