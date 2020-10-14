@@ -96,6 +96,39 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
     },
+    '/sitemap_index.xml', => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+        data     => { xml => 1 },
+    },
+    '/sitemap_index.xml.gz', => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+        data     => { xml => 1, compressed => 1 },
+    },
+    '/sitemap/static.xml' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+        data     => { xml => 1, map => 'static' },
+    },
+    '/sitemap/static.xml.gz' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+        data     => { xml => 1, compressed => 1, map => 'static' },
+    },
+    '/sitemap/(.*).xml' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+        data     => { xml => 1 },
+        captures => ['map'],
+    },
+    '/sitemap/(.*).xml.gz' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::sitemap,
+        data     => { xml => 1, compressed => 1},
+        captures => ['map'],
+    },
+
 );
 
 # Build aliases for /posts and /post with extra data
@@ -124,7 +157,6 @@ if ($theme_dir) {
     }
 }
 
-# TODO build a sitemap.xml based on the above routing table, and robots.txt
 
 sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
     $query->{theme_dir}  = $theme_dir || '';
@@ -478,6 +510,11 @@ We have a maximum of 99,990,000 posts we can make under this model
 As we have 10,000 * 10,000 posts which are indexable via the sitemap format.
 1 top level index slot (10k posts) is taken by our static routes, the rest will be /posts.
 
+Passing ?xml=1 will result in an appropriate sitemap.xml instead.
+This is used to generate the static sitemaps as expected by search engines.
+
+Passing compressed=1 will gzip the output.
+
 =cut
 
 sub sitemap ($query, $input, $render_cb) {
@@ -488,7 +525,7 @@ sub sitemap ($query, $input, $render_cb) {
     if ($query->{map} eq 'static') {
         # Return the map of static routes
         $route_type = 'Static Routes';
-        @to_map = grep { !defined $routes{$_}->{captures} && $_ ne 'default' } keys(%routes);
+        @to_map = grep { !defined $routes{$_}->{captures} && $_ !~ m/^default|login|auth$/ && !$routes{$_}->{auth} } keys(%routes);
     } elsif ( !$query->{map} ) {
         # Return the index instead
         @to_map = ('static');
@@ -510,7 +547,57 @@ sub sitemap ($query, $input, $render_cb) {
         # Return the map of the particular range of dynamic posts
         $query->{limit} = 50000;
         $query->{page} = $query->{map};
-        @to_map = @{_post_helper($query, {}, ['public'])};
+        @to_map = @{_post_helper($query, [], ['public'])};
+    }
+
+    if ( $query->{xml} ) {
+        my $sm;
+        my $xml_date = time();
+        my $fmt = "xml";
+        $fmt .= ".gz" if $query->{compressed};
+        if ( !$query->{map}) {
+            require WWW::SitemapIndex::XML;
+            $sm = WWW::SitemapIndex::XML->new();
+            foreach my $url (@to_map) {
+                $sm->add(
+                    loc     => "http://$query->{domain}/sitemap/$url.$fmt",
+                    lastmod => $xml_date,
+                );
+            }
+        } else {
+            require WWW::Sitemap::XML;
+            $sm = WWW::Sitemap::XML->new();
+            my $changefreq = $query->{map} eq 'static' ? 'monthly' : 'daily';
+            foreach my $url (@to_map) {
+                my $true_uri = "http://$query->{domain}$url";
+                $true_uri = "http://$query->{domain}/posts/$url->{id}" if ref $url eq 'HASH';
+                my %data = (
+                    loc        => $true_uri,
+                    lastmod    => $xml_date,
+                    mobile     => 1,
+                    changefreq => $changefreq,
+                    priority   => 1.0,
+                );
+                #TODO add video & preview image if applicable
+                $sm->add(%data);
+            }
+        }
+        my $xml = $sm->as_xml();
+        require IO::String;
+        my $buf = IO::String->new();
+        my $ct = 'application/xml';
+        $xml->toFH($buf, 0);
+        seek $buf, 0, 0;
+
+        if ($query->{compressed}) {
+            require IO::Compress::Gzip;
+            my $compressed = IO::String->new();
+            IO::Compress::Gzip::gzip($buf => $compressed);
+            $ct = 'application/gzip';
+            $buf = $compressed;
+            seek $compressed, 0, 0;
+        }
+        return [200,["Content-type:$ct\n"], $buf];
     }
 
     @to_map = sort @to_map unless $is_index;

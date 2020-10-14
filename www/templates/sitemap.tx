@@ -21,7 +21,7 @@
         <a href="/sitemap">Back</a>
     </p>
     : for $to_map -> $map {
-        : if ( $route_type == 'static' ) {
+        : if ( $route_type == 'Static Routes' ) {
             <a href="<: $map :>">
             <: $map :>
         : } else {
