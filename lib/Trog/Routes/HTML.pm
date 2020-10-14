@@ -469,7 +469,7 @@ sub posts ($query, $input, $render_cb) {
     return notfound($query,$input,$render_cb) unless @$posts;
 
     my $fmt = $query->{format} || '';
-    return _rss($posts) if $fmt eq 'rss';
+    return _rss($query,$posts) if $fmt eq 'rss';
 
     my $processor = Text::Xslate->new(
         path   => _dir_for_resource('posts.tx'),
@@ -618,8 +618,43 @@ sub sitemap ($query, $input, $render_cb) {
     return Trog::Routes::HTML::index($query,$input,$render_cb,$content,$styles);
 }
 
-sub _rss ($posts) {
-    return [200, ["Content-type: text/plain\n"], ["TODO"]];
+sub _rss ($query,$posts) {
+    require XML::RSS;
+    my $rss = XML::RSS->new (version => '2.0');
+    my $now = DateTime->from_epoch(epoch => time());
+    $rss->channel(
+        title          => "$query->{domain}",
+        link           => "http://$query->{domain}/$query->{route}?format=rss",
+        language       => 'en', #TODO localization
+        description    => 'tCMS website', #TODO make configurable
+        pubDate        => $now, #TODO format
+        lastBuildDate  => $now, #TODO format
+    );
+ 
+    #TODO configurability
+    $rss->image(
+        title       => $query->{domain},
+        url         => "http://$query->{domain}/img/icon/tcms.svg",
+        link        => "http://$query->{domain}",
+        width       => 88,
+        height      => 31,
+        description => 'tCMS image'
+    );
+ 
+    foreach my $post (@$posts) {
+        my $url = "http://$query->{domain}/posts/$post->{id}";
+        $rss->add_item(
+            title       => $post->{title},
+            permaLink   => $url,
+            link        => $url,
+            enclosure   => { url => $url, type=>"text/html" },
+            description => "<![CDATA[$post->{data}]]>",
+            pubDate     => DateTime->from_epoch(epoch => $post->{created} ), #TODO format like Thu, 23 Aug 1999 07:00:00 GMT
+            author      => $post->{user}, #TODO translate to "email (user)" format
+        );
+    }
+
+    return [200, ["Content-type: application/rss+xml\n"], [$rss->as_string]];
 }
 
 sub _input2postdata ($input) {
