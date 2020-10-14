@@ -389,7 +389,7 @@ sub config_save ($query, $input, $render_cb) {
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
-    if ($conf->save($Trog::Config::home_config)) {
+    if ($conf->write($Trog::Config::home_cfg)) {
         $query->{failure} = 0;
         $query->{message} = "Configuration updated succesfully.";
     }
