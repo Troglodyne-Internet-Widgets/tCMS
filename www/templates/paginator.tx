@@ -1,7 +1,13 @@
+:if ( $pages > 1 ) {
 <div>
+: } else {
+<div class="disabled">
+: }
     <div style="float:left; margin-top:.5rem;"> Page <: $page :></div>
     <div style="float:right;">
+        : if ( $page < $pages ) {
         <a href="?page=<: $page + 1 :>&limit=<: $limit :>">Next</a>
+        : }
         : if ( $page > 1 ) {
         <a href="?page=<: $page - 1 :>&limit=<: $limit :>">Prev</a>
         : }

@@ -438,10 +438,11 @@ sub post ($query, $input, $render_cb) {
     return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags  = _coerce_array($query->{tag});
-    my $posts = _post_helper($query, $tags, $query->{acls});
+    my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
     my $css   = _build_themed_styles('post.css');
     my $js    = _build_themed_scripts('post.js');
     push(@$css, '/styles/avatars.css');
+    my (undef, $acls) = _post_helper({}, ['series'], $query->{acls});
 
     return $render_cb->('post.tx', {
         title       => 'New Post',
@@ -454,10 +455,11 @@ sub post ($query, $input, $render_cb) {
         route       => '/posts',
         category    => '/posts',
         page        => int($query->{page} || 1),
-        limit       => int($query->{limit} || 1),
+        limit       => int($query->{limit} || 25),
+        pages       => $pages,
         sizes       => [25,50,100],
         id          => $query->{id},
-        acls        => _post_helper({}, ['series'], $query->{acls}),
+        acls        => $acls,
         edittype    => $query->{type} || 'microblog',
     });
 }
@@ -478,7 +480,7 @@ sub posts ($query, $input, $render_cb) {
 
     #TODO If we have a direct ID query, we should show unlisted videos as well as public ones IFF they have a valid campaign ID attached to query
     push(@{$query->{acls}}, 'public');
-    my $posts = _post_helper($query, $tags, $query->{acls});
+    my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
 
     return notfound($query,$input,$render_cb) unless @$posts;
 
@@ -508,7 +510,8 @@ sub posts ($query, $input, $render_cb) {
         posts    => $posts,
         route    => $query->{route},
         page     => int($query->{page} || 1),
-        limit    => int($query->{limit} || 1),
+        limit    => int($query->{limit} || 25),
+        pages    => $pages,
         sizes    => [25,50,100],
         rss      => !$query->{id},
         tiled    => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series}),
@@ -575,7 +578,8 @@ sub sitemap ($query, $input, $render_cb) {
         # Return the map of the particular range of dynamic posts
         $query->{limit} = 50000;
         $query->{page} = $query->{map};
-        @to_map = @{_post_helper($query, [], ['public'])};
+        my (undef, $buf) = _post_helper($query, [], ['public']);
+        @to_map = @$buf;
     }
 
     if ( $query->{xml} ) {

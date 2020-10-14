@@ -191,22 +191,24 @@ sub get ($self, %request) {
     # If an ID is passed, just get that
     @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
 
-    # First, paginate
-    my $offset = int($request{limit});
-    $offset = @filtered < $offset ? @filtered : $offset;
-    @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit}; 
-
     # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};    
     @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 
+    # Finally, paginate
+    my $offset = int($request{limit}); #caller expected to not let this be 0
+    $offset = @filtered < $offset ? @filtered : $offset;
+    my $pages = int(scalar(@filtered) / $offset);
+
+    @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit};
+    
     # Next, go ahead and build the "post type"
     @filtered = _add_post_type(@filtered);
     # Next, add the type of post this is
     @filtered = _add_media_type(@filtered);
 
-    return \@filtered;
+    return ($pages,\@filtered);
 }
 
 sub total_posts {
