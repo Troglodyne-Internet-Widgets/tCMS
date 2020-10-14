@@ -132,6 +132,11 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::robots,
     },
+    '/humans.txt' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::posts,
+        data     => { tag => ['about'] },
+    },
 );
 
 # Build aliases for /posts and /post with extra data
@@ -142,7 +147,7 @@ my @post_aliases = qw{news blog image video audio about files series};
 @routes{map { "/post/$_" } qw{image video audio files}} = map { my %copy = %{$routes{'/post'}}; $copy{data}{tag} = [$_]; $copy{data}{type} = 'file'; \%copy } qw{image video audio files};
 $routes{'/post/news'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['news'],    type => 'microblog' } };
 $routes{'/post/blog'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['blog'],    type => 'blog'      } };
-$routes{'/post/about'}   = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['profile'], type => 'profile'   } };
+$routes{'/post/about'}   = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['about'],   type => 'profile'   } };
 $routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['series'],  type => 'series'    } };
 
 # Build aliases for /posts/(.*) and /post/(.*) with extra data
