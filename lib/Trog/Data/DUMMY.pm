@@ -197,9 +197,9 @@ sub get ($self, %request) {
     @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 
     # Finally, paginate
-    my $offset = int($request{limit}); #caller expected to not let this be 0
+    my $offset = int($request{limit});
     $offset = @filtered < $offset ? @filtered : $offset;
-    my $pages = int(scalar(@filtered) / $offset);
+    my $pages = int(scalar(@filtered) / ($offset || 1) );
 
     @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit};
     

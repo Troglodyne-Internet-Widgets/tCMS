@@ -152,7 +152,7 @@ $routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Rou
 
 # Build aliases for /posts/(.*) and /post/(.*) with extra data
 @routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/posts/(.*)'}}; \%copy } @post_aliases;
-@routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
+@routes{map { "/post/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
 
 # Grab theme routes
 my $themed = 0;
