@@ -499,8 +499,8 @@ sub posts ($query, $input, $render_cb) {
             path =>  "www/$theme_dir/templates",
         ) if $theme_dir;
 
-        $header = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_header.tx');
-        $footer = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_footer.tx');
+        $header = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_header.tx', { theme_dir => $theme_dir } );
+        $footer = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_footer.tx', { theme_dir => $theme_dir } );
     }
 
     my $styles = _build_themed_styles('posts.css');

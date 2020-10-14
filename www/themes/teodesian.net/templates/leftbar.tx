@@ -5,7 +5,7 @@
     <br />
     <span class="bold">FRIENDS:</span><br />
     <span class="nowrap">
-        <img alt="" class="icon" src="<: $theme_dir :>/img/icon/dave.png">
+        <img alt="" class="icon" src="/<: $theme_dir :>/img/icon/dave.png">
         <a class="menu" target="_blank" href="http://thehhp.net" title="Y000da's Site">The HHP</a><br>
     </span>
     <br />
@@ -15,7 +15,7 @@
     <noscript><a href="http://www.librarything.com/profile/teodesian">TEODESIAN.NET Library</a></noscript>
     <br />
     <a href="https://www.linode.com/?r=5af48069af206c2eafce639336dd589bf77739e5" title="1337 H4X0R Hosting">
-        <img style="height: 2em;" src="<: $theme_dir :>/img/misc/linode.png" alt="Linode">
+        <img style="height: 2em;" src="/<: $theme_dir :>/img/misc/linode.png" alt="Linode">
     </a>
     <br />
 </p>
