@@ -123,12 +123,15 @@ our %routes = (
         captures => ['map'],
     },
     '/sitemap/(.*).xml.gz' => {
-        method => 'GET',
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
         data     => { xml => 1, compressed => 1},
         captures => ['map'],
     },
-
+    '/robots.txt' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::robots,
+    },
 );
 
 # Build aliases for /posts and /post with extra data
@@ -157,6 +160,12 @@ if ($theme_dir) {
     }
 }
 
+sub robots ($query, $input, $render_cb) {
+    my $processor = Text::Xslate->new(
+        path   => $template_dir,
+    );
+    return [200, ["Content-type:text/plain\n"],[$processor->render('robots.tx', { domain => $query->{domain} })]];
+}
 
 sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
     $query->{theme_dir}  = $theme_dir || '';

@@ -1,0 +1,11 @@
+User-agent: *
+Sitemap: http://<: $domain :>/sitemap_index.xml.gz
+Disallow: /config
+Disallow: /login
+Disallow: /auth
+Disallow: /json
+Disallow: /sitemap
+Disallow: /themes
+Disallow: /templates
+Disallow: /scripts
+Disallow: /styles
