@@ -17,7 +17,7 @@
         <a href="/about"  title="About" class="topbar">About</a>
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <form action="<: $route :>" method="GET" class="inline">
-            <input type="text" name="like"></input>
+            <input required type="search" name="like"></input>
             <input class="coolbutton" type="submit" value="🔎"></input>
             <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
         </form>
