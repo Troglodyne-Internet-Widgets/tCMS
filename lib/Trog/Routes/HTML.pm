@@ -486,8 +486,20 @@ sub posts ($query, $input, $render_cb) {
     return _rss($query,$posts) if $fmt eq 'rss';
 
     my $processor = Text::Xslate->new(
-        path   => _dir_for_resource('posts.tx'),
+        path   => $template_dir,
     );
+
+    # Themed header/footer for about page -- TODO maybe make this generic so we can have MESSAGE FROM JIMBO WALES everywhere
+    my ($header,$footer);
+    if ($query->{route} eq '/about' || $query->{route} eq '/humans.txt') {
+        my $t_processor;
+        $t_processor = Text::Xslate->new(
+            path =>  "www/$theme_dir/templates",
+        ) if $theme_dir;
+
+        $header = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_header.tx');
+        $footer = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_footer.tx');
+    }
 
     my $styles = _build_themed_styles('posts.css');
 
@@ -501,6 +513,8 @@ sub posts ($query, $input, $render_cb) {
         rss      => !$query->{id},
         tiled    => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series}),
         category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
+        about_header => $header,
+        about_footer => $footer,
     });
     return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
 }
