@@ -1,0 +1,12 @@
+Visibility<br />
+<select class="cooltext" name="visibility">
+    : for $post_visibilities -> $visibility {
+        <option value="<: $visibility :>"><: $visibility :></option>
+    : }
+</select>
+ACLs / Series<br/ >
+<select multiple class="cooltext" name="acls">
+    : for $acls -> $acl {
+        <option value="<: $acl.title :>"><: $acl.data :></option>
+    : }
+</select>

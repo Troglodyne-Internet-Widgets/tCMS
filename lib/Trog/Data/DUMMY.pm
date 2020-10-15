@@ -68,6 +68,8 @@ my $example_posts = [
         tags         => ['about', 'profile', 'public'],
         created      => time(),
         version      => 0,
+        background_image => '/img/sys/testpattern.jpg',
+        preview      => '/img/avatar/humm.gif',
     },
     { 
         content_type => "image/gif",
@@ -129,7 +131,8 @@ my $example_posts = [
         title        => 'Administrative Posts',
         user         => 'Nobody',
         id           => "900",
-        tags         => ['series', 'private'],
+        aclname      => 'admin',
+        tags         => ['series', 'private', 'admin'],
         created      => time(),
         version      => 0,
         preview      => '/img/sys/testpattern.jpg',
@@ -239,14 +242,29 @@ sub _add_media_type (@posts) {
 }
 
 sub add ($self, @posts) {
+    require UUID::Tiny;
+    foreach my $post (@posts) {
+        my $uuid = UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
+        $post->{id} = $uuid;
+        push @$example_posts, $post;
+    }
     return 1;
 }
 
 sub update($self, @posts) {
+    foreach my $update (@posts) {
+        foreach my $post (0..scalar(@$example_posts)) {
+            next unless $example_posts->[$post]->{id} eq $update->{id};
+            $example_posts->[$post] = $update;
+        }
+    }
     return 1;
 }
 
-sub delete($self, @ids) {
+sub delete($self, @posts) {
+    foreach my $update (@posts) {
+        @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
+    }
     return 1;
 }
 

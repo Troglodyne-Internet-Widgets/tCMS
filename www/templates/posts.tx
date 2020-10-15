@@ -42,7 +42,7 @@
             <br />
             <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>');">[Edit]</a>
             <div id="<: $post.id :>" style="display:none;">
-                : include $post.type ~ ".tx";
+                : include $post.type ~ ".tx" { post => $post};
                 <form class="Submissions" action="/post/delete" class="inline">
                     <input type="hidden" name="id" value="<: $post.id :>"></input>
                     <input class="coolbutton" type="submit" value="Delete"></input>

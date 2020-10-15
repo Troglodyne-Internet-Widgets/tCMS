@@ -1,12 +1,8 @@
 <form class="Submissions" action="/post/save" method="POST">
-    Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" />
-    Visibility<br />
-    <select class="cooltext" name="visibility">
-        : for $post_visibilities -> $visibility {
-            <option value="<: $visibility :>"><: $visibility :></option>
-        : }
-    </select>
-    Content<br /><textarea required class="cooltext" name="comment" placeholder="Potzrebie"></textarea>
+    Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+    Preview Image<br /><input type="file" class="cooltext" name="preview" placeholder="PROMO.JPG" value="<: $post.preview :>" />
+    : include "acls.tx";
+    Content<br /><textarea required class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
     <input type="hidden" name="app" value="blog" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />
 </form>
