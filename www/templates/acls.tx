@@ -1,7 +1,7 @@
 Visibility<br />
 <select class="cooltext" name="visibility">
     : for $post_visibilities -> $visibility {
-        <option value="<: $visibility :>"><: $visibility :></option>
+        <option <: $post.visibility == $visibility ? 'selected' : '' :> value="<: $visibility :>"><: $visibility :></option>
     : }
 </select>
 ACLs / Series<br/ >

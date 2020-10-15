@@ -210,6 +210,8 @@ sub get ($self, %request) {
     @filtered = _add_post_type(@filtered);
     # Next, add the type of post this is
     @filtered = _add_media_type(@filtered);
+    # Finally, add visibility
+    @filtered = _add_visibility(@filtered);
 
     return ($pages,\@filtered);
 }
@@ -237,6 +239,15 @@ sub _add_media_type (@posts) {
         $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;
         $post->{is_audio} = 1 if $post->{content_type} =~ m/^audio\//;
         $post->{is_image} = 1 if $post->{content_type} =~ m/^image\//;
+        $post
+    } @posts;
+}
+
+sub _add_visibility (@posts) {
+    return map {
+        my $post = $_;
+        my @visibilities = grep { my $tag = $_; grep { $_ eq $tag } qw{private unlisted public} } @{$post->{tags}};
+        $post->{visibility} = $visibilities[0];
         $post
     } @posts;
 }
