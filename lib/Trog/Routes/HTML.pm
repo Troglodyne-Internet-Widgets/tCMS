@@ -285,7 +285,7 @@ sub login ($query, $input, $render_cb) {
     # Redirect if we actually have a logged in user.
     # Note to future me -- this user value is overwritten explicitly in server.psgi.
     # If that ever changes, you will die
-    $query->{to} //= '/config';
+    $query->{to} //= $query->{route};
     if ($query->{user}) {
         return $routes{$query->{to}}{callback}->($query,$input,$render_cb);
     }
@@ -335,7 +335,6 @@ Renders the configuration page, or redirects you back to the login page.
 
 sub config ($query, $input, $render_cb) {
     if (!$query->{user}) {
-        $query->{to} = '/config';
         return login($query,$input,$render_cb);
     }
     #NOTE: we are relying on this to skip the ACL check with 'admin', this may not be viable in future?
@@ -432,7 +431,6 @@ Display the route for making new posts.
 
 sub post ($query, $input, $render_cb) {
     if (!$query->{user}) {
-        $query->{to} = '/post';
         return login($query,$input,$render_cb);
     }
     return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
