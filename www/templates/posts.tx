@@ -43,8 +43,9 @@
             <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>');">[Edit]</a>
             <div id="<: $post.id :>" style="display:none;">
                 : include $post.type ~ ".tx" { post => $post};
-                <form class="Submissions" action="/post/delete" class="inline">
+                <form class="Submissions" action="/post/delete" method="POST" class="inline">
                     <input type="hidden" name="id" value="<: $post.id :>"></input>
+                    <input type="hidden" name="to" value="<: $route :>"></input>
                     <input class="coolbutton" type="submit" value="Delete"></input>
                 </form>
             </div>

@@ -5,6 +5,7 @@
     <br /> TODO: Add "alternative" links, which scrape the appropriate icon for the alt link from the favicon<br />
     Preview Image<br /><input type="file" class="cooltext" name="preview" placeholder="PROMO.JPG" value="<: $post.preview :>" />
     : include "acls.tx";
+    : include "tags.tx";
     Comments<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
     <input type="hidden" name="app" value="file" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />

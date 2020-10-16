@@ -255,28 +255,23 @@ sub _add_visibility (@posts) {
 sub add ($self, @posts) {
     require UUID::Tiny;
     foreach my $post (@posts) {
-        my $uuid = UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
-        $post->{id} = $uuid;
+        $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
+        my (undef, $existing_posts) = $self->get( id => $post->{id} );
+        if (@$existing_posts) {
+            my $existing_post = $existing_posts->[0];
+            $post->{version}  = $existing_post->{version};
+            $post->{version}++;
+        }
         push @$example_posts, $post;
     }
-    return 1;
-}
-
-sub update($self, @posts) {
-    foreach my $update (@posts) {
-        foreach my $post (0..scalar(@$example_posts)) {
-            next unless $example_posts->[$post]->{id} eq $update->{id};
-            $example_posts->[$post] = $update;
-        }
-    }
-    return 1;
+    return 0;
 }
 
 sub delete($self, @posts) {
     foreach my $update (@posts) {
         @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
     }
-    return 1;
+    return 0;
 }
 
 1;

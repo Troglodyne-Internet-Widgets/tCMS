@@ -2,6 +2,7 @@
     Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
     Preview Image<br /><input type="file" class="cooltext" name="preview" placeholder="PROMO.JPG" value="<: $post.preview :>" />
     : include "acls.tx";
+    : include "tags.tx";
     Content<br /><textarea required class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
     <input type="hidden" name="app" value="blog" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />

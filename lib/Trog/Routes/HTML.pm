@@ -65,7 +65,12 @@ our %routes = (
     '/post/save' => {
         method   => 'POST',
         auth     => 1,
-        callback => \&Trog::Routes::HTML::post,
+        callback => \&Trog::Routes::HTML::post_save,
+    },
+    '/post/delete' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::post_delete,
     },
     '/post/(.*)' => {
         method   => 'GET',
@@ -444,13 +449,14 @@ sub post ($query, $input, $render_cb) {
 
     return $render_cb->('post.tx', {
         title       => 'New Post',
+        to          => $query->{to},
+        failure     => $query->{failure} // -1,
         post_visibilities => ['public', 'private', 'unlisted'],
         stylesheets => $css,
         scripts     => $js,
         posts       => $posts,
         can_edit    => 1,
-        types       => [qw{microblog blog file series profile}],
-        route       => '/posts',
+        route       => $query->{route},
         category    => '/posts',
         page        => int($query->{page} || 1),
         limit       => int($query->{limit} || 25),
@@ -458,12 +464,24 @@ sub post ($query, $input, $render_cb) {
         sizes       => [25,50,100],
         id          => $query->{id},
         acls        => $acls,
+        post        => { tags => $query->{tag} },
         edittype    => $query->{type} || 'microblog',
     });
 }
 
-#TODO actually do stuff
 sub post_save ($query, $input, $render_cb) {
+    state $data = Trog::Data->new($conf);
+    my $postdata = _input2postdata($input);
+    $data->add($postdata);
+    $query->{failure} = 0;
+    return post($query, $input, $render_cb);
+}
+
+sub post_delete ($query, $input, $render_cb) {
+    state $data = Trog::Data->new($conf);
+    my $postdata = _input2postdata($input);
+    $query->{failure} = $data->delete($postdata);
+    $query->{to} = $postdata->{to};
     return post($query, $input, $render_cb);
 }
 

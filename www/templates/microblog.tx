@@ -5,6 +5,7 @@
     Audio<br /><input class="cooltext" type="url" name="audio_href" placeholder="https://soundclod.com/static.mp3" value="<: $post.audio_href :>" />
     Video<br /><input class="cooltext" type="url" name="video_href" placeholder="https://youvimeo.tv/infomercial.mp4" value="<: $post.video_href :>" />
     : include "acls.tx";
+    : include "tags.tx";
     Comments<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
     <input type="hidden" name="app" value="microblog" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />

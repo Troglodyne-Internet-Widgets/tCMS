@@ -1,0 +1,6 @@
+Tags:<br />
+<select class="cooltext" multiple name="tags">
+    : for $post.tags -> $tag {
+    <option value="<: $tag :>" selected><: $tag :></option>
+    : }
+</select>
