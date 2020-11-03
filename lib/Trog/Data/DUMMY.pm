@@ -6,12 +6,21 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
+use Carp qw{confess};
+use JSON::MaybeXS;
+use File::Slurper;
+
+=head1 WARNING
+
+Do not use this as a production data model.  It is *not* safe to race conditions, and is only here for testing.
+
 =head1 QUERY FORMAT
 
 The $query_language and $query_help variables are presented to the user as to how to use the search box in the tCMS header.
 
 =cut
 
+our $datastore      = 'data/DUMMY.json';
 our $query_language = 'Perl Regex in Quotemeta';
 our $query_help     = 'https://perldoc.perl.org/functions/quotemeta.html';
 
@@ -31,126 +40,6 @@ Posts generally need to have the following:
     version: revision # of this post.
 
 =cut
-
-my $example_posts = [
-    {
-        content_type => "text/html",
-        data         => "Here, caveman",
-        href         => '/',
-        local_href   => "/assets/today.html",
-        title        => 'Example Post',
-        user         => 'Nobody',
-        id           => 665,
-        tags         => ['news', 'public'],
-        created      => time(),
-        version      => 0,
-    },
-    {
-        content_type => "text/html",
-        data         => "Is amazing",
-        href         => '/',
-        local_href   => "/assets/blog/Muh Blog.html",
-        title        => 'Muh Blog',
-        user         => 'Nobody',
-        id           => 666,
-        tags         => ['blog', 'public'],
-        created      => time(),
-        version      => 0,
-    },
-    {
-        content_type => "text/html",
-        data         => "Vote for Nobody, nobody really cares!",
-        href         => '/',
-        local_href   => "/assets/about/Nobody.html",
-        title        => 'Nobody',
-        user         => 'Nobody',
-        id           => 669,
-        tags         => ['about', 'profile', 'public'],
-        created      => time(),
-        version      => 0,
-        background_image => '/img/sys/testpattern.jpg',
-        preview      => '/img/avatar/humm.gif',
-    },
-    { 
-        content_type => "image/gif",
-        data         => "Default avatar for new users",
-        href         => "/img/avatar/humm.gif",
-        local_href   => "/img/avatar/humm.gif",
-        title        => "humm.gif",
-        user         => 'Nobody',
-        id           => 420,
-        tags         => ['image', 'files', 'profile-image', 'public'],
-        created      => time(),
-        version      => 0,
-        preview      => '/img/avatar/humm.gif',
-    },
-    { 
-        content_type => "image/jpeg",
-        data         => "Test Pattern",
-        href         => "/img/sys/testpattern.jpg",
-        local_href   => "/img/sys/testpattern.jpg",
-        title        => "testpattern.jpg",
-        user         => 'Nobody',
-        id           => 90210,
-        tags         => ['image', 'files', 'public'],
-        created      => time(),
-        version      => 0,
-        preview      => '/img/sys/testpattern.jpg',
-    },
-    {
-        content_type => "audio/mpeg",
-        data         => "Test recording for tCMS",
-        href         => "/assets/audio/test.mp3",
-        local_href   => "/assets/audio/test.mp3",
-        title        => "test.mp3",
-        user         => "Nobody",
-        id           => 111,
-        tags         => ["audio", "files", 'public'],
-        created      => time(),
-        version      => 0,
-        preview      => '/img/sys/testpattern.jpg',
-    },
-    {
-        content_type => "video/ogg",
-        data         => "Test video for tCMS",
-        href         => "/assets/video/test.ogv",
-        local_href   => "/assets/video/test.ogv",
-        title        => "test.ogv",
-        user         => "Nobody",
-        id           => "222",
-        tags         => ["video", "files", 'public'],
-        created      => time(),
-        version      => 0,
-        preview      => '/img/sys/testpattern.jpg',
-    },
-    {
-        content_type => 'text/plain',
-        data         => "Admin ACL",
-        href         => "/config",
-        local_href   => '/config',
-        title        => 'Administrative Posts',
-        user         => 'Nobody',
-        id           => "900",
-        aclname      => 'admin',
-        tags         => ['series', 'private', 'admin'],
-        created      => time(),
-        version      => 0,
-        preview      => '/img/sys/testpattern.jpg',
-    },
-    { 
-        content_type => "image/svg",
-        data         => "tCMS Logo",
-        href         => "/img/icon/tCMS.svg",
-        local_href   => "/img/icon/tCMS.svg",
-        title        => "tCMS.svg",
-        user         => 'Nobody',
-        id           => 90211,
-        tags         => ['image', 'files', 'admin'],
-        created      => time(),
-        version      => 0,
-        preview      => '/img/icon/tCMS.svg',
-    },
-];
 
 =head1 CONSTRUCTOR
 
@@ -187,8 +76,23 @@ Queries the data model in the way a "real" data model module ought to.
 
 =cut
 
+sub _read {
+    confess "Can't find datastore!" unless -f $datastore;
+    my $slurped = File::Slurper::read_text($datastore);
+    return JSON::MaybeXS::decode_json($slurped);
+}
+
+sub _write($data) {
+    open(my $fh, '>', $datastore) or confess;
+    print $fh JSON::MaybeXS::encode_json($data);
+    close $fh;
+}
+
 # These have to be sorted as requested by the client
 sub get ($self, %request) {
+
+    my $example_posts = _read();
+
     my @filtered = @$example_posts;
 
     # If an ID is passed, just get that
@@ -217,6 +121,7 @@ sub get ($self, %request) {
 }
 
 sub total_posts {
+    my $example_posts = _read();
     return scalar(@$example_posts);
 }
 
@@ -254,6 +159,7 @@ sub _add_visibility (@posts) {
 
 sub add ($self, @posts) {
     require UUID::Tiny;
+    my $example_posts = _read();
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
         my (undef, $existing_posts) = $self->get( id => $post->{id} );
@@ -264,13 +170,16 @@ sub add ($self, @posts) {
         }
         push @$example_posts, $post;
     }
+    _write($example_posts);
     return 0;
 }
 
 sub delete($self, @posts) {
+    my $example_posts = _read();
     foreach my $update (@posts) {
         @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
     }
+    _write($example_posts);
     return 0;
 }
 
