@@ -11,5 +11,6 @@
     : include "tags.tx";
     Content<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
     <input type="hidden" name="app" value="file" />
+    <input type="hidden" name="to" value="<: $route :>" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />
 </form>

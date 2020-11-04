@@ -465,9 +465,12 @@ sub post ($query, $render_cb) {
 }
 
 sub post_save ($query, $render_cb) {
+    my $to = delete $query->{to};
     state $data = Trog::Data->new($conf);
+    $query->{tags}  = _coerce_array($query->{tags});
     $data->add($query);
     $query->{failure} = 0;
+    $query->{to} = $to;
     return post($query, $render_cb);
 }
 

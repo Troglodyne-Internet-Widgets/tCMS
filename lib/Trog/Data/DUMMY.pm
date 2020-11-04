@@ -144,6 +144,7 @@ sub _add_post_type (@posts) {
 sub _add_media_type (@posts) {
     return map {
         my $post = $_;
+        $post->{content_type} //= '';
         $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;
         $post->{is_audio} = 1 if $post->{content_type} =~ m/^audio\//;
         $post->{is_image} = 1 if $post->{content_type} =~ m/^image\//;

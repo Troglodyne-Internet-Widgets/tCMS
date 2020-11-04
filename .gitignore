@@ -2,3 +2,4 @@
 *.swo
 favicon.ico
 dist/
+www/assets/*.*

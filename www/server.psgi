@@ -92,7 +92,7 @@ my $app = sub {
 
     #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if (index($path,'/templates') == 0 || $path =~ m/.*\.psgi$/i ) {
-        return Trog::Routes::HTML::forbidden($query,$env->{'psgi.input'}, \&_render);
+        return Trog::Routes::HTML::forbidden($query, \&_render);
     }
 
     # If it's just a file, serve it up
@@ -115,8 +115,8 @@ my $app = sub {
     }
 
     #TODO reject inappropriate content-lengths
-    return Trog::Routes::HTML::notfound($query,$env->{'psgi.input'}, \&_render) unless exists $routes{$path};
-    return Trog::Routes::HTML::badrequest($query,$env->{'psgi.input'}, \&_render) unless $routes{$path}{method} eq $env->{REQUEST_METHOD};
+    return Trog::Routes::HTML::notfound($query, \&_render) unless exists $routes{$path};
+    return Trog::Routes::HTML::badrequest($query, \&_render) unless $routes{$path}{method} eq $env->{REQUEST_METHOD};
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
 
