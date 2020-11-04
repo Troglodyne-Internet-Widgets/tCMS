@@ -172,6 +172,8 @@ sub add ($self, @posts) {
             $post->{version}  = $existing_post->{version};
             $post->{version}++;
         }
+        $post->{version} //= 0;
+        #TODO set local_href and content type correctly
 
         $post = _process($post);
         push @$example_posts, $post;
