@@ -8,7 +8,7 @@
             <option <: $post.visibility == $visibility ? 'selected' : '' :> value="<: $visibility :>"><: $visibility :></option>
         : }
     </select>
-    Comments<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
+    Comments<br /><textarea class="cooltext" name="data" placeholder="Potzrebie"><: $post.data :></textarea>
     <input type="hidden" name="app" value="series" />
     <input type="hidden" name="to" value="<: $route :>" />
     <input class="coolbutton" type="submit" value="Publish" text="Publish" />
