@@ -6,6 +6,7 @@ use feature qw{signatures};
 
 use Date::Format qw{strftime};
 
+use HTTP::Body   ();
 use URL::Encode  ();
 use Text::Xslate ();
 use Plack::MIME  ();
@@ -119,7 +120,21 @@ my $app = sub {
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
 
-    my $output =  $routes{$path}{callback}->($query,$env->{'psgi.input'}, \&_render);
+    #Actually parse the POSTDATA and dump it into the QUERY object if this is a POST
+    if ($env->{REQUEST_METHOD} eq 'POST') {
+        #TODO don't slurp
+        my $slurpee = '';
+        my $input = $env->{'psgi.input'};
+        while (<$input>) { $slurpee .= $_ }
+
+        my $body = HTTP::Body->new( $env->{CONTENT_TYPE}, $env->{CONTENT_LENGTH} );
+        $body->add($slurpee);
+
+        @$query{keys(%{$body->param})}  = values(%{$body->param});
+        @$query{keys(%{$body->upload})} = values(%{$body->upload});
+    }
+
+    my $output =  $routes{$path}{callback}->($query, \&_render);
     return $output;
 };
 

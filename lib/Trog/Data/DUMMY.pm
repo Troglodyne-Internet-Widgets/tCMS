@@ -9,6 +9,7 @@ use feature qw{signatures};
 use Carp qw{confess};
 use JSON::MaybeXS;
 use File::Slurper;
+use File::Copy;
 
 =head1 WARNING
 
@@ -92,6 +93,8 @@ sub _write($data) {
 sub get ($self, %request) {
 
     my $example_posts = _read();
+    $request{acls} //= [];
+    $request{tags} //=[];
 
     my @filtered = @$example_posts;
 
@@ -104,7 +107,7 @@ sub get ($self, %request) {
     @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 
     # Finally, paginate
-    my $offset = int($request{limit});
+    my $offset = int($request{limit} // 25);
     $offset = @filtered < $offset ? @filtered : $offset;
     my $pages = int(scalar(@filtered) / ($offset || 1) );
 
@@ -168,10 +171,31 @@ sub add ($self, @posts) {
             $post->{version}  = $existing_post->{version};
             $post->{version}++;
         }
+
+        $post = _process($post);
         push @$example_posts, $post;
     }
     _write($example_posts);
     return 0;
+}
+
+# Not actually a subprocess, kek
+sub _process ($post) {
+
+    $post->{href}    = _handle_upload($post->{file}, $post->{id})         if $post->{file};
+    $post->{preview} = _handle_upload($post->{preview_file}, $post->{id}) if $post->{preview_file};
+    delete $post->{app};
+    delete $post->{file};
+    delete $post->{preview_file};
+
+    return $post;
+}
+
+sub _handle_upload ($file, $uuid) {
+    my $f = $file->{tempname};
+    my $newname = "$uuid.$file->{filename}";
+    File::Copy::move($f, "www/assets/$newname");
+    return "/assets/$newname";
 }
 
 sub delete($self, @posts) {

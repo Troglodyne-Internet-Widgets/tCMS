@@ -170,14 +170,14 @@ if ($theme_dir) {
     }
 }
 
-sub robots ($query, $input, $render_cb) {
+sub robots ($query, $render_cb) {
     my $processor = Text::Xslate->new(
         path   => $template_dir,
     );
     return [200, ["Content-type:text/plain\n"],[$processor->render('robots.tx', { domain => $query->{domain} })]];
 }
 
-sub index ($query, $input, $render_cb, $content = '', $i_styles = []) {
+sub index ($query,$render_cb, $content = '', $i_styles = []) {
     $query->{theme_dir}  = $theme_dir || '';
 
     my $processor = Text::Xslate->new(
@@ -230,7 +230,7 @@ Implements the 4XX status codes.  Override templates named the same for theming 
 
 =cut
 
-sub _generic_route ($rname, $code, $title, $query,$input,$render_cb) {
+sub _generic_route ($rname, $code, $title, $query, $render_cb) {
     $query->{code} = $code;
 
     my $processor = Text::Xslate->new(
@@ -244,7 +244,7 @@ sub _generic_route ($rname, $code, $title, $query,$input,$render_cb) {
         user     => $query->{user},
         styles   => $styles,
     });
-    return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
+    return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
 }
 
 sub notfound (@args) {
@@ -271,7 +271,7 @@ One time setup page; should only display to the first user to visit the site whi
 
 =cut
 
-sub setup ($query, $input, $render_cb) {
+sub setup ($query, $render_cb) {
     File::Touch::touch("$ENV{HOME}/.tcms/setup");
     return $render_cb->('notconfigured.tx', {
         title => 'tCMS Requires Setup to Continue...',
@@ -285,33 +285,30 @@ Sets the user cookie if the provided user exists, or sets up the user as an admi
 
 =cut
 
-sub login ($query, $input, $render_cb) {
+sub login ($query, $render_cb) {
 
     # Redirect if we actually have a logged in user.
     # Note to future me -- this user value is overwritten explicitly in server.psgi.
     # If that ever changes, you will die
     $query->{to} //= $query->{route};
     if ($query->{user}) {
-        return $routes{$query->{to}}{callback}->($query,$input,$render_cb);
+        return $routes{$query->{to}}{callback}->($query,$render_cb);
     }
-
-    #Set the cookiez and issue a 302 back to ourselves if we have good creds
-    my $postdata = _input2postdata($input);
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
     my $hasusers = -f "$ENV{HOME}/.tcms/has_users";
     my $btnmsg = $hasusers ? "Log In" : "Register";
 
     my @headers;
-    if ($postdata->{username} && $postdata->{password}) {
+    if ($query->{username} && $query->{password}) {
         if (!$hasusers) {
             # Make the first user
-            Trog::Auth::useradd($postdata->{username}, $postdata->{password}, ['admin'] );
+            Trog::Auth::useradd($query->{username}, $query->{password}, ['admin'] );
             File::Touch::touch("$ENV{HOME}/.tcms/has_users");
         }
 
         $query->{failed} = 1;
-        my $cookie = Trog::Auth::mksession($postdata->{username}, $postdata->{password});
+        my $cookie = Trog::Auth::mksession($query->{username}, $query->{password});
         if ($cookie) {
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
             @headers = (
@@ -338,12 +335,12 @@ Renders the configuration page, or redirects you back to the login page.
 
 =cut
 
-sub config ($query, $input, $render_cb) {
+sub config ($query, $render_cb) {
     if (!$query->{user}) {
-        return login($query,$input,$render_cb);
+        return login($query,$render_cb);
     }
     #NOTE: we are relying on this to skip the ACL check with 'admin', this may not be viable in future?
-    return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $css   = _build_themed_styles('config.css');
     my $js    = _build_themed_scripts('post.js');
@@ -386,10 +383,9 @@ Implements /config/save route.  Saves what little configuration we actually use 
 
 =cut
 
-sub config_save ($query, $input, $render_cb) {
-    my $postdata = _input2postdata($input);
-    $conf->param( 'general.theme',      $postdata->{theme} )      if defined $postdata->{theme};
-    $conf->param( 'general.data_model', $postdata->{data_model} ) if $postdata->{data_model};
+sub config_save ($query, $render_cb) {
+    $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
+    $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
@@ -398,12 +394,12 @@ sub config_save ($query, $input, $render_cb) {
         $query->{message} = "Configuration updated succesfully.";
     }
     # TODO we need to soft-restart the server at this point.  Maybe we can just hot-load config on each page when we get to have static renders?  Probably not worth the perf hit for paywall users.
-    return config($query, $input, $render_cb);
+    return config($query, $render_cb);
 }
 
 # TODO actually do stuff
-sub profile ($query, $input, $render_cb) {
-    return config($query, $input, $render_cb);
+sub profile ($query, $render_cb) {
+    return config($query, $render_cb);
 }
 
 =head2 themeclone
@@ -412,9 +408,8 @@ Clone a theme by copying a directory.
 
 =cut
 
-sub themeclone ($query, $input, $render_cb) {
-    my $postdata = _input2postdata($input);
-    my ($theme, $newtheme) = ($postdata->{theme},$postdata->{newtheme});
+sub themeclone ($query, $render_cb) {
+    my ($theme, $newtheme) = ($query->{theme},$query->{newtheme});
 
     my $themedir = 'www/themes';
 
@@ -425,7 +420,7 @@ sub themeclone ($query, $input, $render_cb) {
         $query->{failure} = 0;
         $query->{message} = "Successfully cloned theme '$theme' as '$newtheme'.";
     }
-    return config($query, $input, $render_cb);
+    return config($query, $render_cb);
 }
 
 =head2 post
@@ -434,11 +429,11 @@ Display the route for making new posts.
 
 =cut
 
-sub post ($query, $input, $render_cb) {
+sub post ($query, $render_cb) {
     if (!$query->{user}) {
-        return login($query,$input,$render_cb);
+        return login($query, $render_cb);
     }
-    return forbidden($query, $input, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags  = _coerce_array($query->{tag});
     my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
@@ -469,20 +464,18 @@ sub post ($query, $input, $render_cb) {
     });
 }
 
-sub post_save ($query, $input, $render_cb) {
+sub post_save ($query, $render_cb) {
     state $data = Trog::Data->new($conf);
-    my $postdata = _input2postdata($input);
-    $data->add($postdata);
+    $data->add($query);
     $query->{failure} = 0;
-    return post($query, $input, $render_cb);
+    return post($query, $render_cb);
 }
 
-sub post_delete ($query, $input, $render_cb) {
+sub post_delete ($query, $render_cb) {
     state $data = Trog::Data->new($conf);
-    my $postdata = _input2postdata($input);
-    $query->{failure} = $data->delete($postdata);
-    $query->{to} = $postdata->{to};
-    return post($query, $input, $render_cb);
+    $query->{failure} = $data->delete($query);
+    $query->{to} = $query->{to};
+    return post($query, $render_cb);
 }
 
 =head2 posts
@@ -491,14 +484,14 @@ Display multi or single posts, supports RSS and pagination.
 
 =cut
 
-sub posts ($query, $input, $render_cb) {
+sub posts ($query, $render_cb) {
     my $tags = _coerce_array($query->{tag});
 
     #TODO If we have a direct ID query, we should show unlisted videos as well as public ones IFF they have a valid campaign ID attached to query
     push(@{$query->{acls}}, 'public');
     my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
 
-    return notfound($query,$input,$render_cb) unless @$posts;
+    return notfound($query, $render_cb) unless @$posts;
 
     my $fmt = $query->{format} || '';
     return _rss($query,$posts) if $fmt eq 'rss';
@@ -535,7 +528,7 @@ sub posts ($query, $input, $render_cb) {
         about_header => $header,
         about_footer => $footer,
     });
-    return Trog::Routes::HTML::index($query, $input, $render_cb, $content, $styles);
+    return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
 }
 
 sub _post_helper ($query, $tags, $acls) {
@@ -564,7 +557,7 @@ Passing compressed=1 will gzip the output.
 
 =cut
 
-sub sitemap ($query, $input, $render_cb) {
+sub sitemap ($query, $render_cb) {
 
     my (@to_map, $is_index, $route_type);
     my $warning = '';
@@ -663,7 +656,7 @@ sub sitemap ($query, $input, $render_cb) {
         route      => $query->{route},
     });
 
-    return Trog::Routes::HTML::index($query,$input,$render_cb,$content,$styles);
+    return Trog::Routes::HTML::index($query, $render_cb,$content,$styles);
 }
 
 sub _rss ($query,$posts) {
@@ -703,14 +696,6 @@ sub _rss ($query,$posts) {
     }
 
     return [200, ["Content-type: application/rss+xml\n"], [$rss->as_string]];
-}
-
-sub _input2postdata ($input) {
-    #Set the cookiez and issue a 302 back to ourselves if we have good creds
-    my ($slurpee,$postdata) = ('',{});
-    while (<$input>) { $slurpee .= $_ }
-    $postdata = URL::Encode::url_params_mixed($slurpee) if $slurpee;
-    return $postdata;
 }
 
 # Deal with Params which may or may not be arrays

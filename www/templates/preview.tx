@@ -1,0 +1,4 @@
+Preview Image<br /><input type="file" class="cooltext" name="preview_file" placeholder="PROMO.JPG" />
+: if ( $post.preview ) {
+<input type="hidden" name="preview" value="<: $post.preview :>" />
+: }

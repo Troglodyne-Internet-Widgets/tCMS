@@ -1,9 +1,12 @@
-<form class="Submissions" action="/post/save" method="POST">
+<form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
     Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
-    File *<br /><input required class="cooltext" type="file" name="file" value="<: $post.href :>" />
+    File *<br /><input <: $post.href ? '' : 'required' :> class="cooltext" type="file" name="file" />
+    : if ( $post.href ) {
+    <input type="hidden" name="href" value="<: $post.href :>" />
+    : }
     <!-- Need to validate file or add an upload link that kicks off WS streaming of the file at some point? TAB -->
     <br /> TODO: Add "alternative" links, which scrape the appropriate icon for the alt link from the favicon<br />
-    Preview Image<br /><input type="file" class="cooltext" name="preview" placeholder="PROMO.JPG" value="<: $post.preview :>" />
+    : include "preview.tx";
     : include "acls.tx";
     : include "tags.tx";
     Comments<br /><textarea class="cooltext" name="comment" placeholder="Potzrebie"><: $post.data :></textarea>
