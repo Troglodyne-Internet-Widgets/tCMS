@@ -22,6 +22,9 @@
                 <span id="<: $post.id :>-time" style="float:right;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
+            : if ( !$post.video_href && !$post.is_image && $post.preview ) {
+                <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
+            : }
             : if ( $post.video_href ) {
                 <video class="responsive" controls poster="<: $post.preview :>" >
                     <source src="<: $post.video_href :>" type="<: $post.video_content_type :>" />
