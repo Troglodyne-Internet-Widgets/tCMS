@@ -8,9 +8,7 @@ Visibility<br />
     ACLs / Series<br/ >
     <select multiple class="cooltext" name="acls">
         : for $acls -> $acl {
-            : if ($acl.aclname != 'public' && $acl.aclname != 'private' && $acl.aclname != 'unlisted') {
             <option value="<: $acl.aclname :>"><: $acl.data :></option>
-            : }
         : }
     </select>
 </div>

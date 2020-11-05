@@ -450,11 +450,17 @@ sub post ($query, $render_cb) {
         $app = 'audio' if $query->{route} =~ m/audio$/;
     }
 
+    #Filter displaying acl/visibility tags
+    my @visibuddies = qw{public unlisted private};
+    foreach my $post (@$posts) {
+        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } (@visibuddies, map { $_->{aclname} } @$acls ) } @{$post->{tags}};
+    }
+
     return $render_cb->('post.tx', {
         title       => 'New Post',
         to          => $query->{to},
         failure     => $query->{failure} // -1,
-        post_visibilities => ['public', 'private', 'unlisted'],
+        post_visibilities => \@visibuddies,
         stylesheets => $css,
         scripts     => $js,
         posts       => $posts,
