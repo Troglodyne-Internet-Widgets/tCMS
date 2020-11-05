@@ -10,6 +10,7 @@ use Carp qw{confess};
 use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
+use Mojo::File;
 
 =head1 WARNING
 
@@ -190,6 +191,10 @@ sub _process ($post) {
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};
+
+    my $mf = Mojo::File->new("www/$post->{href}");
+    my $ext = '.'.$mf->extname();
+    $post->{content_type} = Plack::MIME->mime_type($ext) if $ext;
 
     return $post;
 }
