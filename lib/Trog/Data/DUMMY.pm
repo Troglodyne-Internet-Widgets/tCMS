@@ -188,6 +188,7 @@ sub _process ($post) {
 
     $post->{href}    = _handle_upload($post->{file}, $post->{id})         if $post->{file};
     $post->{preview} = _handle_upload($post->{preview_file}, $post->{id}) if $post->{preview_file};
+    $post->{preview} = $post->{href} if $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};

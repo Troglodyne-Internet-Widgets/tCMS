@@ -442,6 +442,11 @@ sub post ($query, $render_cb) {
     push(@$css, '/styles/avatars.css');
     my (undef, $acls) = _post_helper({}, ['series'], $query->{acls});
 
+    my $app = 'file';
+    $app = 'image' if $query->{route} =~ m/image$/;
+    $app = 'video' if $query->{route} =~ m/video$/;
+    $app = 'audio' if $query->{route} =~ m/audio$/;
+
     return $render_cb->('post.tx', {
         title       => 'New Post',
         to          => $query->{to},
@@ -461,6 +466,7 @@ sub post ($query, $render_cb) {
         acls        => $acls,
         post        => { tags => $query->{tag} },
         edittype    => $query->{type} || 'microblog',
+        app         => $app,
     });
 }
 
