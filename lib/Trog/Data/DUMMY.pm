@@ -193,6 +193,13 @@ sub _process ($post) {
     delete $post->{file};
     delete $post->{preview_file};
 
+    delete $post->{route};
+    delete $post->{domain};
+
+    $post->{tags} //= [];
+    push(@{$post->{tags}}, delete $post->{acls}) if $post->{visibility} eq 'private';
+    push(@{$post->{tags}}, delete $post->{visibility});
+
     if ($post->{href}) {
         my $mf = Mojo::File->new("www/$post->{href}");
         my $ext = '.'.$mf->extname();
