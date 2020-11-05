@@ -23,7 +23,7 @@
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
             : if ( $post.video_href ) {
-                <video class="responsive" controls>
+                <video class="responsive" controls poster="<: $post.preview :>" >
                     <source src="<: $post.video_href :>" type="<: $post.video_content_type :>" />
                     Your browser does not support the video tag.
                 </video>
