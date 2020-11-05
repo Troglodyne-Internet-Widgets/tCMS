@@ -9,8 +9,5 @@
     Title  <br /><input class="cooltext" type="text" name="title" value="<: $post.title :>" />
     : include "acls.tx";
     : include "tags.tx";
-    Content<br /><textarea class="cooltext" name="data" placeholder="Potzrebie"><: $post.data :></textarea>
-    <input type="hidden" name="app" value="file" />
-    <input type="hidden" name="to" value="<: $route :>" />
-    <input class="coolbutton" type="submit" value="Publish" text="Publish" />
+    : include "form_common.tx";
 </form>

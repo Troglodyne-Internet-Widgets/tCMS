@@ -3,8 +3,5 @@
     : include "preview.tx";
     : include "acls.tx";
     : include "tags.tx";
-    Content<br /><textarea required class="cooltext" name="data" placeholder="Potzrebie"><: $post.data :></textarea>
-    <input type="hidden" name="app" value="blog" />
-    <input type="hidden" name="to" value="<: $route :>" />
-    <input class="coolbutton" type="submit" value="Publish" text="Publish" />
+    : include "form_common.tx";
 </form>

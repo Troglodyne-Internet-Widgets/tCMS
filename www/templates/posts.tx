@@ -19,7 +19,7 @@
             <h3 class='blogtitles'>
                 <a href='/posts/<: $post.id :>'><: $post.title :></a>
                 <a class="undecorated" href='<: $post.href :>'>🔗</a>
-                <span id="<: $post.id :>-time" style="float:right;"><: $post.created :></span>
+                <span id="<: $post.id :>-<: $post.version :>-time" style="float:right;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
             : if ( !$post.video_href && !$post.is_image && $post.preview ) {
@@ -55,9 +55,9 @@
             : $post.data | mark_raw;
             : if ( $can_edit ) {
             <br />
-            <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>');">[Edit]</a>
-            <div id="<: $post.id :>" style="display:none;">
-                : include $post.type ~ ".tx" { post => $post};
+            <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
+            <div id="<: $post.id :>-<: $post.version :>" style="display:none;">
+                : include $post.type ~ ".tx" { post => $post };
                 <form class="Submissions" action="/post/delete" method="POST" class="inline">
                     <input type="hidden" name="id" value="<: $post.id :>"></input>
                     <input type="hidden" name="to" value="<: $route :>"></input>
@@ -68,7 +68,7 @@
             <script type="text/javascript">
                 // Fix post dates to be localized
                 document.addEventListener("DOMContentLoaded", function(event) {
-                    var e = document.getElementById("<: $post.id :>-time");
+                    var e = document.getElementById("<: $post.id :>-<: $post.version :>-time");
                     var d = new Date(Date(e.innerText));
                     e.innerHTML = "&nbsp;" + d.toDateString();
                 });

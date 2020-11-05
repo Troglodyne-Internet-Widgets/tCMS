@@ -101,7 +101,18 @@ sub get ($self, %request) {
     my @filtered = @$example_posts;
 
     # If an ID is passed, just get that
-    @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
+    if ($request{id}) {
+        @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
+        # Sort by version
+        @filtered = sort { $b->{version} cmp $a->{version} } @filtered;
+
+        @filtered = _add_post_type(@filtered);
+        # Next, add the type of post this is
+        @filtered = _add_media_type(@filtered);
+        # Finally, add visibility
+        @filtered = _add_visibility(@filtered);
+        return (1, \@filtered);
+    }
 
     # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
