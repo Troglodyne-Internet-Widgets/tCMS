@@ -433,6 +433,7 @@ sub post ($query, $render_cb) {
     if (!$query->{user}) {
         return login($query, $render_cb);
     }
+    $query->{acls} = _coerce_array($query->{acls});
     return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags  = _coerce_array($query->{tag});
@@ -443,9 +444,11 @@ sub post ($query, $render_cb) {
     my (undef, $acls) = _post_helper({}, ['series'], $query->{acls});
 
     my $app = 'file';
-    $app = 'image' if $query->{route} =~ m/image$/;
-    $app = 'video' if $query->{route} =~ m/video$/;
-    $app = 'audio' if $query->{route} =~ m/audio$/;
+    if ($query->{route}) {
+        $app = 'image' if $query->{route} =~ m/image$/;
+        $app = 'video' if $query->{route} =~ m/video$/;
+        $app = 'audio' if $query->{route} =~ m/audio$/;
+    }
 
     return $render_cb->('post.tx', {
         title       => 'New Post',

@@ -11,6 +11,7 @@ use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
 use Mojo::File;
+use List::Util;
 
 =head1 WARNING
 
@@ -196,10 +197,16 @@ sub _process ($post) {
     delete $post->{route};
     delete $post->{domain};
 
+    # Handle acls/tags
     $post->{tags} //= [];
+    @{$post->{tags}} = grep { my $subj = $_; !grep { $_ eq $subj} qw{public private unlisted} } @{$post->{tags}};
     push(@{$post->{tags}}, delete $post->{acls}) if $post->{visibility} eq 'private';
     push(@{$post->{tags}}, delete $post->{visibility});
 
+    #Filter adding the same acl twice
+    @{$post->{tags}} = List::Util::uniq(@{$post->{tags}});
+
+    # Handle multimedia content types
     if ($post->{href}) {
         my $mf = Mojo::File->new("www/$post->{href}");
         my $ext = '.'.$mf->extname();
