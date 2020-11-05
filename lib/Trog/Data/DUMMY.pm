@@ -193,9 +193,21 @@ sub _process ($post) {
     delete $post->{file};
     delete $post->{preview_file};
 
-    my $mf = Mojo::File->new("www/$post->{href}");
-    my $ext = '.'.$mf->extname();
-    $post->{content_type} = Plack::MIME->mime_type($ext) if $ext;
+    if ($post->{href}) {
+        my $mf = Mojo::File->new("www/$post->{href}");
+        my $ext = '.'.$mf->extname();
+        $post->{content_type} = Plack::MIME->mime_type($ext) if $ext;
+    }
+    if ($post->{video_href}) {
+        my $mf = Mojo::File->new("www/$post->{video_href}");
+        my $ext = '.'.$mf->extname();
+        $post->{video_content_type} = Plack::MIME->mime_type($ext) if $ext;
+    }
+    if ($post->{audio_href}) {
+        my $mf = Mojo::File->new("www/$post->{audio_href}");
+        my $ext = '.'.$mf->extname();
+        $post->{audio_content_type} = Plack::MIME->mime_type($ext) if $ext;
+    }
 
     return $post;
 }
