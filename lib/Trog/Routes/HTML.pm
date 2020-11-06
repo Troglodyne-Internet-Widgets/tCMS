@@ -7,6 +7,7 @@ no warnings 'experimental';
 use feature qw{signatures state};
 
 use File::Touch();
+use List::Util();
 
 use Trog::Config;
 use Trog::Data;
@@ -552,12 +553,13 @@ sub posts ($query, $render_cb) {
 sub _post_helper ($query, $tags, $acls) {
     state $data = Trog::Data->new($conf);
     return $data->get(
-        page  => int($query->{page} || 1),
-        limit => int($query->{limit} || 25),
-        tags  => $tags,
-        acls  => $acls,
-        like  => $query->{like},
-        id    => $query->{id},
+        page    => int($query->{page} || 1),
+        limit   => int($query->{limit} || 25),
+        tags    => $tags,
+        acls    => $acls,
+        like    => $query->{like},
+        id      => $query->{id},
+        version => $query->{version},
     );
 }
 

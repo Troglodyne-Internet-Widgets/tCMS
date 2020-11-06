@@ -19,7 +19,16 @@
             <h3 class='blogtitles'>
                 <a href='/posts/<: $post.id :>'><: $post.title :></a>
                 <a class="undecorated" href='<: $post.href :>'>🔗</a>
-                <span id="<: $post.id :>-<: $post.version :>-time" style="float:right;"><: $post.created :></span>
+                : if ( $post.version_max ) {
+                <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
+                    <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
+                        : for [0..$post.version_max] -> $version {
+                            <option value="<: $version :>" <: if ($post.version == $version ) { :>selected<: } :> >v<: $version :></option>
+                        : }
+                    </select>
+                </form>
+                : }
+                <span id="<: $post.id :>-<: $post.version :>-time" style="float:right; margin:.25rem;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
             : if ( !$post.video_href && !$post.is_image && $post.preview ) {
@@ -66,11 +75,18 @@
             </div>
             : }
             <script type="text/javascript">
-                // Fix post dates to be localized
                 document.addEventListener("DOMContentLoaded", function(event) {
+
+                    // Fix post dates to be localized
                     var e = document.getElementById("<: $post.id :>-<: $post.version :>-time");
                     var d = new Date(Date(e.innerText));
                     e.innerHTML = "&nbsp;" + d.toDateString();
+
+                    //Make the version switcher do things
+                    var swit = document.getElementById("<: $post.id :>-<: $post.version :>-version"); // I am an elder scrolls fan
+                    swit.onchange = function (evt) {
+                        this.form.submit();
+                    };
                 });
             </script>
         </div>

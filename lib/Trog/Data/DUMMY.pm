@@ -100,12 +100,11 @@ sub get ($self, %request) {
 
     my @filtered = @$example_posts;
 
-    # If an ID is passed, just get that
+    # If an ID is passed, just get that (and all it's prior versions
     if ($request{id}) {
         @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
-        # Sort by version
-        @filtered = sort { $b->{version} cmp $a->{version} } @filtered;
 
+        @filtered = _dedup_versions($request{version}, @filtered);
         @filtered = _add_post_type(@filtered);
         # Next, add the type of post this is
         @filtered = _add_media_type(@filtered);
@@ -113,6 +112,8 @@ sub get ($self, %request) {
         @filtered = _add_visibility(@filtered);
         return (1, \@filtered);
     }
+
+    @filtered = _dedup_versions(undef, @filtered);
 
     # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
@@ -134,6 +135,28 @@ sub get ($self, %request) {
     @filtered = _add_visibility(@filtered);
 
     return ($pages,\@filtered);
+}
+
+sub _dedup_versions ($version=-1, @posts) {
+    if (defined $version) {
+        my $version_max = List::Util::max(map { $_->{version } } @posts);
+        return map {
+            $_->{version_max} = $version_max;
+            $_
+        } grep { $_->{version} eq $version } @posts;
+    }
+
+    my @uniqids = List::Util::uniq(map { $_->{id} } @posts);
+    my %posts_deduped;
+    for my $id (@uniqids) {
+        my $version_max = List::Util::max(map { $_->{version } } @posts);
+        my @ofid = sort { $b->{version} cmp $a->{version} } grep { $_->{id} eq $id } @posts;
+        $posts_deduped{$id} = $ofid[0];
+        $posts_deduped{$id}{version_max} = $version_max;
+    }
+    my @deduped = @posts_deduped{@uniqids};
+
+    return @deduped;
 }
 
 sub total_posts {
