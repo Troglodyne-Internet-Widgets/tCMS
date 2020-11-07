@@ -482,11 +482,15 @@ sub post ($query, $render_cb) {
 
 sub post_save ($query, $render_cb) {
     my $to = delete $query->{to};
+
+    #Copy this down since it will be deleted later
+    my $acls = $query->{acls};
     state $data = Trog::Data->new($conf);
     $query->{tags}  = _coerce_array($query->{tags});
     $data->add($query);
     $query->{failure} = 0;
     $query->{to} = $to;
+    $query->{acls} = $acls;
     return post($query, $render_cb);
 }
 
