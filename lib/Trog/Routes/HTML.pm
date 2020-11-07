@@ -160,6 +160,9 @@ $routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Rou
 @routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/posts/(.*)'}}; \%copy } @post_aliases;
 @routes{map { "/post/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
 
+# /series/$ID is a bit of a special case, it's actuallly gonna need special processing
+$routes{'/series/(.*)'} = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::series, captures => ['id'] };
+
 # Grab theme routes
 my $themed = 0;
 if ($theme_dir) {
@@ -501,6 +504,15 @@ sub post_delete ($query, $render_cb) {
     return post($query, $render_cb);
 }
 
+sub series ($query, $render_cb) {
+    #Grab the relevant tag (aclname), then pass that to posts
+    my (undef, $posts) = _post_helper($query, [], $query->{acls});
+    delete $query->{id};
+
+    $query->{tag} = $posts->[0]->{aclname};
+    return posts($query,$render_cb);
+}
+
 =head2 posts
 
 Display multi or single posts, supports RSS and pagination.
@@ -538,16 +550,17 @@ sub posts ($query, $render_cb) {
     my $styles = _build_themed_styles('posts.css');
 
     my $content = $processor->render('posts.tx', {
-        title    => "Posts tagged @$tags",
-        posts    => $posts,
-        route    => $query->{route},
-        page     => int($query->{page} || 1),
-        limit    => int($query->{limit} || 25),
-        pages    => $pages,
-        sizes    => [25,50,100],
-        rss      => !$query->{id},
-        tiled    => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series}),
-        category => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
+        title     => "Posts tagged @$tags",
+        posts     => $posts,
+        in_series => !!($query->{route} =~ m/\/series\/\d*$/),
+        route     => $query->{route},
+        page      => int($query->{page} || 1),
+        limit     => int($query->{limit} || 25),
+        pages     => $pages,
+        sizes     => [25,50,100],
+        rss       => !$query->{id},
+        tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series}),
+        category  => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
         about_header => $header,
         about_footer => $footer,
     });

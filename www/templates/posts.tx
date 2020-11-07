@@ -9,6 +9,9 @@
 : }
 <hr class="divider" />
 : for $posts -> $post {
+    : if ( $post.aclname && $in_series ) {
+    : next;
+    : }
     :if ( $tiled ) {
         <a href="<: $route :>/<: $post.id :>" class="tile">
             <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
