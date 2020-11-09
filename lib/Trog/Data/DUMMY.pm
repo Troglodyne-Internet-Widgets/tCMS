@@ -170,7 +170,7 @@ sub _add_post_type (@posts) {
         my $type = 'file';
         $type = 'blog'      if grep { $_ eq 'blog' }    @{$post->{tags}};
         $type = 'microblog' if grep { $_ eq 'news' }    @{$post->{tags}};
-        $type = 'profile'   if grep { $_ eq 'profile' } @{$post->{tags}};
+        $type = 'profile'   if grep { $_ eq 'about' } @{$post->{tags}};
         $type = 'series'    if grep { $_ eq 'series'  } @{$post->{tags}};
         $post->{type} = $type;
         $post
@@ -209,7 +209,6 @@ sub add ($self, @posts) {
             $post->{version}++;
         }
         $post->{version} //= 0;
-        #TODO set local_href and content type correctly
 
         $post = _process($post);
         push @$example_posts, $post;

@@ -1,6 +1,6 @@
 <form class="Submissions" action="/profile" method="POST" enctype="multipart/form-data">
-    Username *<br /><input required class="cooltext" type="text" name="title" placeholder="AzureDiamond" value="<: $post.user :>" />
-    Password *<br /><input required class="cooltext" type="password" name="password" placeholder="hunter2" />
+    Username *<br /><input required class="cooltext" type="text" name="username" placeholder="AzureDiamond" value="<: $post.user :>" />
+    Password *<br /><input <: $post.user ? '' : 'required' :> class="cooltext" type="password" name="password" placeholder="hunter2" />
     Avatar *<br /><input class="cooltext" type="file" name="preview_file" />
     : if ( $post.preview ) {
     <input type="hidden" name="preview" value="<: $post.preview :>" />

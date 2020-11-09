@@ -88,12 +88,12 @@ sub useradd ($user, $pass, $acls) {
     my $dbh = _dbh();
     my $salt = create_uuid();
     my $hash = sha256($pass.$salt);
-    my $res =  $dbh->do("INSERT INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash);
+    my $res =  $dbh->do("INSERT OR REPLACE INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash);
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
     foreach my $acl (@$acls) {
-        return unless $dbh->do("INSERT INTO user_acl (user_id,acl) VALUES ((SELECT id FROM user WHERE name=?),?)", undef, $user, $acl);
+        return unless $dbh->do("INSERT OR REPLACE INTO user_acl (user_id,acl) VALUES ((SELECT id FROM user WHERE name=?),?)", undef, $user, $acl);
     }
     return 1;
 }

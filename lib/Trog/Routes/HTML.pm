@@ -401,11 +401,6 @@ sub config_save ($query, $render_cb) {
     return config($query, $render_cb);
 }
 
-# TODO actually do stuff
-sub profile ($query, $render_cb) {
-    return config($query, $render_cb);
-}
-
 =head2 themeclone
 
 Clone a theme by copying a directory.
@@ -496,6 +491,20 @@ sub post_save ($query, $render_cb) {
     $query->{acls} = $acls;
     return post($query, $render_cb);
 }
+
+sub profile ($query, $render_cb) {
+    #TODO allow users to do something OTHER than be admins
+    if ($query->{password}) {
+        Trog::Auth::useradd($query->{username}, $query->{password}, ['admin'] );
+    }
+
+    #Make sure it is "self-authored", redact pw
+    $query->{user} = delete $query->{username};
+    delete $query->{password};
+
+    return post_save($query, $render_cb);
+}
+
 
 sub post_delete ($query, $render_cb) {
     state $data = Trog::Data->new($conf);
