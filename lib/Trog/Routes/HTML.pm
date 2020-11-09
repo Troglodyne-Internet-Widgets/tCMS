@@ -123,7 +123,7 @@ our %routes = (
         data     => { xml => 1, compressed => 1, map => 'static' },
     },
     '/sitemap/(.*).xml' => {
-        method => 'GET',
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
         data     => { xml => 1 },
         captures => ['map'],
@@ -135,12 +135,17 @@ our %routes = (
         captures => ['map'],
     },
     '/robots.txt' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::robots,
+        method    => 'GET',
+        callback  => \&Trog::Routes::HTML::robots,
     },
     '/humans.txt' => {
-        method => 'GET',
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
+        data     => { tag => ['about'] },
+    },
+    '/styles/avatars.css' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
     },
 );
@@ -520,6 +525,22 @@ sub series ($query, $render_cb) {
 
     $query->{tag} = $posts->[0]->{aclname};
     return posts($query,$render_cb);
+}
+
+sub avatars ($query, $render_cb) {
+    #XXX if you have more than 1000 editors you should stop
+    my $tags = _coerce_array($query->{tag});
+    $query->{limit} = 1000;
+    my $processor = Text::Xslate->new(
+        path   => $template_dir,
+    );
+    my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+
+    my $content = $processor->render('avatars.tx', {
+        users => $posts,
+    });
+
+    return [200,["Content-type: text/css\n"],[$content]];
 }
 
 =head2 posts
