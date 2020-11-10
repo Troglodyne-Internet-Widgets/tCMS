@@ -127,7 +127,6 @@ my $app = sub {
         my $len = $env->{CONTENT_LENGTH};
         while ( $len ) {
             read($env->{'psgi.input'}, my $buf, ($len < 8192) ? 8192 : $len );
-            print "READ BYTES\n";
             $len -= length($buf);
             $body->add($buf);
         }

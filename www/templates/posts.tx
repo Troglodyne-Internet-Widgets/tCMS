@@ -41,7 +41,7 @@
                 <span id="<: $post.id :>-<: $post.version :>-time" style="float:right;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
-            : if ( !$post.video_href && !$post.is_image && !$post.is_video && $post.preview ) {
+            : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.wallpaper && $post.preview ) {
                 <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
             : }
             : if ( $post.video_href ) {
@@ -70,6 +70,11 @@
             : }
             : if ( $post.is_image ) {
                 <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
+            : }
+            : if ( $post.wallpaper ) {
+                <div style="background-image:url(<: $post.wallpaper :>);">
+                    <div style="background-image:url(<: $post.preview :>);" class="responsive preview usericon"></div>
+                </div>
             : }
             : $post.data | mark_raw;
             : if ( $can_edit ) {
