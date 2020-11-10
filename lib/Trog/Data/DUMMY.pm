@@ -48,7 +48,7 @@ Posts generally need to have the following:
 
 =head2 new(Config::Simple $config)
 
-Try not to do expensive things here.  
+Try not to do expensive things here.
 
 =cut
 
@@ -129,7 +129,7 @@ sub get ($self, %request) {
     my $pages = int(scalar(@filtered) / ($offset || 1) );
 
     @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit};
-    
+
     # Next, go ahead and build the "post type"
     @filtered = _add_post_type(@filtered);
     # Next, add the type of post this is
@@ -184,9 +184,10 @@ sub _add_media_type (@posts) {
     return map {
         my $post = $_;
         $post->{content_type} //= '';
-        $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;
-        $post->{is_audio} = 1 if $post->{content_type} =~ m/^audio\//;
-        $post->{is_image} = 1 if $post->{content_type} =~ m/^image\//;
+        $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
+        $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
+        $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
+        $post->{is_profile} = 1 if grep {$_ eq 'about' } @{$post->{tags}};
         $post
     } @posts;
 }
