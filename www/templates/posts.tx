@@ -38,7 +38,7 @@
                     </select>
                 </form>
                 : }
-                <span id="<: $post.id :>-<: $post.version :>-time" style="float:right; margin:.25rem;"><: $post.created :></span>
+                <span id="<: $post.id :>-<: $post.version :>-time" style="float:right;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
             : if ( !$post.video_href && !$post.is_image && !$post.is_video && $post.preview ) {

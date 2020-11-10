@@ -48,6 +48,7 @@ audio, video {
 #topkek {
  background: rgb(0,0,0);
  box-shadow: 0 .25em .5em black;
+ margin-top: .1rem;
 }
 .toplel {
  color: white;
@@ -121,6 +122,8 @@ audio, video {
  background-size: 1em;
  background-repeat: no-repeat;
  margin-left:1rem;
+ border-radius: 50%;
+ padding-right: unset !important;
 }
 .avatar {
  width: 3em;
