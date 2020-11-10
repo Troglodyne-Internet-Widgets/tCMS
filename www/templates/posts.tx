@@ -14,7 +14,14 @@
     : }
     :if ( $tiled ) {
         <a href="<: $route :>/<: $post.id :>" class="tile">
+        : if ($post.is_video) {
+            <video class="responsive" controls poster="<: $post.preview :>" >
+                <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                Your browser does not support the video tag.
+            </video>
+        : } else {
             <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
+        : }
             <p class="midtitle"><: $post.title :></p>
         </a>
     : } else {
@@ -34,7 +41,7 @@
                 <span id="<: $post.id :>-<: $post.version :>-time" style="float:right; margin:.25rem;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
-            : if ( !$post.video_href && !$post.is_image && $post.preview ) {
+            : if ( !$post.video_href && !$post.is_image && !$post.is_video && $post.preview ) {
                 <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
             : }
             : if ( $post.video_href ) {
