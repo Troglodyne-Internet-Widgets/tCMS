@@ -115,6 +115,9 @@ sub get ($self, %request) {
 
     @filtered = _dedup_versions(undef, @filtered);
 
+    # Heal bad data
+    @filtered = map { my $t = $_->{tags}; @$t = grep { defined $_ } @$t; $_ } @filtered;
+
     # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};    

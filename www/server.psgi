@@ -122,13 +122,15 @@ my $app = sub {
 
     #Actually parse the POSTDATA and dump it into the QUERY object if this is a POST
     if ($env->{REQUEST_METHOD} eq 'POST') {
-        #TODO don't slurp
-        my $slurpee = '';
-        my $input = $env->{'psgi.input'};
-        while (<$input>) { $slurpee .= $_ }
 
         my $body = HTTP::Body->new( $env->{CONTENT_TYPE}, $env->{CONTENT_LENGTH} );
-        $body->add($slurpee);
+        my $len = $env->{CONTENT_LENGTH};
+        while ( $len ) {
+            read($env->{'psgi.input'}, my $buf, ($len < 8192) ? 8192 : $len );
+            print "READ BYTES\n";
+            $len -= length($buf);
+            $body->add($buf);
+        }
 
         @$query{keys(%{$body->param})}  = values(%{$body->param});
         @$query{keys(%{$body->upload})} = values(%{$body->upload});
