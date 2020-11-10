@@ -3,8 +3,12 @@ install:
 	test -d $(HOME) || mkdir $(HOME)/.tcms
 
 .PHONY: test
-test:
+test: reset-dummy-data
 	prove t/*.t
+
+.PHONY: reset-dummy-data
+reset-dummy-data:
+	cp -f data/DUMMY-dist.json data/DUMMY.json
 
 .PHONY: depend
 depend:
