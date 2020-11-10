@@ -219,7 +219,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         route       => $query->{route},
         theme_dir   => $theme_dir,
         content     => $content,
-        title       => $conf->param('general.title'), #TODO control in theme instead
+        title       => $query->{title} // $Theme::default_title // 'tCMS',
         htmltitle   => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
         midtitle    => _pick_processor("templates/$midtitle" ,$processor,$t_processor)->render($midtitle,$query),
         rightbar    => _pick_processor("templates/$rightbar" ,$processor,$t_processor)->render($rightbar,$query),
@@ -246,6 +246,7 @@ sub _generic_route ($rname, $code, $title, $query, $render_cb) {
         path   => _dir_for_resource("$rname.tx"),
     );
 
+    $query->{title} = $title;
     my $styles = _build_themed_styles("$rname.css");
     my $content = $processor->render("$rname.tx", {
         title    => $title,
@@ -579,8 +580,9 @@ sub posts ($query, $render_cb) {
 
     my $styles = _build_themed_styles('posts.css');
 
+    $query->{title} = @$tags ? "$query->{domain} : @$tags" : undef;
     my $content = $processor->render('posts.tx', {
-        title     => "Posts tagged @$tags",
+        title     => $query->{title},
         posts     => $posts,
         in_series => !!($query->{route} =~ m/\/series\/\d*$/),
         route     => $query->{route},
@@ -715,6 +717,7 @@ sub sitemap ($query, $render_cb) {
 
     my $styles = _build_themed_styles('sitemap.css');
 
+    $query->{title} = "$query->{domain} : Sitemap";
     my $content = $processor->render('sitemap.tx', {
         title      => "Site Map",
         to_map     => \@to_map,
