@@ -1,6 +1,6 @@
 .PHONY: install
 install:
-	mkdir $(HOME)/.tcms; /bin/true
+	test -d $(HOME) || mkdir $(HOME)/.tcms
 
 .PHONY: test
 test:
