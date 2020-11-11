@@ -207,6 +207,7 @@ sub add ($self, @posts) {
     my $example_posts = _read();
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
+        $post->{created} = time();
         my (undef, $existing_posts) = $self->get( id => $post->{id} );
         if (@$existing_posts) {
             my $existing_post = $existing_posts->[0];
