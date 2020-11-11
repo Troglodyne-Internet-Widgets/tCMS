@@ -8,6 +8,7 @@ use feature qw{signatures state};
 
 use File::Touch();
 use List::Util();
+use Capture::Tiny qw{capture};
 
 use Trog::Config;
 use Trog::Data;
@@ -153,6 +154,17 @@ our %routes = (
         callback => \&Trog::Routes::HTML::users,
         captures => ['username'],
     },
+    '/manual' => {
+        method => 'GET',
+        auth   => 1,
+        callback => \&Trog::Routes::HTML::manual,
+    },
+    '/lib/(.*)' => {
+        method => 'GET',
+        auth   => 1,
+        captures => ['module'],
+        callback => \&Trog::Routes::HTML::manual,
+    },
 );
 
 # Build aliases for /posts and /post with extra data
@@ -184,12 +196,14 @@ if ($theme_dir) {
     }
 }
 
-sub robots ($query, $render_cb) {
-    my $processor = Text::Xslate->new(
-        path   => $template_dir,
-    );
-    return [200, ["Content-type:text/plain\n"],[$processor->render('robots.tx', { domain => $query->{domain} })]];
-}
+=head1 PRIMARY ROUTE
+
+=head2 index
+
+Implements the primary route used by all pages not behind auth.
+Most subsequent functions simply pass content to this function.
+
+=cut
 
 sub index ($query,$render_cb, $content = '', $i_styles = []) {
     $query->{theme_dir}  = $theme_dir || '';
@@ -279,6 +293,19 @@ sub badrequest (@args) {
 =head1 NORMAL ROUTES
 
 These are expected to either return a 200, or redirect to something which does.
+
+=head2 robots
+
+Return an appropriate robots.txt
+
+=cut
+
+sub robots ($query, $render_cb) {
+    my $processor = Text::Xslate->new(
+        path   => $template_dir,
+    );
+    return [200, ["Content-type:text/plain\n"],[$processor->render('robots.tx', { domain => $query->{domain} })]];
+}
 
 =head2 setup
 
@@ -489,6 +516,12 @@ sub post ($query, $render_cb) {
     });
 }
 
+=head2 post_save
+
+Saves posts submitted via the /post pages
+
+=cut
+
 sub post_save ($query, $render_cb) {
     my $to = delete $query->{to};
 
@@ -503,6 +536,12 @@ sub post_save ($query, $render_cb) {
     return post($query, $render_cb);
 }
 
+=head2 profile
+
+Saves / updates new users.
+
+=cut
+
 sub profile ($query, $render_cb) {
     #TODO allow users to do something OTHER than be admins
     if ($query->{password}) {
@@ -516,6 +555,11 @@ sub profile ($query, $render_cb) {
     return post_save($query, $render_cb);
 }
 
+=head2 post_delete
+
+deletes posts.
+
+=cut
 
 sub post_delete ($query, $render_cb) {
     state $data = Trog::Data->new($conf);
@@ -523,6 +567,12 @@ sub post_delete ($query, $render_cb) {
     $query->{to} = $query->{to};
     return post($query, $render_cb);
 }
+
+=head2 series
+
+Add new 'series' (ACLs) to classify content with.
+
+=cut
 
 sub series ($query, $render_cb) {
     #Grab the relevant tag (aclname), then pass that to posts
@@ -532,6 +582,12 @@ sub series ($query, $render_cb) {
     $query->{tag} = $posts->[0]->{aclname};
     return posts($query,$render_cb);
 }
+
+=head2 avatars
+
+Returns the avatars.css.  Limited to 1000 users.
+
+=cut
 
 sub avatars ($query, $render_cb) {
     #XXX if you have more than 1000 editors you should stop
@@ -548,6 +604,12 @@ sub avatars ($query, $render_cb) {
 
     return [200,["Content-type: text/css\n"],[$content]];
 }
+
+=head2 users
+
+Implements direct user profile view.
+
+=cut
 
 sub users ($query, $render_cb) {
     my (undef,$posts) = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
@@ -767,19 +829,19 @@ sub _rss ($query,$posts) {
         title          => "$query->{domain}",
         link           => "http://$query->{domain}/$query->{route}?format=rss",
         language       => 'en', #TODO localization
-        description    => 'tCMS website', #TODO make configurable
-        pubDate        => $now, #TODO format
-        lastBuildDate  => $now, #TODO format
+        description    => "$query->{domain} : $query->{route}",
+        pubDate        => $now,
+        lastBuildDate  => $now,
     );
  
     #TODO configurability
     $rss->image(
         title       => $query->{domain},
-        url         => "http://$query->{domain}/img/icon/tcms.svg",
+        url         => "/$theme_dir/img/icon/favicon.ico",
         link        => "http://$query->{domain}",
         width       => 88,
         height      => 31,
-        description => 'tCMS image'
+        description => "$query->{domain} favicon",
     );
  
     foreach my $post (@$posts) {
@@ -796,6 +858,31 @@ sub _rss ($query,$posts) {
     }
 
     return [200, ["Content-type: application/rss+xml\n"], [$rss->as_string]];
+}
+
+=head2 manual
+
+Implements the /manual and /lib/* routes.
+
+Basically a thin wrapper around Pod::Html.
+
+=cut
+
+sub manual ($query, $render_cb) {
+    require Pod::Html;
+    require Capture::Tiny;
+
+    #Fix links from Pod::HTML
+    $query->{module} =~ s/\.html$//g if $query->{module};
+
+    my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
+    return notfound($query,$render_cb) unless -f "lib/$infile";
+    my $content = capture { Pod::Html::pod2html(qw{--podpath=lib --podroot=.},"--infile=lib/$infile") };
+    return $render_cb->('manual.tx', {
+        title       => 'tCMS Manual',
+        content     => $content,
+        stylesheets => _build_themed_styles('post.css'),
+    });
 }
 
 # Deal with Params which may or may not be arrays

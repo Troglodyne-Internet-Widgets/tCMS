@@ -1,0 +1,2 @@
+: include "sysbar.tx";
+<: $content | mark_raw :>

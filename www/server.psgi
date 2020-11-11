@@ -14,6 +14,7 @@ use Mojo::File   ();
 use DateTime::Format::HTTP();
 use Encode qw{encode_utf8};
 use CGI::Cookie ();
+use File::Basename();
 
 #Grab our custom routes
 use lib 'lib';
@@ -34,12 +35,6 @@ my %content_types = (
     html  => "$ct:text/html; charset=UTF-8",
     json  => "$ct:application/json;",
     blob  => "$ct:application/octet-stream;",
-);
-
-my $cd = 'Content-disposition';
-my %content_dispositions = (
-    attachment => 'attachment; filename=',
-    inline     => 'inline; filename=',
 );
 
 my $cc = 'Cache-control';
@@ -149,11 +144,8 @@ sub _serve ($path, $last_fetch=0) {
 
     my @headers = ($ft);
 
-    #TODO figure out content-disposition
-
     #TODO use static Cache-Control for everything but JS/CSS?
     push(@headers,$cache_control{revalidate});
-
 
     #TODO Return 304 unchanged for files that haven't changed since the requestor reports they last fetched
     my $mt = (stat($path))[9];
@@ -197,7 +189,6 @@ sub _render ($template, $vars, @headers) {
     $vars->{code} ||= 200;
 
     push(@headers, $vars->{contenttype});
-    push(@headers,$vars->{contentdisposition}) if $vars->{contentdisposition};
     push(@headers, $vars->{cachecontrol}) if $vars->{cachecontrol};
     my $h = join("\n",@headers);
 

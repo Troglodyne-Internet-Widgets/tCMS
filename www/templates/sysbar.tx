@@ -1,8 +1,9 @@
 <div id="topkek" style="text-align: center; vertical-align: middle;">
     <button title="Menu" id="clickme">☰</button>
     <span id="configbar">
-        <a class="topbar" title="Back home" href="/">Home</a>
+        <a href="/"            title="Back home"     class="topbar">Home</a>
         <a href="/config"      title="Configuration" class="topbar">Settings</a>
+        <a href="/manual"      title="Manual"        class="topbar">Manual</a>
         <a href="/post/news"   title="Micro Blog"    class="topbar">News</a>
         <a href="/post/blog"   title="Blog"          class="topbar">Blog</a>
         <a href="/post/image"  title="Images"        class="topbar">Images</a>

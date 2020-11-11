@@ -67,6 +67,8 @@ Queries the data model in the way a "real" data model module ought to.
 
     id   => Filter down to just the post by ID.  May be subsequently filtered by ACL, resulting in a 404 (which is good, as it does not disclose info).
 
+    version => if id is passed, return the provided post version rather than the most recent one
+
     tags => ARRAYREF of tags, any one of which is required to give a result.  If none are passed, no filtering is performed.
 
     acls => ARRAYREF of acl tags, any one of which is required to give result. Filter applies after tags.  'admin' ACL being present skips this filter.
@@ -76,6 +78,8 @@ Queries the data model in the way a "real" data model module ought to.
     limit => Offset for pagination.
 
     like => Search query, as might be passed in the search bar.
+
+    author => filter by post author
 
 =cut
 
@@ -91,7 +95,6 @@ sub _write($data) {
     close $fh;
 }
 
-# These have to be sorted as requested by the client
 sub get ($self, %request) {
 
     my $example_posts = _read();
@@ -163,6 +166,13 @@ sub _dedup_versions ($version=-1, @posts) {
     return @deduped;
 }
 
+=head2 total_posts() = INT $num
+
+Returns the total number of posts.
+Used to determine paginator parameters.
+
+=cut
+
 sub total_posts {
     my $example_posts = _read();
     return scalar(@$example_posts);
@@ -201,6 +211,13 @@ sub _add_visibility (@posts) {
         $post
     } @posts;
 }
+
+=head2 add(@posts) = BOOL $failed_or_not
+
+Add the provided posts to the datastore.
+If any post already exists with the same id, a new post with a version higher than it will be added.
+
+=cut
 
 sub add ($self, @posts) {
     require UUID::Tiny;
@@ -272,6 +289,13 @@ sub _handle_upload ($file, $uuid) {
     File::Copy::move($f, "www/assets/$newname");
     return "/assets/$newname";
 }
+
+=head2 delete(@posts)
+
+Delete the following posts.
+Will remove all versions of said post.
+
+=cut
 
 sub delete($self, @posts) {
     my $example_posts = _read();
