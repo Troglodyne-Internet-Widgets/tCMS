@@ -16,7 +16,11 @@
     : next;
     : }
     :if ( $tiled ) {
+        : if ($post.is_profile) {
+        <a href="/users/<: $post.user :>" class="tile">
+        : } else {
         <a href="<: $route :>/<: $post.id :>" class="tile">
+        : }
         : if ($post.is_video) {
             <video class="responsive" controls poster="<: $post.preview :>" >
                 <source src="<: $post.href :>" type="<: $post.content_type :>" />
@@ -74,14 +78,14 @@
             : if ( $post.is_image ) {
                 <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
             : }
-            : if ( $post.wallpaper ) {
+            : if ( $post.is_profile ) {
                 <div style="background-image:url(<: $post.wallpaper :>);" class="banner">
                     <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
             : }
             : if( $post.data ) {
                 <div id="postData"><: $post.data | mark_raw :></div>
             : }
-            : if( $post.wallpaper ) {
+            : if( $post.is_profile ) {
                 </div>
             : }
             : if ( $can_edit ) {

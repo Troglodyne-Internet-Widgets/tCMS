@@ -148,6 +148,11 @@ our %routes = (
         callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
     },
+    '/users/(.*)' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::users,
+        captures => ['username'],
+    },
 );
 
 # Build aliases for /posts and /post with extra data
@@ -544,6 +549,14 @@ sub avatars ($query, $render_cb) {
     return [200,["Content-type: text/css\n"],[$content]];
 }
 
+sub users ($query, $render_cb) {
+    my (undef,$posts) = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
+    my @user = grep { $_->{user} eq $query->{username} } @$posts;
+    $query->{id} = $user[0]->{id};
+    $query->{user_obj} = $user[0];
+    return posts($query,$render_cb);
+}
+
 =head2 posts
 
 Display multi or single posts, supports RSS and pagination.
@@ -553,9 +566,15 @@ Display multi or single posts, supports RSS and pagination.
 sub posts ($query, $render_cb) {
     my $tags = _coerce_array($query->{tag});
 
-    #TODO If we have a direct ID query, we should show unlisted videos as well as public ones IFF they have a valid campaign ID attached to query
-    push(@{$query->{acls}}, 'public', 'unlisted');
-    my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+    push(@{$query->{acls}}, 'public');
+    push(@{$query->{acls}}, 'unlisted') if $query->{id};
+    my ($pages,$posts);
+    if ($query->{user_obj}) {
+        #Optimize the /users/* route
+        $posts = [$query->{user_obj}];
+    } else {
+        ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+    }
 
     #OK, so if we have a user as the ID we found, go grab the rest of their posts
     if ($query->{id} && @$posts && grep { $_ eq 'about'} @{$posts->[0]->{tags}} ) {
