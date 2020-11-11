@@ -554,8 +554,18 @@ sub posts ($query, $render_cb) {
     my $tags = _coerce_array($query->{tag});
 
     #TODO If we have a direct ID query, we should show unlisted videos as well as public ones IFF they have a valid campaign ID attached to query
-    push(@{$query->{acls}}, 'public');
+    push(@{$query->{acls}}, 'public', 'unlisted');
     my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+
+    #OK, so if we have a user as the ID we found, go grab the rest of their posts
+    if ($query->{id} && @$posts && grep { $_ eq 'about'} @{$posts->[0]->{tags}} ) {
+        my $user = shift(@$posts);
+        my $id = delete $query->{id};
+        $query->{author} = $query->{user};
+        ($pages, $posts) = _post_helper($query, [], $query->{acls});
+        @$posts = grep { $_->{id} ne $id } @$posts;
+        unshift @$posts, $user;
+    }
 
     return notfound($query, $render_cb) unless @$posts;
 
@@ -607,6 +617,7 @@ sub _post_helper ($query, $tags, $acls) {
         tags    => $tags,
         acls    => $acls,
         like    => $query->{like},
+        author  => $query->{author},
         id      => $query->{id},
         version => $query->{version},
     );
