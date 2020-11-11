@@ -294,7 +294,7 @@ p.posteditortitle {
       display: none;
   }
   div#lefttitle {
-    min-width: calc(100vw - 4.5rem);
+    min-width: calc(100vw - 5.5rem);
   }
   span#clickme {
     display: inline-block;
