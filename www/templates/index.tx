@@ -24,6 +24,8 @@
     </div>
     : if ($user) {
     <a href="/config" title="Preferences" class="topbar usericon <: $user :>"></a>
+    : } else {
+    <a href="/login" title="Login" class="topbar usericon" style="font-size: 1.5rem;">🔑</a>
     : }
 </div>
 <div id="littlemenu">
