@@ -591,7 +591,7 @@ sub posts ($query, $render_cb) {
         pages     => $pages,
         sizes     => [25,50,100],
         rss       => !$query->{id},
-        tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series}),
+        tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
         category  => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
         about_header => $header,
         about_footer => $footer,
