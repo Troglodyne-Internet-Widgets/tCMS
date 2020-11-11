@@ -1,5 +1,5 @@
 /*First, we start off with specifying what parts of the DOM we want hidden*/
-#leftbar, #rightbar, #footbar, #midtitle {
+#leftbar, #rightbar, #footbar {
  display: none;
 }
 
@@ -12,7 +12,7 @@ body {
  max-height: 100%;
 }
 #topkek {
- display: table;
+ display: flex;
  position: fixed;
  z-index: 2;
  top: 0;
@@ -23,17 +23,13 @@ body {
  display: table-cell;
 }
 #lefttitle {
- padding-left: .5em;
- max-width: 50%;
- min-width: 33%;
+ flex 1 0 33%;
 }
 #midtitle {
- width: 33%;
+ flex-grow: 1; 
 }
 #righttitle {
- min-width: 33%;
- max-width: 50%;
- padding-right: .5em;
+ flex 1 0 33%;
 }
 #righttitle a, #configbar a {
  display: inline-block;

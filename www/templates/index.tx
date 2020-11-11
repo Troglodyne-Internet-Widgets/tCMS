@@ -5,7 +5,7 @@
     <div id="midtitle" class="toplel">
         <: $midtitle | mark_raw :>
     </div>
-    <button title="Menu" id="clickme">&#9776;</button>
+    <span title="Menu" id="clickme" onclick="this.focus()">🌐</span>
     <div id="righttitle" class="toplel">
         <a href="/news"   title="Micro Blog" class="topbar">News</a>
         <a href="/blog"   title="Blog" class="topbar">Blog</a>
@@ -21,10 +21,10 @@
             <input class="coolbutton" type="submit" value="🔎"></input>
             <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
         </form>
-        : if ($user) {
-        <a href="/config" title="config" class="topbar usericon <: $user :>"></a>
-        : }
     </div>
+    : if ($user) {
+    <a href="/config" title="Preferences" class="topbar usericon <: $user :>"></a>
+    : }
 </div>
 <div id="littlemenu">
 </div>
