@@ -33,6 +33,7 @@
         </a>
     : } else {
         <div class="post">
+            : if (!$post.is_profile) {
             <h3 class='blogtitles'>
                 <a href='/posts/<: $post.id :>'><: $post.title :></a>
                 <a class="undecorated" href='<: $post.href :>'>🔗</a>
@@ -48,6 +49,7 @@
                 <span id="<: $post.id :>-<: $post.version :>-time" style="float:right;"><: $post.created :></span>
                 <a class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
             </h3>
+            : }
             : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
                 <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
             : }
@@ -83,10 +85,13 @@
                     <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
             : }
             : if( $post.data ) {
-                <div id="postData"><: $post.data | mark_raw :></div>
+                <div id="postData">
+                    <h3><: $post.title :></h3>
+                    <: $post.data | mark_raw :>
+                </div>
             : }
             : if( $post.is_profile ) {
-                </div>
+                </div><br />
             : }
             : if ( $can_edit ) {
             <br />
@@ -100,6 +105,7 @@
                 </form>
             </div>
             : }
+            : if (!$post.is_profile) {
             <script type="text/javascript">
                 document.addEventListener("DOMContentLoaded", function(event) {
 
@@ -115,6 +121,7 @@
                     };
                 });
             </script>
+            : }
         </div>
         <hr class="divider" />
     : }
