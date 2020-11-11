@@ -12,6 +12,7 @@
         <a href="/post/files"  title="Files"         class="topbar">Files</a>
         <a href="/post/series" title="Series"        class="topbar">Series</a>
         <a href="/post/about"  title="About"         class="topbar">About</a>
+        <a href="/logout"      title="Logout"        class="topbar">🚪</a>
     </span>
 </div>
 <div style="height:3rem;">hidon</div>

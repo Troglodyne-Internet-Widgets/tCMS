@@ -76,6 +76,18 @@ sub mksession ($user,$pass) {
     return $uuid;
 }
 
+=head2 killsession(user) = BOOL
+
+Delete the provided user's session from the auth db.
+
+=cut
+
+sub killsession ($user) {
+    my $dbh = _dbh();
+    $dbh->do("DELETE FROM session WHERE user_id IN (SELECT id FROM user WHERE name=?)",undef,$user);
+    return 1;
+}
+
 =head2 useradd(user, pass) = BOOL
 
 Adds a user identified by the provided password into the auth DB.

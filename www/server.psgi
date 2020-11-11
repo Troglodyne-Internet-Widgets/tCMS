@@ -79,12 +79,6 @@ my $app = sub {
          ($active_user,$user_id) = Trog::Auth::session2user($cookies->{tcmslogin}->value);
     }
 
-    $query->{acls} = Trog::Auth::acls4user($user_id) // [] if $user_id;
-
-    $query->{user}   = $active_user;
-    $query->{domain} = $env->{HTTP_HOST};
-    $query->{route}  = $path;
-
     #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if (index($path,'/templates') == 0 || $path =~ m/.*\.psgi$/i ) {
         return Trog::Routes::HTML::forbidden($query, \&_render);
@@ -129,6 +123,13 @@ my $app = sub {
         @$query{keys(%{$body->param})}  = values(%{$body->param});
         @$query{keys(%{$body->upload})} = values(%{$body->upload});
     }
+
+    #Set various things we don't want overridden
+    $query->{acls} = Trog::Auth::acls4user($user_id) // [] if $user_id;
+
+    $query->{user}   = $active_user;
+    $query->{domain} = $env->{HTTP_HOST};
+    $query->{route}  = $path;
 
     my $output =  $routes{$path}{callback}->($query, \&_render);
     return $output;

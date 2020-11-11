@@ -44,6 +44,10 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::login,
     },
+    '/logout' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::logout,
+    },
     '/auth' => {
         method   => 'POST',
         nostatic => 1,
@@ -333,6 +337,7 @@ sub login ($query, $render_cb) {
     # Note to future me -- this user value is overwritten explicitly in server.psgi.
     # If that ever changes, you will die
     $query->{to} //= $query->{route};
+    $query->{to} = '/config' if $query->{to} eq '/login';
     if ($query->{user}) {
         return $routes{$query->{to}}{callback}->($query,$render_cb);
     }
@@ -369,6 +374,19 @@ sub login ($query, $render_cb) {
         btnmsg        => $btnmsg,
         stylesheets   => _build_themed_styles('login.css'),
     }, @headers);
+}
+
+=head2 logout
+
+Deletes your users' session and opens the login page.
+
+=cut
+
+sub logout ($query, $render_cb) {
+    Trog::Auth::killsession($query->{user}) if $query->{user};
+    delete $query->{user};
+    $query->{to} = '/config';
+    return login($query,$render_cb);
 }
 
 =head2 config
