@@ -12,6 +12,9 @@
     : if ( $post.aclname && $in_series ) {
     : next;
     : }
+    : if ( $post.is_profile && $post.user == 'Nobody' ) {
+    : next;
+    : }
     :if ( $tiled ) {
         <a href="<: $route :>/<: $post.id :>" class="tile">
         : if ($post.is_video) {
@@ -41,7 +44,7 @@
                 <span id="<: $post.id :>-<: $post.version :>-time" style="float:right;"><: $post.created :></span>
                 <a class='usericon <: $post.user :>' title='Posted by <: $post.user :>'></a>
             </h3>
-            : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.wallpaper && $post.preview ) {
+            : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
                 <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
             : }
             : if ( $post.video_href ) {

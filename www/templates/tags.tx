@@ -1,6 +1,9 @@
 Tags:<br />
-<select class="cooltext" multiple name="tags">
+<select class="cooltext" multiple name="tags" id="<: $post.id :>-tags" >
     : for $post.tags -> $tag {
         <option value="<: $tag :>" selected><: $tag :></option>
     : }
 </select>
+Add Custom Tag:<br />
+<input class="cooltext" type="text" id="<: $post.id :>-customtag" placeholder="MyTag" />
+<button style="float:right;" onclick="add2tags('<: $post.id :>'); return false;" class="coolbutton" >Add</button>

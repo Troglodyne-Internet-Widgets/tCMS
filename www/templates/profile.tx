@@ -5,7 +5,10 @@
     : if ( $post.preview ) {
     <input type="hidden" name="preview" value="<: $post.preview :>" />
     : }
-    Wallpaper<br /><input type="file" class="cooltext" name="wallpaper" placeholder="PROMO.JPG" value="<: $post.background_image :>" />
+    Wallpaper<br /><input type="file" class="cooltext" name="wallpaper_file" placeholder="PROMO.JPG" />
+    : if ( $post.wallpaper ) {
+    <input type="hidden" name="wallpaper" value="<: $post.wallpaper :>" />
+    : }
     Title  <br /><input class="cooltext" type="text" name="title" value="<: $post.title :>" />
     : include "acls.tx";
     : include "tags.tx";

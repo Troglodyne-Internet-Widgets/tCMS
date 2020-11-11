@@ -6,3 +6,13 @@ function switchMenu(obj) {
         el.style.display = '';
     }
 }
+
+function add2tags(id) {
+    var select = document.getElementById( id + '-tags');
+    var input  = document.getElementById( id + '-customtag');
+    var newOption = document.createElement('option');
+    newOption.value = input.value;
+    newOption.innerText = input.value;
+    newOption.selected = true;
+    select.appendChild(newOption);
+}

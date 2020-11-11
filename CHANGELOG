@@ -1,5 +1,12 @@
-Version 3.0 Perlized
-* TODO
+Version 3.0 Perlized [ALPHA]
+* Re-write with perl/psgi.
+* Re-architected to support multiple data backends, most important default one being elasticsearch
+* Simplified configuration model drastically
+* Multimedia content now first-class posts rather than junk in /fileman
+* Series of content now supported for easy category browsing
+* Private/Unlisted content now supported
+* User About pages now much easier to build
+* Theming massively simplified
 
 Version 2.0 IRONMAN SLOG development notes [ALPHA]:
 * tCMS now has an installer/updater in bin/installer. Makefile rules 'make install' and 'make update' also do this.
