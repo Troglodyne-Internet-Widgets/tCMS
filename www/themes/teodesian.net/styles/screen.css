@@ -45,6 +45,10 @@ a.logo {
     -ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='themes/teodesian.net/img/sys/logo.png', sizingMethod='scale')";
 }
 
+.jakes {
+    width: 100%;
+}
+
 /*Responsive Shizz*/
 @media(max-width: 900px) {
  body {

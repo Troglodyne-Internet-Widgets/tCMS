@@ -1,1 +1,3 @@
 <img id="D" src="/<: $theme_dir :>/img/sys/desian.png" title="The D on my Grave stands for... DRACULA!" class="titlebar" />
+<script src="/<: $theme_dir :>/scripts/adroller.js"></script>
+<script>window.themeDir="/<: $theme_dir :>"</script>

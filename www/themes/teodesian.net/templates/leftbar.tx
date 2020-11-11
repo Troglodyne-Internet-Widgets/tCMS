@@ -14,8 +14,8 @@
     <script type="text/javascript" charset="UTF-8" src="https://www.librarything.com/widget_get.php?userid=teodesian&theID=w6860b1ca7f3fde1e9592f57a17151a4c"></script>
     <noscript><a href="http://www.librarything.com/profile/teodesian">TEODESIAN.NET Library</a></noscript>
     <br />
-    <a href="https://www.linode.com/?r=5af48069af206c2eafce639336dd589bf77739e5" title="1337 H4X0R Hosting">
-        <img style="height: 2em;" src="/<: $theme_dir :>/img/misc/linode.png" alt="Linode">
+    <a id="linodeAd" href="https://www.linode.com/?r=5af48069af206c2eafce639336dd589bf77739e5" title="1337 H4X0R Hosting">
+        <img class="jakes" src="/<: $theme_dir :>/img/misc/linode.png" alt="Linode">
     </a>
     <br />
 </p>
