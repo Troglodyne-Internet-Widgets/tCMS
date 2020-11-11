@@ -72,11 +72,18 @@
                 <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
             : }
             : if ( $post.wallpaper ) {
-                <div style="background-image:url(<: $post.wallpaper :>);">
-                    <div style="background-image:url(<: $post.preview :>);" class="responsive preview usericon"></div>
+                <div style="background-image:url(<: $post.wallpaper :>);" class="banner">
+                    <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
+            : }
+            : if( $post.data ) {
+                <div id="postData"><: $post.data :></div>
+            : }
+            : elsif( mark_raw ) {
+                <div id="postData"><: mark_raw :></div>
+            : }
+            : if( $post.wallpaper ) {
                 </div>
             : }
-            : $post.data | mark_raw;
             : if ( $can_edit ) {
             <br />
             <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>

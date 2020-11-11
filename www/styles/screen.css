@@ -115,6 +115,7 @@ audio, video {
  filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/img/icon/rss.png', sizingMethod='scale');
  -ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/img/icon/rss.png', sizingMethod='scale')";
 }
+
 .usericon, .buddyicon {
  width: 1em;
  height: 1em;
@@ -124,6 +125,37 @@ audio, video {
  margin-left:1rem;
  border-radius: 50%;
  padding-right: unset !important;
+}
+.circle, .usericon, .buddyicon {
+ border-radius: 50%;
+}
+.portrait {
+ position: absolute;
+ background-color: white;
+ border: solid black 5px;
+ height: 10rem;
+ width: 10rem;
+ background-size: cover;
+ top: 13.5rem;
+}
+.banner {
+ position: relative;
+ padding: .5rem;
+ box-sizing: border-box;
+ resize: horizontal;
+ overflow: clip;
+ max-width: 45rem;
+ min-height: 25rem;
+ width: 100%;
+ background-repeat: no-repeat;
+ background-position: top center;
+ margin-left: auto;
+ margin-right: auto;
+}
+.banner > #postData {
+ position: absolute;
+ bottom: 5rem;
+ left: 12rem;
 }
 .avatar {
  width: 3em;
