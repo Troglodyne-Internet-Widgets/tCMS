@@ -58,6 +58,8 @@ audio, video {
  font-family: courier;
  font-size: 1em;
  font-weight: bold;
+ padding-left: .5rem;
+ line-height: 2rem;
 }
 #midtitle, .midtitle {
  text-align: center;
@@ -115,18 +117,24 @@ audio, video {
  filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/img/icon/rss.png', sizingMethod='scale');
  -ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/img/icon/rss.png', sizingMethod='scale')";
 }
-
+.postericon {
+ width: 2.5rem;
+ height: 2.5rem;
+}
 .usericon, .buddyicon {
- width: 1em;
- height: 1em;
- float: right;
- background-size: 1em;
+ width: 2rem;
+ height: 2rem;
+ display: inline-block;
+}
+.usericon, .buddyicon, .postericon {
+ background-size: cover;
  background-repeat: no-repeat;
- margin-left:1rem;
- border-radius: 50%;
  padding-right: unset !important;
 }
-.circle, .usericon, .buddyicon {
+.postericon {
+ float: right;
+}
+.circle, .usericon, .buddyicon, .postericon {
  border-radius: 50%;
 }
 .portrait {
@@ -154,7 +162,7 @@ audio, video {
 }
 .banner > #postData {
  position: absolute;
- bottom: 5rem;
+ top: 19rem;
  left: 12rem;
 }
 .avatar {
@@ -163,21 +171,13 @@ audio, video {
  float: left;
  background-size: 3em;
 }
-button#clickme {
+span#clickme {
  display: none;
- float: right;
- box-shadow: 0px 0px 0.5em #66CCFF;
- padding: 0 .25em;
- margin: .25em;
- font-size: .60em;
- background-color: #333;
- border-radius: .5em;
- border: .25em solid black;
- color: red;
+ font-size: 2rem;
+ line-height: 2rem;
 }
-button#clickme:active {
- padding-left: .30em;
- border-color: gray;
+span#clickme:hover {
+ cursor: pointer;
 }
 .coolbutton, .cooltext, textarea {
  box-sizing: border-box;
@@ -229,6 +229,8 @@ img.mblogimg, {
 h3.blogtitles {
  margin-bottom: .5em;
  margin-top: 0px;
+ height: 2.5rem;
+ line-height: 2.5rem;
 }
 em.blogdetail {
  font-size: .8em;
@@ -288,12 +290,15 @@ p.posteditortitle {
 }
 /*Responsive design stuff that used to be in JS, modify as needed*/
 @media (max-width: 1024px) {
-  #lefttitle {
-    width: 100%;
-    max-width: 100%;
-  }  
-  #clickme {
-    display: table-cell !important;
+  div#midtitle {
+      display: none;
+  }
+  div#lefttitle {
+    min-width: calc(100vw - 4.5rem);
+  }
+  span#clickme {
+    display: inline-block;
+    flex-shrink: 0;
   }
   #righttitle, #configbar {
     visibility: hidden;
@@ -304,11 +309,12 @@ p.posteditortitle {
     max-width: 100%;
     background-color: rgba(0,0,0,.75);
     border-bottom-left-radius: 1em;
+    padding-left: .5rem;
   }
-  #clickme:active ~ #righttitle, #clickme:focus ~ #righttitle, #righttitle:hover, #righttitle a:active, #clickme:active ~ #configbar, #clickme:focus ~ #configbar, #configbar:hover, #configbar a:active  {
+  #clickme:hover ~ #righttitle, #clickme:active ~ #righttitle, #clickme:focus ~ #righttitle, #righttitle:hover, #righttitle a:active, #clickme:active ~ #configbar, #clickme:focus ~ #configbar, #configbar:hover, #configbar a:active  {
     visibility: visible;
   }
-  #righttitle a, #configbar a {
+  #righttitle > a, #configbar a {
     display: block;
     border-right: 0;
   }
