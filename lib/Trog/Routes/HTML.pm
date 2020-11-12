@@ -455,7 +455,10 @@ sub config_save ($query, $render_cb) {
         $query->{failure} = 0;
         $query->{message} = "Configuration updated succesfully.";
     }
-    # TODO we need to soft-restart the server at this point.  Maybe we can just hot-load config on each page when we get to have static renders?  Probably not worth the perf hit for paywall users.
+    #Get the PID of the parent port using lsof, send HUP
+    my $parent = getppid;
+    kill 'HUP', $parent;
+
     return config($query, $render_cb);
 }
 

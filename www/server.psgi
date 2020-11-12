@@ -130,7 +130,7 @@ my $app = sub {
     $query->{user}   = $active_user;
     $query->{domain} = $env->{HTTP_HOST};
     $query->{route}  = $path;
-    $query->{scheme}  = $env->{'psgi.url_scheme'} // 'http';
+    $query->{scheme} = $env->{'psgi.url_scheme'} // 'http';
 
     my $output =  $routes{$path}{callback}->($query, \&_render);
     return $output;
