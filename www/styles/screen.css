@@ -347,3 +347,8 @@ p.posteditortitle {
     background-position: center;
     background-size: contain;
 }
+
+.profile {
+    background-size: 75%;
+    background-position-y: center;
+}

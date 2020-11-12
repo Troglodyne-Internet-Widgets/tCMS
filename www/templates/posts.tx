@@ -81,7 +81,7 @@
                 <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
             : }
             : if ( $post.is_profile ) {
-                <div style="background-image:url(<: $post.wallpaper :>);" class="banner">
+                <div style="background-image:url(<: $post.wallpaper :>);" class="banner profile">
                     <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
             : }
             : if( $post.data ) {
