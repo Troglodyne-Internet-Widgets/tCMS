@@ -9,7 +9,7 @@ Run these makefile targets:
 
 From there, running tCMS is pretty simple:
 
-    starman www/server.psgi
+    starman --enable-ssl --ssl-key $MY_KEY_PATH --ssl-cert $MY_CERT_PATH www/server.psgi
 
 The application expects to run from the repository root.
 The first time you open the application, you will be presented with a first-time page that tells you to load /login.

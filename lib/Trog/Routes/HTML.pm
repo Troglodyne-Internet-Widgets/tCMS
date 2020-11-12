@@ -358,8 +358,10 @@ sub login ($query, $render_cb) {
         my $cookie = Trog::Auth::mksession($query->{username}, $query->{password});
         if ($cookie) {
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
+            my $secure = '';
+            $secure = '; Secure' if $query->{scheme} eq 'https';
             @headers = (
-                "Set-Cookie: tcmslogin=$cookie; HttpOnly",
+                "Set-Cookie: tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
             );
             $query->{failed} = 0;
         }
