@@ -67,7 +67,7 @@ my $app = sub {
     my $path = $env->{PATH_INFO};
 
     # Let's open up our default route before we bother to see if users even exist
-    return $routes{default}{callback}->($query,$env->{'psgi.input'}, \&_render) unless -f "$ENV{HOME}/.tcms/setup";
+    return $routes{default}{callback}->($query,\&_render) unless -f "$ENV{HOME}/.tcms/setup";
 
     my $cookies = {};
     if ($env->{HTTP_COOKIE}) {
@@ -154,6 +154,8 @@ sub _serve ($path, $last_fetch=0) {
     my @gm = gmtime($mt);
     my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
     my $code = $mt > $last_fetch ? 200 : 304;
+    #XXX something broken about the above logic
+    $code=200;
 
     push(@headers, "Last-Modified: $now_string\n");
 

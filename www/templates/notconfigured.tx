@@ -3,7 +3,7 @@
 </nav>
 <section>
     <div id="notice">
-        <img alt="Icon indicating a missing file" src="img/mime/missing.gif" />
+        <img alt="Icon indicating a missing file" src="/img/mime/missing.gif" />
         <span>
             [INFO] This page is being displayed because the main configuration file is missing
             (or corrupted).
@@ -11,7 +11,7 @@
     </div>
     <p>
         <strong>Note:</strong> Please see the
-        <a href="https://tcms.troglodyne.net/index.php?nav=5&post=fileshare/manual/Chapter%2000-Introduction.post">
+        <a href="/manual">
             tCMS Manual
         </a>
         for full instructions on how configure tCMS.

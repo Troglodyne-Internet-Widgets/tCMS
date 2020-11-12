@@ -15,8 +15,9 @@ use Trog::Data;
 
 my $conf = Trog::Config::get();
 my $template_dir = 'www/templates';
-my $theme_dir;
+my $theme_dir = '';
 $theme_dir = "themes/".$conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/".$conf->param('general.theme');
+my $td = $theme_dir ? "/$theme_dir" : '';
 
 use lib 'www';
 
@@ -210,7 +211,7 @@ Most subsequent functions simply pass content to this function.
 =cut
 
 sub index ($query,$render_cb, $content = '', $i_styles = []) {
-    $query->{theme_dir}  = $theme_dir || '';
+    $query->{theme_dir}  = $td;
 
     my $processor = Text::Xslate->new(
         path   => $template_dir,
@@ -240,7 +241,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         search_lang => $search_info->{lang},
         search_help => $search_info->{help},
         route       => $query->{route},
-        theme_dir   => $theme_dir,
+        theme_dir   => $td,
         content     => $content,
         title       => $query->{title} // $Theme::default_title // 'tCMS',
         htmltitle   => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
@@ -375,6 +376,7 @@ sub login ($query, $render_cb) {
         message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
         btnmsg        => $btnmsg,
         stylesheets   => _build_themed_styles('login.css'),
+        theme_dir     => $td,
     }, @headers);
 }
 
@@ -688,8 +690,8 @@ sub posts ($query, $render_cb) {
             path =>  "www/$theme_dir/templates",
         ) if $theme_dir;
 
-        $header = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_header.tx', { theme_dir => $theme_dir } );
-        $footer = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_footer.tx', { theme_dir => $theme_dir } );
+        $header = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_header.tx', { theme_dir => $td } );
+        $footer = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_footer.tx', { theme_dir => $td } );
     }
 
     my $styles = _build_themed_styles('posts.css');
@@ -870,17 +872,17 @@ sub _rss ($query,$posts) {
         pubDate        => $now,
         lastBuildDate  => $now,
     );
- 
+
     #TODO configurability
     $rss->image(
         title       => $query->{domain},
-        url         => "/$theme_dir/img/icon/favicon.ico",
+        url         => "$td/img/icon/favicon.ico",
         link        => "http://$query->{domain}",
         width       => 88,
         height      => 31,
         description => "$query->{domain} favicon",
     );
- 
+
     foreach my $post (@$posts) {
         my $url = "http://$query->{domain}/posts/$post->{id}";
         $rss->add_item(
