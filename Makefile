@@ -1,6 +1,7 @@
 .PHONY: install
 install:
-	test -d $(HOME) || mkdir $(HOME)/.tcms
+	test -d $(HOME)/.tcms || mkdir $(HOME)/.tcms
+	test -d www/themes || mkdir www/themes
 	rm pod2htmd.tmp; /bin/true
 
 .PHONY: test
