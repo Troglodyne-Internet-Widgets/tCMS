@@ -123,8 +123,9 @@ sub get ($self, %request) {
 
     # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
-    @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};    
+    @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};
     @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
+
     @filtered = grep { $_->{user} eq $request{author} } @filtered if $request{author};
 
     # Finally, paginate

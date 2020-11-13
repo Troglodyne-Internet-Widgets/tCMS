@@ -667,7 +667,7 @@ sub posts ($query, $render_cb) {
     if ($query->{id} && @$posts && grep { $_ eq 'about'} @{$posts->[0]->{tags}} ) {
         my $user = shift(@$posts);
         my $id = delete $query->{id};
-        $query->{author} = $query->{user};
+        $query->{author} = $user->{user};
         ($pages, $posts) = _post_helper($query, [], $query->{acls});
         @$posts = grep { $_->{id} ne $id } @$posts;
         unshift @$posts, $user;
