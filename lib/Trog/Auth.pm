@@ -6,11 +6,9 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
-use DBI;
-use DBD::SQLite;
-use File::Slurper qw{read_text};
 use UUID::Tiny ':std';
 use Digest::SHA 'sha256';
+use Trog::SQLite;
 
 =head1 Trog::Auth
 
@@ -110,17 +108,11 @@ sub useradd ($user, $pass, $acls) {
     return 1;
 }
 
-my $dbh;
 # Ensure the db schema is OK, and give us a handle
 sub _dbh {
-    return $dbh if $dbh;
-    my $qq = read_text('schema/auth.schema');
+    my $file   = 'schema/auth.schema';
     my $dbname = "$ENV{HOME}/.tcms/auth.db";
-    $dbh = DBI->connect("dbi:SQLite:dbname=$dbname","","");
-    $dbh->{sqlite_allow_multiple_statements} = 1;
-    $dbh->do($qq) or die "Could not ensure auth database consistency";
-    $dbh->{sqlite_allow_multiple_statements} = 0;
-    return $dbh;
+    return Trog::SQLite::dbh($file,$dbname);
 }
 
 1;
