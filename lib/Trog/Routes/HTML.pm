@@ -616,6 +616,7 @@ Returns the avatars.css.  Limited to 1000 users.
 
 sub avatars ($query, $render_cb) {
     #XXX if you have more than 1000 editors you should stop
+    push(@{$query->{acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
     $query->{limit} = 1000;
     my $processor = Text::Xslate->new(
@@ -637,6 +638,7 @@ Implements direct user profile view.
 =cut
 
 sub users ($query, $render_cb) {
+    push(@{$query->{acls}}, 'public');
     my (undef,$posts) = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
     my @user = grep { $_->{user} eq $query->{username} } @$posts;
     $query->{id} = $user[0]->{id};
@@ -656,6 +658,7 @@ sub posts ($query, $render_cb) {
     push(@{$query->{acls}}, 'public');
     push(@{$query->{acls}}, 'unlisted') if $query->{id};
     my ($pages,$posts);
+
     if ($query->{user_obj}) {
         #Optimize the /users/* route
         $posts = [$query->{user_obj}];
