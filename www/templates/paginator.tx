@@ -1,19 +1,21 @@
-:if ( $pages > 1 ) {
+:if ( $pages ) {
 <div>
 : } else {
 <div class="disabled">
 : }
-    <div style="float:left; margin-top:.5rem;"> Page <: $page :></div>
+    : if ( $older ) {
+    <div style="float:left; margin-top:.5rem;"> Posts older than <: $older :></div>
+    : }
     <div style="float:right;">
-        : if ( $page < $pages ) {
-        <a href="?page=<: $page + 1 :>&limit=<: $limit :>">Next</a>
+        : if ( $older ) {
+        <a href="?older=<: $last :>&limit=<: $limit :>">Next</a>
         : }
-        : if ( $page > 1 ) {
-        <a href="?page=<: $page - 1 :>&limit=<: $limit :>">Prev</a>
-        : }
+        <a href="?older=<: $older :>&limit=<: $limit :>">Prev</a>
         Size:
         <form style="display:inline;">
-            <input type="hidden" name="page"  value="<: $page :>" />
+            : if ( $older ) {
+            <input type="hidden" name="older"  value="<: $older :>" />
+            : }
             <select name="limit" class="coolbutton">
                 : for $sizes -> $size {
                 <option value="<: $size :>"><: $size :></option>

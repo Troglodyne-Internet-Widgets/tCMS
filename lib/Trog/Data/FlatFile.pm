@@ -1,4 +1,4 @@
-package Trog::Data::DUMMY;
+package Trog::Data::FlatFile;
 
 use strict;
 use warnings;
@@ -15,34 +15,41 @@ use List::Util;
 
 use parent qw{Trog::DataModule};
 
-=head1 WARNING
-
-Do not use this as a production data model.  It is *not* safe to race conditions, and is only here for testing.
-
-=cut
-
-our $datastore = 'data/DUMMY.json';
+our $datastore = 'data/files/';
 sub lang { 'Perl Regex in Quotemeta' }
 sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
-
-our $posts;
+our @index;
 
 sub read ($self, $query=undef) {
-    confess "Can't find datastore!" unless -f $datastore;
-    my $slurped = File::Slurper::read_text($datastore);
-    $posts = JSON::MaybeXS::decode_json($slurped);
-    return $posts;
+    @index //= $self->_index();
+    my @items;
+    foreach my $item (@index) {
+        my $slurped = File::Slurper::read_text($item);
+        my $parsed  = JSON::MaybeXS::decode_json($slurped);
+        push(@items,$parsed) unless $self->filter($parsed);
+        last if scalar(@items) == $query->{limit};
+    }
+    return @items;
 }
 
-sub count ($self) {
-    $posts //= $self->read();
-    return scalar(@$posts);
+sub _index ($self) {
+    return @index if @index;
+    confess "Can't find datastore!" unless -d $datastore;
+    opendir(my $dh, $datastore) or die;
+    @index = grep { -f $_ } readdir $dh;
+    closedir $dh;
+    return @index;
 }
 
 sub write($self,$data) {
     open(my $fh, '>', $datastore) or confess;
     print $fh JSON::MaybeXS::encode_json($data);
     close $fh;
+}
+
+sub count ($self) {
+    @index //= $self->_index();
+    return scalar(@index);
 }
 
 sub delete($self, @posts) {
@@ -53,5 +60,6 @@ sub delete($self, @posts) {
     $self->write($example_posts);
     return 0;
 }
+
 
 1;

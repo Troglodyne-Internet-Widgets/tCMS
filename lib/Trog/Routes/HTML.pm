@@ -499,11 +499,11 @@ sub post ($query, $render_cb) {
     return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $tags  = _coerce_array($query->{tag});
-    my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+    my @posts = _post_helper($query, $tags, $query->{acls});
     my $css   = _build_themed_styles('post.css');
     my $js    = _build_themed_scripts('post.js');
     push(@$css, '/styles/avatars.css');
-    my (undef, $acls) = _post_helper({}, ['series'], $query->{acls});
+    my @acls  = _post_helper({}, ['series'], $query->{acls});
 
     my $app = 'file';
     if ($query->{route}) {
@@ -514,10 +514,11 @@ sub post ($query, $render_cb) {
 
     #Filter displaying acl/visibility tags
     my @visibuddies = qw{public unlisted private};
-    foreach my $post (@$posts) {
-        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } (@visibuddies, map { $_->{aclname} } @$acls ) } @{$post->{tags}};
+    foreach my $post (@posts) {
+        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } (@visibuddies, map { $_->{aclname} } @acls ) } @{$post->{tags}};
     }
 
+    my $limit = int($query->{limit} || 25);
     return $render_cb->('post.tx', {
         title       => 'New Post',
         to          => $query->{to},
@@ -525,16 +526,17 @@ sub post ($query, $render_cb) {
         post_visibilities => \@visibuddies,
         stylesheets => $css,
         scripts     => $js,
-        posts       => $posts,
+        posts       => \@posts,
         can_edit    => 1,
         route       => $query->{route},
         category    => '/posts',
-        page        => int($query->{page} || 1),
-        limit       => int($query->{limit} || 25),
-        pages       => $pages,
+        limit       => $limit,
+        pages       => scalar(@posts) > $limit,
+        older       => $query->{older},
+        last        => $posts[-1]->{created},
         sizes       => [25,50,100],
         id          => $query->{id},
-        acls        => $acls,
+        acls        => \@acls,
         post        => { tags => $query->{tag} },
         edittype    => $query->{type} || 'microblog',
         app         => $app,
@@ -601,10 +603,10 @@ Add new 'series' (ACLs) to classify content with.
 
 sub series ($query, $render_cb) {
     #Grab the relevant tag (aclname), then pass that to posts
-    my (undef, $posts) = _post_helper($query, [], $query->{acls});
+    my @posts = _post_helper($query, [], $query->{acls});
     delete $query->{id};
 
-    $query->{tag} = $posts->[0]->{aclname};
+    $query->{tag} = $posts[0]->{aclname};
     return posts($query,$render_cb);
 }
 
@@ -622,10 +624,10 @@ sub avatars ($query, $render_cb) {
     my $processor = Text::Xslate->new(
         path   => $template_dir,
     );
-    my ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+    my @posts = _post_helper($query, $tags, $query->{acls});
 
     my $content = $processor->render('avatars.tx', {
-        users => $posts,
+        users => \@posts,
     });
 
     return [200,["Content-type: text/css\n"],[$content]];
@@ -639,8 +641,8 @@ Implements direct user profile view.
 
 sub users ($query, $render_cb) {
     push(@{$query->{acls}}, 'public');
-    my (undef,$posts) = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
-    my @user = grep { $_->{user} eq $query->{username} } @$posts;
+    my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
+    my @user = grep { $_->{user} eq $query->{username} } @posts;
     $query->{id} = $user[0]->{id};
     $query->{user_obj} = $user[0];
     return posts($query,$render_cb);
@@ -657,29 +659,29 @@ sub posts ($query, $render_cb) {
 
     push(@{$query->{acls}}, 'public');
     push(@{$query->{acls}}, 'unlisted') if $query->{id};
-    my ($pages,$posts);
+    my @posts;
 
     if ($query->{user_obj}) {
         #Optimize the /users/* route
-        $posts = [$query->{user_obj}];
+        @posts = ($query->{user_obj});
     } else {
-        ($pages,$posts) = _post_helper($query, $tags, $query->{acls});
+        @posts = _post_helper($query, $tags, $query->{acls});
     }
 
     #OK, so if we have a user as the ID we found, go grab the rest of their posts
-    if ($query->{id} && @$posts && grep { $_ eq 'about'} @{$posts->[0]->{tags}} ) {
-        my $user = shift(@$posts);
+    if ($query->{id} && @posts && grep { $_ eq 'about'} @{$posts[0]->{tags}} ) {
+        my $user = shift(@posts);
         my $id = delete $query->{id};
         $query->{author} = $user->{user};
-        ($pages, $posts) = _post_helper($query, [], $query->{acls});
-        @$posts = grep { $_->{id} ne $id } @$posts;
-        unshift @$posts, $user;
+        @posts = _post_helper($query, [], $query->{acls});
+        @posts = grep { $_->{id} ne $id } @posts;
+        unshift @posts, $user;
     }
 
-    return notfound($query, $render_cb) unless @$posts;
+    return notfound($query, $render_cb) unless @posts;
 
     my $fmt = $query->{format} || '';
-    return _rss($query,$posts) if $fmt eq 'rss';
+    return _rss($query,\@posts) if $fmt eq 'rss';
 
     my $processor = Text::Xslate->new(
         path   => $template_dir,
@@ -700,14 +702,16 @@ sub posts ($query, $render_cb) {
     my $styles = _build_themed_styles('posts.css');
 
     $query->{title} = @$tags ? "$query->{domain} : @$tags" : undef;
+    my $limit = int($query->{limit} || 25);
     my $content = $processor->render('posts.tx', {
         title     => $query->{title},
-        posts     => $posts,
+        posts     => \@posts,
         in_series => !!($query->{route} =~ m/\/series\/\d*$/),
         route     => $query->{route},
-        page      => int($query->{page} || 1),
-        limit     => int($query->{limit} || 25),
-        pages     => $pages,
+        limit     => $limit,
+        pages     => scalar(@posts) > $limit,
+        older     => $query->{older},
+        last      => $posts[-1]->{created},
         sizes     => [25,50,100],
         rss       => !$query->{id},
         tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
@@ -721,6 +725,7 @@ sub posts ($query, $render_cb) {
 sub _post_helper ($query, $tags, $acls) {
     state $data = Trog::Data->new($conf);
     return $data->get(
+        older   => $query->{older},
         page    => int($query->{page} || 1),
         limit   => int($query->{limit} || 25),
         tags    => $tags,
@@ -759,7 +764,7 @@ sub sitemap ($query, $render_cb) {
         # Return the index instead
         @to_map = ('static');
         my $data = Trog::Data->new($conf);
-        my $tot = $data->total_posts();
+        my $tot = $data->count();
         my $size = 50000;
         my $pages = int($tot / $size) + (($tot % $size) ? 1 : 0);
 
@@ -776,8 +781,7 @@ sub sitemap ($query, $render_cb) {
         # Return the map of the particular range of dynamic posts
         $query->{limit} = 50000;
         $query->{page} = $query->{map};
-        my (undef, $buf) = _post_helper($query, [], ['public']);
-        @to_map = @$buf;
+        @to_map = _post_helper($query, [], ['public']);
     }
 
     if ( $query->{xml} ) {

@@ -39,11 +39,11 @@ sub new ($class, $config) {
 }
 
 #It is required that subclasses implement this
-sub lang  ($self) { die 'stub' }
-sub help  ($self) { die 'stub' }
-#If count is passed, just return the total posts
-sub read  ($self,$count=0) { die 'stub' }
-sub write ($self) { die 'stub' }
+sub lang  ($self) { ... }
+sub help  ($self) { ... }
+sub read  ($self,$query=undef) { ... }
+sub write ($self) { ... }
+sub count ($self) { ... }
 
 =head1 METHODS
 
@@ -74,28 +74,37 @@ As implemented, this takes the data as a given and filters in post.
 
 sub get ($self, %request) {
 
-    my $example_posts = $self->read();
+    my $posts = $self->read();
+    my @filtered = $self->filter(\%request, @$posts);
+    @filtered = $self->_fixup(@filtered);
+    @filtered = $self->paginate(\%request,@filtered);
+    return @filtered;
+}
+
+sub _fixup ($self, @filtered) {
+    @filtered = _add_post_type(@filtered);
+    # Next, add the type of post this is
+    @filtered = _add_media_type(@filtered);
+    # Finally, add visibility
+    @filtered = _add_visibility(@filtered);
+    return @filtered;
+}
+
+sub filter ($self, $query, @filtered) {
+    my %request = %$query; #XXX update varnames instead
     $request{acls} //= [];
     $request{tags} //=[];
 
-    my @filtered = @$example_posts;
-
-    # If an ID is passed, just get that (and all it's prior versions
+    # If an ID is passed, just get that (and all it's prior versions)
     if ($request{id}) {
         @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
-
         @filtered = _dedup_versions($request{version}, @filtered);
-        @filtered = _add_post_type(@filtered);
-        # Next, add the type of post this is
-        @filtered = _add_media_type(@filtered);
-        # Finally, add visibility
-        @filtered = _add_visibility(@filtered);
         return (1, \@filtered);
     }
 
     @filtered = _dedup_versions(undef, @filtered);
 
-    # Heal bad data
+    #XXX Heal bad data -- probably not needed
     @filtered = map { my $t = $_->{tags}; @$t = grep { defined $_ } @$t; $_ } @filtered;
 
     # Next, handle the query, tags and ACLs
@@ -105,21 +114,15 @@ sub get ($self, %request) {
 
     @filtered = grep { $_->{user} eq $request{author} } @filtered if $request{author};
 
-    # Finally, paginate
+    return @filtered;
+}
+
+sub paginate ($self, $query, @filtered) {
+    my %request = %$query; #XXX change varnames
     my $offset = int($request{limit} // 25);
     $offset = @filtered < $offset ? @filtered : $offset;
-    my $pages = int(scalar(@filtered) / ($offset || 1) );
-
     @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit};
-
-    # Next, go ahead and build the "post type"
-    @filtered = _add_post_type(@filtered);
-    # Next, add the type of post this is
-    @filtered = _add_media_type(@filtered);
-    # Finally, add visibility
-    @filtered = _add_visibility(@filtered);
-
-    return ($pages,\@filtered);
+    return @filtered;
 }
 
 sub _dedup_versions ($version=-1, @posts) {
@@ -179,17 +182,12 @@ sub _add_visibility (@posts) {
     } @posts;
 }
 
-=head2 total_posts() = INT $num
+=head2 count() = INT $num
 
 Returns the total number of posts.
 Used to determine paginator parameters.
 
 =cut
-
-sub total_posts ($self) {
-    my $example_posts = $self->read(1);
-    return scalar(@$example_posts);
-}
 
 =head2 add(@posts) = BOOL $failed_or_not
 
