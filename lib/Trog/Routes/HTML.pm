@@ -238,8 +238,8 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     return $render_cb->('index.tx',{
         code        => $query->{code},
         user        => $query->{user},
-        search_lang => $search_info->{lang},
-        search_help => $search_info->{help},
+        search_lang => $search_info->lang(),
+        search_help => $search_info->help(),
         route       => $query->{route},
         theme_dir   => $td,
         content     => $content,
