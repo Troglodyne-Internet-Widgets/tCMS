@@ -4,12 +4,9 @@
 <div class="disabled">
 : }
     : if ( $older ) {
-    <div style="float:left; margin-top:.5rem;"> Posts older than <: $older :></div>
+    <div style="float:left; margin-top:.5rem;"> <: $limit :> most recent posts older than <span id="paginatorTime"><: $older :></span></div>
     : }
     <div style="float:right;">
-        : if ( $older ) {
-        <a href="?older=<: $last :>&limit=<: $limit :>">Next</a>
-        : }
         <a href="?older=<: $older :>&limit=<: $limit :>">Prev</a>
         Size:
         <form style="display:inline;">

@@ -11,55 +11,61 @@ use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
 use Mojo::File;
-use List::Util;
 
 use parent qw{Trog::DataModule};
 
-our $datastore = 'data/files/';
+our $datastore = 'data/files';
 sub lang { 'Perl Regex in Quotemeta' }
 sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
 our @index;
 
-sub read ($self, $query=undef) {
-    @index //= $self->_index();
+=head1 Trog::Data::FlatFile
+
+This data model has multiple drawbacks, but is "good enough" for most low-content and few editor applications.
+You can only post once per second due to it storing each post as a file named after the timestamp.
+
+=cut
+
+our $parser = JSON::MaybeXS->new();
+
+sub read ($self, $query={}) {
+    @index = $self->_index() unless @index;
     my @items;
     foreach my $item (@index) {
         my $slurped = File::Slurper::read_text($item);
-        my $parsed  = JSON::MaybeXS::decode_json($slurped);
-        push(@items,$parsed) unless $self->filter($parsed);
+        my $parsed  = $parser->decode($slurped);
+        push(@items,$parsed) if $self->filter($query,$parsed);
         last if scalar(@items) == $query->{limit};
     }
-    return @items;
+    return \@items;
 }
 
 sub _index ($self) {
     return @index if @index;
     confess "Can't find datastore!" unless -d $datastore;
-    opendir(my $dh, $datastore) or die;
-    @index = grep { -f $_ } readdir $dh;
+    opendir(my $dh, $datastore) or confess;
+    @index = grep { -f } map { "$datastore/$_" } readdir $dh;
     closedir $dh;
-    return @index;
+    return sort { $b cmp $a } @index;
 }
 
 sub write($self,$data) {
-    open(my $fh, '>', $datastore) or confess;
-    print $fh JSON::MaybeXS::encode_json($data);
+    my $file = "$datastore/$data->{created}";
+    open(my $fh, '>', $file) or confess;
+    print $fh $parser->encode($data);
     close $fh;
 }
 
 sub count ($self) {
-    @index //= $self->_index();
+    @index = $self->_index() unless @index;
     return scalar(@index);
 }
 
 sub delete($self, @posts) {
-    my $example_posts = $self->read();
     foreach my $update (@posts) {
-        @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
+        unlink "$datastore/$update->{created}" or confess;
     }
-    $self->write($example_posts);
     return 0;
 }
-
 
 1;

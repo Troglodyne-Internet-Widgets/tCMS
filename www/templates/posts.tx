@@ -10,10 +10,10 @@
 <hr class="divider" />
 : for $posts -> $post {
     : if ( $post.aclname && $in_series ) {
-    : next;
+    :     next;
     : }
     : if ( $post.is_profile && $post.user == 'Nobody' ) {
-    : next;
+    :     next;
     : }
     :if ( $tiled ) {
         : if ($post.is_profile) {
@@ -35,8 +35,8 @@
         <div class="post">
             : if (!$post.is_profile) {
             <h3 class='blogtitles'>
-                <a href='/posts/<: $post.id :>'><: $post.title :></a>
-                <a class="undecorated" href='<: $post.href :>'>🔗</a>
+                <a ><a href='<: $post.href :>' ><: $post.title :></a>
+                <a class="undecorated" href='/posts/<: $post.id :>'>🔗</a>
                 : if ( $post.version_max ) {
                 <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
                     <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
@@ -113,14 +113,17 @@
 
                     // Fix post dates to be localized
                     var e = document.getElementById("<: $post.id :>-<: $post.version :>-time");
-                    var d = new Date(Date(e.innerText));
+                    var d = new Date(0);
+                    d.setUTCSeconds(e.innerText);
                     e.innerHTML = "&nbsp;" + d.toDateString();
 
                     //Make the version switcher do things
                     var swit = document.getElementById("<: $post.id :>-<: $post.version :>-version"); // I am an elder scrolls fan
-                    swit.onchange = function (evt) {
-                        this.form.submit();
-                    };
+                    if (swit) {
+                        swit.onchange = function (evt) {
+                            this.form.submit();
+                        };
+                    }
                 });
             </script>
             : }
@@ -134,4 +137,13 @@
 : if ( $about_footer ) {
     <: $about_footer | mark_raw :>
 : }
-
+<script>
+document.addEventListener("DOMContentLoaded", function(event) {
+    var pagin = document.getElementById("paginatorTime");
+    if (pagin) {
+        var dracula = new Date(0);
+        dracula.setUTCSeconds(pagin.innerText);
+        pagin.innerHTML = "&nbsp;" + dracula.toDateString();
+    }
+});
+</script>

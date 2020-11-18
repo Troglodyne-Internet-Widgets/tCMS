@@ -3,6 +3,10 @@ package Trog::DataModule;
 use strict;
 use warnings;
 
+use List::Util;
+use File::Copy;
+use Mojo::File;
+
 no warnings 'experimental';
 use feature qw{signatures};
 
@@ -41,7 +45,7 @@ sub new ($class, $config) {
 #It is required that subclasses implement this
 sub lang  ($self) { ... }
 sub help  ($self) { ... }
-sub read  ($self,$query=undef) { ... }
+sub read  ($self,$query={}) { ... }
 sub write ($self) { ... }
 sub count ($self) { ... }
 
@@ -74,7 +78,7 @@ As implemented, this takes the data as a given and filters in post.
 
 sub get ($self, %request) {
 
-    my $posts = $self->read();
+    my $posts = $self->read(\%request);
     my @filtered = $self->filter(\%request, @$posts);
     @filtered = $self->_fixup(@filtered);
     @filtered = $self->paginate(\%request,@filtered);
@@ -97,12 +101,16 @@ sub filter ($self, $query, @filtered) {
 
     # If an ID is passed, just get that (and all it's prior versions)
     if ($request{id}) {
+
         @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
         @filtered = _dedup_versions($request{version}, @filtered);
-        return (1, \@filtered);
+        return @filtered;
     }
 
     @filtered = _dedup_versions(undef, @filtered);
+
+    #Filter out posts which are too old
+    @filtered = grep { $_->{created} < $request{older} } @filtered if $request{older};
 
     #XXX Heal bad data -- probably not needed
     @filtered = map { my $t = $_->{tags}; @$t = grep { defined $_ } @$t; $_ } @filtered;
@@ -152,10 +160,10 @@ sub _add_post_type (@posts) {
     return map {
         my $post = $_;
         my $type = 'file';
-        $type = 'blog'      if grep { $_ eq 'blog' }    @{$post->{tags}};
-        $type = 'microblog' if grep { $_ eq 'news' }    @{$post->{tags}};
-        $type = 'profile'   if grep { $_ eq 'about' } @{$post->{tags}};
-        $type = 'series'    if grep { $_ eq 'series'  } @{$post->{tags}};
+        $type = 'blog'      if grep { $_ eq 'blog'   } @{$post->{tags}};
+        $type = 'microblog' if grep { $_ eq 'news'   } @{$post->{tags}};
+        $type = 'profile'   if grep { $_ eq 'about'  } @{$post->{tags}};
+        $type = 'series'    if grep { $_ eq 'series' } @{$post->{tags}};
         $post->{type} = $type;
         $post
     } @posts;

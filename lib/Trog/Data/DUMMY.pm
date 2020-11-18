@@ -9,10 +9,6 @@ use feature qw{signatures};
 use Carp qw{confess};
 use JSON::MaybeXS;
 use File::Slurper;
-use File::Copy;
-use Mojo::File;
-use List::Util;
-
 use parent qw{Trog::DataModule};
 
 =head1 WARNING
@@ -27,7 +23,7 @@ sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 our $posts;
 
-sub read ($self, $query=undef) {
+sub read ($self, $query={}) {
     confess "Can't find datastore!" unless -f $datastore;
     my $slurped = File::Slurper::read_text($datastore);
     $posts = JSON::MaybeXS::decode_json($slurped);

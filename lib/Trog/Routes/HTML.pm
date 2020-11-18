@@ -519,6 +519,7 @@ sub post ($query, $render_cb) {
     }
 
     my $limit = int($query->{limit} || 25);
+
     return $render_cb->('post.tx', {
         title       => 'New Post',
         to          => $query->{to},
@@ -531,9 +532,8 @@ sub post ($query, $render_cb) {
         route       => $query->{route},
         category    => '/posts',
         limit       => $limit,
-        pages       => scalar(@posts) > $limit,
-        older       => $query->{older},
-        last        => $posts[-1]->{created},
+        pages       => scalar(@posts) == $limit,
+        older       => $posts[-1]->{created},
         sizes       => [25,50,100],
         id          => $query->{id},
         acls        => \@acls,
@@ -703,15 +703,15 @@ sub posts ($query, $render_cb) {
 
     $query->{title} = @$tags ? "$query->{domain} : @$tags" : undef;
     my $limit = int($query->{limit} || 25);
+
     my $content = $processor->render('posts.tx', {
         title     => $query->{title},
         posts     => \@posts,
         in_series => !!($query->{route} =~ m/\/series\/\d*$/),
         route     => $query->{route},
         limit     => $limit,
-        pages     => scalar(@posts) > $limit,
-        older     => $query->{older},
-        last      => $posts[-1]->{created},
+        pages     => scalar(@posts) == $limit,
+        older     => $posts[-1]->{created},
         sizes     => [25,50,100],
         rss       => !$query->{id},
         tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
