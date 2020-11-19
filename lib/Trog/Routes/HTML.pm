@@ -524,6 +524,7 @@ sub post ($query, $render_cb) {
         title       => 'New Post',
         to          => $query->{to},
         failure     => $query->{failure} // -1,
+        message     => $query->{message},
         post_visibilities => \@visibuddies,
         stylesheets => $css,
         scripts     => $js,
@@ -533,7 +534,7 @@ sub post ($query, $render_cb) {
         category    => '/posts',
         limit       => $limit,
         pages       => scalar(@posts) == $limit,
-        older       => $posts[-1]->{created},
+        older       => @posts ? $posts[-1]->{created} : '',
         sizes       => [25,50,100],
         id          => $query->{id},
         acls        => \@acls,
@@ -556,10 +557,11 @@ sub post_save ($query, $render_cb) {
     my $acls = $query->{acls};
     state $data = Trog::Data->new($conf);
     $query->{tags}  = _coerce_array($query->{tags});
-    $data->add($query);
-    $query->{failure} = 0;
+    $query->{failure} = $data->add($query);
     $query->{to} = $to;
     $query->{acls} = $acls;
+    $query->{message} = $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}";
+    delete $query->{id};
     return post($query, $render_cb);
 }
 
@@ -592,6 +594,8 @@ sub post_delete ($query, $render_cb) {
     state $data = Trog::Data->new($conf);
     $query->{failure} = $data->delete($query);
     $query->{to} = $query->{to};
+    $query->{message} = $query->{failure} ? "Failed to delete post $query->{id}!" : "Successfully deleted Post $query->{id}";
+    delete $query->{id};
     return post($query, $render_cb);
 }
 

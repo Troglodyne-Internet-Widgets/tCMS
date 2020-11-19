@@ -35,9 +35,16 @@ sub count ($self) {
     return scalar(@$posts);
 }
 
-sub write($self,$data) {
+sub write($self,$data,$overwrite=0) {
+    my $orig = [];
+    if ($overwrite) {
+        $orig = $data;
+    } else {
+        $orig = $self->read();
+        push(@$orig,@$data);
+    }
     open(my $fh, '>', $datastore) or confess;
-    print $fh JSON::MaybeXS::encode_json($data);
+    print $fh JSON::MaybeXS::encode_json($orig);
     close $fh;
 }
 
@@ -46,7 +53,7 @@ sub delete($self, @posts) {
     foreach my $update (@posts) {
         @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
     }
-    $self->write($example_posts);
+    $self->write($example_posts,1);
     return 0;
 }
 

@@ -101,9 +101,8 @@ sub filter ($self, $query, @filtered) {
 
     # If an ID is passed, just get that (and all it's prior versions)
     if ($request{id}) {
-
-        @filtered = grep { $_->{id} eq $request{id} } @filtered if $request{id};
-        @filtered = _dedup_versions($request{version}, @filtered);
+        @filtered = grep { $_->{id} eq $request{id} } @filtered   if $request{id};
+        @filtered = _dedup_versions($request{version}, @filtered) if defined $request{version};
         return @filtered;
     }
 
@@ -134,10 +133,13 @@ sub paginate ($self, $query, @filtered) {
 }
 
 sub _dedup_versions ($version=-1, @posts) {
+
+    #ASSUMPTION made here - if we pass version this is direct ID query
     if (defined $version) {
-        my $version_max = List::Util::max(map { $_->{version } } @posts);
+        my $version_max = List::Util::max(map { $_->{version} } @posts);
+
         return map {
-            $_->{version_max} = $version_max;
+            $_->{version_max} //= $version_max;
             $_
         } grep { $_->{version} eq $version } @posts;
     }
@@ -202,28 +204,30 @@ Used to determine paginator parameters.
 Add the provided posts to the datastore.
 If any post already exists with the same id, a new post with a version higher than it will be added.
 
+Passes an array of new posts to add to the data store module's write() function.
+
 You probably won't want to override this.
 
 =cut
 
 sub add ($self, @posts) {
     require UUID::Tiny;
-    my $example_posts = $self->read();
+    my @to_write;
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
         $post->{created} = time();
-        my (undef, $existing_posts) = $self->get( id => $post->{id} );
-        if (@$existing_posts) {
-            my $existing_post = $existing_posts->[0];
+        my @existing_posts = $self->get( id => $post->{id} );
+        if (@existing_posts) {
+            my $existing_post = $existing_posts[0];
             $post->{version}  = $existing_post->{version};
             $post->{version}++;
         }
         $post->{version} //= 0;
 
         $post = _process($post);
-        push @$example_posts, $post;
+        push @to_write, $post;
     }
-    $self->write($example_posts);
+    $self->write(\@to_write);
     return 0;
 }
 
