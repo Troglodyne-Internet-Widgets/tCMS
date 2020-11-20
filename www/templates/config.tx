@@ -19,7 +19,7 @@ If for example, you use mysql it will have to rely on either a local server, val
     Data Model:
     <select class="cooltext" name="data_model">
         : for $data_models -> $dm {
-        <option value="<: $dm :>"><: $dm :></option>
+        <option value="<: $dm :>"><: $dm :> <: if ( $current_data_model == $dm ) { :>selected<: } :> </option>
         : }
     </select>
     </div>
