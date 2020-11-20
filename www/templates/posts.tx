@@ -131,7 +131,7 @@
         <hr class="divider" />
     : }
 : }
-: if ( $rss ) {
+: if ( $rss || $older ) {
 : include "paginator.tx";
 : }
 : if ( $about_footer ) {

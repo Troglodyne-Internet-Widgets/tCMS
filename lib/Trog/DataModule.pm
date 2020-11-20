@@ -79,6 +79,7 @@ As implemented, this takes the data as a given and filters in post.
 sub get ($self, %request) {
 
     my $posts = $self->read(\%request);
+
     my @filtered = $self->filter(\%request, @$posts);
     @filtered = $self->_fixup(@filtered);
     @filtered = $self->paginate(\%request,@filtered);
@@ -117,7 +118,8 @@ sub filter ($self, $query, @filtered) {
     # Next, handle the query, tags and ACLs
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
     @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};
-    @filtered = grep { $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
+
+    @filtered = grep { $_->{title} =~ m/\Q$request{like}\E/i || $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 
     @filtered = grep { $_->{user} eq $request{author} } @filtered if $request{author};
 
