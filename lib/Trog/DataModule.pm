@@ -102,7 +102,7 @@ sub filter ($self, $query, @filtered) {
     # If an ID is passed, just get that (and all it's prior versions)
     if ($request{id}) {
         @filtered = grep { $_->{id} eq $request{id} } @filtered   if $request{id};
-        @filtered = _dedup_versions($request{version}, @filtered) if defined $request{version};
+        @filtered = _dedup_versions($request{version}, @filtered);
         return @filtered;
     }
 

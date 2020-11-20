@@ -37,7 +37,7 @@
             <h3 class='blogtitles'>
                 <a ><a href='<: $post.href :>' ><: $post.title :></a>
                 <a class="undecorated" href='/posts/<: $post.id :>'>🔗</a>
-                : if ( $post.version_max ) {
+                : if ( $post.version_max && !$rss ) {
                 <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
                     <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
                         : for [0..$post.version_max] -> $version {
