@@ -224,18 +224,18 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     $content ||= _pick_processor($rightbar,$processor,$t_processor)->render($landing_page,$query);
 
-    my @styles = ('/styles/avatars.css'); #TODO generate file for users
+    my @styles = ('/styles/avatars.css');
     if ($theme_dir) {
         unshift(@styles, _themed_style("screen.css"))    if -f 'www/'._themed_style("screen.css");
         unshift(@styles, _themed_style("structure.css")) if -f 'www/'._themed_style("structure.css");
     }
-    push( @styles, @$i_styles);
+    push( @styles, @$i_styles );
 
     #TODO allow theming of print css
 
     my $search_info = Trog::Data->new($conf);
 
-    return $render_cb->('index.tx',{
+    return $render_cb->('index.tx', {
         code        => $query->{code},
         user        => $query->{user},
         search_lang => $search_info->lang(),
@@ -245,10 +245,10 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         content     => $content,
         title       => $query->{title} // $Theme::default_title // 'tCMS',
         htmltitle   => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
-        midtitle    => _pick_processor("templates/$midtitle" ,$processor,$t_processor)->render($midtitle,$query),
-        rightbar    => _pick_processor("templates/$rightbar" ,$processor,$t_processor)->render($rightbar,$query),
-        leftbar     => _pick_processor("templates/$leftbar"  ,$processor,$t_processor)->render($leftbar,$query),
-        footbar     => _pick_processor("templates/$footbar"  ,$processor,$t_processor)->render($footbar,$query),
+        midtitle    => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
+        rightbar    => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
+        leftbar     => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
+        footbar     => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
         stylesheets => \@styles,
     });
 }
@@ -943,7 +943,8 @@ sub _coerce_array ($param) {
 }
 
 sub _build_themed_styles ($style) {
-    my @styles = ("/styles/$style");
+    my @styles;
+    @styles = ("/styles/$style") if -f "www/styles/$style";
     my $ts = _themed_style($style);
     push(@styles, $ts) if $theme_dir && -f "www/$ts";
     return \@styles;
