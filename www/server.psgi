@@ -103,7 +103,7 @@ my $app = sub {
         }
     }
 
-    #TODO reject inappropriate content-lengths
+    $query->{user}   = $active_user;
     return Trog::Routes::HTML::notfound($query, \&_render) unless exists $routes{$path};
     return Trog::Routes::HTML::badrequest($query, \&_render) unless $routes{$path}{method} eq $env->{REQUEST_METHOD};
 
