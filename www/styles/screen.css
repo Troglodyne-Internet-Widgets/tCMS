@@ -229,8 +229,6 @@ img.mblogimg, {
 h3.blogtitles {
  margin-bottom: .5em;
  margin-top: 0px;
- height: 2.5rem;
- line-height: 2.5rem;
 }
 em.blogdetail {
  font-size: .8em;
@@ -327,6 +325,9 @@ p.posteditortitle {
   #submissions {
    width: 100%;
    display: block;
+  }
+  .responsive-hide {
+    display:none;
   }
 }
 .manageUserEntry {
