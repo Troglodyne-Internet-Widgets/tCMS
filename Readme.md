@@ -1,11 +1,9 @@
-tCMeS
+tCMS
 =====
 
-It's basically tCMS, with elasticsearch as the storage backend
+A flexible perl CMS which supports multiple data models and content types
 
-Oh it's also a Perl PSGI app with a flippin' api now too :P
-
-Ideas:
+Ideas to come:
 ======
 Put *all* posts in elasticsearch, just filter by type and have a micro, blog, image (insta), video, podcat and wiki view with static renders
 
