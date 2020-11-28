@@ -705,7 +705,7 @@ sub posts ($query, $render_cb) {
 
     my $styles = _build_themed_styles('posts.css');
 
-    $query->{title} = @$tags ? "$query->{domain} : @$tags" : undef;
+    $query->{title} = @$tags && $query->{domain} ? "$query->{domain} : @$tags" : undef;
     my $limit = int($query->{limit} || 25);
 
     my $content = $processor->render('posts.tx', {
