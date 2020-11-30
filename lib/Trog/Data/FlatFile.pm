@@ -40,7 +40,11 @@ sub read ($self, $query={}) {
     my @items;
     foreach my $item (@index) {
         next unless -f $item;
-        my $slurped = File::Slurper::read_text($item);
+        my $slurped = eval { File::Slurper::read_text($item) };
+        if (!$slurped) {
+            print "Failed to Read $item:\n$@\n";
+            next;
+        }
         my $parsed  = $parser->decode($slurped);
 
         #XXX this imposes an inefficiency in itself, get() will filter uselessly again here
