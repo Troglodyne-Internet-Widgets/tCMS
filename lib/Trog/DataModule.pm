@@ -92,6 +92,16 @@ sub _fixup ($self, @filtered) {
     @filtered = _add_media_type(@filtered);
     # Finally, add visibility
     @filtered = _add_visibility(@filtered);
+
+    #urlencode spaces in filenames
+    @filtered = map {
+        foreach my $param (qw{href preview video_href audio_href local_href wallpaper}) {
+            next unless exists $_->{$param};
+            $_->{$param} =~ s/ /%20/g;
+        }
+        $_
+    } @filtered;
+
     return @filtered;
 }
 
