@@ -255,6 +255,7 @@ sub _process ($post) {
     delete $post->{file};
     delete $post->{preview_file};
 
+    delete $post->{scheme};
     delete $post->{route};
     delete $post->{domain};
 
