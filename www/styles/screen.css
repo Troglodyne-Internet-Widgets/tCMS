@@ -353,3 +353,8 @@ p.posteditortitle {
     background-size: 75%;
     background-position-y: center;
 }
+
+.bigprofile {
+    background-size: 100%;
+    background-position-y: center;
+}

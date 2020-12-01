@@ -27,7 +27,11 @@
                 Your browser does not support the video tag.
             </video>
         : } else {
+            : if ($post.is_profile) {
+            <div class="square circle bigprofile preview" style="background-image:url(<: $post.preview :>)"></div>
+            : } else {
             <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
+            : }
         : }
             <p class="midtitle"><: $post.title :></p>
         </a>

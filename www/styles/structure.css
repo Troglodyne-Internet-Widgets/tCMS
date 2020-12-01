@@ -99,6 +99,11 @@ blockquote {
     width: 35rem;
     height: 20rem;
 }
+.square {
+    width: 20rem;
+    height: 20rem;
+}
+
 @media(max-width: 35rem) {
     .responsive {
         width: 100%;
