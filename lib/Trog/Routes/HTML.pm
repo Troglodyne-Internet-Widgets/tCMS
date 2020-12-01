@@ -413,6 +413,7 @@ sub config ($query, $render_cb) {
 
     return $render_cb->('config.tx', {
         title              => 'Configure tCMS',
+        theme_dir          => $td,
         stylesheets        => $css,
         scripts            => $js,
         themes             => _get_themes(),
@@ -522,6 +523,7 @@ sub post ($query, $render_cb) {
 
     return $render_cb->('post.tx', {
         title       => 'New Post',
+        theme_dir   => $td,
         to          => $query->{to},
         failure     => $query->{failure} // -1,
         message     => $query->{message},
@@ -932,6 +934,7 @@ sub manual ($query, $render_cb) {
     my $content = capture { Pod::Html::pod2html(qw{--podpath=lib --podroot=.},"--infile=lib/$infile") };
     return $render_cb->('manual.tx', {
         title       => 'tCMS Manual',
+        theme_dir   => $td,
         content     => $content,
         stylesheets => _build_themed_styles('post.css'),
     });
