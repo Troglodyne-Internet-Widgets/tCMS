@@ -601,7 +601,7 @@ sub post_delete ($query, $render_cb) {
 
 =head2 series
 
-Add new 'series' (ACLs) to classify content with.
+Series specific view, much like the users/ route
 
 =cut
 

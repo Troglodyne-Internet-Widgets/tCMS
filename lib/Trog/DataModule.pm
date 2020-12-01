@@ -264,6 +264,12 @@ sub _process ($post) {
     push(@{$post->{tags}}, delete $post->{acls}) if $post->{visibility} eq 'private';
     push(@{$post->{tags}}, delete $post->{visibility});
 
+    # Add the 'series' tag if we are in a series, restrict to relevant acl
+    if ($post->{series}) {
+        push(@{$post->{tags}}, 'series');
+        push(@{$post->{tags}}, $post->{series});
+    }
+
     #Filter adding the same acl twice
     @{$post->{tags}} = List::Util::uniq(@{$post->{tags}});
 
