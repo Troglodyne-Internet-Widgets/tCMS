@@ -907,7 +907,8 @@ sub _rss ($query,$posts) {
         );
     }
 
-    return [200, ["Content-type: application/rss+xml\n"], [$rss->as_string]];
+    require Encode;
+    return [200, ["Content-type: application/rss+xml\n"], [Encode::encode_utf8($rss->as_string)]];
 }
 
 =head2 manual
