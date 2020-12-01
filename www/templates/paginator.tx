@@ -7,11 +7,14 @@
     <div style="float:left; margin-top:.5rem;"> <: $limit :> most recent posts older than <span id="paginatorTime"><: $older :></span></div>
     : }
     <div style="float:right;">
-        <a href="?older=<: $older :>&limit=<: $limit :>">Prev</a>
+        <a href="?older=<: $older :>&limit=<: $limit :><: if( $like )  { "&like=" ~ $like } :>">Prev</a>
         Size:
         <form style="display:inline;">
             : if ( $older ) {
-            <input type="hidden" name="older"  value="<: $older :>" />
+            <input type="hidden" name="older" value="<: $older :>" />
+            : }
+            : if ( $like ) {
+            <input type="hidden" name="like" value="<: $like :>" />
             : }
             <select name="limit" class="coolbutton">
                 : for $sizes -> $size {

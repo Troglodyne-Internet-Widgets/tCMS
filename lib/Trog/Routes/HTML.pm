@@ -711,6 +711,7 @@ sub posts ($query, $render_cb) {
     my $content = $processor->render('posts.tx', {
         title     => $query->{title},
         posts     => \@posts,
+        like      => $query->{like},
         in_series => !!($query->{route} =~ m/\/series\/\d*$/),
         route     => $query->{route},
         limit     => $limit,
