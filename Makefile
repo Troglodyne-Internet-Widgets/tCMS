@@ -15,7 +15,7 @@ reset-dummy-data:
 
 .PHONY: depend
 depend:
-	sudo apt install -y sqlite3 libsqlite3-dev libdbd-sqlite3-perl cpanminus starman  libcal-dav-perl libtext-xslate-perl libserver-starter-perl libplack-perl libcal-dav-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl
+	sudo apt install -y sqlite3 libsqlite3-dev libdbd-sqlite3-perl cpanminus starman  libcal-dav-perl libtext-xslate-perl libserver-starter-perl libplack-perl libcal-dav-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-aio-perl
 	sudo cpanm Mojo::File Date::Format WWW::SitemapIndex::XML WWW::Sitemap::XML HTTP::Body Pod::Html URL::Encode
 	wget -O www/scripts/fgEmojiPicker.js https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/fgEmojiPicker.js
 	wget -O www/scripts/full-emoji-list.json https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json
