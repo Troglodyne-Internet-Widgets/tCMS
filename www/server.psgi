@@ -85,7 +85,7 @@ my $app = sub {
     }
 
     # If it's just a file, serve it up
-    return _serve("www/$path", $last_fetch) if -f "www/$path";
+    return _serve("www/$path", $env->{'psgi.streaming'}, $last_fetch) if -f "www/$path";
 
     #Handle regex/capture routes
     if (!exists $routes{$path}) {
@@ -136,7 +136,7 @@ my $app = sub {
     return $output;
 };
 
-sub _serve ($path, $last_fetch=0) {
+sub _serve ($path, $streaming=0, $last_fetch=0) {
     my $mf = Mojo::File->new($path);
     my $ext = '.'.$mf->extname();
     my $ft;
@@ -161,6 +161,18 @@ sub _serve ($path, $last_fetch=0) {
 
     my $h = join("\n",@headers);
     if (open(my $fh, '<', $path)) {
+		return sub {
+			my $responder = shift;
+			my $writer = $responder->([ $code, [$h]]);
+			my ($pos,$it) = (0,10000);
+			while ( read($fh, my $buf, $it, $pos) ) {
+				$writer->write($buf);
+				$pos += $it;
+			}
+			close $fh;
+			$writer->close;
+		};
+
         return [ $code, [$h], $fh];
     }
     return [ 403, [$content_types{plain}], ["STAY OUT YOU RED MENACE"]];
