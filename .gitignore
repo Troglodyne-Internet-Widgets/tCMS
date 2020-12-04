@@ -6,3 +6,5 @@ www/assets/*.*
 data/DUMMY.json
 data/files/*
 pod2htmd.tmp
+fgEmojiPicker.js
+full-emoji-list.json

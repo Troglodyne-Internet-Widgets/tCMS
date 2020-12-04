@@ -4,6 +4,8 @@ tCMS
 A flexible perl CMS which supports multiple data models and content types
 
 Deployment is currently:
+* make depend
+* make install
 * Set up proxy rule in your webserver
 * open tmux or screen
 * `starman -p $PORT www/server.psgi`
@@ -11,6 +13,11 @@ Deployment is currently:
 In the future, we'll make systemd service files and rpms/debs etc.
 
 The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
+
+Migration of tCMS1 sites
+=========================
+
+See migrate.pl, and modify the $docroot variable appropriately
 
 Content Types
 =============
