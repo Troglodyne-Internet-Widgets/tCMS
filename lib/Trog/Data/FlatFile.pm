@@ -11,7 +11,6 @@ use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
 use Mojo::File;
-use IO::AIO 2;
 
 use parent qw{Trog::DataModule};
 
@@ -38,40 +37,9 @@ sub read ($self, $query={}) {
     }
     $query->{limit} //= 25;
 
-    my $done = 0;
-    my $grp = aio_group sub {
-        $done = 1;
-    };
-    #TODO up the limit of group appropriately
-
-    my $contents = {};
-    my $num_read = 0;
-    @index = grep { -f } @index;
-
     my @items;
-    feed $grp sub {
-        my $file = shift @index or return;
-        add $grp (aio_slurp $file, 0, 0, $contents->{$file}, sub {
-
-            #Don't waste any time if we dont have to
-            return if scalar(@items) >= $query->{limit};
-
-            my $parsed  = $parser->decode($contents->{$file});
-
-            #XXX this imposes an inefficiency in itself, get() will filter uselessly again here later
-            my @filtered = $self->filter($query,@$parsed);
-            push(@items,@filtered) if @filtered;
-        });
-    };
-    while (@index && !$done) {
-        IO::AIO::poll_cb();
-        last if scalar(@items) == $query->{limit};
-    }
-    $grp->cancel();
-    @items = sort {$b->{created} <=> $a->{created} } @items;
-    return \@items;
-
     foreach my $item (@index) {
+        next unless -f $item;
         my $slurped = eval { File::Slurper::read_text($item) };
         if (!$slurped) {
             print "Failed to Read $item:\n$@\n";
