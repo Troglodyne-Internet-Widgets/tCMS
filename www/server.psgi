@@ -164,14 +164,14 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
 		return sub {
 			my $responder = shift;
 			my $writer = $responder->([ $code, [$h]]);
-			my ($pos,$it) = (0,10000);
-			while ( read($fh, my $buf, $it, $pos) ) {
+			my $it = 10000;
+            $fh->autoflush(1);
+			while ( read($fh, my $buf, $it) ) {
 				$writer->write($buf);
-				$pos += $it;
 			}
 			close $fh;
 			$writer->close;
-		};
+		} if $streaming;
 
         return [ $code, [$h], $fh];
     }
