@@ -236,6 +236,7 @@ em.blogdetail {
 a.topbar {
  text-decoration: none;
  color: white;
+ vertical-align:middle;
 }
 a:hover.topbar {
  text-decoration: underline;
