@@ -249,6 +249,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         rightbar    => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
         leftbar     => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
         footbar     => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
+        category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query), 
         stylesheets => \@styles,
     });
 }

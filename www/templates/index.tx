@@ -7,14 +7,7 @@
     </div>
     <span title="Menu" id="clickme" onclick="this.focus()">🌐</span>
     <div id="righttitle" class="toplel">
-        <a href="/news"   title="Micro Blog" class="topbar">News</a>
-        <a href="/blog"   title="Blog" class="topbar">Blog</a>
-        <a href="/image" title="Images" class="topbar">Images</a>
-        <a href="/video"  title="Video" class="topbar">Video</a>
-        <a href="/audio"  title="Audio" class="topbar">Audio</a>
-        <a href="/files"  title="Files" class="topbar">Files</a>
-        <a href="/series" title="Series" class="topbar">Series</a>
-        <a href="/about"  title="About" class="topbar">About</a>
+        <: $category_links | mark_raw :>
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <form action="<: $route :>" method="GET" class="inline">
             <input required type="search" name="like"></input>
