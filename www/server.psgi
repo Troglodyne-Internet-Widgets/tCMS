@@ -161,15 +161,15 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
 
     my $h = join("\n",@headers);
     if (open(my $fh, '<', $path)) {
-		return sub {
-			my $responder = shift;
-			my $writer = $responder->([ $code, [$h]]);
-			while ( read($fh, my $buf, 102400) ) {
-				$writer->write($buf);
-			}
-			close $fh;
-			$writer->close;
-		} if $streaming;
+        return sub {
+            my $responder = shift;
+            my $writer = $responder->([ $code, [$h]]);
+            while ( read($fh, my $buf, 102400) ) {
+                $writer->write($buf);
+            }
+            close $fh;
+            $writer->close;
+        } if $streaming;
 
         return [ $code, [$h], $fh];
     }
