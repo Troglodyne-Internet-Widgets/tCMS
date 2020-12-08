@@ -3,6 +3,7 @@ package Trog::DataModule;
 use strict;
 use warnings;
 
+use UUID::Tiny;
 use List::Util;
 use File::Copy;
 use Mojo::File;
@@ -132,7 +133,6 @@ sub filter ($self, $query, @filtered) {
     @filtered = grep { $_->{title} =~ m/\Q$request{like}\E/i || $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
 
     @filtered = grep { $_->{user} eq $request{author} } @filtered if $request{author};
-
     return @filtered;
 }
 
@@ -223,7 +223,6 @@ You probably won't want to override this.
 =cut
 
 sub add ($self, @posts) {
-    require UUID::Tiny;
     my @to_write;
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);

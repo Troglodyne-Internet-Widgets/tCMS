@@ -12,6 +12,9 @@ use File::Slurper;
 use File::Copy;
 use Mojo::File;
 
+use lib 'lib';
+use Trog::SQLite::TagIndex;
+
 use parent qw{Trog::DataModule};
 
 our $datastore = 'data/files';
@@ -28,14 +31,18 @@ You can only post once per second due to it storing each post as a file named af
 our $parser = JSON::MaybeXS->new();
 
 sub read ($self, $query={}) {
+    $query->{limit} //= 25;
+
     #Optimize direct ID
     my @index;
     if ($query->{id}) {
         @index = ("$datastore/$query->{id}");
     } else {
-        @index = $self->_index();
+        if (-f 'data/posts.db') {
+            @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags($query->{limit},@{$query->{tags}})
+        }
+        @index = $self->_index() unless @index;
     }
-    $query->{limit} //= 25;
 
     my @items;
     foreach my $item (@index) {
@@ -51,6 +58,7 @@ sub read ($self, $query={}) {
         my @filtered = $self->filter($query,@$parsed);
 
         push(@items,@filtered) if @filtered;
+        next if $query->{limit} == 0; # 0 = unlimited
         last if scalar(@items) == $query->{limit};
     }
 
@@ -79,6 +87,8 @@ sub write($self,$data) {
         open(my $fh, '>', $file) or confess;
         print $fh $parser->encode($update);
         close $fh;
+
+        Trog::SQLite::TagIndex::add_post($post,$self);
     }
 }
 
@@ -100,6 +110,7 @@ sub add ($self,@posts) {
 sub delete($self, @posts) {
     foreach my $update (@posts) {
         unlink "$datastore/$update->{id}" or confess;
+        Trog::SQLite::TagIndex::remove_post($update);
     }
     return 0;
 }
