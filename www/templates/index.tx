@@ -10,13 +10,13 @@
         <: $category_links | mark_raw :>
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <form action="<: $route :>" method="GET" class="inline">
-            <input required type="search" name="like"></input>
-            <input class="coolbutton" type="submit" value="🔎"></input>
+            <input required type="search" class="coolbutton topform" name="like"></input>
+            <input class="coolbutton topform" type="submit" value="🔎"></input>
             <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
         </form>
     </div>
     : if ($user) {
-    <a href="/config" title="Preferences" class="topbar usericon <: $user :>"></a>
+    <a href="/config" title="Preferences" class="topbar topbarimg usericon <: $user :>"></a>
     : } else {
     <a href="/login" title="Login" class="topbar usericon" style="font-size: 1.5rem;">🔑</a>
     : }
