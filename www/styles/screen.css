@@ -236,8 +236,16 @@ em.blogdetail {
 a.topbar {
  text-decoration: none;
  color: white;
- vertical-align:middle;
 }
+
+.topform {
+    margin:0px;
+}
+
+a.topbarimg {
+    vertical-align:middle;
+}
+
 a:hover.topbar {
  text-decoration: underline;
 }
