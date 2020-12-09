@@ -1,6 +1,6 @@
 /*First, we start off with specifying what parts of the DOM we want hidden*/
 #leftbar, #rightbar, #footbar {
- display: none;
+    display: block;
 }
 
 /*Now, on to positioning of the elements*/

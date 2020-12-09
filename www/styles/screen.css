@@ -367,3 +367,26 @@ p.posteditortitle {
     background-size: 100%;
     background-position-y: center;
 }
+
+/*Responsive Shizz*/
+@media(max-width: 900px) {
+ body {
+  font-size: 100%;
+ }
+ #kontent {
+  padding: 3em 0.5em 0.5em;
+ }
+ #leftbar, #rightbar {
+  display: none;
+ }
+ img.nudes, .mblogimg {
+  max-width: 95vw;
+ }
+}
+/*Responsive iframes*/
+@media(max-width: 35rem) {
+  iframe.responsive, video.responsive {
+    width: 100%;
+    height: 10rem;
+  }
+}
