@@ -21,7 +21,7 @@ Used to speed up the flat-file data model.
 sub posts_for_tags (@tags) {
     my $dbh = _dbh();
     my $clause = @tags ? "WHERE tag IN (".join(',' ,(map {'?'} @tags)).")" : '';
-    my $rows = $dbh->selectall_arrayref("SELECT id FROM posts $clause",{ Slice => {} }, @tags);
+    my $rows = $dbh->selectall_arrayref("SELECT DISTINCT id FROM posts $clause ORDER BY ID DESC",{ Slice => {} }, @tags);
     return () unless ref $rows eq 'ARRAY' && @$rows;
     return map { $_->{id} } @$rows;
 }
