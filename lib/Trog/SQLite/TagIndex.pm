@@ -18,13 +18,9 @@ Used to speed up the flat-file data model.
 
 =cut
 
-sub posts_for_tags ($limit=0, @tags) {
+sub posts_for_tags (@tags) {
     my $dbh = _dbh();
     my $clause = @tags ? "WHERE tag IN (".join(',' ,(map {'?'} @tags)).")" : '';
-    if ($limit) {
-        $clause .= "LIMIT ?";
-        push(@tags,$limit);
-    }
     my $rows = $dbh->selectall_arrayref("SELECT id FROM posts $clause",{ Slice => {} }, @tags);
     return () unless ref $rows eq 'ARRAY' && @$rows;
     return map { $_->{id} } @$rows;

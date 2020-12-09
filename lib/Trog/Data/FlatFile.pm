@@ -39,7 +39,7 @@ sub read ($self, $query={}) {
         @index = ("$datastore/$query->{id}");
     } else {
         if (-f 'data/posts.db') {
-            @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags($query->{limit},@{$query->{tags}})
+            @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags(@{$query->{tags}})
         }
         @index = $self->_index() unless @index;
     }
