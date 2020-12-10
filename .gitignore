@@ -9,3 +9,4 @@ data/files/*
 pod2htmd.tmp
 fgEmojiPicker.js
 full-emoji-list.json
+www/.well_known
