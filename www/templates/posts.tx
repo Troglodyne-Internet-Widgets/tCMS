@@ -22,7 +22,7 @@
         <a href="<: $route :>/<: $post.id :>" class="tile">
         : }
         : if ($post.is_video) {
-            <video class="responsive" controls poster="<: $post.preview :>" >
+            <video preload="metadata" class="responsive" controls poster="<: $post.preview :>" >
                 <source src="<: $post.href :>" type="<: $post.content_type :>" />
                 Your browser does not support the video tag.
             </video>
