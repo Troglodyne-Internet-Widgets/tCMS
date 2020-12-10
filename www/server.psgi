@@ -151,12 +151,15 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
 
     #TODO Return 304 unchanged for files that haven't changed since the requestor reports they last fetched
     my $mt = (stat($path))[9];
+    #my $sz = (stat(_))[7];
     my @gm = gmtime($mt);
     my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
     my $code = $mt > $last_fetch ? 200 : 304;
     #XXX something broken about the above logic
     $code=200;
 
+    #XXX doing metadata=preload on videos doesn't work right?
+    #push(@headers, "Content-Length: $sz\n");
     push(@headers, "Last-Modified: $now_string\n");
 
     my $h = join("\n",@headers);

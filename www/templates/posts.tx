@@ -22,7 +22,7 @@
         <a href="<: $route :>/<: $post.id :>" class="tile">
         : }
         : if ($post.is_video) {
-            <video preload="metadata" class="responsive" controls poster="<: $post.preview :>" >
+            <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
                 <source src="<: $post.href :>" type="<: $post.content_type :>" />
                 Your browser does not support the video tag.
             </video>
@@ -58,7 +58,7 @@
                 <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
             : }
             : if ( $post.video_href ) {
-                <video class="responsive" controls poster="<: $post.preview :>" >
+                <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
                     <source src="<: $post.video_href :>" type="<: $post.video_content_type :>" />
                     Your browser does not support the video tag.
                 </video>
@@ -70,7 +70,7 @@
                 </audio>
             : }
             : if ( $post.is_video ) {
-                <video class="responsive" controls poster="<: $post.preview :>" >
+                <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
                     <source src="<: $post.href :>" type="<: $post.content_type :>" />
                     Your browser does not support the video tag.
                 </video>
