@@ -822,19 +822,21 @@ sub sitemap ($query, $render_cb) {
                     priority   => 1.0,
                 );
 
-                #add video & preview image if applicable
-                $data{images} = [{
-                    loc => "http://$query->{domain}$url->{href}",
-                    caption => $url->{data},
-                    title => $url->{title},
-                }] if $url->{is_image};
+                if (ref $url eq 'HASH') {
+                    #add video & preview image if applicable
+                    $data{images} = [{
+                        loc => "http://$query->{domain}$url->{href}",
+                        caption => $url->{data},
+                        title => $url->{title},
+                    }] if $url->{is_image};
 
-                $data{videos} = [{
-                    content_loc   => "http://$query->{domain}$url->{href}",
-                    thumbnail_loc => "http://$query->{domain}$url->{preview}",
-                    title         => $url->{title},
-                    description   => $url->{data},
-                }] if $url->{is_video};
+                    $data{videos} = [{
+                        content_loc   => "http://$query->{domain}$url->{href}",
+                        thumbnail_loc => "http://$query->{domain}$url->{preview}",
+                        title         => $url->{title},
+                        description   => $url->{data},
+                    }] if $url->{is_video};
+                }
 
                 $sm->add(%data);
             }
