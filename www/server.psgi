@@ -28,6 +28,9 @@ use Trog::Auth;
 my %routes = %Trog::Routes::HTML::routes;
 @routes{keys(%Trog::Routes::JSON::routes)} = values(%Trog::Routes::JSON::routes);
 
+#1MB chunks
+my $CHUNK_SIZE = 1024000;
+
 # Things we will actually produce from routes rather than just serving up files
 my $ct = 'Content-type';
 my %content_types = (
@@ -115,7 +118,7 @@ my $app = sub {
         my $body = HTTP::Body->new( $env->{CONTENT_TYPE}, $env->{CONTENT_LENGTH} );
         my $len = $env->{CONTENT_LENGTH};
         while ( $len ) {
-            read($env->{'psgi.input'}, my $buf, ($len < 8192) ? 8192 : $len );
+            read($env->{'psgi.input'}, my $buf, ($len < $CHUNK_SIZE) ? $CHUNK_SIZE : $len );
             $len -= length($buf);
             $body->add($buf);
         }
@@ -167,7 +170,7 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
         return sub {
             my $responder = shift;
             my $writer = $responder->([ $code, [$h]]);
-            while ( read($fh, my $buf, 102400) ) {
+            while ( read($fh, my $buf, $CHUNK_SIZE) ) {
                 $writer->write($buf);
             }
             close $fh;
