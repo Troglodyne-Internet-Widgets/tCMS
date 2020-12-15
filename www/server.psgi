@@ -77,9 +77,9 @@ my $app = sub {
         $cookies = CGI::Cookie->parse($env->{HTTP_COOKIE});
     }
 
-    my ($active_user,$user_id) = ('','');
+    my $active_user = '';
     if (exists $cookies->{tcmslogin}) {
-         ($active_user,$user_id) = Trog::Auth::session2user($cookies->{tcmslogin}->value);
+         $active_user = Trog::Auth::session2user($cookies->{tcmslogin}->value);
     }
 
     #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
@@ -125,7 +125,7 @@ my $app = sub {
     }
 
     #Set various things we don't want overridden
-    $query->{acls} = Trog::Auth::acls4user($user_id) // [] if $user_id;
+    $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
     $query->{user}   = $active_user;
     $query->{domain} = $env->{HTTP_HOST};

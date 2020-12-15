@@ -20,22 +20,22 @@ Throws exceptions in the event the session database cannot be accessed.
 
 =head1 FUNCTIONS
 
-=head2 session2user(sessid) = (STRING, INT)
+=head2 session2user(STRING sessid) = STRING
 
-Translate a session UUID into a username and id.
+Translate a session UUID into a username.
 
-Returns empty strings on no active session.
+Returns empty string on no active session.
 
 =cut
 
 sub session2user ($sessid) {
     my $dbh = _dbh();
-    my $rows = $dbh->selectall_arrayref("SELECT name,id FROM sess_user WHERE session=?",{ Slice => {} }, $sessid);
-    return ('','') unless ref $rows eq 'ARRAY' && @$rows;
-    return ($rows->[0]->{name},$rows->[0]->{id});
+    my $rows = $dbh->selectall_arrayref("SELECT name FROM sess_user WHERE session=?",{ Slice => {} }, $sessid);
+    return '' unless ref $rows eq 'ARRAY' && @$rows;
+    return $rows->[0]->{name};
 }
 
-=head2 acls4user(user_id) = ARRAYREF
+=head2 acls4user(STRING username) = ARRAYREF
 
 Return the list of ACLs belonging to the user.
 The function of ACLs are to allow you to access content tagged 'private' which are also tagged with the ACL name.
@@ -44,9 +44,9 @@ The 'admin' ACL is the only special one, as it allows for authoring posts, confi
 
 =cut
 
-sub acls4user($user_id) {
+sub acls4user($username) {
     my $dbh = _dbh();
-    my $records = $dbh->selectall_arrayref("SELECT acl FROM user_acl WHERE user_id = ?", { Slice => {} }, $user_id);
+    my $records = $dbh->selectall_arrayref("SELECT acl FROM user_acl WHERE username = ?", { Slice => {} }, $username);
     return () unless ref $records eq 'ARRAY' && @$records;
     my @acls = map { $_->{acl} } @$records;
     return \@acls;
@@ -66,11 +66,11 @@ sub mksession ($user,$pass) {
     return '' unless ref $records eq 'ARRAY' && @$records;
     my $salt = $records->[0]->{salt};
     my $hash = sha256($pass.$salt);
-    my $worked = $dbh->selectall_arrayref("SELECT id FROM user WHERE hash=? AND name = ?", { Slice => {} }, $hash, $user);
+    my $worked = $dbh->selectall_arrayref("SELECT name FROM user WHERE hash=? AND name = ?", { Slice => {} }, $hash, $user);
     return '' unless ref $worked eq 'ARRAY' && @$worked;
-    my $uid = $worked->[0]->{id};
+    my $uid = $worked->[0]->{name};
     my $uuid = create_uuid_as_string(UUID_V1, UUID_NS_DNS);
-    $dbh->do("INSERT OR REPLACE INTO session (id,user_id) VALUES (?,?)", undef, $uuid, $uid) or return '';
+    $dbh->do("INSERT OR REPLACE INTO session (id,username) VALUES (?,?)", undef, $uuid, $uid) or return '';
     return $uuid;
 }
 
@@ -82,7 +82,7 @@ Delete the provided user's session from the auth db.
 
 sub killsession ($user) {
     my $dbh = _dbh();
-    $dbh->do("DELETE FROM session WHERE user_id IN (SELECT id FROM user WHERE name=?)",undef,$user);
+    $dbh->do("DELETE FROM session WHERE username=?",undef,$user);
     return 1;
 }
 
@@ -103,7 +103,7 @@ sub useradd ($user, $pass, $acls) {
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
     foreach my $acl (@$acls) {
-        return unless $dbh->do("INSERT OR REPLACE INTO user_acl (user_id,acl) VALUES ((SELECT id FROM user WHERE name=?),?)", undef, $user, $acl);
+        return unless $dbh->do("INSERT OR REPLACE INTO user_acl (username,acl) VALUES (?,?)", undef, $user, $acl);
     }
     return 1;
 }
