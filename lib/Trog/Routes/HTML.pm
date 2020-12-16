@@ -502,6 +502,7 @@ sub post ($query, $render_cb) {
 
     my $tags  = _coerce_array($query->{tag});
     my @posts = _post_helper($query, $tags, $query->{acls});
+
     my $css   = _build_themed_styles('post.css');
     my $js    = _build_themed_scripts('post.js');
     push(@$css, '/styles/avatars.css');
@@ -514,10 +515,10 @@ sub post ($query, $render_cb) {
         $app = 'audio' if $query->{route} =~ m/audio$/;
     }
 
-    #Filter displaying acl/visibility tags
+    #Filter displaying visibility tags
     my @visibuddies = qw{public unlisted private};
     foreach my $post (@posts) {
-        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } (@visibuddies, map { $_->{aclname} } @acls ) } @{$post->{tags}};
+        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } @visibuddies } @{$post->{tags}};
     }
 
     my $limit = int($query->{limit} || 25);
