@@ -28,7 +28,7 @@ You can only post once per second due to it storing each post as a file named af
 
 =cut
 
-our $parser = JSON::MaybeXS->new();
+our $parser = JSON::MaybeXS->new( utf8 => 1 );
 
 sub read ($self, $query={}) {
     $query->{limit} //= 25;
