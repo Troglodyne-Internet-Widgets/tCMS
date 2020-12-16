@@ -14,6 +14,8 @@ In the future, we'll make systemd service files and rpms/debs etc.
 
 The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
 
+Rate-Limiting is expected to be handled at the level of the webserver proxying requests to this application.
+
 Migration of tCMS1 sites
 =========================
 
