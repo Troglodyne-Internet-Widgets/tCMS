@@ -47,12 +47,16 @@ sub read ($self, $query={}) {
     my @items;
     foreach my $item (@index) {
         next unless -f $item;
-        my $slurped = eval { File::Slurper::read_text($item) };
+        my $slurped = eval { File::Slurper::read_binary($item) };
         if (!$slurped) {
             print "Failed to Read $item:\n$@\n";
             next;
         }
-        my $parsed  = $parser->decode($slurped);
+        my $parsed  = eval { $parser->decode($slurped) };
+        if (!$parsed) {
+            print "JSON Decode error on $item:\n$@\n";
+            next;
+        }
 
         #XXX this imposes an inefficiency in itself, get() will filter uselessly again here
         my @filtered = $self->filter($query,@$parsed);
