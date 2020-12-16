@@ -82,7 +82,7 @@ sub write($self,$data) {
         my $file = "$datastore/$post->{id}";
         my $update = [$post];
         if (-f $file) {
-            my $slurped = File::Slurper::read_text($file);
+            my $slurped = File::Slurper::read_binary($file);
             my $parsed  = $parser->decode($slurped);
 
             $update = [(@$parsed, $post)];
