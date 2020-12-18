@@ -222,7 +222,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         path =>  "www/$theme_dir/templates",
     ) if $theme_dir;
 
-    $content ||= _pick_processor($rightbar,$processor,$t_processor)->render($landing_page,$query);
+    $content ||= _pick_processor("templates/$landing_page",$processor,$t_processor)->render($landing_page,$query);
 
     my @styles = ('/styles/avatars.css');
     if ($theme_dir) {
