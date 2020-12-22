@@ -22,5 +22,59 @@
                 : }
             </select>
         </form>
+        Jump to:
+        <form style="display:inline;" id="paginator-jump">
+            <select name="year" class="coolbutton">
+                : for $years -> $year {
+                <option value="<: $year :>"><: $year :></option>
+                : }
+            </select>
+            <select name="month" class="coolbutton">
+                : for $months -> $month {
+                <option value="<: $month :>"><: $month :></option>
+                : }
+            </select>
+            <input type="hidden" name="older" value="" />
+            <input type="submit" class="coolbutton" value="Go" />
+        </form>
     </div>
 </div>
+<script type="text/javascript">
+    function updateOlder () {
+        var year  = document.querySelector("#paginator-jump select[name='year']");
+        var month = document.querySelector("#paginator-jump select[name='month']");
+        var older = document.querySelector("#paginator-jump input[name='older']");
+        if (older) {
+            var d = new Date(0);
+            d.setYear(year.value);
+            d.setMonth(month.value);
+            d.setDate(0);
+            older.value = d.getTime() / 1000;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function(event) {
+        updateOlder();
+        var months = document.querySelectorAll("#paginator-jump select[name='month'] option");
+        var d = new Date();
+        for (var month of months) {
+            d.setMonth(month.value);
+            month.innerHTML = d.toLocaleString('default', { month: 'long' });
+        }
+
+        //Ensure the 'older' value updates
+        var m = document.querySelector("#paginator-jump select[name='month']");
+        if (m) {
+            m.onchange = function (evt) {
+                updateOlder();
+            };
+        }
+
+        var y  = document.querySelector("#paginator-jump select[name='year']");
+        if (y) {
+            y.onchange = function (evt) {
+                updateOlder();
+            };
+        }
+    });
+</script>

@@ -711,7 +711,6 @@ sub posts ($query, $render_cb) {
         my $route = $query->{route};
         my %alias = ( '/humans.txt' => '/about');
         $route = $alias{$route} if exists $alias{$route};
-        print "$route\n";
 
         my $t_processor;
         $t_processor = Text::Xslate->new(
@@ -731,6 +730,9 @@ sub posts ($query, $render_cb) {
     $query->{title} = "$query->{domain} : $posts[0]{title}" if $query->{id} && $posts[0]{title} && $query->{domain};
     my $limit = int($query->{limit} || 25);
 
+    my $now_year = (localtime(time))[5] + 1900;
+    my $oldest_year = $now_year - 20; #XXX actually find oldest post year
+
     my $content = $processor->render('posts.tx', {
         title     => $query->{title},
         posts     => \@posts,
@@ -744,8 +746,10 @@ sub posts ($query, $render_cb) {
         rss       => !$query->{id} && !$query->{older},
         tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
         category  => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
-        about_header => $header,
-        about_footer => $footer,
+        header    => $header,
+        footer    => $footer,
+        years     => [reverse($oldest_year..$now_year)],
+        months    => [0..11],
     });
     return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
 }

@@ -4,8 +4,8 @@
 <: $category :>:
 : }
 </span>
-: if ( $about_header ) {
-    <: $about_header | mark_raw :>
+: if ( $header ) {
+    <: $header | mark_raw :>
 : }
 <hr class="divider" />
 : for $posts -> $post {
@@ -138,8 +138,8 @@
 : if ( $rss || $older ) {
 : include "paginator.tx";
 : }
-: if ( $about_footer ) {
-    <: $about_footer | mark_raw :>
+: if ( $footer ) {
+    <: $footer | mark_raw :>
 : }
 <script>
 document.addEventListener("DOMContentLoaded", function(event) {
