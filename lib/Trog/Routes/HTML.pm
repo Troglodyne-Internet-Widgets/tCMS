@@ -294,6 +294,14 @@ sub badrequest (@args) {
     return _generic_route('badrequest', 400, "Bad Request", @args);
 }
 
+sub redirect ($to) {
+    return [302, ["Location: $to\n"],['']]
+}
+
+sub redirect_permanent ($to) {
+    return [301, ["Location: $to\n"], ['']];
+}
+
 # TODO Rate limiting route
 
 =head1 NORMAL ROUTES
@@ -697,14 +705,24 @@ sub posts ($query, $render_cb) {
 
     # Themed header/footer for about page -- TODO maybe make this generic so we can have MESSAGE FROM JIMBO WALES everywhere
     my ($header,$footer);
-    if ($query->{route} eq '/about' || $query->{route} eq '/humans.txt') {
+    my $should_header = grep { $_ eq $query->{route} } map { "/$_" } (@post_aliases,'humans.txt');
+    if ($should_header) {
+
+        my $route = $query->{route};
+        my %alias = ( '/humans.txt' => '/about');
+        $route = $alias{$route} if exists $alias{$route};
+        print "$route\n";
+
         my $t_processor;
         $t_processor = Text::Xslate->new(
             path =>  "www/$theme_dir/templates",
         ) if $theme_dir;
 
-        $header = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_header.tx', { theme_dir => $td } );
-        $footer = _pick_processor("templates/about_header.tx"  ,$processor,$t_processor)->render('about_footer.tx', { theme_dir => $td } );
+        my $no_leading_slash = $route;
+        $no_leading_slash =~ tr/\///d;
+
+        $header = _pick_processor("templates$route\_header.tx"  ,$processor,$t_processor)->render("$no_leading_slash\_header.tx", { theme_dir => $td } );
+        $footer = _pick_processor("templates$route\_header.tx"  ,$processor,$t_processor)->render("$no_leading_slash\_footer.tx", { theme_dir => $td } );
     }
 
     my $styles = _build_themed_styles('posts.css');
