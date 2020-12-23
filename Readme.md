@@ -10,7 +10,9 @@ Deployment is currently:
 * open tmux or screen
 * `starman -p $PORT www/server.psgi`
 
-In the future, we'll make systemd service files and rpms/debs etc.
+A Dockerfile is provided for your convenience in building images based on this:
+`sudo docker build -t troglodyne:tcms`
+`sudo docker run -dp 5001:5001 troglodyne/tcms:latest starman -p 5001 www/server.psgi`
 
 The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
 
