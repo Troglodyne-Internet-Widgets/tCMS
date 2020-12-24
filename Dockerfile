@@ -10,7 +10,9 @@ RUN useradd tcms
 RUN apt-get update
 RUN apt-get install -y make apt-utils mlocate
 
-ADD --chown=tcms . /home/tcms
+ADD . /home/tcms
+RUN mkdir /home/tcms/.tcms
+RUN chown -R tcms /home/tcms
 
 WORKDIR /home/tcms
 
