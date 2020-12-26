@@ -9,6 +9,10 @@
         <link rel="stylesheet" type="text/css" href="/styles/structure.css" />
         <link rel="stylesheet" type="text/css" href="/styles/screen.css" media="screen" />
         <link rel="stylesheet" type="text/css" href="/styles/print.css" media="print" />
+        : if ($embed) {
+        <base target="_blank" />
+        <link rel="stylesheet" type="text/css" href="/styles/embed.css" media="screen" />
+        : }
         <!-- Stylesheets !-->
         : for $stylesheets -> $stylesheet {
         <link rel="stylesheet" type="text/css" href="<: $stylesheet :>" media="screen" />

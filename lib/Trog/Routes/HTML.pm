@@ -226,6 +226,9 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     my @styles = ('/styles/avatars.css');
     if ($theme_dir) {
+        if ($query->{embed}) {
+            unshift(@styles, _themed_style("embed.css")) if -f 'www/'._themed_style("embed.css");
+        }
         unshift(@styles, _themed_style("screen.css"))    if -f 'www/'._themed_style("screen.css");
         unshift(@styles, _themed_style("structure.css")) if -f 'www/'._themed_style("structure.css");
     }
@@ -235,7 +238,8 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     my $search_info = Trog::Data->new($conf);
 
-    return $render_cb->('index.tx', {
+    my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
+    return $render_cb->( $tmpl, {
         code        => $query->{code},
         user        => $query->{user},
         search_lang => $search_info->lang(),
@@ -252,6 +256,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
         stylesheets => \@styles,
         show_madeby => $Theme::show_madeby ? 1 : 0,
+        embed       => $query->{embed} ? 1 : 0,
     });
 }
 

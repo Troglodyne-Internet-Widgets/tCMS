@@ -1,7 +1,7 @@
 :if ( $pages ) {
-<div>
+<div id="paginator">
 : } else {
-<div class="disabled">
+<div id="paginator" class="disabled">
 : }
     : if ( $older ) {
     <div style="float:left; margin-top:.5rem;"> <: $limit :> most recent posts older than <span id="paginatorTime"><: $older :></span></div>

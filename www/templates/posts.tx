@@ -5,9 +5,9 @@
 : }
 </span>
 : if ( $in_series && $rss ) {
-     <p class="subhead">
+     <div class="subhead">
      <: $subhead | mark_raw :>
-     </p>
+     </div>
 : }
 
 : if ( $header ) {
