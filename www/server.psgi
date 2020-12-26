@@ -128,8 +128,6 @@ my $app = sub {
     $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
     $query->{user}    = $active_user;
-    $query->{title}   = '';
-    $query->{subhead} = '';
     $query->{domain}  = $env->{HTTP_HOST};
     $query->{route}   = $env->{REQUEST_URI};
     $query->{scheme}  = $env->{'psgi.url_scheme'} // 'http';

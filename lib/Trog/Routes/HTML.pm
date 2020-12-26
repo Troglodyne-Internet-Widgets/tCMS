@@ -745,7 +745,7 @@ sub posts ($query, $render_cb) {
         title     => $query->{title},
         posts     => \@posts,
         like      => $query->{like},
-        in_series => !!($query->{route} =~ m/\/series\/\d*$/),
+        in_series => exists $query->{in_series} || !!($query->{route} =~ m/\/series\/\d*$/),
         route     => $query->{route},
         limit     => $limit,
         pages     => scalar(@posts) == $limit,
