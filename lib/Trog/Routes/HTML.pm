@@ -729,7 +729,7 @@ sub posts ($query, $render_cb) {
     my $styles = _build_themed_styles('posts.css');
 
     #Correct page headers
-    my $ph = $themed ? Theme::path_to_tile($query->{route}) : $query->{route};
+    my $ph = $themed ? _themed_title($query->{route}) : $query->{route};
     $ph = $query->{title} if $query->{title};
 
     # Build page title if it wasn't set by a wrapping sub
@@ -761,6 +761,11 @@ sub posts ($query, $render_cb) {
         months    => [0..11],
     });
     return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
+}
+
+sub _themed_title ($path) {
+    return $path unless %Theme::paths;
+    return $Theme::paths{$path} ? $Theme::paths{$path} : $path;
 }
 
 sub _post_helper ($query, $tags, $acls) {
