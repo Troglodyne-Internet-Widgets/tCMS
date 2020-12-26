@@ -251,6 +251,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         footbar     => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
         category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
         stylesheets => \@styles,
+        show_madeby => $Theme::show_madeby ? 1 : 0,
     });
 }
 

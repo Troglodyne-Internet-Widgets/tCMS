@@ -382,6 +382,9 @@ p.posteditortitle {
  img.nudes, .mblogimg {
   max-width: 95vw;
  }
+ .trogged {
+    display: none;
+ }
 }
 /*Responsive iframes*/
 @media(max-width: 35rem) {
@@ -389,4 +392,13 @@ p.posteditortitle {
     width: 100%;
     height: 10rem;
   }
+}
+
+/* For tcms Advert */
+.trogged {
+    right: 0;
+    bottom: 0;
+    position: fixed;
+    z-index: 100;
+    text-decoration: none;
 }
