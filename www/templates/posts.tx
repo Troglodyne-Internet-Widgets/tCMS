@@ -4,6 +4,12 @@
 <: $category :>:
 : }
 </span>
+: if ( $in_series && $rss ) {
+     <p class="subhead">
+     <: $subhead | mark_raw :>
+     </p>
+: }
+
 : if ( $header ) {
     <: $header | mark_raw :>
 : }

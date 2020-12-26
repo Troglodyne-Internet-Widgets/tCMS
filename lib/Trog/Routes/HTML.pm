@@ -249,7 +249,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         rightbar    => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
         leftbar     => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
         footbar     => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
-        category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query), 
+        category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
         stylesheets => \@styles,
     });
 }
@@ -622,6 +622,8 @@ sub series ($query, $render_cb) {
     my @posts = _post_helper($query, [], $query->{acls});
     delete $query->{id};
 
+    $query->{subhead} = $posts[0]->{data};
+    $query->{title} = $posts[0]->{title};
     $query->{tag} = $posts[0]->{aclname};
     return posts($query,$render_cb);
 }
@@ -660,6 +662,7 @@ sub users ($query, $render_cb) {
     my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
     my @user = grep { $_->{user} eq $query->{username} } @posts;
     $query->{id} = $user[0]->{id};
+    $query->{title} = $user[0]->{title};
     $query->{user_obj} = $user[0];
     return posts($query,$render_cb);
 }
@@ -723,13 +726,18 @@ sub posts ($query, $render_cb) {
         $header = _pick_processor("templates$route\_header.tx"  ,$processor,$t_processor)->render("$no_leading_slash\_header.tx", { theme_dir => $td } );
         $footer = _pick_processor("templates$route\_header.tx"  ,$processor,$t_processor)->render("$no_leading_slash\_footer.tx", { theme_dir => $td } );
     }
-
     my $styles = _build_themed_styles('posts.css');
 
-    $query->{title} = @$tags && $query->{domain} ? "$query->{domain} : @$tags" : undef;
-    $query->{title} = "$query->{domain} : $posts[0]{title}" if $query->{id} && $posts[0]{title} && $query->{domain};
-    my $limit = int($query->{limit} || 25);
+    #Correct page headers
+    my $ph = $themed ? Theme::path_to_tile($query->{route}) : $query->{route};
+    $ph = $query->{title} if $query->{title};
 
+    # Build page title if it wasn't set by a wrapping sub
+    $query->{title} = "$query->{domain} : $query->{title}" if $query->{title} && $query->{domain};
+    $query->{title} ||= @$tags && $query->{domain} ? "$query->{domain} : @$tags" : undef;
+
+    #Handle paginator vars
+    my $limit = int($query->{limit} || 25);
     my $now_year = (localtime(time))[5] + 1900;
     my $oldest_year = $now_year - 20; #XXX actually find oldest post year
 
@@ -745,7 +753,8 @@ sub posts ($query, $render_cb) {
         sizes     => [25,50,100],
         rss       => !$query->{id} && !$query->{older},
         tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
-        category  => $themed ? Theme::path_to_tile($query->{route}) : $query->{route},
+        category  => $ph,
+        subhead   => $query->{subhead},
         header    => $header,
         footer    => $footer,
         years     => [reverse($oldest_year..$now_year)],

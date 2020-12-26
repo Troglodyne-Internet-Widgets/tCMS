@@ -127,10 +127,12 @@ my $app = sub {
     #Set various things we don't want overridden
     $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
-    $query->{user}   = $active_user;
-    $query->{domain} = $env->{HTTP_HOST};
-    $query->{route}  = $env->{REQUEST_URI};
-    $query->{scheme} = $env->{'psgi.url_scheme'} // 'http';
+    $query->{user}    = $active_user;
+    $query->{title}   = '';
+    $query->{subhead} = '';
+    $query->{domain}  = $env->{HTTP_HOST};
+    $query->{route}   = $env->{REQUEST_URI};
+    $query->{scheme}  = $env->{'psgi.url_scheme'} // 'http';
 
     my $output =  $routes{$path}{callback}->($query, \&_render);
     return $output;
