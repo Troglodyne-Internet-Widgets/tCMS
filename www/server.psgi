@@ -47,6 +47,11 @@ my %cache_control = (
     static     => "$cc: public, max-age=604800, immutable",
 );
 
+#Stuff that isn't in upstream finders
+my %extra_types = (
+    '.docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+);
+
 =head2 $app
 
 Dispatches requests based on %routes built above.
@@ -140,7 +145,10 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
     my $mf = Mojo::File->new($path);
     my $ext = '.'.$mf->extname();
     my $ft;
-    $ft = Plack::MIME->mime_type($ext) if $ext;
+    if ($ext) {
+        $ft = Plack::MIME->mime_type($ext) if $ext;
+        $ft ||= $extra_types{$ext} if exists $extra_types{$ext};
+    }
     $ft = "$ct:$ft;" if $ft;
     $ft ||= $content_types{plain};
 
