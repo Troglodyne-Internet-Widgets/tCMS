@@ -111,7 +111,7 @@ sub useradd ($user, $pass, $acls) {
 # Ensure the db schema is OK, and give us a handle
 sub _dbh {
     my $file   = 'schema/auth.schema';
-    my $dbname = "$ENV{HOME}/.tcms/auth.db";
+    my $dbname = "config/auth.db";
     return Trog::SQLite::dbh($file,$dbname);
 }
 

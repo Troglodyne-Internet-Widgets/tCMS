@@ -15,7 +15,7 @@ Returns a configuration object that will be used by server.psgi, the data model 
 
 =cut
 
-our $home_cfg = "$ENV{HOME}/.tcms/main.cfg";
+our $home_cfg = "config/main.cfg";
 
 sub get {
     my $cf;

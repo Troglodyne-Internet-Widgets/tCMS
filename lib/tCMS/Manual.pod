@@ -51,7 +51,7 @@ The Data model modules are all subclasses of L<Trog::Data>.
 We include a bogus data model for testing called 'DUMMY' which should not be used for production purposes.
 It is useful as an example for developers: L<Trog::Data::DUMMY>
 
-Authentication is accomplished via a cookie (tcmslogin) which we check against an sqlite database, ~/.tcms/auth.db
+Authentication is accomplished via a cookie (tcmslogin) which we check against an sqlite database, config/auth.db
 Passwords are hashed and salted, and the only other thing stored there is what ACLs users have.
 The module controlling this is L<Trog::Auth>.
 

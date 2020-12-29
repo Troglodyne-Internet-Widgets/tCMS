@@ -334,7 +334,7 @@ One time setup page; should only display to the first user to visit the site whi
 =cut
 
 sub setup ($query, $render_cb) {
-    File::Touch::touch("$ENV{HOME}/.tcms/setup");
+    File::Touch::touch("config/setup");
     return $render_cb->('notconfigured.tx', {
         title => 'tCMS Requires Setup to Continue...',
         stylesheets => _build_themed_styles('notconfigured.css'),
@@ -359,7 +359,7 @@ sub login ($query, $render_cb) {
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
-    my $hasusers = -f "$ENV{HOME}/.tcms/has_users";
+    my $hasusers = -f "config/has_users";
     my $btnmsg = $hasusers ? "Log In" : "Register";
 
     my @headers;
@@ -367,7 +367,7 @@ sub login ($query, $render_cb) {
         if (!$hasusers) {
             # Make the first user
             Trog::Auth::useradd($query->{username}, $query->{password}, ['admin'] );
-            File::Touch::touch("$ENV{HOME}/.tcms/has_users");
+            File::Touch::touch("config/has_users");
         }
 
         $query->{failed} = 1;

@@ -10,3 +10,7 @@ pod2htmd.tmp
 fgEmojiPicker.js
 full-emoji-list.json
 www/.well_known
+config/auth.db
+config/has_users
+config/main.cfg
+config/setup

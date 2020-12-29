@@ -75,7 +75,7 @@ my $app = sub {
     my $path = $env->{PATH_INFO};
 
     # Let's open up our default route before we bother to see if users even exist
-    return $routes{default}{callback}->($query,\&_render) unless -f "$ENV{HOME}/.tcms/setup";
+    return $routes{default}{callback}->($query,\&_render) unless -f "config/setup";
 
     my $cookies = {};
     if ($env->{HTTP_COOKIE}) {
