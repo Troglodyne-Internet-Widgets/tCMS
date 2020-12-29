@@ -10,10 +10,13 @@ Deployment is currently:
 * open tmux or screen
 * `starman -p $PORT www/server.psgi`
 
-A Dockerfile is provided for your convenience in building images based on this:
-`sudo docker build -t troglodyne:tcms`
-`sudo docker run -dp 5001:5001 troglodyne/tcms:latest starman -p 5001 www/server.psgi`
-
+A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
+```
+# Build and run the server
+./docker-deploy.sh
+# Extract configuration & local data, then spin down the server
+./docker-exfil.sh
+```
 The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
 
 Rate-Limiting is expected to be handled at the level of the webserver proxying requests to this application.
