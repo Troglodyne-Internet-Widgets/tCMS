@@ -2,7 +2,7 @@
 *.swo
 favicon.ico
 dist/
-www/assets/*.*
+www/assets
 data/DUMMY.json
 data/posts.db
 data/files/*
