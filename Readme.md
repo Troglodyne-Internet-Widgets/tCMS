@@ -13,7 +13,9 @@ Deployment is currently:
 A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
 ```
 # Build and run the server
-./docker-deploy.sh
+./fulldeploy.sh
+# Just run the server with latest changes
+./dockerdeploy.sh
 # Extract configuration & local data, then spin down the server
 ./docker-exfil.sh
 ```
