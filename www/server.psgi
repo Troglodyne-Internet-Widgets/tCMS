@@ -168,8 +168,8 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
     $code=200;
 
     #XXX doing metadata=preload on videos doesn't work right?
-    #push(@headers, "Content-Length: $sz\n");
-    push(@headers, "Last-Modified: $now_string\n");
+    #push(@headers, "Content-Length: $sz");
+    push(@headers, "Last-Modified: $now_string");
 
     my $h = join("\n",@headers);
     if (open(my $fh, '<', $path)) {
