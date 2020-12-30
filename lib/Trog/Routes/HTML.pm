@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
+use Errno qw{ENOENT};
 use File::Touch();
 use List::Util();
 use Capture::Tiny qw{capture};
@@ -431,7 +432,7 @@ sub config ($query, $render_cb) {
         theme_dir          => $td,
         stylesheets        => $css,
         scripts            => $js,
-        themes             => _get_themes(),
+        themes             => _get_themes() || [],
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
         current_data_model => $conf->param('general.data_model') // 'DUMMY',
@@ -443,7 +444,7 @@ sub config ($query, $render_cb) {
 
 sub _get_themes {
     my $dir = 'www/themes';
-    opendir(my $dh, $dir) || die "Can't opendir $dir: $!";
+    opendir(my $dh, $dir) || do { die "Can't opendir $dir: $!" unless $!{ENOENT} };
     my @tdirs = grep { !/^\./ && -d "$dir/$_" } readdir($dh);
     closedir $dh;
     return \@tdirs;
