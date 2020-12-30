@@ -37,6 +37,15 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::index,
     },
+    #Deal with most indexDocument directives interfering with proxied requests to /
+    '/index.html' => {
+        method   => 'GET',
+        callback  => \&Trog::Routes::HTML::index,
+    },
+    '/index.php'  => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::index,
+    },
 # This should only be enabled to debug
 #    '/setup' => {
 #        method   => 'GET',
@@ -378,7 +387,7 @@ sub login ($query, $render_cb) {
             my $secure = '';
             $secure = '; Secure' if $query->{scheme} eq 'https';
             @headers = (
-                "Set-Cookie: tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
+                "Set-Cookie" => "tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
             );
             $query->{failed} = 0;
         }
