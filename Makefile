@@ -5,6 +5,16 @@ install:
 	test -d data/files || mkdir data/files
 	rm pod2htmd.tmp; /bin/true
 
+.PHONY: install-service
+install-service:
+	mkdir -p ~/.config/systemd/user
+	cp service-files/systemd.unit ~/.config/systemd/user/tCMS.service
+	sed -ie 's#__REPLACEME__#$(shell pwd)#g' ~/.config/systemd/user/tCMS.service
+	systemctl --user daemon-reload
+	systemctl --user enable tCMS
+	systemctl --user start tCMS
+	loginctl enable-linger $(USER)
+
 .PHONY: test
 test: reset-dummy-data
 	prove
