@@ -301,11 +301,11 @@ sub badrequest (@args) {
 }
 
 sub redirect ($to) {
-    return [302, ["Location: $to\n"],['']]
+    return [302, ["Location" => $to],['']]
 }
 
 sub redirect_permanent ($to) {
-    return [301, ["Location: $to\n"], ['']];
+    return [301, ["Location" => $to], ['']];
 }
 
 # TODO Rate limiting route
@@ -654,7 +654,7 @@ sub avatars ($query, $render_cb) {
         users => \@posts,
     });
 
-    return [200,["Content-type: text/css\n"],[$content]];
+    return [200, ["Content-type" => "text/css" ],[$content]];
 }
 
 =head2 users
@@ -899,7 +899,7 @@ sub sitemap ($query, $render_cb) {
             $buf = $compressed;
             seek $compressed, 0, 0;
         }
-        return [200,["Content-type:$ct\n"], $buf];
+        return [200,["Content-type" => $ct], $buf];
     }
 
     @to_map = sort @to_map unless $is_index;
@@ -958,7 +958,7 @@ sub _rss ($query,$posts) {
     }
 
     require Encode;
-    return [200, ["Content-type: application/rss+xml\n"], [Encode::encode_utf8($rss->as_string)]];
+    return [200, ["Content-type" => "application/rss+xml"], [Encode::encode_utf8($rss->as_string)]];
 }
 
 =head2 manual

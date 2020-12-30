@@ -34,17 +34,17 @@ my $CHUNK_SIZE = 1024000;
 # Things we will actually produce from routes rather than just serving up files
 my $ct = 'Content-type';
 my %content_types = (
-    plain => "$ct:text/plain;",
-    html  => "$ct:text/html; charset=UTF-8",
-    json  => "$ct:application/json;",
-    blob  => "$ct:application/octet-stream;",
+    plain => "text/plain;",
+    html  => "text/html; charset=UTF-8",
+    json  => "application/json;",
+    blob  => "application/octet-stream;",
 );
 
 my $cc = 'Cache-control';
 my %cache_control = (
-    revalidate => "$cc: no-cache, max-age=0;",
-    nocache    => "$cc: no-store;",
-    static     => "$cc: public, max-age=604800, immutable",
+    revalidate => "no-cache, max-age=0",
+    nocache    => "no-store",
+    static     => "public, max-age=604800, immutable",
 );
 
 #Stuff that isn't in upstream finders
@@ -150,13 +150,11 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
         $ft = Plack::MIME->mime_type($ext) if $ext;
         $ft ||= $extra_types{$ext} if exists $extra_types{$ext};
     }
-    $ft = "$ct:$ft;" if $ft;
     $ft ||= $content_types{plain};
 
-    my @headers = ($ft);
-
+    my @headers = ($ct => $ft);
     #TODO use static Cache-Control for everything but JS/CSS?
-    push(@headers,$cache_control{revalidate});
+    push(@headers,$cc => $cache_control{revalidate});
 
     #TODO Return 304 unchanged for files that haven't changed since the requestor reports they last fetched
     my $mt = (stat($path))[9];
@@ -169,13 +167,12 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
 
     #XXX doing metadata=preload on videos doesn't work right?
     #push(@headers, "Content-Length: $sz");
-    push(@headers, "Last-Modified: $now_string");
+    push(@headers, "Last-Modified" => $now_string);
 
-    my $h = join("\n",@headers);
     if (open(my $fh, '<', $path)) {
         return sub {
             my $responder = shift;
-            my $writer = $responder->([ $code, [$h]]);
+            my $writer = $responder->([ $code, \@headers]);
             while ( read($fh, my $buf, $CHUNK_SIZE) ) {
                 $writer->write($buf);
             }
@@ -183,9 +180,9 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
             $writer->close;
         } if $streaming;
 
-        return [ $code, [$h], $fh];
+        return [ $code, \@headers, $fh];
     }
-    return [ 403, [$content_types{plain}], ["STAY OUT YOU RED MENACE"]];
+    return [ 403, [$ct => $content_types{plain}], ["STAY OUT YOU RED MENACE"]];
 }
 
 sub _render ($template, $vars, @headers) {
@@ -214,12 +211,11 @@ sub _render ($template, $vars, @headers) {
 
     $vars->{code} ||= 200;
 
-    push(@headers, $vars->{contenttype});
-    push(@headers, $vars->{cachecontrol}) if $vars->{cachecontrol};
-    my $h = join("\n",@headers);
+    push(@headers, $ct => $vars->{contenttype});
+    push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
 
     my $body = $processor->render($template,$vars);
-    return [$vars->{code}, [$h], [encode_utf8($body)]];
+    return [$vars->{code}, \@headers, [encode_utf8($body)]];
 }
 
 
