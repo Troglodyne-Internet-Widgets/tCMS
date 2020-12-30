@@ -5,6 +5,16 @@ install:
 	test -d data/files || mkdir data/files
 	rm pod2htmd.tmp; /bin/true
 
+.PHONY: install-service
+install-service:
+	mkdir -p ~/.config/systemd/user
+	cp service-files/systemd.unit ~/.config/systemd/user/tCMS.service
+	sed -ie 's#__REPLACEME__#$(shell pwd)#g' ~/.config/systemd/user/tCMS.service
+	systemctl --user daemon-reload
+	systemctl --user enable tCMS
+	systemctl --user start tCMS
+	loginctl enable-linger $(USER)
+
 .PHONY: test
 test: reset-dummy-data
 	prove
@@ -20,6 +30,6 @@ depend:
 	apt-get install -y libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl
 	apt-get install -y libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl
 	apt-get install -y libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl
-	cpanm Mojo::File Date::Format WWW::SitemapIndex::XML WWW::Sitemap::XML HTTP::Body Pod::Html URL::Encode
+	cpanm -n Mojo::File Date::Format WWW::SitemapIndex::XML WWW::Sitemap::XML HTTP::Body Pod::Html URL::Encode
 	wget -O www/scripts/fgEmojiPicker.js https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/fgEmojiPicker.js
 	wget -O www/scripts/full-emoji-list.json https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json

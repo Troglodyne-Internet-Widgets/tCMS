@@ -1,0 +1,9 @@
+[Unit]
+Description=tCMS
+
+[Install]
+WantedBy=default.target
+
+[Service]
+ExecStart=starman __REPLACEME__/www/server.psgi
+WorkingDirectory= __REPLACEME__/
