@@ -35,7 +35,6 @@ WriteMakefile(
     'List::Util'             => '0',
     'Mojo::File'             => '0',
     'POSIX'                  => '0',
-    'Plack::Mime'            => '0',
     'Pod::Html'              => '0',
     'Starman'                => '0',
     'Text::Xslate'           => '0',
