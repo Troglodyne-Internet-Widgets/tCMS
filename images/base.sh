@@ -3,8 +3,10 @@
 ctr=$(buildah from alpine:latest)
 mnt=$(buildah mount "$ctr")
 
-mkdir -p "$mnt/tmp/tcms"
+mkdir -p "$mnt/srv/tcms" "$mnt/tmp/tcms"
+cp -R bin/ config/ data/ www/ lib "$mnt/srv/tcms";
 cp Makefile.PL "$mnt/tmp/tcms/"
+make -C "$mnt/srv/tcms" --makefile "$PWD/Makefile" prereq-frontend reset-dummy-data
 
 buildah run -- $ctr sh <<EOF
   apk update
@@ -18,15 +20,12 @@ EOF
 
 rm -rf \
 	"$mnt/tmp/tcms"       \
-	"$mnt/var/cache"      \
+	"$mnt/var/cache/*"    \
 	"$mnt/root/.cpanm"    \
 	"$mnt/usr/share/man/" \
   "$mnt/usr/local/share/man"
 
 find "$mnt/usr/lib/perl5" -name '*.pod' -delete
-
-mkdir -p "$mnt/srv/tcms"
-cp -R bin/ config/ data/ www/ lib "$mnt/srv/tcms";
 
 buildah config                              \
   --workingdir "/srv/tcms/"                 \
