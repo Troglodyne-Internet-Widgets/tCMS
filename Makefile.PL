@@ -5,6 +5,16 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
   VERSION   => '0.01',
+  META_MERGE        => {
+    "meta-spec" => { version => 2 },
+    resources => {
+      repository => {
+          type => 'git',
+          url  => 'git@github.com:Troglodyne-Internet-Widgets/tCMS.git',
+          web  => 'https://github.com/Troglodyne-Internet-Widgets/tCMS',
+      },
+    },
+  },
   PREREQ_PM => {
     'CGI::Cookie'            => '0',
     'Capture::Tiny'          => '0',
