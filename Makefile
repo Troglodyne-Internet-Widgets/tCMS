@@ -22,7 +22,10 @@ reset-dummy-data:
 	cp -f data/DUMMY-dist.json data/DUMMY.json
 
 .PHONY: prereq-debian
-prereq-debian: prereq-frontend prereq-perl
+prereq-debian: prereq-debs prereq-perl prereq-frontend
+
+.PHONY: prereq-debs
+prereq-debs:
 	apt-get install -y sqlite3 libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 wget                         \
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
@@ -30,6 +33,7 @@ prereq-debian: prereq-frontend prereq-perl
 	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl
 
 .PHONY: prereq-perl
+prereq-perl:
 	cpanm -n --installdeps .
 
 .PHONY: prereq-frontend
