@@ -72,7 +72,10 @@ my $app = sub {
 
     my $query = {};
     $query = URL::Encode::url_params_mixed($env->{QUERY_STRING}) if $env->{QUERY_STRING};
+
     my $path = $env->{PATH_INFO};
+    # Collapse multiple slashes in the path
+    $path =~ s/[\/]+/\//g;
 
     # Let's open up our default route before we bother to see if users even exist
     return $routes{default}{callback}->($query,\&_render) unless -f "config/setup";
@@ -194,6 +197,18 @@ sub _render ($template, $vars, @headers) {
         path   => 'www/templates',
         header => ['header.tx'],
         footer => ['footer.tx'],
+        function => {
+            iso8601 => sub {
+                my $t = shift;
+                my $dt  = DateTime->from_epoch( epoch => $t );
+                return $dt->iso8601;
+            },
+            strip_and_trunc => sub {
+                my $s = shift;
+                $s =~ s/<[^>]*>//g;
+                return substr $s, 0, 280;
+            },
+        },
     );
 
     #XXX default vars that need to be pulled from config

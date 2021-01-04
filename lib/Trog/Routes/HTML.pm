@@ -250,7 +250,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     #Header SEO stuff
     my $default_tags = $Theme::tags;
-    $default_tags .= ','.$query->{primary_post}->{tags} if $default_tags && $query->{primary_post}->{tags};
+    $default_tags .= ','.join(',',$query->{primary_post}->{tags}) if $default_tags && $query->{primary_post}->{tags};
 
     #TODO truncate this and filter out to innerHTML
     my $meta_desc  = $query->{primary_post}->{data} // $Theme::description // "tCMS Site";
@@ -721,6 +721,10 @@ sub posts ($query, $render_cb) {
         @posts = _post_helper($query, $tags, $query->{acls});
     }
 
+    if ($query->{id}) {
+        $query->{primary_post} = $posts[0] if @posts;
+    }
+
     #OK, so if we have a user as the ID we found, go grab the rest of their posts
     if ($query->{id} && @posts && grep { $_ eq 'about'} @{$posts[0]->{tags}} ) {
         my $user = shift(@posts);
@@ -728,7 +732,6 @@ sub posts ($query, $render_cb) {
         $query->{author} = $user->{user};
         @posts = _post_helper($query, [], $query->{acls});
         @posts = grep { $_->{id} ne $id } @posts;
-        $query->{primary_post} = $posts[0];
         unshift @posts, $user;
     }
 
