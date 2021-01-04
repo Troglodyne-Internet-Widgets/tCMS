@@ -255,6 +255,8 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     #TODO truncate this and filter out to innerHTML
     my $meta_desc  = $query->{primary_post}->{data} // $Theme::description // "tCMS Site";
 
+    my $fb_app_id = $conf->param('general.fb_app_id');
+
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
     return $render_cb->( $tmpl, {
         code           => $query->{code},
@@ -262,6 +264,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         search_lang    => $search_info->lang(),
         search_help    => $search_info->help(),
         route          => $query->{route},
+        domain         => $query->{domain},
         theme_dir      => $td,
         content        => $content,
         title          => $query->{title} // $Theme::default_title // 'tCMS',
@@ -279,7 +282,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         primary_post   => $query->{primary_post},
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
-        fb_app_id      => $conf->param('general.fb_app_id'),
+        fb_app_id      => $fb_app_id,
     });
 }
 
