@@ -283,6 +283,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
         fb_app_id      => $fb_app_id,
+        indexable      => 1,
     });
 }
 
@@ -461,6 +462,7 @@ sub config ($query, $render_cb) {
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
         current_data_model => $conf->param('general.data_model') // 'DUMMY',
+        fb_app_id          => $conf->param('general.fb_app_id') // '',
         message     => $query->{message},
         failure     => $query->{failure},
         to          => '/config',
@@ -492,6 +494,7 @@ Implements /config/save route.  Saves what little configuration we actually use 
 sub config_save ($query, $render_cb) {
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
+    $conf->param( 'general.fb_app_id', $query->{fb_app_id} ) if $query->{fb_app_id};
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";

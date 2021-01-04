@@ -4,7 +4,7 @@
  General settings:
 </p>
 This controls your Theme and Data Model used.
-The Data Model *must* be 0-configuration.
+The Data Model <em>must</em> be 0-configuration.
 If for example, you use mysql it will have to rely on either a local server, valid config file or connection proxy/pooler locally.
 <hr />
 <form class="Submissions Config" id="mainConfig" method="post" action="/config/save">
@@ -22,6 +22,10 @@ If for example, you use mysql it will have to rely on either a local server, val
         <option value="<: $dm :>" <: if ( $current_data_model == $dm ) { :>selected<: } :> ><: $dm :></option>
         : }
     </select>
+    </div>
+    <div>
+    <span>Facebook App ID:</span>
+    <input type="text" class="cooltext" name="fb_app_id" value="<: $fb_app_id :>" />
     </div>
     <br />
     <input type="submit" class="coolbutton" value="Commit Changes" />

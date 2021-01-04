@@ -205,6 +205,7 @@ sub _render ($template, $vars, @headers) {
             },
             strip_and_trunc => sub {
                 my $s = shift;
+                return unless $s;
                 $s =~ s/<[^>]*>//g;
                 return substr $s, 0, 280;
             },

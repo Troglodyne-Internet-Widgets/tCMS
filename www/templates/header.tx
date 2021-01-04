@@ -4,62 +4,10 @@
         <title><: $title :></title>
         <meta charset="utf-8" />
         <link rel="icon" type="image/vnd.microsoft.icon" href="<: $theme_dir :>/img/icon/favicon.ico" />
-        <meta name="description" content="<: $meta_desc | strip_and_trunc :>"/>
-        : if ($default_tags) {
-        <meta name="tags" content="<: $default_tags :>" />
-        : }
 
-        <meta property="postid" content="<: $primary_post.id :>" />
-
-        <!-- Open Graph / Facebook -->
-        <meta property="og:type" content="<: $og_type :>" />
-        <meta property="og:url" content="https://<: $domain :>/<: $route :>" />
-        <meta property="og:title" content="<: $title :>" />
-        : if ($default_tags) {
-        <meta property="og:article:tags" content="<: $default_tags :>" />
+        : if ($indexable) {
+        : include "meta.tx";
         : }
-        : if ($primary_post.is_image) {
-        <meta property="og:image" content="https://<: $domain :>/<: $primary_post.href :>" />
-        <meta property="og:image:type" content="<: $primary_post.content_type :>" />
-        <meta property="og:image:width" content="1280" />
-        <meta property="og:image:height" content=720 />
-        : }
-        : elsif ($primary_post.is_video) {
-        <meta property="og:video" content="https://<: $domain :>/<: $primary_post.href :>" />
-        <meta property="og:video:type"  content="<: $primary_post.content_type :>" />
-        <meta property="og:video:width" content="1280" />
-        <meta property="og:video:height" content="720" />
-        <meta property="og:video:image"  content="https://<: $domain :>/<: $primary_post.preview :>" />
-        : }
-        : if ($primary_post.user) {
-        <meta property="og:article:author" content="<: $primary_post.user :>" />
-        : }
-        : if ($primary_post.created) {
-        <meta property="og:article:published_time" content="<: $primary_post.created | iso8601 :>" />
-        <meta property="og:article:modified_time" content="<: $primary_post.created | iso8601 :>" />
-        : }
-        : if ($fb_app_id) {
-        <meta property="fb:app_id" content="<: $fb_app_id :>" />
-        : }
-
-        <!-- Twitter -->
-        <meta property="twitter:card" content="<: $twitter_type :>" />
-        <meta property="twitter:url" content="https://<: $domain :>/<: $route :>" />
-        : if ($primary_post.is_image) {
-        <meta property="twitter:image" content="https://<: $domain :>/<: $primary_post.href :>" />
-        <meta property="twitter:image:type" content="<: $primary_post.type :>" />
-        <meta property="twitter:image:width" content="1280" />
-        <meta property="twitter:image:height" content=720 />
-        : }
-        : elsif ($primary_post.is_video) {
-        <meta property="twitter:player:stream" content="https://<: $domain :>/<: $primary_post.href :>" />
-        <meta property="twitter:player:stream:content_type"  content="<: $primary_post.type :>" />
-        <meta property="twitter:player:width" content="1280" />
-        <meta property="twitter:player:height" content="720" />
-        <meta property="twitter:player" content="https://<: $domain :>/<: $route :>?embed=1" />
-        : }
-        <meta property="twitter:title" content="<: $title :>" />
-        <meta property="twitter:description" content="<: $meta_desc | strip_and_trunc :>" />
 
         <meta name="viewport" content="width=device-width">
         <link rel="stylesheet" type="text/css" href="/styles/structure.css" />
