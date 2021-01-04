@@ -248,25 +248,38 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     my $search_info = Trog::Data->new($conf);
 
+    #Header SEO stuff
+    my $default_tags = $Theme::tags;
+    $default_tags .= ','.$query->{primary_post}->{tags} if $default_tags && $query->{primary_post}->{tags};
+
+    #TODO truncate this and filter out to innerHTML
+    my $meta_desc  = $query->{primary_post}->{data} // $Theme::description // "tCMS Site";
+
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
     return $render_cb->( $tmpl, {
-        code        => $query->{code},
-        user        => $query->{user},
-        search_lang => $search_info->lang(),
-        search_help => $search_info->help(),
-        route       => $query->{route},
-        theme_dir   => $td,
-        content     => $content,
-        title       => $query->{title} // $Theme::default_title // 'tCMS',
-        htmltitle   => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
-        midtitle    => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
-        rightbar    => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
-        leftbar     => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
-        footbar     => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
+        code           => $query->{code},
+        user           => $query->{user},
+        search_lang    => $search_info->lang(),
+        search_help    => $search_info->help(),
+        route          => $query->{route},
+        theme_dir      => $td,
+        content        => $content,
+        title          => $query->{title} // $Theme::default_title // 'tCMS',
+        htmltitle      => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
+        midtitle       => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
+        rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
+        leftbar        => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
+        footbar        => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
         category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
-        stylesheets => \@styles,
-        show_madeby => $Theme::show_madeby ? 1 : 0,
-        embed       => $query->{embed} ? 1 : 0,
+        stylesheets    => \@styles,
+        show_madeby    => $Theme::show_madeby ? 1 : 0,
+        embed          => $query->{embed} ? 1 : 0,
+        og_type        => $query->{og_type},
+        twitter_type   => $query->{twitter_type},
+        primary_post   => $query->{primary_post},
+        default_tags   => $default_tags,
+        meta_desc      => $meta_desc,
+        fb_app_id      => $conf->param('general.fb_app_id'),
     });
 }
 
@@ -641,6 +654,7 @@ sub series ($query, $render_cb) {
     $query->{subhead} = $posts[0]->{data};
     $query->{title} = $posts[0]->{title};
     $query->{tag} = $posts[0]->{aclname};
+    $query->{primary_post} = $posts[0];
     return posts($query,$render_cb);
 }
 
@@ -680,6 +694,7 @@ sub users ($query, $render_cb) {
     $query->{id} = $user[0]->{id};
     $query->{title} = $user[0]->{title};
     $query->{user_obj} = $user[0];
+    $query->{primary_post} = $posts[0];
     return posts($query,$render_cb);
 }
 
@@ -710,6 +725,7 @@ sub posts ($query, $render_cb) {
         $query->{author} = $user->{user};
         @posts = _post_helper($query, [], $query->{acls});
         @posts = grep { $_->{id} ne $id } @posts;
+        $query->{primary_post} = $posts[0];
         unshift @posts, $user;
     }
 

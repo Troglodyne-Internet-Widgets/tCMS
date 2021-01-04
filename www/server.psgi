@@ -132,11 +132,14 @@ my $app = sub {
     #Set various things we don't want overridden
     $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
-    $query->{user}    = $active_user;
-    $query->{domain}  = $env->{HTTP_HOST};
-    $query->{route}   = $env->{REQUEST_URI};
-    $query->{route}   =~ s/\?\Q$env->{QUERY_STRING}\E//;
-    $query->{scheme}  = $env->{'psgi.url_scheme'} // 'http';
+    $query->{user}         = $active_user;
+    $query->{domain}       = $env->{HTTP_HOST};
+    $query->{route}        = $env->{REQUEST_URI};
+    $query->{route}        =~ s/\?\Q$env->{QUERY_STRING}\E//;
+    $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
+    $query->{og_type}      = 'website';
+    $query->{twitter_type} = 'summary';
+    $query->{primary_post} = {};
 
     my $output =  $routes{$path}{callback}->($query, \&_render);
     return $output;
