@@ -10,7 +10,9 @@ use Errno qw{ENOENT};
 use File::Touch();
 use List::Util();
 use Capture::Tiny qw{capture};
+use HTML::SocialMeta;
 
+use Trog::Utils;
 use Trog::Config;
 use Trog::Data;
 
@@ -248,14 +250,48 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     my $search_info = Trog::Data->new($conf);
 
-    #Header SEO stuff
-    my $default_tags = $Theme::tags;
+    # Handle link "unfurling" correctly
+    my $default_tags = $Theme::default_tags;
     $default_tags .= ','.join(',',$query->{primary_post}->{tags}) if $default_tags && $query->{primary_post}->{tags};
 
-    #TODO truncate this and filter out to innerHTML
-    my $meta_desc  = $query->{primary_post}->{data} // $Theme::description // "tCMS Site";
+    my $meta_desc  = $query->{primary_post}{data} // $Theme::description // "tCMS Site";
+    $meta_desc = Trog::Utils::strip_and_trunc($meta_desc);
 
-    my $fb_app_id = $conf->param('general.fb_app_id');
+    my $meta_tags = '';
+    my $card_type = 'summary';
+    $card_type = 'featured_image' if $query->{primary_post} && $query->{primary_post}{is_image};
+    $card_type = 'player'         if $query->{primary_post} && $query->{primary_post}{is_video};
+
+    my $image = "https://$query->{domain}/$td/$Theme::default_image";
+    $image = "https://$query->{domain}/$query->{primary_post}{preview}" if $query->{primary_post} && $query->{primary_post}{preview};
+    $image = "https://$query->{domain}/$query->{primary_post}{href}"    if $query->{primary_post} && $query->{primary_post}{is_image};
+
+    my $primary_route =  "https://$query->{domain}/$query->{route}";
+    $primary_route =~  s/[\/]+/\//g;
+
+    my $title = $query->{title} // $Theme::default_title // 'tCMS';
+    my $display_name = $Theme::display_name // 'Another tCMS Site';
+
+    my %sopts = (
+        site_name   => $display_name,
+        app_name    => $display_name,
+        title       => $title,
+        description => $meta_desc,
+        url         => $primary_route,
+    );
+    $sopts{site}  = $Theme::twitter_account if $Theme::twitter_account;
+    $sopts{image} = $image if $image;
+    $sopts{fb_app_id} = $Theme::fb_app_id if $Theme::fb_app_id;
+    if ($query->{primary_post} && $query->{primary_post}{is_video}) {
+        $sopts{player} = "$primary_route?embed=1";
+        #XXX don't hardcode this
+        $sopts{player_width} = 1280;
+        $sopts{player_height} = 720;
+    }
+    my $social = HTML::SocialMeta->new(%sopts);
+    $meta_tags = eval { $social->create($card_type) };
+
+    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" unless $meta_tags;
 
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
     return $render_cb->( $tmpl, {
@@ -267,7 +303,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         domain         => $query->{domain},
         theme_dir      => $td,
         content        => $content,
-        title          => $query->{title} // $Theme::default_title // 'tCMS',
+        title          => $title,
         htmltitle      => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
         midtitle       => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
         rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
@@ -277,12 +313,9 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         stylesheets    => \@styles,
         show_madeby    => $Theme::show_madeby ? 1 : 0,
         embed          => $query->{embed} ? 1 : 0,
-        og_type        => $query->{og_type},
-        twitter_type   => $query->{twitter_type},
-        primary_post   => $query->{primary_post},
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
-        fb_app_id      => $fb_app_id,
+        meta_tags      => $meta_tags,
         indexable      => 1,
     });
 }
@@ -462,7 +495,6 @@ sub config ($query, $render_cb) {
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
         current_data_model => $conf->param('general.data_model') // 'DUMMY',
-        fb_app_id          => $conf->param('general.fb_app_id') // '',
         message     => $query->{message},
         failure     => $query->{failure},
         to          => '/config',
@@ -494,7 +526,6 @@ Implements /config/save route.  Saves what little configuration we actually use 
 sub config_save ($query, $render_cb) {
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
-    $conf->param( 'general.fb_app_id', $query->{fb_app_id} ) if $query->{fb_app_id};
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";

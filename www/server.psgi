@@ -21,6 +21,7 @@ use lib 'lib';
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
 use Trog::Auth;
+use Trog::Utils;
 
 # Troglodyne philosophy - simple as possible
 
@@ -203,12 +204,7 @@ sub _render ($template, $vars, @headers) {
                 my $dt  = DateTime->from_epoch( epoch => $t );
                 return $dt->iso8601;
             },
-            strip_and_trunc => sub {
-                my $s = shift;
-                return unless $s;
-                $s =~ s/<[^>]*>//g;
-                return substr $s, 0, 280;
-            },
+            strip_and_trunc => \&Trog::Utils::strip_and_trunc,
         },
     );
 

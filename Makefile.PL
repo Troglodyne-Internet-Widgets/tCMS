@@ -30,6 +30,7 @@ WriteMakefile(
     'File::Copy'             => '0',
     'File::Slurper'          => '0',
     'File::Touch'            => '0',
+    'HTML::SocialMeta'       => '0',
     'HTTP::Body'             => '0',
     'JSON::MaybeXS'          => '0',
     'List::Util'             => '0',
