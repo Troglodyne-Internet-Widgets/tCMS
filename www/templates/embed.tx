@@ -1,3 +1,19 @@
+:if ($embed_video) {
+<style>
+.divider, .blogtitles, #postData {
+    display:none;
+}
+video {
+    height: unset !important;
+    width: 100% !important;
+}
+</style>
+: }
+
+: if (!$embed_video) {
 <div id="kontent" class="kontained">
+: }
     <: $content | mark_raw :>
+: if (!$embed_video) {
 </div>
+: }
