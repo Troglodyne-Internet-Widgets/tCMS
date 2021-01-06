@@ -392,6 +392,9 @@ p.posteditortitle {
     width: 100%;
     height: 10rem;
   }
+  .responsive-text {
+    width:100%;
+  }
 }
 
 /* For tcms Advert */

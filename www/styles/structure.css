@@ -99,6 +99,10 @@ blockquote {
     width: 35rem;
     height: 20rem;
 }
+.responsive-text {
+    width: 35rem;
+}
+
 .square {
     width: 20rem;
     height: 20rem;

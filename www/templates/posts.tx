@@ -96,7 +96,7 @@
             : }
             : if( $post.data ) {
                 : if ($post.is_video || $post.is_image) {
-                <div id="postData" class="responsive">
+                <div id="postData" class="responsive-text">
                 : } else {
                 <div id="postData">
                 : }
