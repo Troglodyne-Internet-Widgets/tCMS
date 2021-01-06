@@ -252,7 +252,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     # Handle link "unfurling" correctly
     my $default_tags = $Theme::default_tags;
-    $default_tags .= ','.join(',',$query->{primary_post}->{tags}) if $default_tags && $query->{primary_post}->{tags};
+    $default_tags .= ','.join(',',@{$query->{primary_post}->{tags}}) if $default_tags && $query->{primary_post}->{tags};
 
     my $meta_desc  = $query->{primary_post}{data} // $Theme::description // "tCMS Site";
     $meta_desc = Trog::Utils::strip_and_trunc($meta_desc);
