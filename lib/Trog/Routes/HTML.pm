@@ -289,7 +289,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         #XXX don't hardcode this
         $sopts{player_width} = 1280;
         $sopts{player_height} = 720;
-	$extra_tags .= "<meta property='og:video:type' content='$query->{primary_post}{content_type}' />\n";
+    $extra_tags .= "<meta property='og:video:type' content='$query->{primary_post}{content_type}' />\n";
     }
     my $social = HTML::SocialMeta->new(%sopts);
     $meta_tags = eval { $social->create($card_type) };
@@ -318,7 +318,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         stylesheets    => \@styles,
         show_madeby    => $Theme::show_madeby ? 1 : 0,
         embed          => $query->{embed} ? 1 : 0,
-	embed_video    => $query->{primary_post}{is_video},
+        embed_video    => $query->{primary_post}{is_video},
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
         meta_tags      => $meta_tags,

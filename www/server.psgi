@@ -188,11 +188,11 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
             $writer->close;
         } if $streaming && $sz > $CHUNK_SIZE;
 
-	#Compress everything less than 1MB
+    #Compress everything less than 1MB
     push( @headers, "Content-Encoding" => "deflate" );
-	my $dfh;
-	IO::Compress::Deflate::deflate( $fh => \$dfh );
-	print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+    my $dfh;
+    IO::Compress::Deflate::deflate( $fh => \$dfh );
+    print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
         push( @headers, "Content-Length" => length($dfh) );
         return [ $code, \@headers, [$dfh]];
     }
@@ -238,12 +238,12 @@ sub _render ($template, $vars, @headers) {
 
     my $body = $processor->render($template,$vars);
 
-	#Compress
+    #Compress
     push( @headers, "Content-Encoding" => "deflate" );
-	my $dfh;
+    my $dfh;
     $body = encode_utf8($body);
-	IO::Compress::Deflate::deflate( \$body => \$dfh );
-	print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+    IO::Compress::Deflate::deflate( \$body => \$dfh );
+    print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
     push( @headers, "Content-Length" => length($dfh) );
     return [$vars->{code}, \@headers, [$dfh]];
 }
