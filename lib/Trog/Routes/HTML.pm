@@ -250,7 +250,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     my $search_info = Trog::Data->new($conf);
 
-    my $title = $query->{title} // $Theme::default_title // 'tCMS';
+    my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
 
     # Handle link "unfurling" correctly
     my ($default_tags, $meta_desc, $meta_tags) = _build_social_meta($query,$title);
