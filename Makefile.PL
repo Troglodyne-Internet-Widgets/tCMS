@@ -32,6 +32,7 @@ WriteMakefile(
     'File::Touch'            => '0',
     'HTML::SocialMeta'       => '0',
     'HTTP::Body'             => '0',
+    'IO::String'             => '0',
     'JSON::MaybeXS'          => '0',
     'List::Util'             => '0',
     'Mojo::File'             => '0',
