@@ -189,9 +189,11 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
         } if $streaming && $sz > $CHUNK_SIZE;
 
 	#Compress everything less than 1MB
+    push( @headers, "Content-Encoding" => "deflate" );
 	my $dfh;
-	IO::Compress::Deflate::deflate( $fh => $$dfh );
+	IO::Compress::Deflate::deflate( $fh => \$dfh );
 	print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+        push( @headers, "Content-Length" => length($dfh) );
         return [ $code, \@headers, [$dfh]];
     }
     return [ 403, [$ct => $content_types{plain}], ["STAY OUT YOU RED MENACE"]];
@@ -235,7 +237,15 @@ sub _render ($template, $vars, @headers) {
     push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
 
     my $body = $processor->render($template,$vars);
-    return [$vars->{code}, \@headers, [encode_utf8($body)]];
+
+	#Compress
+    push( @headers, "Content-Encoding" => "deflate" );
+	my $dfh;
+    $body = encode_utf8($body);
+	IO::Compress::Deflate::deflate( \$body => \$dfh );
+	print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+    push( @headers, "Content-Length" => length($dfh) );
+    return [$vars->{code}, \@headers, [$dfh]];
 }
 
 
