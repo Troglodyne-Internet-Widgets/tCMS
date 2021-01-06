@@ -95,7 +95,11 @@
                     <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
             : }
             : if( $post.data ) {
+                : if ($post.is_video || $post.is_image) {
+                <div id="postData" class="responsive">
+                : } else {
                 <div id="postData">
+                : }
                     : if ( $post.is_profile ) {
                     <h3><: $post.title :></h3>
                     : }
