@@ -326,7 +326,7 @@ sub _build_social_meta ($query,$title) {
     }
     my $social = HTML::SocialMeta->new(%sopts);
     $meta_tags = eval { $social->create($card_type) };
-    $meta_tags =~ s/content="video"/content="video:movie"/mg if $meta_tags;
+    $meta_tags =~ s/content="video"/content="video:other"/mg if $meta_tags;
     $meta_tags .= $extra_tags if $extra_tags;
 
     print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" unless $meta_tags;
