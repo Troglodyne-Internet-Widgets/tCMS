@@ -5,14 +5,14 @@
         <meta charset="utf-8" />
         <link rel="icon" type="image/vnd.microsoft.icon" href="<: $theme_dir :>/img/icon/favicon.ico" />
 
-        : if ($indexable) {
+        : if ($meta_desc) {
         <meta name="description" content="<: $meta_desc :>"/>
+        : }
         : if ($default_tags) {
         <meta name="tags" content="<: $default_tags :>" />
         : }
         : if ($meta_tags) {
         <: $meta_tags | mark_raw :>
-        : }
         : }
 
         <meta name="viewport" content="width=device-width">

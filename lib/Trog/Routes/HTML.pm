@@ -250,7 +250,41 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     my $search_info = Trog::Data->new($conf);
 
+    my $title = $query->{title} // $Theme::default_title // 'tCMS';
+
     # Handle link "unfurling" correctly
+    my ($default_tags, $meta_desc, $meta_tags) = _build_social_meta($query,$title);
+
+    #Do embed content
+    my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
+    return $render_cb->( $tmpl, {
+        code           => $query->{code},
+        user           => $query->{user},
+        search_lang    => $search_info->lang(),
+        search_help    => $search_info->help(),
+        route          => $query->{route},
+        domain         => $query->{domain},
+        theme_dir      => $td,
+        content        => $content,
+        title          => $title,
+        htmltitle      => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
+        midtitle       => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
+        rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
+        leftbar        => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
+        footbar        => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
+        category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
+        stylesheets    => \@styles,
+        show_madeby    => $Theme::show_madeby ? 1 : 0,
+        embed          => $query->{embed} ? 1 : 0,
+        embed_video    => $query->{primary_post}{is_video},
+        default_tags   => $default_tags,
+        meta_desc      => $meta_desc,
+        meta_tags      => $meta_tags,
+    });
+}
+
+sub _build_social_meta ($query,$title) {
+    return (undef,undef,undef) unless $query->{social_meta};
     my $default_tags = $Theme::default_tags;
     $default_tags .= ','.join(',',@{$query->{primary_post}->{tags}}) if $default_tags && $query->{primary_post}->{tags};
 
@@ -269,7 +303,6 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     my $primary_route =  "https://$query->{domain}/$query->{route}";
     $primary_route =~  s/[\/]+/\//g;
 
-    my $title = $query->{title} // $Theme::default_title // 'tCMS';
     my $display_name = $Theme::display_name // 'Another tCMS Site';
 
     my $extra_tags ='';
@@ -297,33 +330,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     $meta_tags .= $extra_tags if $extra_tags;
 
     print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" unless $meta_tags;
-
-    my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
-    return $render_cb->( $tmpl, {
-        code           => $query->{code},
-        user           => $query->{user},
-        search_lang    => $search_info->lang(),
-        search_help    => $search_info->help(),
-        route          => $query->{route},
-        domain         => $query->{domain},
-        theme_dir      => $td,
-        content        => $content,
-        title          => $title,
-        htmltitle      => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
-        midtitle       => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
-        rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
-        leftbar        => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
-        footbar        => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
-        category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
-        stylesheets    => \@styles,
-        show_madeby    => $Theme::show_madeby ? 1 : 0,
-        embed          => $query->{embed} ? 1 : 0,
-        embed_video    => $query->{primary_post}{is_video},
-        default_tags   => $default_tags,
-        meta_desc      => $meta_desc,
-        meta_tags      => $meta_tags,
-        indexable      => 1,
-    });
+    return ($default_tags, $meta_desc, $meta_tags);
 }
 
 =head1 ADMIN ROUTES

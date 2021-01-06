@@ -142,8 +142,7 @@ my $app = sub {
     $query->{route}        = $env->{REQUEST_URI};
     $query->{route}        =~ s/\?\Q$env->{QUERY_STRING}\E//;
     $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
-    $query->{og_type}      = 'website';
-    $query->{twitter_type} = 'summary';
+    $query->{social_meta}  = 1;
     $query->{primary_post} = {};
 
     my $output =  $routes{$path}{callback}->($query, \&_render);
