@@ -15,6 +15,7 @@ use DateTime::Format::HTTP();
 use Encode qw{encode_utf8};
 use CGI::Cookie ();
 use File::Basename();
+use IO::Compress::Deflate();
 
 #Grab our custom routes
 use lib 'lib';
@@ -165,7 +166,7 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
 
     #TODO Return 304 unchanged for files that haven't changed since the requestor reports they last fetched
     my $mt = (stat($path))[9];
-    #my $sz = (stat(_))[7];
+    my $sz = (stat(_))[7];
     my @gm = gmtime($mt);
     my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
     my $code = $mt > $last_fetch ? 200 : 304;
@@ -185,9 +186,13 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
             }
             close $fh;
             $writer->close;
-        } if $streaming;
+        } if $streaming && $sz > $CHUNK_SIZE;
 
-        return [ $code, \@headers, $fh];
+	#Compress everything less than 1MB
+	my $dfh;
+	IO::Compress::Deflate::deflate( $fh => $$dfh );
+	print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+        return [ $code, \@headers, [$dfh]];
     }
     return [ 403, [$ct => $content_types{plain}], ["STAY OUT YOU RED MENACE"]];
 }
