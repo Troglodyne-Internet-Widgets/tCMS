@@ -15,4 +15,5 @@ function add2tags(id) {
     newOption.innerText = input.value;
     newOption.selected = true;
     select.appendChild(newOption);
+    input.value= '';
 }
