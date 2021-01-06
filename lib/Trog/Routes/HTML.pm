@@ -950,13 +950,13 @@ sub sitemap ($query, $render_cb) {
                     $data{images} = [{
                         loc => "http://$query->{domain}$url->{href}",
                         caption => $url->{data},
-                        title => $url->{title},
+                        title => substr($url->{title},0,100),
                     }] if $url->{is_image};
 
                     $data{videos} = [{
                         content_loc   => "http://$query->{domain}$url->{href}",
                         thumbnail_loc => "http://$query->{domain}$url->{preview}",
-                        title         => $url->{title},
+                        title         => substr($url->{title},0,100),
                         description   => $url->{data},
                     }] if $url->{is_video};
                 }
