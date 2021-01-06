@@ -318,7 +318,8 @@ sub _build_social_meta ($query,$title) {
     $sopts{image} = $image if $image;
     $sopts{fb_app_id} = $Theme::fb_app_id if $Theme::fb_app_id;
     if ($query->{primary_post} && $query->{primary_post}{is_video}) {
-        $sopts{player} = "$primary_route?embed=1";
+	#$sopts{player} = "$primary_route?embed=1";
+	$sopts{player} = "https://$query->{domain}/$query->{primary_post}{href}";
         #XXX don't hardcode this
         $sopts{player_width} = 1280;
         $sopts{player_height} = 720;
