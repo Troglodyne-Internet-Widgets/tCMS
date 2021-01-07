@@ -101,7 +101,7 @@ my $app = sub {
     }
 
     # If it's just a file, serve it up
-    my $alist = $env->{HTTP_ACCEPT_ENCODING};
+    my $alist = $env->{HTTP_ACCEPT_ENCODING} || '';
     $alist =~ s/\s//g;
     my @accept_encodings;
     @accept_encodings = split(/,/, $alist);
