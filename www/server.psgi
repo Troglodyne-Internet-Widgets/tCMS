@@ -127,8 +127,9 @@ my $app = sub {
 
     $query->{deflate} = $deflate;
     $query->{user}    = $active_user;
+
     return Trog::Routes::HTML::notfound($query, \&_render) unless exists $routes{$path};
-    return Trog::Routes::HTML::badrequest($query, \&_render) unless grep { $routes{$path}{method} eq $_ } ($env->{REQUEST_METHOD},'HEAD');
+    return Trog::Routes::HTML::badrequest($query, \&_render) unless grep { $env->{REQUEST_METHOD} eq $_ } ($routes{$path}{method},'HEAD');
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
 
