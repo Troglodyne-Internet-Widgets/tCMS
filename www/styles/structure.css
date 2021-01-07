@@ -1,6 +1,7 @@
 /*First, we start off with specifying what parts of the DOM we want hidden*/
 #leftbar, #rightbar, #footbar {
-    display: block;
+    display: table-cell;
+    vertical-align:top;
 }
 
 /*Now, on to positioning of the elements*/
@@ -62,13 +63,13 @@ body {
 #leftbar {
  width: 6em;
  padding-right: .5em;
+ padding-top: 1rem;
 }
 #kontent {
  padding: 3em .5em .5em .5em;
  min-height: 50%;
  max-width: 100%;
  margin-top: 0px;
- width:100%;
 }
 #rightbar {
  width: 6em;
