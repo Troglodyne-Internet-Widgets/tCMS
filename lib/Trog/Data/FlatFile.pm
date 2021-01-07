@@ -28,7 +28,7 @@ You can only post once per second due to it storing each post as a file named af
 
 =cut
 
-our $parser = JSON::MaybeXS->new( utf8 => 1 );
+our $parser = JSON::MaybeXS->new( utf8 => 1);
 
 sub read ($self, $query={}) {
     $query->{limit} //= 25;
@@ -47,7 +47,7 @@ sub read ($self, $query={}) {
     my @items;
     foreach my $item (@index) {
         next unless -f $item;
-        my $slurped = eval { File::Slurper::read_binary($item) };
+        my $slurped = eval { File::Slurper::read_text($item) };
         if (!$slurped) {
             print "Failed to Read $item:\n$@\n";
             next;
@@ -82,7 +82,7 @@ sub write($self,$data) {
         my $file = "$datastore/$post->{id}";
         my $update = [$post];
         if (-f $file) {
-            my $slurped = File::Slurper::read_binary($file);
+            my $slurped = File::Slurper::read_text($file);
             my $parsed  = $parser->decode($slurped);
 
             $update = [(@$parsed, $post)];
