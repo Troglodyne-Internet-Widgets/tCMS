@@ -38,6 +38,6 @@ prereq-perl:
 
 .PHONY: prereq-frontend
 prereq-frontend:
-	mkdir -p www/scripts; cd www/scripts && curl --remote-name-all                                  \
+	mkdir -p www/scripts; cd www/scripts && curl -L --remote-name-all                                 \
 		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/fgEmojiPicker.js"     \
 	  "https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json"
