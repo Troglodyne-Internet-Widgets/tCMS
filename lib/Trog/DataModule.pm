@@ -121,6 +121,8 @@ sub filter ($self, $query, @filtered) {
     @filtered = _dedup_versions(undef, @filtered);
 
     #Filter out posts which are too old
+    #Coerce older into numeric
+    $request{older} =~ s/[^0-9]//g if $request{older};
     @filtered = grep { $_->{created} < $request{older} } @filtered if $request{older};
 
     #XXX Heal bad data -- probably not needed
