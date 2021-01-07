@@ -67,6 +67,9 @@ If a path passed is not a defined route (or regex route), but exists as a file u
 my $app = sub {
     my $env = shift;
 
+    #use Data::Dumper;
+    #print Dumper($env);
+
     my $last_fetch = 0;
     if ($env->{HTTP_IF_MODIFIED_SINCE}) {
         $last_fetch = DateTime::Format::HTTP->parse_datetime($env->{HTTP_IF_MODIFIED_SINCE})->epoch();
@@ -98,7 +101,13 @@ my $app = sub {
     }
 
     # If it's just a file, serve it up
-    return _serve("www/$path", $env->{'psgi.streaming'}, $last_fetch) if -f "www/$path";
+    my $alist = $env->{HTTP_ACCEPT_ENCODING};
+    $alist =~ s/\s//g;
+    my @accept_encodings;
+    @accept_encodings = split(/,/, $alist);
+    my $deflate = grep { 'deflate' eq $_ } @accept_encodings;
+
+    return _serve("www/$path", $env->{'psgi.streaming'}, $last_fetch, $deflate) if -f "www/$path";
 
     #Handle regex/capture routes
     if (!exists $routes{$path}) {
@@ -116,9 +125,10 @@ my $app = sub {
         }
     }
 
-    $query->{user}   = $active_user;
+    $query->{deflate} = $deflate;
+    $query->{user}    = $active_user;
     return Trog::Routes::HTML::notfound($query, \&_render) unless exists $routes{$path};
-    return Trog::Routes::HTML::badrequest($query, \&_render) unless $routes{$path}{method} eq $env->{REQUEST_METHOD};
+    return Trog::Routes::HTML::badrequest($query, \&_render) unless grep { $routes{$path}{method} eq $_ } ($env->{REQUEST_METHOD},'HEAD');
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
 
@@ -149,7 +159,7 @@ my $app = sub {
     return $output;
 };
 
-sub _serve ($path, $streaming=0, $last_fetch=0) {
+sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
     my $mf = Mojo::File->new($path);
     my $ext = '.'.$mf->extname();
     my $ft;
@@ -187,14 +197,21 @@ sub _serve ($path, $streaming=0, $last_fetch=0) {
             $writer->close;
         } if $streaming && $sz > $CHUNK_SIZE;
 
-    #Compress everything less than 1MB
-    push( @headers, "Content-Encoding" => "deflate" );
-    my $dfh;
-    IO::Compress::Deflate::deflate( $fh => \$dfh );
-    print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+        #Return data in the event the caller does not support deflate
+        if (!$deflate) {
+            push( @headers, "Content-Length" => $sz );
+            return [ $code, \@headers, $fh];
+        }
+
+        #Compress everything less than 1MB
+        push( @headers, "Content-Encoding" => "deflate" );
+        my $dfh;
+        IO::Compress::Deflate::deflate( $fh => \$dfh );
+        print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
         push( @headers, "Content-Length" => length($dfh) );
         return [ $code, \@headers, [$dfh]];
     }
+
     return [ 403, [$ct => $content_types{plain}], ["STAY OUT YOU RED MENACE"]];
 }
 
@@ -236,11 +253,17 @@ sub _render ($template, $vars, @headers) {
     push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
 
     my $body = $processor->render($template,$vars);
+    $body = encode_utf8($body);
+
+    #Return data in the event the caller does not support deflate
+    if (!$vars->{deflate}) {
+        push( @headers, "Content-Length" => length($body) );
+        return [ $vars->{code}, \@headers, [$body]];
+    }
 
     #Compress
     push( @headers, "Content-Encoding" => "deflate" );
     my $dfh;
-    $body = encode_utf8($body);
     IO::Compress::Deflate::deflate( \$body => \$dfh );
     print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
     push( @headers, "Content-Length" => length($dfh) );

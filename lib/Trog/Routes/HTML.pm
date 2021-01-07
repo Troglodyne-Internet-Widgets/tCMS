@@ -280,6 +280,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
         meta_tags      => $meta_tags,
+	deflate        => $query->{deflate},
     });
 }
 
@@ -358,6 +359,7 @@ sub _generic_route ($rname, $code, $title, $query, $render_cb) {
         route    => $query->{route},
         user     => $query->{user},
         styles   => $styles,
+	deflate  => $query->{deflate},
     });
     return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
 }
