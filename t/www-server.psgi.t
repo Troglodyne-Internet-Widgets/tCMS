@@ -14,6 +14,8 @@ require "$FindBin::Bin/../www/server.psgi" or die 'Could not require server.psgi
 my $test = Plack::Test->create($tcms::app);
 
 #TODO Need a testing routing table which I can dynamically include -- a testing theme is probably the way
+my $r = $test->request(GET '/posts');
+die;
 
 subtest "HEAD requests handled correctly" => sub {
     my $res = $test->request(HEAD "/");
@@ -21,6 +23,5 @@ subtest "HEAD requests handled correctly" => sub {
     is($res->code, 200, "Return code returned as expected");
     is($res->content, '', "No content actually returned by HEAD request");
 };
-
 
 done_testing();
