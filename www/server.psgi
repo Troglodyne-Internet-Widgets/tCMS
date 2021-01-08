@@ -1,3 +1,5 @@
+package tcms;
+
 use strict;
 use warnings;
 
@@ -64,7 +66,7 @@ If a path passed is not a defined route (or regex route), but exists as a file u
 
 =cut
 
-my $app = sub {
+our $app = sub {
     my $env = shift;
 
     #use Data::Dumper;
