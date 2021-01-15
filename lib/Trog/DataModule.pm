@@ -161,7 +161,7 @@ sub _dedup_versions ($version=-1, @posts) {
     my @uniqids = List::Util::uniq(map { $_->{id} } @posts);
     my %posts_deduped;
     for my $id (@uniqids) {
-        my @ofid = sort { $b->{version} cmp $a->{version} } grep { $_->{id} eq $id } @posts;
+        my @ofid = sort { $b->{version} <=> $a->{version} } grep { $_->{id} eq $id } @posts;
         my $version_max = List::Util::max(map { $_->{version } } @ofid);
         $posts_deduped{$id} = $ofid[0];
         $posts_deduped{$id}{version_max} = $version_max;
