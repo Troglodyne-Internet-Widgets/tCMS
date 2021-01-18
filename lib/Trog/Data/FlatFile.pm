@@ -54,8 +54,13 @@ sub read ($self, $query={}) {
         }
         my $parsed  = eval { $parser->decode($slurped) };
         if (!$parsed) {
-            print "JSON Decode error on $item:\n$@\n";
-            next;
+            # Try and read it in binary in case it was encoded incorrectly the first time
+	    $slurped = eval { File::Slurper::read_binary($item) };
+	    $parsed  = eval { $parser->decode($slurped) };
+	    if (!$parsed) {
+                print "JSON Decode error on $item:\n$@\n";
+                next;
+            }
         }
 
         #XXX this imposes an inefficiency in itself, get() will filter uselessly again here
