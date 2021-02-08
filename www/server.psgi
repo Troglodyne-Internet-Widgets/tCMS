@@ -151,7 +151,7 @@ our $app = sub {
     $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
     $query->{user}         = $active_user;
-    $query->{domain}       = $env->{HTTP_HOST};
+    $query->{domain}       = $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
     $query->{route}        = $env->{REQUEST_URI};
     $query->{route}        =~ s/\?\Q$env->{QUERY_STRING}\E//;
     $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
