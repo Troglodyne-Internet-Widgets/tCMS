@@ -1,9 +1,7 @@
-FROM ubuntu:21.04 AS base
+FROM ubuntu:21.04
 
 USER root
 RUN useradd tcms
-RUN apt-get update
-RUN apt-get install -y make apt-utils mlocate curl
 
 ADD ./Makefile /home/tcms/Makefile
 ADD ./Makefile.PL /home/tcms/Makefile.PL
@@ -13,14 +11,7 @@ RUN chown -R tcms /home/tcms
 
 WORKDIR /home/tcms
 
-RUN apt-get install -y locales
-RUN localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
-ENV LANG en_US.utf8
-
-ENV DEBIAN_FRONTEND=noninteractive
-RUN ln -fs /usr/share/zoneinfo/UTC /etc/localtime
-RUN apt-get install -y tzdata
-RUN dpkg-reconfigure --frontend noninteractive tzdata
-
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install -y make
 RUN make prereq-debian
-RUN updatedb

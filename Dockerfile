@@ -1,4 +1,4 @@
-FROM troglodyne/base:latest AS tcms
+FROM troglodyne/base:latest
 
 ARG port=5000
 LABEL description="tCMS: a Perl CMS by Troglodyne LLC"

@@ -26,11 +26,12 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend
 
 .PHONY: prereq-debs
 prereq-debs:
+	apt-get update
 	apt-get install -y sqlite3 libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl                         \
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \
-	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl
+	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl curl
 
 .PHONY: prereq-perl
 prereq-perl:
