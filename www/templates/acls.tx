@@ -4,34 +4,11 @@ Visibility<br />
         <option <: $post.visibility == $visibility ? 'selected' : '' :> value="<: $visibility :>"><: $visibility :></option>
     : }
 </select>
-<div id="<: $post.id :>-aclselect" style="display:none;" >
+<div id="<: $post.id :>-aclselect" >
     ACLs / Series<br/ >
     <select multiple class="cooltext" name="acls">
         : for $acls -> $acl {
-            <option value="<: $acl.aclname :>"><: $acl.data :></option>
+            <option value="<: $acl.aclname :>"><: $acl.aclname :></option>
         : }
     </select>
 </div>
-<script type="text/javascript">
-    document.addEventListener("DOMContentLoaded", function(event) {
-        var viselect = document.getElementById("<: $post.id :>-visibility");
-        if (viselect.value == 'private') {
-            switchMenu("<: $post.id :>-aclselect");
-        }
-        viselect.addEventListener("change", function(event) {
-            var el = document.getElementById("<: $post.id :>-aclselect"); 
-            var shown = el.style.display != 'none'
-
-            if (shown) {
-                if (this.value != 'private') {
-                    switchMenu("<: $post.id :>-aclselect");
-                }
-                return;
-            }
-
-            if (this.value == 'private') {
-                switchMenu("<: $post.id :>-aclselect");
-            }
-        });
-    });
-</script>
