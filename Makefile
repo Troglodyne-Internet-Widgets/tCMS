@@ -31,7 +31,7 @@ prereq-debs:
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \
-	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl curl
+	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl
 
 .PHONY: prereq-perl
 prereq-perl:
