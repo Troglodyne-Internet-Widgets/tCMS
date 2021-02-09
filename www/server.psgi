@@ -266,6 +266,10 @@ sub _render ($template, $vars, @headers) {
 
     #Compress
     push( @headers, "Content-Encoding" => "deflate" );
+
+    #Disallow framing UNLESS we are in embed mode
+    push( @headers, "Content-Security-Policy" => qq{frame-ancestors 'none'} ) unless $vars->{embed};
+
     my $dfh;
     IO::Compress::Deflate::deflate( \$body => \$dfh );
     print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
