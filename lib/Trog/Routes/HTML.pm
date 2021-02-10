@@ -297,7 +297,7 @@ sub _build_social_meta ($query,$title) {
     $card_type = 'featured_image' if $query->{primary_post} && $query->{primary_post}{is_image};
     $card_type = 'player'         if $query->{primary_post} && $query->{primary_post}{is_video};
 
-    my $image = "https://$query->{domain}/$td/$Theme::default_image";
+    my $image = $Theme::default_image ? "https://$query->{domain}/$td/$Theme::default_image" : '';
     $image = "https://$query->{domain}/$query->{primary_post}{preview}" if $query->{primary_post} && $query->{primary_post}{preview};
     $image = "https://$query->{domain}/$query->{primary_post}{href}"    if $query->{primary_post} && $query->{primary_post}{is_image};
 
