@@ -249,6 +249,12 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     #TODO allow theming of print css
 
     my $search_info = Trog::Data->new($conf);
+    my @series = $search_info->get(
+        acls    => [qw{public}],
+        tags    => [qw{topbar}],
+        limit   => 10,
+        page    => 1,
+    );
 
     my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
 
@@ -272,7 +278,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
         leftbar        => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
         footbar        => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
-        category_links => _pick_processor("templates/categories.tx", $processor,$t_processor)->render("categories.tx",$query),
+        categories     => \@series,
         stylesheets    => \@styles,
         show_madeby    => $Theme::show_madeby ? 1 : 0,
         embed          => $query->{embed} ? 1 : 0,

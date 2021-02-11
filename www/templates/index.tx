@@ -7,7 +7,7 @@
     </div>
     <span title="Menu" id="clickme" onclick="this.focus()">🌐</span>
     <div id="righttitle" class="toplel">
-        <: $category_links | mark_raw :>
+        : include "categories.tx";
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <form action="<: $route :>" method="GET" class="inline">
             <input required type="search" class="coolbutton topform" name="like"></input>
