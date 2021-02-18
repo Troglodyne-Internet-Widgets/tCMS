@@ -107,14 +107,14 @@ sub _fixup ($self, @filtered) {
 }
 
 sub filter ($self, $query, @filtered) {
-    my %request = %$query; #XXX update varnames instead
-    $request{acls} //= [];
-    $request{tags} //=[];
+    $query->{acls} //= [];
+    $query->{tags} //=[];
+    $query->{exclude_tags} //= [];
 
     # If an ID is passed, just get that (and all it's prior versions)
-    if ($request{id}) {
-        @filtered = grep { $_->{id} eq $request{id} } @filtered   if $request{id};
-        @filtered = _dedup_versions($request{version}, @filtered);
+    if ($query->{id}) {
+        @filtered = grep { $_->{id} eq $query->{id} } @filtered   if $query->{id};
+        @filtered = _dedup_versions($query->{version}, @filtered);
         return @filtered;
     }
 
@@ -122,23 +122,34 @@ sub filter ($self, $query, @filtered) {
 
     #Filter out posts which are too old
     #Coerce older into numeric
-    $request{older} =~ s/[^0-9]//g if $request{older};
-    @filtered = grep { $_->{created} < $request{older} } @filtered if $request{older};
+    $query->{older} =~ s/[^0-9]//g if $query->{older};
+    @filtered = grep { $_->{created} < $query->{older} } @filtered if $query->{older};
 
-    # Next, handle the query, tags and ACLs
-    @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{tags}} } @$tags } @filtered if @{$request{tags}};
-    @filtered = grep { my $tags = $_->{tags}; grep { my $t = $_; grep {$t eq $_ } @{$request{acls}} } @$tags } @filtered unless grep { $_ eq 'admin' } @{$request{acls}};
-    @filtered = grep { $_->{title} =~ m/\Q$request{like}\E/i || $_->{data} =~ m/\Q$request{like}\E/i } @filtered if $request{like};
+    # Filter posts not matching the passed tag(s), if any
+    @filtered = grep {
+        my $tags = $_->{tags}; grep { my $t = $_; grep { $t eq $_ } @{$query->{tags}} } @$tags
+    } @filtered if @{$query->{tags}};
 
-    @filtered = grep { $_->{user} eq $request{author} } @filtered if $request{author};
+    # Filter posts *matching* the passed exclude_tag(s), if any
+    @filtered = grep {
+        my $tags = $_->{tags}; !grep { my $t = $_; grep { $t eq $_ } @{$query->{exclude_tags}} } @$tags
+    } @filtered if @{$query->{exclude_tags}};
+
+    # Filter posts without the proper ACLs
+    @filtered = grep {
+        my $tags = $_->{tags}; grep { my $t = $_; grep { $t eq $_ } @{$query->{acls}} } @$tags
+    } @filtered unless grep { $_ eq 'admin' } @{$query->{acls}};
+
+    @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
+
+    @filtered = grep { $_->{user} eq $query->{author} } @filtered if $query->{author};
     return @filtered;
 }
 
 sub paginate ($self, $query, @filtered) {
-    my %request = %$query; #XXX change varnames
-    my $offset = int($request{limit} // 25);
+    my $offset = int($query->{limit} // 25);
     $offset = @filtered < $offset ? @filtered : $offset;
-    @filtered = splice(@filtered, ( int($request{page}) -1) * $offset, $offset) if $request{page} && $request{limit};
+    @filtered = splice(@filtered, ( int($query->{page}) -1) * $offset, $offset) if $query->{page} && $query->{limit};
     return @filtered;
 }
 

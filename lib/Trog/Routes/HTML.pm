@@ -188,6 +188,8 @@ our %routes = (
 my @post_aliases = qw{news blog image video audio about files series};
 @routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data}{tag} = [$_]; \%copy } @post_aliases;
 
+$routes{'/series'}{data}{exclude_tags} = ['topbar'];
+
 #TODO clean this up so we don't need _build_post_type
 @routes{map { "/post/$_" } qw{image video audio files}} = map { my %copy = %{$routes{'/post'}}; $copy{data}{tag} = [$_]; $copy{data}{type} = 'file'; \%copy } qw{image video audio files};
 $routes{'/post/news'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['news'],    type => 'microblog' } };
@@ -702,6 +704,7 @@ sub post_delete ($query, $render_cb) {
 =head2 series
 
 Series specific view, much like the users/ route
+Displays identified series, not all series.
 
 =cut
 
@@ -869,6 +872,7 @@ sub _post_helper ($query, $tags, $acls) {
         page    => int($query->{page} || 1),
         limit   => int($query->{limit} || 25),
         tags    => $tags,
+        exclude_tags => $query->{exclude_tags},
         acls    => $acls,
         like    => $query->{like},
         author  => $query->{author},
