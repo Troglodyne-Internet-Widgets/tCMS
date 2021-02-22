@@ -249,14 +249,8 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     push( @styles, @$i_styles );
 
     #TODO allow theming of print css
-
     my $search_info = Trog::Data->new($conf);
-    my @series = $search_info->get(
-        acls    => [qw{public}],
-        tags    => [qw{topbar}],
-        limit   => 10,
-        page    => 1,
-    );
+    my @series = _get_series(0, $search_info);
 
     my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
 
@@ -509,12 +503,14 @@ sub config ($query, $render_cb) {
     my $js    = _build_themed_scripts('post.js');
 
     $query->{failure} //= -1;
+    my @series = _get_series(1);
 
     return $render_cb->('config.tx', {
         title              => 'Configure tCMS',
         theme_dir          => $td,
         stylesheets        => $css,
         scripts            => $js,
+        categories         => \@series,
         themes             => _get_themes() || [],
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
@@ -523,6 +519,18 @@ sub config ($query, $render_cb) {
         failure     => $query->{failure},
         to          => '/config',
     });
+}
+
+sub _get_series($edit=0,$search_info=0) {
+    $search_info ||= Trog::Data->new($conf);
+    my @series = $search_info->get(
+        acls    => [qw{public}],
+        tags    => [qw{topbar}],
+        limit   => 10,
+        page    => 1,
+    );
+    @series = map { $_->{href} = "/post$_->{href}"; $_ } @series if $edit;
+    return @series;
 }
 
 sub _get_themes {
@@ -621,6 +629,8 @@ sub post ($query, $render_cb) {
 
     my $limit = int($query->{limit} || 25);
 
+    my @series = _get_series(1);
+
     return $render_cb->('post.tx', {
         title       => 'New Post',
         theme_dir   => $td,
@@ -634,6 +644,7 @@ sub post ($query, $render_cb) {
         can_edit    => 1,
         route       => $query->{route},
         category    => '/posts',
+        categories  => \@series,
         limit       => $limit,
         pages       => scalar(@posts) == $limit,
         older       => @posts ? $posts[-1]->{created} : '',
@@ -1071,10 +1082,14 @@ sub manual ($query, $render_cb) {
     my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
     return notfound($query,$render_cb) unless -f "lib/$infile";
     my $content = capture { Pod::Html::pod2html(qw{--podpath=lib --podroot=.},"--infile=lib/$infile") };
+
+    my @series = _get_series(1);
+
     return $render_cb->('manual.tx', {
         title       => 'tCMS Manual',
         theme_dir   => $td,
         content     => $content,
+        categories  => \@series,
         stylesheets => _build_themed_styles('post.css'),
     });
 }
