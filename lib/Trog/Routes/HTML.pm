@@ -66,20 +66,16 @@ our %routes = (
         nostatic => 1,
         callback => \&Trog::Routes::HTML::login,
     },
-    '/config' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::config,
-    },
-    '/config/save' => {
-        method   => 'POST',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::config_save,
-    },
     '/post' => {
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::post,
+    },
+    '/post/(.*)' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::post,
+        captures => ['id'],
     },
     '/post/save' => {
         method   => 'POST',
@@ -91,31 +87,13 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::post_delete,
     },
-    '/post/(.*)' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::post,
-        captures => ['id'],
-    },
-    '/posts/(.*)' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::posts,
-        captures => ['id'],
-    },
-    '/posts' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::posts,
-    },
-    '/profile' => {
-        method   => 'POST',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::profile,
-    },
     '/themeclone' => {
         method   => 'POST',
         auth     => 1,
         callback => \&Trog::Routes::HTML::themeclone,
     },
+
+    # Can also be made into posts
     '/sitemap', => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
@@ -166,6 +144,27 @@ our %routes = (
         callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
     },
+
+    #TODO make all these routes dynamic from data
+    '/config' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::config,
+    },
+    '/config/save' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::config_save,
+    },
+    '/posts' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::posts,
+    },
+    '/profile' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::profile,
+    },
     '/users/(.*)' => {
         method => 'GET',
         callback => \&Trog::Routes::HTML::users,
@@ -198,7 +197,6 @@ $routes{'/post/about'}   = { method => 'GET', auth => 1, callback => \&Trog::Rou
 $routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['series'],  type => 'series'    } };
 
 # Build aliases for /posts/(.*) and /post/(.*) with extra data
-@routes{map { "/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/posts/(.*)'}}; \%copy } @post_aliases;
 @routes{map { "/post/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
 
 # /series/$ID is a bit of a special case, it's actuallly gonna need special processing
@@ -529,7 +527,7 @@ sub _get_series($edit=0,$search_info=0) {
         limit   => 10,
         page    => 1,
     );
-    @series = map { $_->{href} = "/post$_->{href}"; $_ } @series if $edit;
+    @series = map { $_->{local_href} = "/post$_->{local_href}"; $_ } @series if $edit;
     return @series;
 }
 
@@ -778,7 +776,12 @@ Display multi or single posts, supports RSS and pagination.
 =cut
 
 sub posts ($query, $render_cb) {
+    #Process the input URI to capture tag/id
+    my (undef, $tag, $id) = split(/\//, $query->{route});
+
     my $tags = _coerce_array($query->{tag});
+    push(@$tags, $tag) if $tag && $tag ne 'posts';
+    $query->{id} = $id if $id;
 
     push(@{$query->{acls}}, 'public');
     push(@{$query->{acls}}, 'unlisted') if $query->{id};

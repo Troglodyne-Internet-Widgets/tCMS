@@ -11,3 +11,26 @@ CREATE TABLE IF NOT EXISTS posts_index (
 CREATE INDEX IF NOT EXISTS tag_idx ON tag(name);
 
 CREATE VIEW IF NOT EXISTS posts AS SELECT p.post_id as id, t.name AS tag FROM posts_index AS p JOIN tag AS t ON t.id=p.tag_id;
+
+/* The intention is to read this entirely into memory at app startup     */
+/* This should not incur significant costs, even with millions of posts. */
+CREATE TABLE IF NOT EXISTS routes (
+    route TEXT NOT NULL UNIQUE,
+    method_id TEXT NOT NULL REFERENCES methods(id) ON DELETE RESTRICT,
+    callback_id TEXT NOT NULL REFERENCES callbacks(id) ON DELETE RESTRICT
+);
+
+/* Enum tables like this always require cleanup when there are no more references. */
+/* TODO  ^^^ */
+CREATE TABLE IF NOT EXISTS methods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    method TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS callbacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    callback TEXT NOT NULL
+);
+
+CREATE VIEW IF NOT EXISTS all_routes AS SELECT r.route AS route, m.method AS method, c.callback AS callback FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id;
+

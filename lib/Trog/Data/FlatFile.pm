@@ -82,6 +82,10 @@ sub _index ($self) {
     return sort { $b cmp $a } @index;
 }
 
+sub routes ($self) {
+    return Trog::SQLite::TagIndex::routes();
+}
+
 sub write($self,$data) {
     foreach my $post (@$data) {
         my $file = "$datastore/$post->{id}";

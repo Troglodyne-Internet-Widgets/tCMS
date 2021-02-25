@@ -14,3 +14,4 @@ my $conf = Trog::Config::get();
 my $search = Trog::Data->new($conf);
 
 Trog::SQLite::TagIndex::build_index($search);
+Trog::SQLite::TagIndex::build_routes($search);

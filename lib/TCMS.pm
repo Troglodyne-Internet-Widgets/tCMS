@@ -23,14 +23,25 @@ use IO::Compress::Deflate();
 use lib 'lib';
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
+
 use Trog::Auth;
 use Trog::Utils;
+use Trog::Config;
+use Trog::Data;
 
 # Troglodyne philosophy - simple as possible
 
 # Import the routes
+
+my $conf = Trog::Config::get();
+my $data = Trog::Data->new($conf);
+my %roots = $data->routes();
+use Data::Dumper;
+print Dumper(\%roots);
+
 my %routes = %Trog::Routes::HTML::routes;
 @routes{keys(%Trog::Routes::JSON::routes)} = values(%Trog::Routes::JSON::routes);
+@routes{keys(%roots)} = values(%roots);
 
 #1MB chunks
 my $CHUNK_SIZE = 1024000;

@@ -5,7 +5,6 @@
       "data" : "Here, caveman",
       "href" : "/",
       "id" : 665,
-      "local_href" : "/assets/today.html",
       "tags" : [
          "news",
          "public"
@@ -20,7 +19,6 @@
       "data" : "Is amazing",
       "href" : "/",
       "id" : 666,
-      "local_href" : "/assets/blog/Muh Blog.html",
       "tags" : [
          "blog",
          "public"
@@ -36,7 +34,6 @@
       "data" : "Vote for Nobody, nobody really cares!",
       "href" : "/",
       "id" : 669,
-      "local_href" : "/assets/about/Nobody.html",
       "preview" : "/img/avatar/humm.gif",
       "tags" : [
          "about",
@@ -53,7 +50,6 @@
       "data" : "Default avatar for new users",
       "href" : "/img/avatar/humm.gif",
       "id" : 420,
-      "local_href" : "/img/avatar/humm.gif",
       "preview" : "/img/avatar/humm.gif",
       "tags" : [
          "image",
@@ -71,7 +67,6 @@
       "data" : "Test Pattern",
       "href" : "/img/sys/testpattern.jpg",
       "id" : 90210,
-      "local_href" : "/img/sys/testpattern.jpg",
       "preview" : "/img/sys/testpattern.jpg",
       "tags" : [
          "image",
@@ -88,7 +83,6 @@
       "data" : "Test recording for tCMS",
       "href" : "/assets/audio/test.mp3",
       "id" : 111,
-      "local_href" : "/assets/audio/test.mp3",
       "preview" : "/img/sys/testpattern.jpg",
       "tags" : [
          "audio",
@@ -105,7 +99,6 @@
       "data" : "Test video for tCMS",
       "href" : "/assets/video/test.ogv",
       "id" : "222",
-      "local_href" : "/assets/video/test.ogv",
       "preview" : "/img/sys/testpattern.jpg",
       "tags" : [
          "video",
@@ -140,7 +133,6 @@
       "data" : "tCMS Logo",
       "href" : "/img/icon/tCMS.svg",
       "id" : 90211,
-      "local_href" : "/img/icon/tCMS.svg",
       "preview" : "/img/icon/tCMS.svg",
       "tags" : [
          "image",

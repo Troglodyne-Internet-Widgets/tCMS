@@ -94,12 +94,18 @@ sub _fixup ($self, @filtered) {
     # Finally, add visibility
     @filtered = _add_visibility(@filtered);
 
-    #urlencode spaces in filenames
+    # urlencode spaces in filenames
     @filtered = map {
         foreach my $param (qw{href preview video_href audio_href local_href wallpaper}) {
             next unless exists $_->{$param};
             $_->{$param} =~ s/ /%20/g;
         }
+
+        #Add routing data for posts which don't have them (/posts/$id)
+        $_->{local_href} = "/posts/$_->{id}"                unless exists($_->{local_href});
+        $_->{method}     = 'GET'                       unless exists($_->{method});
+        $_->{callback}   = "Trog::Routes::HTML::posts" unless exists($_->{callback});
+
         $_
     } @filtered;
 
@@ -319,5 +325,17 @@ You should override this, it is a stub here.
 =cut
 
 sub delete ($self) { die 'stub' }
+
+=head2 routes()
+
+Returns the routes to each post.
+You should override this for performance reasons, as it's just a wrapper around get() by defualt.
+
+=cut
+
+sub routes($self) {
+    my %routes = map { $_->{local_href} => { method => $_->{method}, callback => \&{$_->{callback}} } } ($self->get( limit => 0, acls => ['admin'] ));
+    return %routes;
+}
 
 1;
