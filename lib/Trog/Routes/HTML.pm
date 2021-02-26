@@ -183,11 +183,7 @@ our %routes = (
     },
 );
 
-# Build aliases for /posts and /post with extra data
-my @post_aliases = qw{news blog image video audio about files series};
-@routes{map { "/$_" } @post_aliases} = map { my %copy = %{$routes{'/posts'}}; $copy{data}{tag} = [$_]; \%copy } @post_aliases;
-
-$routes{'/series'}{data}{exclude_tags} = ['topbar'];
+my @post_aliases = qw{news blog video images audio files series about};
 
 #TODO clean this up so we don't need _build_post_type
 @routes{map { "/post/$_" } qw{image video audio files}} = map { my %copy = %{$routes{'/post'}}; $copy{data}{tag} = [$_]; $copy{data}{type} = 'file'; \%copy } qw{image video audio files};
@@ -196,11 +192,8 @@ $routes{'/post/blog'}    = { method => 'GET', auth => 1, callback => \&Trog::Rou
 $routes{'/post/about'}   = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['about'],   type => 'profile'   } };
 $routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['series'],  type => 'series'    } };
 
-# Build aliases for /posts/(.*) and /post/(.*) with extra data
+# Build aliases for /post/(.*) with extra data
 @routes{map { "/post/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
-
-# /series/$ID is a bit of a special case, it's actuallly gonna need special processing
-$routes{'/series/(.*)'} = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::series, captures => ['id'] };
 
 # Grab theme routes
 my $themed = 0;
@@ -331,7 +324,7 @@ sub _build_social_meta ($query,$title) {
     $meta_tags =~ s/content="video"/content="video:other"/mg if $meta_tags;
     $meta_tags .= $extra_tags if $extra_tags;
 
-    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" unless $meta_tags;
+    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $theme_dir && !$meta_tags;
     return ($default_tags, $meta_desc, $meta_tags);
 }
 
@@ -718,14 +711,28 @@ Displays identified series, not all series.
 =cut
 
 sub series ($query, $render_cb) {
+    $query->{exclude_tags} = ['topbar'];
+
+    #we are either viewed one of two ways, /series/$id or /$aclname
+    my (undef,$aclname) = split(/\//,$query->{route});
+    $query->{aclname} = $aclname if $aclname;
+
+    #XXX I'd prefer to overload id to actually *be* the aclname...
+    # but this way, accomodates things like the flat file time-indexing hack.
+    # TODO I should probably have it for all posts, and make *everything* a series.
+    # WE can then do threaded comments/posts.
+    # That will essentially necessitate it *becoming* the ID for real.
+
     #Grab the relevant tag (aclname), then pass that to posts
     my @posts = _post_helper($query, [], $query->{acls});
     delete $query->{id};
+    delete $query->{aclname};
 
     $query->{subhead} = $posts[0]->{data};
     $query->{title} = $posts[0]->{title};
     $query->{tag} = $posts[0]->{aclname};
     $query->{primary_post} = $posts[0];
+
     return posts($query,$render_cb);
 }
 
@@ -888,6 +895,7 @@ sub _post_helper ($query, $tags, $acls) {
         tags    => $tags,
         exclude_tags => $query->{exclude_tags},
         acls    => $acls,
+        aclname => $query->{aclname},
         like    => $query->{like},
         author  => $query->{author},
         id      => $query->{id},

@@ -119,7 +119,14 @@ sub filter ($self, $query, @filtered) {
 
     # If an ID is passed, just get that (and all it's prior versions)
     if ($query->{id}) {
-        @filtered = grep { $_->{id} eq $query->{id} } @filtered   if $query->{id};
+        @filtered = grep { $_->{id} eq $query->{id} } @filtered;
+        @filtered = _dedup_versions($query->{version}, @filtered);
+        return @filtered;
+    }
+
+    # XXX aclname and id are essentially serving the same purpose, should unify
+    if ($query->{aclname}) {
+        @filtered = grep { ($_->{aclname} || '') eq $query->{aclname} } @filtered;
         @filtered = _dedup_versions($query->{version}, @filtered);
         return @filtered;
     }

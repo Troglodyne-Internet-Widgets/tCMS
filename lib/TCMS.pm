@@ -36,8 +36,6 @@ use Trog::Data;
 my $conf = Trog::Config::get();
 my $data = Trog::Data->new($conf);
 my %roots = $data->routes();
-use Data::Dumper;
-print Dumper(\%roots);
 
 my %routes = %Trog::Routes::HTML::routes;
 @routes{keys(%Trog::Routes::JSON::routes)} = values(%Trog::Routes::JSON::routes);

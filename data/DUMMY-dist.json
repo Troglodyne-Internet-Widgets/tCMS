@@ -123,6 +123,7 @@
          "private",
          "admin"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Administrative Posts",
       "user" : "Nobody",
       "version" : 0
@@ -195,6 +196,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "News",
       "user" : "Nobody",
       "version" : 0
@@ -213,6 +215,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Blog",
       "user" : "Nobody",
       "version" : 0
@@ -231,6 +234,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Images",
       "user" : "Nobody",
       "version" : 0
@@ -249,6 +253,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Videos",
       "user" : "Nobody",
       "version" : 0
@@ -267,6 +272,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Audio",
       "user" : "Nobody",
       "version" : 0
@@ -285,6 +291,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Files",
       "user" : "Nobody",
       "version" : 0
@@ -303,6 +310,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "Series",
       "user" : "Nobody",
       "version" : 0
@@ -321,6 +329,7 @@
          "topbar",
          "public"
       ],
+      "callback" : "Trog::Routes::HTML::series",
       "title" : "About",
       "user" : "Nobody",
       "version" : 0
