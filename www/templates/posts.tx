@@ -13,7 +13,9 @@
 : if ( $header ) {
     <: $header | mark_raw :>
 : }
+: if (!$style) {
 <hr class="divider" />
+: }
 : for $posts -> $post {
     : if ( $post.aclname && $in_series ) {
     :     next;
@@ -42,22 +44,24 @@
             <p class="midtitle"><: $post.title :></p>
         </a>
     : } else {
-        <div class="post">
+        <div class="post <: $style :>">
             : if (!$post.is_profile) {
             <h3 class='blogtitles'>
                 <a ><a href='<: $post.href :>' ><: $post.title :></a>
                 <a class="undecorated" href='/posts/<: $post.id :>'>🔗</a>
-                : if ( $post.version_max && !$rss ) {
-                <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
-                    <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
-                        : for [0..$post.version_max] -> $version {
-                            <option value="<: $version :>" <: if ($post.version == $version ) { :>selected<: } :> >v<: $version :></option>
-                        : }
-                    </select>
-                </form>
+                : if (!$style) {
+                    : if ( $post.version_max && !$rss ) {
+                    <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
+                        <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
+                            : for [0..$post.version_max] -> $version {
+                                <option value="<: $version :>" <: if ($post.version == $version ) { :>selected<: } :> >v<: $version :></option>
+                            : }
+                        </select>
+                    </form>
+                    : }
+                    <span id="<: $post.id :>-<: $post.version :>-time" class="responsive-hide" style="float:right;"><: $post.created :></span>
+                    <a class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
                 : }
-                <span id="<: $post.id :>-<: $post.version :>-time" class="responsive-hide" style="float:right;"><: $post.created :></span>
-                <a class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
             </h3>
             : }
             : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
@@ -103,7 +107,7 @@
                     : if ( $post.is_profile ) {
                     <h3><: $post.title :></h3>
                     : }
-                    <: $post.data | mark_raw :>
+                    <: render_it($post.data) | mark_raw  :>
                 </div>
             : }
             : if( $post.is_profile ) {
@@ -142,7 +146,9 @@
             </script>
             : }
         </div>
+        : if ($posts.size() > 1) {
         <hr class="divider" />
+        : }
     : }
 : }
 : if ( $rss || $older ) {

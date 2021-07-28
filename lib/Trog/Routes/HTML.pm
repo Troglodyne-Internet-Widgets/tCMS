@@ -782,7 +782,7 @@ Display multi or single posts, supports RSS and pagination.
 
 =cut
 
-sub posts ($query, $render_cb) {
+sub posts ($query, $render_cb, $direct=0) {
     #Process the input URI to capture tag/id
     my (undef, $tag, $id) = split(/\//, $query->{route});
 
@@ -822,6 +822,25 @@ sub posts ($query, $render_cb) {
 
     my $processor = Text::Xslate->new(
         path   => $template_dir,
+        function => {
+            render_it => sub {
+                my ($template_string, $options) = @_;
+                return Text::Xslate->new(
+                    # Prevent a recursive descent.  If the renderer is hit again, just do nothing
+                    # XXX unfortunately if the post tries to include itself, it will die.
+                    function => {
+                        embed => sub {
+                            my ($this_id, $style) = @_;
+                            $style //= 'embed';
+                            return Text::Xslate::mark_raw(Trog::Routes::HTML::posts(
+                                { route => "/post/$this_id", style => $style },
+                                sub {},
+                            1));
+                        },
+                    },
+                )->render_string($template_string,$options);
+            },
+        },
     );
 
     # Themed header/footer for about page -- TODO maybe make this generic so we can have MESSAGE FROM JIMBO WALES everywhere
@@ -859,8 +878,15 @@ sub posts ($query, $render_cb) {
     my $now_year = (localtime(time))[5] + 1900;
     my $oldest_year = $now_year - 20; #XXX actually find oldest post year
 
+    # Handle post style.
+    if ($query->{style}) {
+        undef $header;
+        undef $footer;
+    }
+
     my $content = $processor->render('posts.tx', {
         title     => $query->{title},
+        style     => $query->{style},
         posts     => \@posts,
         like      => $query->{like},
         in_series => exists $query->{in_series} || !!($query->{route} =~ m/\/series\/\d*$/),
@@ -878,6 +904,7 @@ sub posts ($query, $render_cb) {
         years     => [reverse($oldest_year..$now_year)],
         months    => [0..11],
     });
+    return $content if $direct;
     return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
 }
 
