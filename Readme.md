@@ -58,6 +58,8 @@ The second parameter is the formatting style:
 * media : only show media portion of the post, if any.
 * inline : show everything about the post, save for the title.
 
+These will be added as classes to the embedded post, so you can theme this appropriately.
+
 Data Models
 ===========
 * DUMMY - A JSON blob.  Used for testing mostly, but could be handy for very small sites.
