@@ -156,6 +156,7 @@ sub filter ($self, $query, @filtered) {
     @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
 
     @filtered = grep { $_->{user} eq $query->{author} } @filtered if $query->{author};
+
     return @filtered;
 }
 

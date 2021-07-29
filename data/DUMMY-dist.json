@@ -113,18 +113,35 @@
       "aclname" : "admin",
       "content_type" : "text/plain",
       "created" : 1604424769,
-      "data" : "Admin ACL",
+      "data" : "",
       "href" : "/config",
       "id" : "900",
       "local_href" : "/config",
       "preview" : "/img/sys/testpattern.jpg",
       "tags" : [
-         "series",
          "private",
          "admin"
       ],
-      "callback" : "Trog::Routes::HTML::series",
-      "title" : "Administrative Posts",
+      "callback" : "Trog::Routes::HTML::config",
+      "title" : "Configure tCMS",
+      "user" : "Nobody",
+      "version" : 0
+   },
+   {
+      "aclname" : "admin",
+      "content_type" : "text/plain",
+      "created" : 1604424769,
+      "data" : "",
+      "href" : "/config/save",
+      "id" : "901",
+      "local_href" : "/config/save",
+      "preview" : "/img/sys/testpattern.jpg",
+      "tags" : [
+         "private",
+         "admin"
+      ],
+      "callback" : "Trog::Routes::HTML::config_save",
+      "title" : "Configure tCMS",
       "user" : "Nobody",
       "version" : 0
    },
@@ -170,7 +187,7 @@
       "audio_href" : "",
       "content_type" : null,
       "created" : 1604424769,
-      "data" : "Here, cavemanzzzsdfgsdf",
+      "data" : "Here, cavemanzzzsdfgsdf <: embed(90211,'media') :>",
       "href" : "/",
       "id" : "665",
       "tags" : [

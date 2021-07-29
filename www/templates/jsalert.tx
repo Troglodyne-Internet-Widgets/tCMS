@@ -2,7 +2,7 @@
     document.addEventListener("DOMContentLoaded", function(event) {
         var loginFailure = <: $failure :>;
         if( loginFailure === -1 ) {
-            document.querySelector('#jsalert').style.cssText = 'visibility: hidden;';
+            document.querySelector('#jsalert').style.cssText = 'display:none;';
         } else if ( loginFailure === 1 ) {
             document.querySelector('#jsalert').classList.remove("alert-success");
             document.querySelector('#jsalert').classList.add("alert-danger");

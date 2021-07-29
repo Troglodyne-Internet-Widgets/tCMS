@@ -1,3 +1,25 @@
+: if ( $can_edit ) {
+    <script type="text/javascript" src="/scripts/post.js"></script>
+    : if (!$direct) {
+        : include "jsalert.tx";
+        <a style="cursor:pointer" onclick="switchMenu('submissions')">[Add Post]</a><hr />
+        <div id="submissions" style="display:none">
+          : include $edittype ~ ".tx";
+        </div>
+        <script type="text/javascript" src="/scripts/fgEmojiPicker.js"></script>
+        <script type="text/javascript">
+        new FgEmojiPicker({
+            trigger: ['button.emojiPicker'],
+            position: ['bottom'],
+            dir: `/scripts/`,
+            emit(obj, triggerElement) {
+                const emoji = obj.emoji;
+                document.querySelector('textarea').value += emoji;
+            }
+        });
+        </script>
+    : }
+: }
 <span class="title">
 : if ( $rss ) {
 <a title="RSS" class="rss" href="<: $route :>?format=rss"></a>
@@ -119,7 +141,7 @@
             : }
             : if ( $can_edit ) {
             <br />
-            <a style="display: inline-block;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
+            <a style="display: inline-block;cursor:pointer;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
             <div id="<: $post.id :>-<: $post.version :>" style="display:none;">
                 : include $post.type ~ ".tx" { post => $post };
                 <form class="Submissions" action="/post/delete" method="POST" class="inline">

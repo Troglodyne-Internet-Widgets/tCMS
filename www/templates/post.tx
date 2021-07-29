@@ -1,3 +1,0 @@
-: include "sysbar.tx";
-: include "jsalert.tx";
-: include "mbengine.tx";

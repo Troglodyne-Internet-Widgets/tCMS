@@ -66,17 +66,6 @@ our %routes = (
         nostatic => 1,
         callback => \&Trog::Routes::HTML::login,
     },
-    '/post' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::post,
-    },
-    '/post/(.*)' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::post,
-        captures => ['id'],
-    },
     '/post/save' => {
         method   => 'POST',
         auth     => 1,
@@ -145,17 +134,6 @@ our %routes = (
         data     => { tag => ['about'] },
     },
 
-    #TODO make all these routes dynamic from data
-    '/config' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::config,
-    },
-    '/config/save' => {
-        method   => 'POST',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::config_save,
-    },
     '/posts' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
@@ -183,17 +161,9 @@ our %routes = (
     },
 );
 
+#XXX these need to be fetched dynamically from all the header categories?
+# Is used by the sitemap, maybe just fix there
 my @post_aliases = qw{news blog video images audio files series about};
-
-#TODO clean this up so we don't need _build_post_type
-@routes{map { "/post/$_" } qw{image video audio files}} = map { my %copy = %{$routes{'/post'}}; $copy{data}{tag} = [$_]; $copy{data}{type} = 'file'; \%copy } qw{image video audio files};
-$routes{'/post/news'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['news'],    type => 'microblog' } };
-$routes{'/post/blog'}    = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['blog'],    type => 'blog'      } };
-$routes{'/post/about'}   = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['about'],   type => 'profile'   } };
-$routes{'/post/series'}  = { method => 'GET', auth => 1, callback => \&Trog::Routes::HTML::post, data => { tag => ['series'],  type => 'series'    } };
-
-# Build aliases for /post/(.*) with extra data
-@routes{map { "/post/$_/(.*)" } @post_aliases} = map { my %copy = %{$routes{'/post/(.*)'}}; \%copy } @post_aliases;
 
 # Grab theme routes
 my $themed = 0;
@@ -711,7 +681,8 @@ Displays identified series, not all series.
 =cut
 
 sub series ($query, $render_cb) {
-    $query->{exclude_tags} = ['topbar'];
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
+    $query->{exclude_tags} = ['topbar'] unless $is_admin;
 
     #we are either viewed one of two ways, /series/$id or /$aclname
     my (undef,$aclname) = split(/\//,$query->{route});
@@ -790,8 +761,10 @@ sub posts ($query, $render_cb, $direct=0) {
     push(@$tags, $tag) if $tag && $tag ne 'posts';
     $query->{id} = $id if $id;
 
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
     push(@{$query->{acls}}, 'public');
     push(@{$query->{acls}}, 'unlisted') if $query->{id};
+    push(@{$query->{acls}}, 'private')  if $is_admin;
     my @posts;
 
     if ($query->{user_obj}) {
@@ -815,7 +788,9 @@ sub posts ($query, $render_cb, $direct=0) {
         unshift @posts, $user;
     }
 
-    return notfound($query, $render_cb) unless @posts;
+    if (!$is_admin) {
+        return notfound($query, $render_cb) unless @posts;
+    }
 
     my $fmt = $query->{format} || '';
     return _rss($query,\@posts) if $fmt eq 'rss';
@@ -885,7 +860,20 @@ sub posts ($query, $render_cb, $direct=0) {
         undef $footer;
     }
 
+    my %routemap;
+    @routemap{qw{/news /about /series /image /video /audio /files}} = qw{microblog profile series file file file file};
+    my $edittype =  $routemap{$query->{route}} // 'blog';
+
+    my $older = !@posts ? 0 : $posts[-1]->{created};
+    $query->{failed} = -1;
+    $query->{id} //= '';
+
     my $content = $processor->render('posts.tx', {
+        can_edit  => $is_admin,
+        edittype  => $edittype,
+        failure   => $query->{failed},
+        message   => $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}",
+        direct    => !!$id,
         title     => $query->{title},
         style     => $query->{style},
         posts     => \@posts,
@@ -894,10 +882,10 @@ sub posts ($query, $render_cb, $direct=0) {
         route     => $query->{route},
         limit     => $limit,
         pages     => scalar(@posts) == $limit,
-        older     => $posts[-1]->{created},
+        older     => $older,
         sizes     => [25,50,100],
         rss       => !$query->{id} && !$query->{older},
-        tiled     => scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
+        tiled     => !$is_admin && scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
         category  => $ph,
         subhead   => $query->{subhead},
         header    => $header,

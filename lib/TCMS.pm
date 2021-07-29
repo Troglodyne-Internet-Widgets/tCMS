@@ -78,9 +78,6 @@ If a path passed is not a defined route (or regex route), but exists as a file u
 sub app {
     my $env = shift;
 
-    #use Data::Dumper;
-    #print Dumper($env);
-
     my $last_fetch = 0;
     if ($env->{HTTP_IF_MODIFIED_SINCE}) {
         $last_fetch = DateTime::Format::HTTP->parse_datetime($env->{HTTP_IF_MODIFIED_SINCE})->epoch();

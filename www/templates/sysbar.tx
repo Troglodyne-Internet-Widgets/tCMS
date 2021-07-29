@@ -4,7 +4,6 @@
         <a href="/"            title="Back home"     class="topbar">Home</a>
         <a href="/config"      title="Configuration" class="topbar">Settings</a>
         <a href="/manual"      title="Manual"        class="topbar">Manual</a>
-        : include "categories.tx";
         <a href="/logout"      title="Logout"        class="topbar">🚪</a>
     </span>
 </div>
