@@ -832,6 +832,7 @@ sub posts ($query, $render_cb, $direct=0) {
                         embed => sub {
                             my ($this_id, $style) = @_;
                             $style //= 'embed';
+                            # If instead the style is 'content', then we will only show the content w/ no formatting, and no title.
                             return Text::Xslate::mark_raw(Trog::Routes::HTML::posts(
                                 { route => "/post/$this_id", style => $style },
                                 sub {},

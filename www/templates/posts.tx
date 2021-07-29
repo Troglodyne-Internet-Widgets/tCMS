@@ -47,8 +47,10 @@
         <div class="post <: $style :>">
             : if (!$post.is_profile) {
             <h3 class='blogtitles'>
-                <a ><a href='<: $post.href :>' ><: $post.title :></a>
-                <a class="undecorated" href='/posts/<: $post.id :>'>🔗</a>
+                : if (!$style || $style == 'embed') {
+                    <a ><a href='<: $post.href :>' ><: $post.title :></a>
+                    <a class="undecorated" href='/posts/<: $post.id :>'>🔗</a>
+                : }
                 : if (!$style) {
                     : if ( $post.version_max && !$rss ) {
                     <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
@@ -107,7 +109,9 @@
                     : if ( $post.is_profile ) {
                     <h3><: $post.title :></h3>
                     : }
-                    <: render_it($post.data) | mark_raw  :>
+                    : if ( $style != 'media' ) {
+                        <: render_it($post.data) | mark_raw  :>
+                    : }
                 </div>
             : }
             : if( $post.is_profile ) {
@@ -131,6 +135,9 @@
 
                     // Fix post dates to be localized
                     var e = document.getElementById("<: $post.id :>-<: $post.version :>-time");
+                    if (!e) {
+                        return;
+                    }
                     var d = new Date(0);
                     d.setUTCSeconds(e.innerText);
                     e.innerHTML = "&nbsp;" + d.toDateString();

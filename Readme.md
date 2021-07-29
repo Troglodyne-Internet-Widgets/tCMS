@@ -41,6 +41,23 @@ Planned development:
 * Presentations
 * Test Plans / Issues (crossover with App::Prove::Elasticsearch)
 
+Embedding Posts within other Posts
+==================================
+
+If you know a Post's ID (see the numbers at the end of it's URI when viewing it's permalink denoted by the chain emoji)
+You can embed template logic into your posts like so:
+
+```
+<: embed(12345, 'embed') :>
+```
+
+The first parameter is the ID number of the post.
+The second parameter is the formatting style:
+
+* embed : default, shows the post with a recessed border as an excerpt.
+* media : only show media portion of the post, if any.
+* inline : show everything about the post, save for the title.
+
 Data Models
 ===========
 * DUMMY - A JSON blob.  Used for testing mostly, but could be handy for very small sites.
