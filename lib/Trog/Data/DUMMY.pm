@@ -27,6 +27,10 @@ sub read ($self, $query={}) {
     confess "Can't find datastore!" unless -f $datastore;
     my $slurped = File::Slurper::read_text($datastore);
     $posts = JSON::MaybeXS::decode_json($slurped);
+
+    # Sort everything by date DESC
+    @$posts = sort { $b->{created} <=> $a->{created} } @$posts;
+
     return $posts;
 }
 
