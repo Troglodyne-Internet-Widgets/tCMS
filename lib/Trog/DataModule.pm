@@ -101,8 +101,8 @@ sub _fixup ($self, @filtered) {
             $_->{$param} =~ s/ /%20/g;
         }
 
-        #Add routing data for posts which don't have them (/posts/$id)
-        $_->{local_href} = "/posts/$_->{id}"                unless exists($_->{local_href});
+        #XXX Add routing data for posts which don't have them (/posts/$id)
+        $_->{local_href} = "/posts/$_->{id}"           unless exists($_->{local_href});
         $_->{method}     = 'GET'                       unless exists($_->{method});
         $_->{callback}   = "Trog::Routes::HTML::posts" unless exists($_->{callback});
 
@@ -249,6 +249,8 @@ sub add ($self, @posts) {
     my @to_write;
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
+        # Generate a local_href so we can build the route correctly and not have to rely on auto-insert in _fixup() someday
+        $post->{local_href} = "/posts/$post->{id}";
         $post->{created} = time();
         my @existing_posts = $self->get( id => $post->{id} );
         if (@existing_posts) {

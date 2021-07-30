@@ -58,7 +58,7 @@
             </video>
         : } else {
             : if ($post.is_profile) {
-            <div class="square circle bigprofile preview" style="background-image:url(<: $post.preview :>)"></div>
+                <div class="square circle bigprofile preview" style="background-image:url(<: $post.preview :>)"></div>
             : } else {
             <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
             : }
@@ -119,6 +119,7 @@
                 <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
             : }
             : if ( $post.is_profile ) {
+                <a href="/users/<: $post.title :>" title="<: $post.title :> poasts">
                 <div style="background-image:url(<: $post.wallpaper :>);" class="banner profile">
                     <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
             : }
@@ -137,7 +138,7 @@
                 </div>
             : }
             : if( $post.is_profile ) {
-                </div><br />
+                </div></a><br />
             : }
             : if ( $can_edit ) {
             <br />
@@ -180,7 +181,7 @@
         : }
     : }
 : }
-: if ( $rss || $older ) {
+: if ( !$direct && ( $rss || $older ) ) {
 : include "paginator.tx";
 : }
 : if ( $footer ) {

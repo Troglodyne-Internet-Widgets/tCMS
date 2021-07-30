@@ -31,6 +31,8 @@ our $rightbar      = 'rightbar.tx';
 our $leftbar       = 'leftbar.tx';
 our $footbar       = 'footbar.tx';
 
+# Note to maintainers: never ever remove backends from this list.
+# the auth => 1 is a crucial protection, even with forbidden() guards in these routes.
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
@@ -81,8 +83,24 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::themeclone,
     },
+    '/profile' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::profile,
+    },
+    '/manual' => {
+        method => 'GET',
+        auth   => 1,
+        callback => \&Trog::Routes::HTML::manual,
+    },
+    '/lib/(.*)' => {
+        method => 'GET',
+        auth   => 1,
+        captures => ['module'],
+        callback => \&Trog::Routes::HTML::manual,
+    },
 
-    # Can also be made into posts
+    #TODO transform intoposts
     '/sitemap', => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
@@ -134,30 +152,10 @@ our %routes = (
         data     => { tag => ['about'] },
     },
 
-    '/posts' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::posts,
-    },
-    '/profile' => {
-        method   => 'POST',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::profile,
-    },
     '/users/(.*)' => {
         method => 'GET',
         callback => \&Trog::Routes::HTML::users,
         captures => ['username'],
-    },
-    '/manual' => {
-        method => 'GET',
-        auth   => 1,
-        callback => \&Trog::Routes::HTML::manual,
-    },
-    '/lib/(.*)' => {
-        method => 'GET',
-        auth   => 1,
-        captures => ['module'],
-        callback => \&Trog::Routes::HTML::manual,
     },
 );
 
@@ -693,7 +691,13 @@ Implements direct user profile view.
 =cut
 
 sub users ($query, $render_cb) {
+    # Capture the username
+    my (undef, undef, $username) = split(/\//, $query->{route});
+
+    $query->{username} //= $username;
     push(@{$query->{acls}}, 'public');
+    $query->{exclude_tags} = ['about'];
+
     my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
     my @user = grep { $_->{user} eq $query->{username} } @posts;
     $query->{id} = $user[0]->{id};
@@ -858,7 +862,7 @@ sub posts ($query, $render_cb, $direct=0) {
         failure   => $query->{failure},
         to        => $query->{to},
         message   => $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}",
-        direct    => !!$id,
+        direct    => $direct,
         title     => $query->{title},
         style     => $query->{style},
         posts     => \@posts,
