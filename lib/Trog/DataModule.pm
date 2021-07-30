@@ -312,6 +312,7 @@ sub _process ($post) {
         my $ext = '.'.$mf->extname();
         $post->{audio_content_type} = Plack::MIME->mime_type($ext) if $ext;
     }
+    $post->{content_type} ||= 'text/html';
 
     return $post;
 }

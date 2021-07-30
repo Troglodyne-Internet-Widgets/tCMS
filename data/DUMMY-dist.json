@@ -238,7 +238,7 @@
       "version" : 0
    },
    {
-      "aclname" : "images",
+      "aclname" : "image",
       "content_type" : "text/plain",
       "created" : 1604424769,
       "data" : "Images",
@@ -257,7 +257,7 @@
       "version" : 0
    },
    {
-      "aclname" : "images",
+      "aclname" : "video",
       "content_type" : "text/plain",
       "created" : 1604424769,
       "data" : "Video",

@@ -517,6 +517,8 @@ Implements /config/save route.  Saves what little configuration we actually use 
 =cut
 
 sub config_save ($query, $render_cb) {
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
 
@@ -540,6 +542,7 @@ Clone a theme by copying a directory.
 =cut
 
 sub themeclone ($query, $render_cb) {
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
     my ($theme, $newtheme) = ($query->{theme},$query->{newtheme});
 
     my $themedir = 'www/themes';
@@ -554,70 +557,6 @@ sub themeclone ($query, $render_cb) {
     return config($query, $render_cb);
 }
 
-=head2 post
-
-Display the route for making new posts.
-
-=cut
-
-sub post ($query, $render_cb) {
-    if (!$query->{user}) {
-        return login($query, $render_cb);
-    }
-    $query->{acls} = _coerce_array($query->{acls});
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
-
-    my $tags  = _coerce_array($query->{tag});
-    my @posts = _post_helper($query, $tags, $query->{acls});
-
-    my $css   = _build_themed_styles('post.css');
-    my $js    = _build_themed_scripts('post.js');
-    push(@$css, '/styles/avatars.css');
-    my @acls  = _post_helper({}, ['series'], $query->{acls});
-
-    my $app = 'file';
-    if ($query->{route}) {
-        $app = 'image' if $query->{route} =~ m/image$/;
-        $app = 'video' if $query->{route} =~ m/video$/;
-        $app = 'audio' if $query->{route} =~ m/audio$/;
-    }
-
-    #Filter displaying visibility tags
-    my @visibuddies = qw{public unlisted private};
-    foreach my $post (@posts) {
-        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } @visibuddies } @{$post->{tags}};
-    }
-
-    my $limit = int($query->{limit} || 25);
-
-    my @series = _get_series(1);
-
-    return $render_cb->('post.tx', {
-        title       => 'New Post',
-        theme_dir   => $td,
-        to          => $query->{to},
-        failure     => $query->{failure} // -1,
-        message     => $query->{message},
-        post_visibilities => \@visibuddies,
-        stylesheets => $css,
-        scripts     => $js,
-        posts       => \@posts,
-        can_edit    => 1,
-        route       => $query->{route},
-        category    => '/posts',
-        categories  => \@series,
-        limit       => $limit,
-        pages       => scalar(@posts) == $limit,
-        older       => @posts ? $posts[-1]->{created} : '',
-        sizes       => [25,50,100],
-        id          => $query->{id},
-        acls        => \@acls,
-        post        => { tags => $query->{tag} },
-        edittype    => $query->{type} || 'microblog',
-        app         => $app,
-    });
-}
-
 =head2 post_save
 
 Saves posts submitted via the /post pages
@@ -625,18 +564,31 @@ Saves posts submitted via the /post pages
 =cut
 
 sub post_save ($query, $render_cb) {
+
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
     my $to = delete $query->{to};
 
     #Copy this down since it will be deleted later
     my $acls = $query->{acls};
+
     state $data = Trog::Data->new($conf);
     $query->{tags}  = _coerce_array($query->{tags});
+
+    # Filter bits and bobs
+    delete $query->{primary_post};
+    delete $query->{social_meta};
+    delete $query->{deflate};
+    delete $query->{acls};
+
+    # Ensure there are no null tags
+    @{$query->{tags}} = grep { defined $_ } @{$query->{tags}};
+
     $query->{failure} = $data->add($query);
     $query->{to} = $to;
     $query->{acls} = $acls;
-    $query->{message} = $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}";
+    $query->{message} = $query->{failure} ? "Failed to add post!" : "Successfully added Post";
     delete $query->{id};
-    return post($query, $render_cb);
+    return posts($query, $render_cb);
 }
 
 =head2 profile
@@ -646,6 +598,8 @@ Saves / updates new users.
 =cut
 
 sub profile ($query, $render_cb) {
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     #TODO allow users to do something OTHER than be admins
     if ($query->{password}) {
         Trog::Auth::useradd($query->{username}, $query->{password}, ['admin'] );
@@ -665,6 +619,8 @@ deletes posts.
 =cut
 
 sub post_delete ($query, $render_cb) {
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     state $data = Trog::Data->new($conf);
     $query->{failure} = $data->delete($query);
     $query->{to} = $query->{to};
@@ -755,6 +711,7 @@ Display multi or single posts, supports RSS and pagination.
 
 sub posts ($query, $render_cb, $direct=0) {
     #Process the input URI to capture tag/id
+    $query->{route} //= $query->{to};
     my (undef, $tag, $id) = split(/\//, $query->{route});
 
     my $tags = _coerce_array($query->{tag});
@@ -865,13 +822,41 @@ sub posts ($query, $render_cb, $direct=0) {
     my $edittype =  $routemap{$query->{route}} // 'blog';
 
     my $older = !@posts ? 0 : $posts[-1]->{created};
-    $query->{failed} = -1;
+    $query->{failure} //= -1;
     $query->{id} //= '';
 
+    #XXX messed up data has to be fixed unfortunately
+    @$tags = List::Util::uniq @$tags;
+
+    #XXX also unsure this is actually necessary
+    my $app = 'file';
+    if ($query->{route}) {
+        $app = 'image' if $query->{route} =~ m/image$/;
+        $app = 'video' if $query->{route} =~ m/video$/;
+        $app = 'audio' if $query->{route} =~ m/audio$/;
+    }
+
+    #Filter displaying visibility tags
+    my @visibuddies = qw{public unlisted private};
+    foreach my $post (@posts) {
+        @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } @visibuddies } @{$post->{tags}};
+    }
+
+    my $aclselected = $tags->[0] || '';
+    my @acls  = map {
+        $_->{selected} = $_->{aclname} eq $aclselected ? 'selected' : '';
+        $_
+    } _post_helper({}, ['series'], $query->{acls});
+
     my $content = $processor->render('posts.tx', {
+        app       => $app,
+        acls      => \@acls,
         can_edit  => $is_admin,
         edittype  => $edittype,
-        failure   => $query->{failed},
+        post      => { tags => $tags },
+        post_visibilities => \@visibuddies,
+        failure   => $query->{failure},
+        to        => $query->{to},
         message   => $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}",
         direct    => !!$id,
         title     => $query->{title},
@@ -1102,6 +1087,8 @@ Basically a thin wrapper around Pod::Html.
 sub manual ($query, $render_cb) {
     require Pod::Html;
     require Capture::Tiny;
+
+    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     #Fix links from Pod::HTML
     $query->{module} =~ s/\.html$//g if $query->{module};
