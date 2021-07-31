@@ -153,10 +153,6 @@ our %routes = (
     },
 );
 
-#XXX these need to be fetched dynamically from all the header categories?
-# Is used by the sitemap, maybe just fix there
-my @post_aliases = qw{news blog video images audio files series about};
-
 # Grab theme routes
 my $themed = 0;
 if ($theme_dir) {
@@ -774,9 +770,11 @@ sub posts ($query, $render_cb, $direct=0) {
         },
     );
 
-    # Themed header/footer for about page -- TODO maybe make this generic so we can have MESSAGE FROM JIMBO WALES everywhere
+    #XXX Is used by the sitemap, maybe just fix there?
+    my @post_aliases = map { $_->{local_href} } _get_series();
+
     my ($header,$footer);
-    my $should_header = grep { $_ eq $query->{route} } map { "/$_" } (@post_aliases,'humans.txt');
+    my $should_header = grep { $_ eq $query->{route} } (@post_aliases,'/humans.txt');
     if ($should_header) {
 
         my $route = $query->{route};
