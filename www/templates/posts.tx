@@ -86,7 +86,7 @@
                     </form>
                     : }
                     <span id="<: $post.id :>-<: $post.version :>-time" class="responsive-hide" style="float:right;"><: $post.created :></span>
-                    <a class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
+                    <a href="/users/<: $post.user :>" class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
                 : }
             </h3>
             : }
