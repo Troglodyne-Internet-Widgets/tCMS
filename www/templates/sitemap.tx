@@ -25,7 +25,7 @@
             <a href="<: $map :>">
             <: $map :>
         : } else {
-            <a href="/posts/<: $map.id :>">
+            <a href="<: $map.local_href :>">
             <: $map.title :>
         : }
         </a><br />

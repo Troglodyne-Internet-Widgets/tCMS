@@ -100,7 +100,7 @@ our %routes = (
         callback => \&Trog::Routes::HTML::manual,
     },
 
-    #TODO transform intoposts
+    #TODO transform into posts?
     '/sitemap', => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
@@ -150,12 +150,6 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
-    },
-
-    '/users/(.*)' => {
-        method => 'GET',
-        callback => \&Trog::Routes::HTML::users,
-        captures => ['username'],
     },
 );
 
@@ -975,7 +969,13 @@ sub sitemap ($query, $render_cb) {
             my $changefreq = $query->{map} eq 'static' ? 'monthly' : 'daily';
             foreach my $url (@to_map) {
                 my $true_uri = "http://$query->{domain}$url";
-                $true_uri = "http://$query->{domain}/posts/$url->{id}" if ref $url eq 'HASH';
+                if (ref $url eq 'HASH') {
+                    my $is_user_page = grep { $_ eq 'about' } @{$url->{tags}};
+                    use Data::Dumper;
+                    print Dumper($url);
+                    $true_uri = "http://$query->{domain}/posts/$url->{id}";
+                    $true_uri = "http://$query->{domain}/users/$url->{title}" if $is_user_page;
+                }
                 my %data = (
                     loc        => $true_uri,
                     lastmod    => $xml_date,

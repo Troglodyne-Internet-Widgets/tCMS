@@ -96,17 +96,26 @@ sub _fixup ($self, @filtered) {
 
     # urlencode spaces in filenames
     @filtered = map {
+        my $subj = $_;
         foreach my $param (qw{href preview video_href audio_href local_href wallpaper}) {
-            next unless exists $_->{$param};
-            $_->{$param} =~ s/ /%20/g;
+            next unless exists $subj->{$param};
+            $subj->{$param} =~ s/ /%20/g;
         }
 
-        #XXX Add routing data for posts which don't have them (/posts/$id)
-        $_->{local_href} = "/posts/$_->{id}"           unless exists($_->{local_href});
-        $_->{method}     = 'GET'                       unless exists($_->{method});
-        $_->{callback}   = "Trog::Routes::HTML::posts" unless exists($_->{callback});
+        #XXX Add dynamic routing data for posts which don't have them (/posts/$id) and (/users/$user)
+        my $is_user_page = grep { $_ eq 'about' } @{$subj->{tags}};
+        if (!exists $subj->{local_href}) {
+            $subj->{local_href} = "/posts/$subj->{id}";
+            $subj->{local_href} = "/users/$subj->{title}" if $is_user_page;
+        }
+        if (!exists $subj->{callback}) {
+            $subj->{callback} = "Trog::Routes::HTML::posts";
+            $subj->{callback} = "Trog::Routes::HTML::users" if $is_user_page;
+        }
 
-        $_
+        $subj->{method} = 'GET' unless exists($subj->{method});
+
+        $subj
     } @filtered;
 
     return @filtered;
@@ -271,13 +280,14 @@ sub add ($self, @posts) {
 # Not actually a subprocess, kek
 sub _process ($post) {
 
-    $post->{href}      = _handle_upload($post->{file}, $post->{id})         if $post->{file};
-    $post->{preview}   = _handle_upload($post->{preview_file}, $post->{id}) if $post->{preview_file};
-    $post->{wallpaper} = _handle_upload($post->{wallpaper_file}, $post->{id})    if $post->{wallpaper_file};
+    $post->{href}      = _handle_upload($post->{file}, $post->{id})             if $post->{file};
+    $post->{preview}   = _handle_upload($post->{preview_file}, $post->{id})     if $post->{preview_file};
+    $post->{wallpaper} = _handle_upload($post->{wallpaper_file}, $post->{id})   if $post->{wallpaper_file};
     $post->{preview} = $post->{href} if $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};
+    delete $post->{wallpaper_file};
 
     delete $post->{scheme};
     delete $post->{route};

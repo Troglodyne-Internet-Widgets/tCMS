@@ -1,7 +1,9 @@
 : if ( $can_edit ) {
     <script type="text/javascript" src="/scripts/post.js"></script>
     : if (!$direct) {
+        : if ($to) {
         : include "jsalert.tx";
+        : }
         <a style="cursor:pointer" onclick="switchMenu('submissions')">[Add Post]</a><hr />
         <div id="submissions" style="display:none">
           : include $edittype ~ ".tx";
