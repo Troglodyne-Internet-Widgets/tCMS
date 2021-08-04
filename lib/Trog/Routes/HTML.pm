@@ -394,7 +394,28 @@ sub login ($query, $render_cb) {
         if (!$hasusers) {
             # Make the first user
             Trog::Auth::useradd($query->{username}, $query->{password}, ['admin'] );
+            # Add a stub user page and the initial series.
+            my $dat = Trog::Data->new($conf);
+            _setup_initial_db($dat,$query->{username});
+            $dat->add({
+                title      => $query->{username},
+                data       => 'Default user',
+                preview    => '/img/avatar/humm.gif',
+                wallpaper  => '/img/sys/testpattern.jpg',
+                tags       => ['about'],
+                visibility => 'public',
+                acls       => ['admin'],
+                local_href => "/users/$query->{username}",
+                callback   => "Trog::Routes::HTML::users",
+                user       => $query->{username},
+                form       => 'profile.tx',
+            });
+            # Ensure we stop registering new users
             File::Touch::touch("config/has_users");
+
+            #hup the parent to refresh the routing table
+            my $parent = getppid;
+            kill 'HUP', $parent;
         }
 
         $query->{failed} = 1;
@@ -420,6 +441,55 @@ sub login ($query, $render_cb) {
         stylesheets   => _build_themed_styles('login.css'),
         theme_dir     => $td,
     }, @headers);
+}
+
+sub _setup_initial_db ($dat, $user) {
+   $dat->add(
+        {
+            "aclname"    => "series",
+            "acls"       => [],
+            "callback"   => "Trog::Routes::HTML::series",
+            "data"       => "Series",
+            "href"       => "/series",
+            "local_href" => "/series",
+            "preview"    => "/img/sys/testpattern.jpg",
+            "tags"       => [qw{series topbar}],
+            visibility   => 'public',
+            "title"      => "Series",
+            user         => $user,
+            form         => 'series.tx',
+            child_form   => 'series.tx',
+        },
+        {
+            "aclname"    => "about",
+            "acls"       => [],
+            "callback"   => "Trog::Routes::HTML::series",
+            "data"       => "About",
+            "href"       => "/about",
+            "local_href" => "/about",
+            "preview"    => "/img/sys/testpattern.jpg",
+            "tags"       => [qw{series topbar public}],
+            visibility   => 'public',
+            "title"      => "About",
+            user         => $user,
+            form         => 'series.tx',
+            child_form   => 'profile.tx',
+        },
+        {
+            "aclname"      => "admin",
+            acls           => [],
+            "callback"     => "Trog::Routes::HTML::config",
+            "content_type" => "text/plain",
+            "data"         => "Config",
+            "href"         => "/config",
+            "local_href"   => "/config",
+            "preview"      => "/img/sys/testpattern.jpg",
+            "tags"         => [qw{admin}],
+            visibility     => 'private',
+            "title"        => "Configure tCMS",
+            user           => $user,
+        },
+    );
 }
 
 =head2 logout
@@ -626,11 +696,13 @@ Displays identified series, not all series.
 
 sub series ($query, $render_cb) {
     my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
-    $query->{exclude_tags} = ['topbar'] unless $is_admin;
 
-    #we are either viewed one of two ways, /series/$id or /$aclname
-    my (undef,$aclname) = split(/\//,$query->{route});
-    $query->{aclname} = $aclname if $aclname;
+    #we are either viewed one of two ways, /post/$id or /$aclname
+    my (undef,$aclname,$id) = split(/\//,$query->{route});
+    $query->{aclname} = $aclname if !$id;
+
+    # Don't show topbar series on the series page.  That said, don't exclude it from direct series view.
+    $query->{exclude_tags} = ['topbar'] if !$is_admin && $aclname && $aclname eq 'series';
 
     #XXX I'd prefer to overload id to actually *be* the aclname...
     # but this way, accomodates things like the flat file time-indexing hack.
@@ -639,7 +711,8 @@ sub series ($query, $render_cb) {
     # That will essentially necessitate it *becoming* the ID for real.
 
     #Grab the relevant tag (aclname), then pass that to posts
-    my @posts = _post_helper($query, [], $query->{acls});
+    my @posts = _post_helper($query, ['series'], $query->{acls});
+
     delete $query->{id};
     delete $query->{aclname};
 
@@ -689,7 +762,7 @@ sub users ($query, $render_cb) {
     $query->{exclude_tags} = ['about'];
 
     my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
-    my @user = grep { $_->{user} eq $query->{username} } @posts;
+    my @user = grep { $_->{title} eq $query->{username} } @posts;
     $query->{id} = $user[0]->{id};
     $query->{title} = $user[0]->{title};
     $query->{user_obj} = $user[0];
@@ -796,7 +869,6 @@ sub posts ($query, $render_cb, $direct=0) {
 
     #Correct page headers
     my $ph = $themed ? _themed_title($query->{route}) : $query->{route};
-    $ph = $query->{title} if $query->{title};
 
     # Build page title if it wasn't set by a wrapping sub
     $query->{title} = "$query->{domain} : $query->{title}" if $query->{title} && $query->{domain};
@@ -812,10 +884,6 @@ sub posts ($query, $render_cb, $direct=0) {
         undef $header;
         undef $footer;
     }
-
-    my %routemap;
-    @routemap{qw{/news /about /series /image /video /audio /files}} = qw{microblog profile series file file file file};
-    my $edittype =  $routemap{$query->{route}} // 'blog';
 
     my $older = !@posts ? 0 : $posts[-1]->{created};
     $query->{failure} //= -1;
@@ -844,12 +912,17 @@ sub posts ($query, $render_cb, $direct=0) {
         $_
     } _post_helper({}, ['series'], $query->{acls});
 
+    #TODO make this dynamic with a template subdirectory for users to plop things in
+    my $forms = [qw{microblog.tx blog.tx file.tx}];
+    my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form} : $query->{form};
+
     my $content = $processor->render('posts.tx', {
         app       => $app,
         acls      => \@acls,
         can_edit  => $is_admin,
         edittype  => $edittype,
-        post      => { tags => $tags },
+        forms     => $forms,
+        post      => { tags => $tags, form => $edittype },
         post_visibilities => \@visibuddies,
         failure   => $query->{failure},
         to        => $query->{to},

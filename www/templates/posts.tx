@@ -4,10 +4,12 @@
         : if ($to) {
         : include "jsalert.tx";
         : }
+        : if ($edittype) {
         <a style="cursor:pointer" onclick="switchMenu('submissions')">[Add Post]</a><hr />
         <div id="submissions" style="display:none">
-          : include $edittype ~ ".tx";
+          : include $edittype;
         </div>
+        : }
         <script type="text/javascript" src="/scripts/fgEmojiPicker.js"></script>
         <script type="text/javascript">
         new FgEmojiPicker({
@@ -44,7 +46,7 @@
     : if ( $post.aclname && $in_series ) {
     :     next;
     : }
-    : if ( $post.is_profile && $post.user == 'Nobody' ) {
+    : if ( !$post.form ) {
     :     next;
     : }
     :if ( $tiled ) {
@@ -128,6 +130,8 @@
             : if( $post.data ) {
                 : if ($post.is_video || $post.is_image) {
                 <div id="postData" class="responsive-text">
+                : } elsif ($post.is_profile) {
+                <div id="postData" class="nameBadge">
                 : } else {
                 <div id="postData">
                 : }
@@ -146,7 +150,7 @@
             <br />
             <a style="display: inline-block;cursor:pointer;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
             <div id="<: $post.id :>-<: $post.version :>" style="display:none;">
-                : include $post.type ~ ".tx" { post => $post };
+                : include $post.form { post => $post };
                 <form class="Submissions" action="/post/delete" method="POST" class="inline">
                     <input type="hidden" name="id" value="<: $post.id :>"></input>
                     <input type="hidden" name="to" value="<: $route :>"></input>

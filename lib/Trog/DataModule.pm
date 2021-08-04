@@ -149,17 +149,20 @@ sub filter ($self, $query, @filtered) {
 
     # Filter posts not matching the passed tag(s), if any
     @filtered = grep {
-        my $tags = $_->{tags}; grep { my $t = $_; grep { $t eq $_ } @{$query->{tags}} } @$tags
+        my $tags = $_->{tags};
+        grep { my $t = $_; grep { $t eq $_ } @{$query->{tags}} } @$tags
     } @filtered if @{$query->{tags}};
 
     # Filter posts *matching* the passed exclude_tag(s), if any
     @filtered = grep {
-        my $tags = $_->{tags}; !grep { my $t = $_; grep { $t eq $_ } @{$query->{exclude_tags}} } @$tags
+        my $tags = $_->{tags};
+        !grep { my $t = $_; grep { $t eq $_ } @{$query->{exclude_tags}} } @$tags
     } @filtered if @{$query->{exclude_tags}};
 
     # Filter posts without the proper ACLs
     @filtered = grep {
-        my $tags = $_->{tags}; grep { my $t = $_; grep { $t eq $_ } @{$query->{acls}} } @$tags
+        my $tags = $_->{tags};
+        grep { my $t = $_; grep { $t eq $_ } @{$query->{acls}} } @$tags
     } @filtered unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
@@ -259,7 +262,7 @@ sub add ($self, @posts) {
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
         # Generate a local_href so we can build the route correctly and not have to rely on auto-insert in _fixup() someday
-        $post->{local_href} = "/posts/$post->{id}";
+        $post->{local_href} //= "/posts/$post->{id}";
         $post->{created} = time();
         my @existing_posts = $self->get( id => $post->{id} );
         if (@existing_posts) {
@@ -273,6 +276,11 @@ sub add ($self, @posts) {
         push @to_write, $post;
     }
     $self->write(\@to_write);
+
+    #hup the parent to refresh the routing table
+    my $parent = getppid;
+    kill 'HUP', $parent;
+
     return 0;
 }
 
@@ -283,7 +291,7 @@ sub _process ($post) {
     $post->{href}      = _handle_upload($post->{file}, $post->{id})             if $post->{file};
     $post->{preview}   = _handle_upload($post->{preview_file}, $post->{id})     if $post->{preview_file};
     $post->{wallpaper} = _handle_upload($post->{wallpaper_file}, $post->{id})   if $post->{wallpaper_file};
-    $post->{preview} = $post->{href} if $post->{app} eq 'image';
+    $post->{preview}   = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};
@@ -296,7 +304,8 @@ sub _process ($post) {
     # Handle acls/tags
     $post->{tags} //= [];
     @{$post->{tags}} = grep { my $subj = $_; !grep { $_ eq $subj} qw{public private unlisted} } @{$post->{tags}};
-    push(@{$post->{tags}}, delete $post->{acls}) if $post->{visibility} eq 'private';
+    push(@{$post->{tags}}, @{$post->{acls}}) if $post->{visibility} eq 'private';
+    delete $post->{acls};
     push(@{$post->{tags}}, delete $post->{visibility});
 
     # Add the 'series' tag if we are in a series, restrict to relevant acl

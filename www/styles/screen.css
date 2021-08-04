@@ -412,3 +412,14 @@ p.posteditortitle {
     margin: 2rem;
     padding: 1rem;
 }
+/* Name badge on posts */
+.nameBadge {
+    background-color: black;
+    opacity: 80%;
+    color: white;
+    border-radius: 1rem;
+    text-align:center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: .5rem;
+}

@@ -24,7 +24,11 @@ sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
 our $posts;
 
 sub read ($self, $query={}) {
-    confess "Can't find datastore!" unless -f $datastore;
+    if ( !-f $datastore) {
+        open(my $fh, '>', $datastore);
+        print $fh '[]';
+        close $fh;
+    }
     my $slurped = File::Slurper::read_text($datastore);
     $posts = JSON::MaybeXS::decode_json($slurped);
 

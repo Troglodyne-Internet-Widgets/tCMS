@@ -5,4 +5,5 @@ Content <button class="coolbutton emojiPicker">😎</button>:
 : if ( $post.id ) {
 <input type="hidden" name="id" value="<: $post.id :>" />
 : }
+<input type="hidden" name="form" value="<: $post.form :>"></input>
 <input class="coolbutton" type="submit" value="Publish" text="Publish" />
