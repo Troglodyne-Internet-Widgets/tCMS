@@ -494,15 +494,14 @@ sub _setup_initial_db ($dat, $user) {
 
 =head2 logout
 
-Deletes your users' session and opens the login page.
+Deletes your users' session and opens the index.
 
 =cut
 
 sub logout ($query, $render_cb) {
     Trog::Auth::killsession($query->{user}) if $query->{user};
     delete $query->{user};
-    $query->{to} = '/config';
-    return login($query,$render_cb);
+    return Trog::Routes::HTML::index($query,$render_cb);
 }
 
 =head2 config
