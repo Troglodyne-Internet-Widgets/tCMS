@@ -684,7 +684,7 @@ sub post_delete ($query, $render_cb) {
     $query->{to} = $query->{to};
     $query->{message} = $query->{failure} ? "Failed to delete post $query->{id}!" : "Successfully deleted Post $query->{id}";
     delete $query->{id};
-    return post($query, $render_cb);
+    return posts($query, $render_cb);
 }
 
 =head2 series
