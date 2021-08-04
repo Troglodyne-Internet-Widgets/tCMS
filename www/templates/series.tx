@@ -5,7 +5,7 @@
     Input Form *<br />
     <select required class="cooltext" name="child_form">
     : for $forms -> $form {
-        <option value="<: $form :>"><: $form :></option>
+        <option value="<: $form :>" <: if ( $post.child_form == $form ) { :>selected<: } :> ><: $form :></option>
     : }
     </select>
     <input type="hidden" name="callback" value="Trog::Routes::HTML::series" />

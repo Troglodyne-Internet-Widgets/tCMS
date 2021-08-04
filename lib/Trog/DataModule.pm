@@ -89,8 +89,6 @@ sub get ($self, %request) {
 
 sub _fixup ($self, @filtered) {
     @filtered = _add_media_type(@filtered);
-    # Finally, add visibility
-    @filtered = _add_visibility(@filtered);
 
     # urlencode spaces in filenames
     @filtered = map {
@@ -214,15 +212,6 @@ sub _add_media_type (@posts) {
     } @posts;
 }
 
-sub _add_visibility (@posts) {
-    return map {
-        my $post = $_;
-        my @visibilities = grep { my $tag = $_; grep { $_ eq $tag } qw{private unlisted public} } @{$post->{tags}};
-        $post->{visibility} = $visibilities[0];
-        $post
-    } @posts;
-}
-
 =head2 count() = INT $num
 
 Returns the total number of posts.
@@ -289,7 +278,7 @@ sub _process ($post) {
     @{$post->{tags}} = grep { my $subj = $_; !grep { $_ eq $subj} qw{public private unlisted} } @{$post->{tags}};
     push(@{$post->{tags}}, @{$post->{acls}}) if $post->{visibility} eq 'private';
     delete $post->{acls};
-    push(@{$post->{tags}}, delete $post->{visibility});
+    push(@{$post->{tags}}, $post->{visibility});
 
     # Add the 'series' tag if we are in a series, restrict to relevant acl
     if ($post->{series}) {
