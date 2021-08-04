@@ -88,8 +88,6 @@ sub get ($self, %request) {
 }
 
 sub _fixup ($self, @filtered) {
-    @filtered = _add_post_type(@filtered);
-    # Next, add the type of post this is
     @filtered = _add_media_type(@filtered);
     # Finally, add visibility
     @filtered = _add_visibility(@filtered);
@@ -204,20 +202,6 @@ sub _dedup_versions ($version=-1, @posts) {
     return @deduped;
 }
 
-#XXX this probably should be re-factored to be baked into the data from the get-go
-sub _add_post_type (@posts) {
-    return map {
-        my $post = $_;
-        my $type = 'file';
-        $type = 'blog'      if grep { $_ eq 'blog'   } @{$post->{tags}};
-        $type = 'microblog' if grep { $_ eq 'news'   } @{$post->{tags}};
-        $type = 'profile'   if grep { $_ eq 'about'  } @{$post->{tags}};
-        $type = 'series'    if grep { $_ eq 'series' } @{$post->{tags}};
-        $post->{type} = $type;
-        $post
-    } @posts;
-}
-
 sub _add_media_type (@posts) {
     return map {
         my $post = $_;
@@ -261,7 +245,6 @@ sub add ($self, @posts) {
     my @to_write;
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
-        # Generate a local_href so we can build the route correctly and not have to rely on auto-insert in _fixup() someday
         $post->{local_href} //= "/posts/$post->{id}";
         $post->{created} = time();
         my @existing_posts = $self->get( id => $post->{id} );
