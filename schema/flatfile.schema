@@ -4,13 +4,14 @@ CREATE TABLE IF NOT EXISTS tag (
 );
 
 CREATE TABLE IF NOT EXISTS posts_index (
-    post_id INTEGER NOT NULL,
+    post_id TEXT NOT NULL,
+    post_time INTEGER NOT NULL,
     tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS tag_idx ON tag(name);
 
-CREATE VIEW IF NOT EXISTS posts AS SELECT p.post_id as id, t.name AS tag FROM posts_index AS p JOIN tag AS t ON t.id=p.tag_id;
+CREATE VIEW IF NOT EXISTS posts AS SELECT p.post_id AS id, p.post_time AS created, t.name AS tag FROM posts_index AS p JOIN tag AS t ON t.id=p.tag_id;
 
 /* The intention is to read this entirely into memory at app startup     */
 /* This should not incur significant costs, even with millions of posts. */
@@ -24,13 +25,15 @@ CREATE TABLE IF NOT EXISTS routes (
 /* TODO  ^^^ */
 CREATE TABLE IF NOT EXISTS methods (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    method TEXT NOT NULL
+    method TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS callbacks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    callback TEXT NOT NULL
+    callback TEXT NOT NULL UNIQUE
 );
 
 CREATE VIEW IF NOT EXISTS all_routes AS SELECT r.route AS route, m.method AS method, c.callback AS callback FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id;
 
+/* Fill the methods table with the HTTP verbs */
+INSERT OR IGNORE INTO methods (method) VALUES ('GET'),('POST'),('DELETE'),('PUT'),('HEAD'),('PATCH'),('CONNECT'),('OPTIONS'),('TRACE');

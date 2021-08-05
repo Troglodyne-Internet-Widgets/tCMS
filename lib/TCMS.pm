@@ -164,8 +164,12 @@ sub app {
     $query->{social_meta}  = 1;
     $query->{primary_post} = {};
 
-    my $output =  $routes{$path}{callback}->($query, \&_render);
-    return $output;
+    #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
+    {
+        no strict 'refs';
+        my $output = $routes{$path}{callback}->($query, \&_render);
+        return $output;
+    }
 };
 
 sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {

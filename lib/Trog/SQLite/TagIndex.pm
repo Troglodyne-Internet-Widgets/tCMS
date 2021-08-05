@@ -11,7 +11,7 @@ use Trog::SQLite;
 
 =head1 Trog::SQLite::TagIndex
 
-An SQLite3 index of posts by tag.
+An SQLite3 index of posts by tag and date.
 Used to speed up the flat-file data model.
 
 Also used to retrieve cached routes from posts.
@@ -23,7 +23,7 @@ Also used to retrieve cached routes from posts.
 sub posts_for_tags (@tags) {
     my $dbh = _dbh();
     my $clause = @tags ? "WHERE tag IN (".join(',' ,(map {'?'} @tags)).")" : '';
-    my $rows = $dbh->selectall_arrayref("SELECT DISTINCT id FROM posts $clause ORDER BY ID DESC",{ Slice => {} }, @tags);
+    my $rows = $dbh->selectall_arrayref("SELECT DISTINCT id FROM posts $clause ORDER BY created DESC",{ Slice => {} }, @tags);
     return () unless ref $rows eq 'ARRAY' && @$rows;
     return map { $_->{id} } @$rows;
 }
@@ -57,9 +57,9 @@ sub build_index($data_obj,$posts=[]) {
     my $t = $dbh->selectall_hashref("SELECT id,name FROM tag", 'name');
     foreach my $k (keys(%$t)) { $t->{$k} = $t->{$k}->{id} };
 
-    Trog::SQLite::bulk_insert($dbh,'posts_index',[qw{post_id tag_id}], 'IGNORE', map {
+    Trog::SQLite::bulk_insert($dbh,'posts_index',[qw{post_id post_time tag_id}], 'IGNORE', map {
         my $subj = $_;
-        map { ( $subj->{id}, $t->{$_} ) } @{$subj->{tags}}
+        map { ( $subj->{id}, $subj->{created}, $t->{$_} ) } @{$subj->{tags}}
     } @$posts );
 }
 
@@ -68,9 +68,8 @@ sub build_routes($data_obj,$posts=[]) {
     my $dbh = _dbh();
     $posts = $data_obj->get({ limit => 0, acls => ['admin'] }) unless @$posts;
 
-    # Ensure the methods & callbacks we need are installed
-    Trog::SQLite::bulk_insert($dbh,'methods',   [qw{method}],   'IGNORE', (uniq map { $_->{method} }   @posts) ); 
-    Trog::SQLite::bulk_insert($dbh,'callbacks', [qw{callback}], 'IGNORE', (uniq map { $_->{callback} } @posts) ); 
+    # Ensure the callbacks we need are installed
+    Trog::SQLite::bulk_insert($dbh,'callbacks', [qw{callback}], 'IGNORE', (uniq map { $_->{callback} } @$posts) );
 
     my $m = $dbh->selectall_hashref("SELECT id, method FROM methods", 'method');
     foreach my $k (keys(%$m)) { $m->{$k} = $m->{$k}->{id} };

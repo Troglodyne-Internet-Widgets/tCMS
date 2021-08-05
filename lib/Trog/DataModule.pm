@@ -235,6 +235,7 @@ sub add ($self, @posts) {
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
         $post->{local_href} //= "/posts/$post->{id}";
+        $post->{method}     //= 'GET';
         $post->{created} = time();
         my @existing_posts = $self->get( id => $post->{id} );
         if (@existing_posts) {

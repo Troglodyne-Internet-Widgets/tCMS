@@ -397,25 +397,8 @@ sub login ($query, $render_cb) {
             # Add a stub user page and the initial series.
             my $dat = Trog::Data->new($conf);
             _setup_initial_db($dat,$query->{username});
-            $dat->add({
-                title      => $query->{username},
-                data       => 'Default user',
-                preview    => '/img/avatar/humm.gif',
-                wallpaper  => '/img/sys/testpattern.jpg',
-                tags       => ['about'],
-                visibility => 'public',
-                acls       => ['admin'],
-                local_href => "/users/$query->{username}",
-                callback   => "Trog::Routes::HTML::users",
-                user       => $query->{username},
-                form       => 'profile.tx',
-            });
             # Ensure we stop registering new users
             File::Touch::touch("config/has_users");
-
-            #hup the parent to refresh the routing table
-            my $parent = getppid;
-            kill 'HUP', $parent;
         }
 
         $query->{failed} = 1;
@@ -449,6 +432,7 @@ sub _setup_initial_db ($dat, $user) {
             "aclname"    => "series",
             "acls"       => [],
             "callback"   => "Trog::Routes::HTML::series",
+            method       => 'GET',
             "data"       => "Series",
             "href"       => "/series",
             "local_href" => "/series",
@@ -464,6 +448,7 @@ sub _setup_initial_db ($dat, $user) {
             "aclname"    => "about",
             "acls"       => [],
             "callback"   => "Trog::Routes::HTML::series",
+            method       => 'GET',
             "data"       => "About",
             "href"       => "/about",
             "local_href" => "/about",
@@ -479,6 +464,7 @@ sub _setup_initial_db ($dat, $user) {
             "aclname"      => "admin",
             acls           => [],
             "callback"     => "Trog::Routes::HTML::config",
+            'method'       => 'GET',
             "content_type" => "text/plain",
             "data"         => "Config",
             "href"         => "/config",
@@ -488,6 +474,20 @@ sub _setup_initial_db ($dat, $user) {
             visibility     => 'private',
             "title"        => "Configure tCMS",
             user           => $user,
+        },
+        {
+            title      => $user,
+            data       => 'Default user',
+            preview    => '/img/avatar/humm.gif',
+            wallpaper  => '/img/sys/testpattern.jpg',
+            tags       => ['about'],
+            visibility => 'public',
+            acls       => ['admin'],
+            local_href => "/users/$user",
+            callback   => "Trog::Routes::HTML::users",
+            method     => 'GET',
+            user       => $user,
+            form       => 'profile.tx',
         },
     );
 }

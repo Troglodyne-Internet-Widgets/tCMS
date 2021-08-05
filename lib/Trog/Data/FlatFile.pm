@@ -97,7 +97,8 @@ sub write($self,$data) {
             $update = [(@$parsed, $post)];
         }
 
-        open(my $fh, '>', $file) or confess;
+        mkdir $datastore;
+        open(my $fh, '>', $file) or confess "Could not open $file";
         print $fh $parser->encode($update);
         close $fh;
 
@@ -108,16 +109,6 @@ sub write($self,$data) {
 sub count ($self) {
     my @index = $self->_index();
     return scalar(@index);
-}
-
-sub add ($self,@posts) {
-    my $ctime = time();
-    @posts = map {
-        $_->{id} //= $ctime;
-        $_->{created} = $ctime;
-        $_
-    } @posts;
-    return $self->SUPER::add(@posts);
 }
 
 sub delete($self, @posts) {
