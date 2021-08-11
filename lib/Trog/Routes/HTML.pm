@@ -78,6 +78,11 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::post_delete,
     },
+    '/config/save' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::config_save,
+    },
     '/themeclone' => {
         method   => 'POST',
         auth     => 1,
