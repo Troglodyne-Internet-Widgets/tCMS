@@ -136,7 +136,7 @@
                 <div id="postData">
                 : }
                     : if ( $post.is_profile ) {
-                    <h3><: $post.title :></h3>
+                    <big><: $post.title :></big><br /><br />
                     : }
                     : if ( $style != 'media' ) {
                         <: render_it($post.data) | mark_raw  :>

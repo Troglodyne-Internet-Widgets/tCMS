@@ -189,6 +189,7 @@ span#clickme:hover {
 .coolbutton {
  box-shadow: 0 0 .5em black;
  background-color: #333;
+ cursor:pointer;
 }
 .coolbutton:active {
  padding-left: .30em;

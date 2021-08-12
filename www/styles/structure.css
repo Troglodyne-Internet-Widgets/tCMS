@@ -96,6 +96,10 @@ blockquote {
     display: inline;
 }
 
+.ib {
+    display:inline-block;
+}
+
 .responsive { /*Close enough to 16:9*/
     width: 35rem;
     height: 20rem;
