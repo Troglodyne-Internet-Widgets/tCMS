@@ -120,6 +120,8 @@ audio, video {
 .postericon {
  width: 2.5rem;
  height: 2.5rem;
+ float: right;
+ text-decoration:none;
 }
 .usericon, .buddyicon {
  width: 2rem;
@@ -130,9 +132,6 @@ audio, video {
  background-size: cover;
  background-repeat: no-repeat;
  padding-right: unset !important;
-}
-.postericon {
- float: right;
 }
 .circle, .usericon, .buddyicon, .postericon {
  border-radius: 50%;
