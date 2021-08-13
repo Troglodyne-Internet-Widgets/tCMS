@@ -194,6 +194,11 @@ sub _dedup_versions ($version=-1, @posts) {
         my $version_max = List::Util::max(map { $_->{version } } @ofid);
         $posts_deduped{$id} = $ofid[0];
         $posts_deduped{$id}{version_max} = $version_max;
+        # Show orig creation date, and original author.
+        # XXX this doesn't show the mtime correctly for whatever reason, so I'm omitting it from the interface
+        $posts_deduped{$id}{modified} = $ofid[0]{created};
+        $posts_deduped{$id}{created}  = $ofid[-1]{created};
+        $posts_deduped{$id}{author}   = $ofid[-1]{author};
     }
     my @deduped = @posts_deduped{@uniqids};
 
