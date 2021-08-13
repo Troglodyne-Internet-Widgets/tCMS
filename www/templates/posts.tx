@@ -75,11 +75,11 @@
             <h3 class='blogtitles'>
                 : if (!$style || $style == 'embed') {
                     <a ><a href='<: $post.href :>' ><: $post.title :></a>
-                    <a class="undecorated" href='/posts/<: $post.id :>'>🔗</a>
+                    <a class="undecorated" href='<: $post.local_href :>'>🔗</a>
                 : }
                 : if (!$style) {
                     : if ( $post.version_max && !$rss ) {
-                    <form method="GET" action="/posts/<: $post.id :>" style="float:right;">
+                    <form method="GET" action="<: $post.local_href :>" style="float:right;">
                         <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
                             : for [0..$post.version_max] -> $version {
                                 <option value="<: $version :>" <: if ($post.version == $version ) { :>selected<: } :> >v<: $version :></option>
