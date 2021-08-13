@@ -10,7 +10,7 @@
       Username<br />
       <div class="input-group">
         <label for="username">😎</span></label>
-        <input required name="username" id="username" placeholder="AzureDiamond" value="" type="text"></input>
+        <input required name="username" id="username" placeholder="AzureDiamond" value="" type="text" autofocus></input>
       </div>
       <br />
       Password<br />

@@ -10,7 +10,7 @@
         : include "categories.tx";
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <form action="<: $route :>" method="GET" class="ib">
-            <input required type="search" class="coolbutton topform" name="like"></input>
+            <input required type="search" class="coolbutton topform" name="like" autofocus></input>
             <input class="coolbutton topform" type="submit" value="🔎"></input>
             <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
         </form>
