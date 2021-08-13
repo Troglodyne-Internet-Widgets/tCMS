@@ -64,7 +64,7 @@ sub read ($self, $query={}) {
         }
 
         #XXX this imposes an inefficiency in itself, get() will filter uselessly again here
-        my @filtered = $self->filter($query,@$parsed);
+        my @filtered = $query->{raw} ? @$parsed : $self->filter($query,@$parsed);
 
         push(@items,@filtered) if @filtered;
         next if $query->{limit} == 0; # 0 = unlimited
@@ -75,7 +75,7 @@ sub read ($self, $query={}) {
 }
 
 sub _index ($self) {
-    confess "Can't find datastore!" unless -d $datastore;
+    confess "Can't find datastore in $datastore !" unless -d $datastore;
     opendir(my $dh, $datastore) or confess;
     my @index = grep { -f } map { "$datastore/$_" } readdir $dh;
     closedir $dh;

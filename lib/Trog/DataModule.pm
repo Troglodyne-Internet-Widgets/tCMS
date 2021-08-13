@@ -80,6 +80,7 @@ As implemented, this takes the data as a given and filters in post.
 sub get ($self, %request) {
 
     my $posts = $self->read(\%request);
+    return @$posts if $request{raw};
 
     my @filtered = $self->filter(\%request, @$posts);
     @filtered = $self->_fixup(@filtered);

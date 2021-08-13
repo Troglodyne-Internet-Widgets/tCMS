@@ -66,7 +66,7 @@ sub build_index($data_obj,$posts=[]) {
 # It is important we use get() instead of read() because of incomplete data.
 sub build_routes($data_obj,$posts=[]) {
     my $dbh = _dbh();
-    $posts = $data_obj->get({ limit => 0, acls => ['admin'] }) unless @$posts;
+    @$posts = $data_obj->get( limit => 0, acls => ['admin'] ) unless @$posts;
 
     # Ensure the callbacks we need are installed
     Trog::SQLite::bulk_insert($dbh,'callbacks', [qw{callback}], 'IGNORE', (uniq map { $_->{callback} } @$posts) );
