@@ -17,10 +17,6 @@ install-service:
 	systemctl --user start tCMS
 	loginctl enable-linger $(USER)
 
-.PHONY: reset-dummy-data
-reset-dummy-data:
-	cp -f data/DUMMY-dist.json data/DUMMY.json
-
 .PHONY: prereq-debian
 prereq-debian: prereq-debs prereq-perl prereq-frontend
 
