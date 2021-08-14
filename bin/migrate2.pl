@@ -1,9 +1,13 @@
+#!/usr/bin/perl
+
 use strict;
 use warnings;
 
 # Migrate early on tcms3 flatfile sites to 'all posts are series code' (august 2021) code
 
-use lib '../lib';
+use FindBin;
+
+use lib "$FindBin::Bin/../lib";
 
 use Trog::Config;
 use Trog::Data;
@@ -13,6 +17,9 @@ use UUID::Tiny;
 use Trog::SQLite;
 use Trog::SQLite::TagIndex;
 
+# Kill the post index
+unlink "$FindBin::Bin/../data/posts.db";
+
 sub uuid { return UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS); }
 
 # Modify these variables to suit your installation.
@@ -21,6 +28,7 @@ my @extra_series = (
      {
             "aclname"    => "blog",
             "acls"       => [],
+            aliases      => [],
             "callback"   => "Trog::Routes::HTML::series",
             method       => 'GET',
             "data"       => "Blog",
@@ -37,6 +45,7 @@ my @extra_series = (
         {
             "aclname"    => "video",
             "acls"       => [],
+            aliases      => [],
             "callback"   => "Trog::Routes::HTML::series",
             method       => 'GET',
             "data"       => "Videos",
@@ -53,6 +62,7 @@ my @extra_series = (
         {
             "aclname"    => "files",
             "acls"       => [],
+            aliases      => [],
             "callback"   => "Trog::Routes::HTML::series",
             method       => 'GET',
             "data"       => "Downloads",
@@ -71,9 +81,6 @@ my @extra_series = (
 my $conf = Trog::Config::get();
 my $search_info = Trog::Data->new($conf);
 
-# Kill the post index
-unlink "../data/posts.db";
-
 my @all = $search_info->get( raw => 1, limit => 0 );
 
 my %posts;
@@ -84,23 +91,46 @@ foreach my $post (@all) {
 }
 
 foreach my $timestamp (keys(%posts)) {
-    my $file_to_kill = "../data/files/$timestamp";
+    my $file_to_kill = "$FindBin::Bin/../data/files/$timestamp";
     my $new_id = uuid();
     # Preserve old URLs
     foreach my $post (@{$posts{$timestamp}}) {
+        delete $post->{app};
+        delete $post->{preview_file};
+        delete $post->{wallpaper_file};
+
+        delete $post->{scheme};
+        delete $post->{route};
+        delete $post->{domain};
+
         $post->{id}         = $new_id;
-        $post->{local_href} = "/posts/$timestamp";
-        $post->{callback}   = "Trog::Routes::HTML::series";
+        $post->{local_href} = "/posts/$new_id";
+        $post->{aliases}    = ["/posts/$timestamp"];
+        $post->{callback}   = "Trog::Routes::HTML::posts";
         $post->{method}     = 'GET';
-        @{$post->{tags}} = grep { defined $_ } @{$post->{tags}};
+        @{$post->{tags}}    = grep { defined $_ } @{$post->{tags}};
 
         $post->{content_type} //= 'text/html';
-        $post->{form}       = 'microblog.tx';
-        $post->{form}       = 'blog.tx' if grep {$_ eq 'blog' } @{$post->{tags}};
-        $post->{form}       = 'file.tx' if $post->{content_type} =~ m/^video\//;
-        $post->{form}       = 'file.tx' if $post->{content_type} =~ m/^audio\//;
-        $post->{form}       = 'file.tx' if $post->{content_type} =~ m/^image\//;
-        $post->{form}       = 'profile.tx' if grep {$_ eq 'about' } @{$post->{tags}};
+        $post->{form}         = 'microblog.tx';
+        $post->{form}         = 'blog.tx' if grep {$_ eq 'blog' } @{$post->{tags}};
+        $post->{form}         = 'file.tx' if $post->{content_type} =~ m/^video\//;
+        $post->{form}         = 'file.tx' if $post->{content_type} =~ m/^audio\//;
+        $post->{form}         = 'file.tx' if $post->{content_type} =~ m/^image\//;
+        if (grep {$_ eq 'about' } @{$post->{tags}}) {
+            $post->{form}       = 'profile.tx';
+            $post->{local_href} = "/users/$post->{user}";
+            $post->{callback}   = "Trog::Routes::HTML::users";
+        }
+        if (grep {$_ eq 'series' } @{$post->{tags}}) {
+            $post->{form}       = 'series.tx';
+            $post->{callback}   = "Trog::Routes::HTML::series";
+            $post->{child_form} = 'microblog.tx';
+            $post->{child_form} = 'blog.tx' if $post->{title} =~ m/^blog/i;
+            $post->{child_form} = 'file.tx' if $post->{title} =~ m/^video\//;
+            $post->{child_form} = 'file.tx' if $post->{title} =~ m/^audio\//;
+            $post->{child_form} = 'file.tx' if $post->{title} =~ m/^image\//;
+        }
+
         $search_info->write([$post]);
         unlink $file_to_kill if -f $file_to_kill;
     }
@@ -115,6 +145,7 @@ my $series = [
         {
             "aclname"    => "series",
             "acls"       => [],
+            aliases      => [],
             "callback"   => "Trog::Routes::HTML::series",
             method       => 'GET',
             "data"       => "Series",
@@ -131,6 +162,7 @@ my $series = [
         {
             "aclname"    => "about",
             "acls"       => [],
+            aliases      => [],
             "callback"   => "Trog::Routes::HTML::series",
             method       => 'GET',
             "data"       => "About",
@@ -147,6 +179,7 @@ my $series = [
         {
             "aclname"      => "admin",
             acls           => [],
+            aliases        => [],
             "callback"     => "Trog::Routes::HTML::config",
             'method'       => 'GET',
             "content_type" => "text/plain",

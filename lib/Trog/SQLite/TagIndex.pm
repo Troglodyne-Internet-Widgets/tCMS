@@ -30,10 +30,19 @@ sub posts_for_tags (@tags) {
 
 sub routes {
     my $dbh = _dbh();
-    my $rows = $dbh->selectall_arrayref("SELECT route, method, callback FROM all_routes",{ Slice => {} });
+    my $rows = $dbh->selectall_arrayref("SELECT id, route, method, callback FROM all_routes",{ Slice => {} });
     return () unless ref $rows eq 'ARRAY' && @$rows;
-    my %routes = map { $_->{route} => { method => $_->{method}, callback => $_->{callback} } } @$rows;
+
+    my %routes = map { $_->{route} => $_ } @$rows;
     return %routes;
+}
+
+sub aliases {
+    my $dbh = _dbh();
+    my $rows = $dbh->selectall_arrayref("SELECT actual,alias FROM aliases", { Slice => {} });
+    return () unless ref $rows eq 'ARRAY' && @$rows;
+    my %aliases = map { $_->{alias} => $_->{actual} } @$rows;
+    return %aliases;
 }
 
 sub add_post ($post,$data_obj) {
@@ -83,6 +92,14 @@ sub build_routes($data_obj,$posts=[]) {
 
     my @routes = map { ($_->{local_href}, $_->{method_id}, $_->{callback_id} ) } @$posts;
     Trog::SQLite::bulk_insert($dbh,'routes', [qw{route method_id callback_id}], 'IGNORE', @routes); 
+
+    # Now, compile the post aliases
+    my %routes_actual = routes();
+    foreach my $post (@$posts) {
+        next unless @{$post->{aliases}};
+        my $route = $post->{local_href};
+        Trog::SQLite::bulk_insert($dbh, 'post_aliases', [qw{route_id alias}], 'IGNORE', map { ($routes_actual{$route}{id}, $_) } @{$post->{aliases}} );
+    }
 }
 
 # Ensure the db schema is OK, and give us a handle

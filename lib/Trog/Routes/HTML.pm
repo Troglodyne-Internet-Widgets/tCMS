@@ -766,11 +766,12 @@ sub users ($query, $render_cb) {
     $query->{exclude_tags} = ['about'];
 
     my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
-    my @user = grep { $_->{title} eq $query->{username} } @posts;
+    my @user = grep { $_->{user} eq $query->{username} } @posts;
     $query->{id} = $user[0]->{id};
     $query->{title} = $user[0]->{title};
     $query->{user_obj} = $user[0];
     $query->{primary_post} = $posts[0];
+    $query->{in_series} = 1;
     return posts($query,$render_cb);
 }
 

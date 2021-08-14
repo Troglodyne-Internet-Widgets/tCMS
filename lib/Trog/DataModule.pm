@@ -104,7 +104,7 @@ sub _fixup ($self, @filtered) {
         my $is_user_page = grep { $_ eq 'about' } @{$subj->{tags}};
         if (!exists $subj->{local_href}) {
             $subj->{local_href} = "/posts/$subj->{id}";
-            $subj->{local_href} = "/users/$subj->{title}" if $is_user_page;
+            $subj->{local_href} = "/users/$subj->{user}" if $is_user_page;
         }
         if (!exists $subj->{callback}) {
             $subj->{callback} = "Trog::Routes::HTML::posts";
@@ -339,7 +339,7 @@ You should override this, it is a stub here.
 
 sub delete ($self) { die 'stub' }
 
-=head2 routes()
+=head2 routes() = HASH
 
 Returns the routes to each post.
 You should override this for performance reasons, as it's just a wrapper around get() by defualt.
@@ -349,6 +349,22 @@ You should override this for performance reasons, as it's just a wrapper around 
 sub routes($self) {
     my %routes = map { $_->{local_href} => { method => $_->{method}, callback => \&{$_->{callback}} } } ($self->get( limit => 0, acls => ['admin'] ));
     return %routes;
+}
+
+=head2 aliases() = HASH
+
+Returns the aliases for each post, indexed by aliases.
+You should override this for performance reasons, as it's just a wrapper around get() by defualt.
+
+=cut
+
+sub aliases($self) {
+    my @posts = $self->get( limit => 0, acls => ['admin'] );
+    my %aliases;
+    foreach my $post (@posts) {
+        @aliases{@{$post->{aliases}}} = $post->{local_href};
+    }
+    return %aliases;
 }
 
 1;

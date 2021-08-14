@@ -41,6 +41,8 @@ my %routes = %Trog::Routes::HTML::routes;
 @routes{keys(%Trog::Routes::JSON::routes)} = values(%Trog::Routes::JSON::routes);
 @routes{keys(%roots)} = values(%roots);
 
+my %aliases = $data->aliases();
+
 #1MB chunks
 my $CHUNK_SIZE = 1024000;
 
@@ -87,6 +89,10 @@ sub app {
     $query = URL::Encode::url_params_mixed($env->{QUERY_STRING}) if $env->{QUERY_STRING};
 
     my $path = $env->{PATH_INFO};
+
+    # Translate alias paths into their actual path
+    $path = $aliases{$path} if exists $aliases{$path};
+
     # Collapse multiple slashes in the path
     $path =~ s/[\/]+/\//g;
 
@@ -158,8 +164,9 @@ sub app {
 
     $query->{user}         = $active_user;
     $query->{domain}       = $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
-    $query->{route}        = $env->{REQUEST_URI};
-    $query->{route}        =~ s/\?\Q$env->{QUERY_STRING}\E//;
+    $query->{route}        = $path;
+    #$query->{route}        = $env->{REQUEST_URI};
+    #$query->{route}        =~ s/\?\Q$env->{QUERY_STRING}\E//;
     $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
     $query->{social_meta}  = 1;
     $query->{primary_post} = {};

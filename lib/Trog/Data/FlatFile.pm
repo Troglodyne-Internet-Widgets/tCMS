@@ -86,6 +86,10 @@ sub routes ($self) {
     return Trog::SQLite::TagIndex::routes();
 }
 
+sub aliases ($self) {
+    return Trog::SQLite::TagIndex::aliases();
+}
+
 sub write($self,$data) {
     foreach my $post (@$data) {
         my $file = "$datastore/$post->{id}";

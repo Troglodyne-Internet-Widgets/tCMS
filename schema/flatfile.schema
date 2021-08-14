@@ -16,6 +16,7 @@ CREATE VIEW IF NOT EXISTS posts AS SELECT p.post_id AS id, p.post_time AS create
 /* The intention is to read this entirely into memory at app startup     */
 /* This should not incur significant costs, even with millions of posts. */
 CREATE TABLE IF NOT EXISTS routes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     route TEXT NOT NULL UNIQUE,
     method_id TEXT NOT NULL REFERENCES methods(id) ON DELETE RESTRICT,
     callback_id TEXT NOT NULL REFERENCES callbacks(id) ON DELETE RESTRICT
@@ -33,7 +34,14 @@ CREATE TABLE IF NOT EXISTS callbacks (
     callback TEXT NOT NULL UNIQUE
 );
 
-CREATE VIEW IF NOT EXISTS all_routes AS SELECT r.route AS route, m.method AS method, c.callback AS callback FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id;
+CREATE VIEW IF NOT EXISTS all_routes AS SELECT r.id AS id, r.route AS route, m.method AS method, c.callback AS callback FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id;
 
 /* Fill the methods table with the HTTP verbs */
 INSERT OR IGNORE INTO methods (method) VALUES ('GET'),('POST'),('DELETE'),('PUT'),('HEAD'),('PATCH'),('CONNECT'),('OPTIONS'),('TRACE');
+
+CREATE TABLE IF NOT EXISTS post_aliases (
+    route_id INTEGER NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    alias TEXT NOT NULL UNIQUE
+);
+
+CREATE VIEW IF NOT EXISTS aliases AS SELECT r.route AS actual, a.alias AS alias FROM routes AS r JOIN post_aliases AS a ON r.id=a.route_id;

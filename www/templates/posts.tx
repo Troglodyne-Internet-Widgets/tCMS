@@ -50,11 +50,7 @@
     :     next;
     : }
     :if ( $tiled ) {
-        : if ($post.is_profile) {
-        <a href="/users/<: $post.user :>" class="tile">
-        : } else {
-        <a href="<: $route :>/<: $post.id :>" class="tile">
-        : }
+        <a href="<: $post.local_href :>" class="tile">
         : if ($post.is_video) {
             <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
                 <source src="<: $post.href :>" type="<: $post.content_type :>" />
@@ -123,7 +119,7 @@
                 <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
             : }
             : if ( $post.is_profile ) {
-                <a href="/users/<: $post.title :>" title="<: $post.title :> poasts">
+                <a href="<: $post.local_href :>" title="<: $post.title :> poasts">
                 <div style="background-image:url(<: $post.wallpaper :>);" class="banner profile">
                     <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
             : }
