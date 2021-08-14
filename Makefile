@@ -5,6 +5,7 @@ install:
 	test -d $(HOME)/.tcms || mkdir $(HOME)/.tcms
 	test -d www/themes || mkdir www/themes
 	test -d data/files || mkdir data/files
+	test -d www/assets || mkdir www/assets
 	$(RM) pod2htmd.tmp;
 
 .PHONY: install-service
