@@ -7,6 +7,7 @@ use UUID::Tiny;
 use List::Util;
 use File::Copy;
 use Mojo::File;
+use Plack::MIME;
 
 no warnings 'experimental';
 use feature qw{signatures};
@@ -257,9 +258,11 @@ sub add ($self, @posts) {
     }
     $self->write(\@to_write);
 
-    #hup the parent to refresh the routing table
-    my $parent = getppid;
-    kill 'HUP', $parent;
+    #hup the parent to refresh the routing table IFF we aren't in an interactive session, such as migrate.pl
+    if (!$ENV{PS1}) {
+        my $parent = getppid;
+        kill 'HUP', $parent;
+    }
 
     return 0;
 }
