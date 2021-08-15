@@ -19,6 +19,7 @@ use Trog::SQLite::TagIndex;
 
 # Kill the post index
 unlink "$FindBin::Bin/../data/posts.db";
+$ENV{NOHUP} = 1;
 
 sub uuid { return UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS); }
 

@@ -259,7 +259,7 @@ sub add ($self, @posts) {
     $self->write(\@to_write);
 
     #hup the parent to refresh the routing table IFF we aren't in an interactive session, such as migrate.pl
-    if (!$ENV{PS1}) {
+    if (!$ENV{NOHUP}) {
         my $parent = getppid;
         kill 'HUP', $parent;
     }
