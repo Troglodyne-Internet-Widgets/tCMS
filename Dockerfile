@@ -9,6 +9,5 @@ RUN chown -R tcms /home/tcms
 USER tcms
 
 RUN make install
-RUN make reset-dummy-data
 ENTRYPOINT ["/usr/bin/starman","www/server.psgi"]
 CMD ['-p',$port]
