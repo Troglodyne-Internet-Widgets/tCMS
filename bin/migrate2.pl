@@ -26,7 +26,24 @@ sub uuid { return UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::T
 # Modify these variables to suit your installation.
 my $user = 'george';
 my @extra_series = (
-     {
+        {
+            "aclname"    => "news",
+            "acls"       => [],
+            aliases      => [],
+            "callback"   => "Trog::Routes::HTML::series",
+            method       => 'GET',
+            "data"       => "News",
+            "href"       => "/news",
+            "local_href" => "/news",
+            "preview"    => "/img/sys/testpattern.jpg",
+            "tags"       => [qw{series topbar public}],
+            visibility   => 'public',
+            "title"      => "News",
+            user         => $user,
+            form         => 'series.tx',
+            child_form   => 'microblog.tx',
+        },
+        {
             "aclname"    => "blog",
             "acls"       => [],
             aliases      => [],
@@ -61,18 +78,18 @@ my @extra_series = (
             child_form   => 'file.tx',
         },
         {
-            "aclname"    => "files",
+            "aclname"    => "images",
             "acls"       => [],
             aliases      => [],
             "callback"   => "Trog::Routes::HTML::series",
             method       => 'GET',
-            "data"       => "Downloads",
-            "href"       => "/files",
-            "local_href" => "/files",
+            "data"       => "Images",
+            "href"       => "/images",
+            "local_href" => "/images",
             "preview"    => "/img/sys/testpattern.jpg",
             "tags"       => [qw{series topbar public}],
             visibility   => 'public',
-            "title"      => "Downloads",
+            "title"      => "Images",
             user         => $user,
             form         => 'series.tx',
             child_form   => 'file.tx',
@@ -130,6 +147,8 @@ foreach my $timestamp (keys(%posts)) {
             $post->{child_form} = 'file.tx' if $post->{title} =~ m/^video\//;
             $post->{child_form} = 'file.tx' if $post->{title} =~ m/^audio\//;
             $post->{child_form} = 'file.tx' if $post->{title} =~ m/^image\//;
+            $post->{local_href} = "/$post->{aclname}";
+            $post->{aliases}    = ["/series/$timestamp", "/series/$new_id"];
         }
 
         $search_info->write([$post]);

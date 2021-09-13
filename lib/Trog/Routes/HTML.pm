@@ -704,6 +704,7 @@ sub series ($query, $render_cb) {
     #we are either viewed one of two ways, /post/$id or /$aclname
     my (undef,$aclname,$id) = split(/\//,$query->{route});
     $query->{aclname} = $aclname if !$id;
+    $query->{id}      = $id      if $id;
 
     # Don't show topbar series on the series page.  That said, don't exclude it from direct series view.
     $query->{exclude_tags} = ['topbar'] if !$is_admin && $aclname && $aclname eq 'series';
@@ -724,6 +725,7 @@ sub series ($query, $render_cb) {
     $query->{title} = $posts[0]->{title};
     $query->{tag} = $posts[0]->{aclname};
     $query->{primary_post} = $posts[0];
+    $query->{in_series} = 1;
 
     return posts($query,$render_cb);
 }
@@ -784,11 +786,10 @@ Display multi or single posts, supports RSS and pagination.
 sub posts ($query, $render_cb, $direct=0) {
     #Process the input URI to capture tag/id
     $query->{route} //= $query->{to};
-    my (undef, $tag, $id) = split(/\//, $query->{route});
+    my (undef, undef, $id) = split(/\//, $query->{route});
 
     my $tags = _coerce_array($query->{tag});
-    push(@$tags, $tag) if $tag && $tag ne 'posts';
-    $query->{id} = $id if $id;
+    $query->{id} = $id if $id && !$query->{in_series};
 
     my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
     push(@{$query->{acls}}, 'public');
@@ -937,7 +938,7 @@ sub posts ($query, $render_cb, $direct=0) {
         style     => $query->{style},
         posts     => \@posts,
         like      => $query->{like},
-        in_series => exists $query->{in_series} || !!($query->{route} =~ m/\/series\/\d*$/),
+        in_series => exists $query->{in_series} || !!($query->{route} =~ m/^\/series\//),
         route     => $query->{route},
         limit     => $limit,
         pages     => scalar(@posts) == $limit,
@@ -1047,8 +1048,6 @@ sub sitemap ($query, $render_cb) {
                 my $true_uri = "http://$query->{domain}$url";
                 if (ref $url eq 'HASH') {
                     my $is_user_page = grep { $_ eq 'about' } @{$url->{tags}};
-                    use Data::Dumper;
-                    print Dumper($url);
                     $true_uri = "http://$query->{domain}/posts/$url->{id}";
                     $true_uri = "http://$query->{domain}/users/$url->{title}" if $is_user_page;
                 }

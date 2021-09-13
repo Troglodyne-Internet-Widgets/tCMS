@@ -43,9 +43,6 @@
 <hr class="divider" />
 : }
 : for $posts -> $post {
-    : if ( $post.aclname && $in_series ) {
-    :     next;
-    : }
     : if ( !$post.form ) {
     :     next;
     : }
