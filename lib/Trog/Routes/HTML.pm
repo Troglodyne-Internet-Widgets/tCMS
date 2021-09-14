@@ -1143,20 +1143,29 @@ sub _rss ($query,$posts) {
     );
 
     foreach my $post (@$posts) {
-        my $url = "http://$query->{domain}/posts/$post->{id}";
-        $rss->add_item(
-            title       => $post->{title},
-            permaLink   => $url,
-            link        => $url,
-            enclosure   => { url => $url, type=>"text/html" },
-            description => "<![CDATA[$post->{data}]]>",
-            pubDate     => DateTime->from_epoch(epoch => $post->{created} ), #TODO format like Thu, 23 Aug 1999 07:00:00 GMT
-            author      => $post->{user}, #TODO translate to "email (user)" format
-        );
+        my $url = "http://$query->{domain}$query->{local_href}";
+        _post2rss($rss,$url,$post);
+        next unless ref $post->{aliases} eq 'ARRAY';
+        foreach my $alias (@{$post->{aliases}}) {
+            $url = "http://$query->{domain}$alias";
+            _post2rss($rss,$url,$post);
+        }
     }
 
     require Encode;
     return [200, ["Content-type" => "application/rss+xml"], [Encode::encode_utf8($rss->as_string)]];
+}
+
+sub _post2rss ($rss,$url,$post) {
+    $rss->add_item(
+        title       => $post->{title},
+        permaLink   => $url,
+        link        => $url,
+        enclosure   => { url => $url, type=>"text/html" },
+        description => "<![CDATA[$post->{data}]]>",
+        pubDate     => DateTime->from_epoch(epoch => $post->{created} ), #TODO format like Thu, 23 Aug 1999 07:00:00 GMT
+        author      => $post->{user}, #TODO translate to "email (user)" format
+    );
 }
 
 =head2 manual

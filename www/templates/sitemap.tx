@@ -24,10 +24,14 @@
         : if ( $route_type == 'Static Routes' ) {
             <a href="<: $map :>">
             <: $map :>
+            </a><br />
         : } else {
+            : for $map.aliases -> $alias {
+                &#8227; <a href="<: $alias :>"><: $alias :></a><br />
+            : }
             <a href="<: $map.local_href :>">
             <: $map.title :>
+            </a><br />
         : }
-        </a><br />
     : }
 : }
