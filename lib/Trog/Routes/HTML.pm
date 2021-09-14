@@ -448,6 +448,7 @@ sub _setup_initial_db ($dat, $user) {
             user         => $user,
             form         => 'series.tx',
             child_form   => 'series.tx',
+            aliases      => [],
         },
         {
             "aclname"    => "about",
@@ -464,13 +465,14 @@ sub _setup_initial_db ($dat, $user) {
             user         => $user,
             form         => 'series.tx',
             child_form   => 'profile.tx',
+            aliases      => [],
         },
         {
-            "aclname"      => "admin",
+            "aclname"      => "config",
             acls           => [],
             "callback"     => "Trog::Routes::HTML::config",
             'method'       => 'GET',
-            "content_type" => "text/plain",
+            "content_type" => "text/html",
             "data"         => "Config",
             "href"         => "/config",
             "local_href"   => "/config",
@@ -479,6 +481,7 @@ sub _setup_initial_db ($dat, $user) {
             visibility     => 'private',
             "title"        => "Configure tCMS",
             user           => $user,
+            aliases        => [],
         },
         {
             title      => $user,
@@ -493,6 +496,7 @@ sub _setup_initial_db ($dat, $user) {
             method     => 'GET',
             user       => $user,
             form       => 'profile.tx',
+            aliases    => [],
         },
     );
 }

@@ -62,7 +62,7 @@ sub build_index($data_obj,$posts=[]) {
     $posts = $data_obj->read({ limit => 0, acls => ['admin'] }) unless @$posts;
 
     my @tags = uniq map { @{$_->{tags}} } @$posts;
-    Trog::SQLite::bulk_insert($dbh,'tag', ['name'], 'IGNORE', @tags); 
+    Trog::SQLite::bulk_insert($dbh,'tag', ['name'], 'IGNORE', @tags);
     my $t = $dbh->selectall_hashref("SELECT id,name FROM tag", 'name');
     foreach my $k (keys(%$t)) { $t->{$k} = $t->{$k}->{id} };
 
@@ -91,7 +91,7 @@ sub build_routes($data_obj,$posts=[]) {
     } @$posts;
 
     my @routes = map { ($_->{local_href}, $_->{method_id}, $_->{callback_id} ) } @$posts;
-    Trog::SQLite::bulk_insert($dbh,'routes', [qw{route method_id callback_id}], 'IGNORE', @routes); 
+    Trog::SQLite::bulk_insert($dbh,'routes', [qw{route method_id callback_id}], 'IGNORE', @routes);
 
     # Now, compile the post aliases
     my %routes_actual = routes();

@@ -44,10 +44,10 @@ reset: reset-remove install
 
 .PHONY: reset-remove
 reset-remove:
-	rm -rf data
-	rm -rf www/themes
-	rm -rf www/assets
-	rm config/auth.db
-	rm config/main.cfg
-	rm config/has_users
-	rm config/setup
+	rm -rf data; /bin/true
+	rm -rf www/themes; /bin/true
+	rm -rf www/assets; /bin/true
+	rm config/auth.db; /bin/true
+	rm config/main.cfg; /bin/true
+	rm config/has_users; /bin/true
+	rm config/setup; /bin/true
