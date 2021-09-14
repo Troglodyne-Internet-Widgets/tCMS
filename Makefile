@@ -2,10 +2,9 @@
 # Or, having the app bootstrap it.
 .PHONY: install
 install:
-	test -d $(HOME)/.tcms || mkdir $(HOME)/.tcms
-	test -d www/themes || mkdir www/themes
-	test -d data/files || mkdir data/files
-	test -d www/assets || mkdir www/assets
+	test -d www/themes || mkdir -p www/themes
+	test -d data/files || mkdir -p data/files
+	test -d www/assets || mkdir -p www/assets
 	$(RM) pod2htmd.tmp;
 
 .PHONY: install-service
@@ -39,3 +38,16 @@ prereq-frontend:
 	mkdir -p www/scripts; cd www/scripts && curl -L --remote-name-all                                 \
 		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/fgEmojiPicker.js"     \
 	  "https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json"
+
+.PHONY: reset
+reset: reset-remove install
+
+.PHONY: reset-remove
+reset-remove:
+	rm -rf data
+	rm -rf www/themes
+	rm -rf www/assets
+	rm config/auth.db
+	rm config/main.cfg
+	rm config/has_users
+	rm config/setup

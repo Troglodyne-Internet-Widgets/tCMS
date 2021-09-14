@@ -96,7 +96,7 @@ sub build_routes($data_obj,$posts=[]) {
     # Now, compile the post aliases
     my %routes_actual = routes();
     foreach my $post (@$posts) {
-        next unless @{$post->{aliases}};
+        next unless (ref $post->{aliases} eq 'ARRAY') && @{$post->{aliases}};
         my $route = $post->{local_href};
         Trog::SQLite::bulk_insert($dbh, 'post_aliases', [qw{route_id alias}], 'IGNORE', map { ($routes_actual{$route}{id}, $_) } @{$post->{aliases}} );
     }
