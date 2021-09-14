@@ -241,12 +241,13 @@ sub add ($self, @posts) {
     my @to_write;
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
-        $post->{local_href} //= "/posts/$post->{id}";
         if ($post->{aclname}) {
             # Then this is a series
-            $post->{local_href} = "/$post->{aclname}";
+            $post->{local_href} //= "/$post->{aclname}";
             $post->{aliases} = ["/posts/$post->{id}","/series/$post->{id}"];
         }
+
+        $post->{local_href} //= "/posts/$post->{id}";
         $post->{method}     //= 'GET';
         $post->{callback}   //= 'Trog::Routes::HTML::posts';
         $post->{created}    = time();
