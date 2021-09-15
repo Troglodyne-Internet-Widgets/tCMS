@@ -771,6 +771,10 @@ sub users ($query, $render_cb) {
     push(@{$query->{acls}}, 'public');
     $query->{exclude_tags} = ['about'];
 
+    # Don't show topbar series on the series page.  That said, don't exclude it from direct series view.
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
+    push(@{$query->{exclude_tags}}, 'topbar') if !$is_admin;
+
     my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
     my @user = grep { $_->{user} eq $query->{username} } @posts;
     $query->{id} = $user[0]->{id};
