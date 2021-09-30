@@ -1,5 +1,5 @@
-# I Would highly suggest removing this. And either including it in the repo,
-# Or, having the app bootstrap it.
+SHELL := /bin/bash
+
 .PHONY: install
 install:
 	test -d www/themes || mkdir -p www/themes
@@ -35,9 +35,12 @@ prereq-perl:
 
 .PHONY: prereq-frontend
 prereq-frontend:
-	mkdir -p www/scripts; cd www/scripts && curl -L --remote-name-all                                 \
+	mkdir -p www/scripts; pushd www/scripts && curl -L --remote-name-all                                 \
 		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/fgEmojiPicker.js"     \
-	  "https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json"
+		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json" \
+		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js"; popd
+	mkdir -p www/styles; cd www/styles && curl -L --remote-name-all \
+		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css"
 
 .PHONY: reset
 reset: reset-remove install

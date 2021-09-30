@@ -7,6 +7,8 @@ data/
 pod2htmd.tmp
 fgEmojiPicker.js
 full-emoji-list.json
+highlight.min.js
+obsidian.min.css
 www/.well_known
 config/auth.db
 config/has_users

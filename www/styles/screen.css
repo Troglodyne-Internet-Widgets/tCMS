@@ -424,3 +424,10 @@ p.posteditortitle {
     padding-right: 1rem;
     padding-bottom: .5rem;
 }
+
+pre {
+    background: #e4e4e4;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #400 #700 #700 #400;
+}

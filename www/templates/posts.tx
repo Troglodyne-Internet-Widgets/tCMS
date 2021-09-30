@@ -24,6 +24,12 @@
         </script>
     : }
 : }
+<script type="text/javascript" src="/scripts/highlight.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    hljs.highlightAll();
+});
+</script>
 <span class="title">
 : if ( $rss ) {
 <a title="RSS" class="rss" href="<: $route :>?format=rss"></a>
