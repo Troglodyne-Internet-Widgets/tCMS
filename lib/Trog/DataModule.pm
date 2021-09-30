@@ -243,10 +243,16 @@ sub add ($self, @posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
         $post->{aliases} //= [];
         $post->{aliases} = [$post->{aliases}] unless ref $post->{aliases} eq 'ARRAY';
+
         if ($post->{aclname}) {
             # Then this is a series
             $post->{local_href} //= "/$post->{aclname}";
             push(@{$post->{aliases}}, "/posts/$post->{id}", "/series/$post->{id}" );
+        }
+
+        # If this is a user creation post, add in the /user/ route
+        if ($post->{callback} eq 'Trog::Routes::HTML::users') {
+            $post->{local_href} = "/users/$post->{user}";
         }
 
         $post->{local_href} //= "/posts/$post->{id}";
