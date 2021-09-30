@@ -775,13 +775,12 @@ sub users ($query, $render_cb) {
     my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
     push(@{$query->{exclude_tags}}, 'topbar') if !$is_admin;
 
-    my @posts = _post_helper({ limit => 10000 }, ['about'], $query->{acls});
-    my @user = grep { $_->{user} eq $query->{username} } @posts;
-    $query->{id} = $user[0]->{id};
-    $query->{title} = $user[0]->{title};
-    $query->{user_obj} = $user[0];
+    my @posts = _post_helper({ author => $query->{username} }, ['about'], $query->{acls});
+    $query->{id}           = $posts[0]->{id};
+    $query->{title}        = $posts[0]->{title};
+    $query->{user_obj}     = $posts[0];
     $query->{primary_post} = $posts[0];
-    $query->{in_series} = 1;
+    $query->{in_series}    = 1;
     return posts($query,$render_cb);
 }
 
@@ -805,10 +804,16 @@ sub posts ($query, $render_cb, $direct=0) {
     push(@{$query->{acls}}, 'private')  if $is_admin;
     my @posts;
 
+    # Discover this user's visibility, so we can make them post in this category by default
+    my $user_visibility = 'public';
+
     if ($query->{user_obj}) {
         #Optimize the /users/* route
         @posts = ($query->{user_obj});
+        $user_visibility = $query->{user_obj}->{visibility};
     } else {
+        my @me = _post_helper({ author => $query->{user} }, ['about'], $query->{acls});
+        $user_visibility = $me[0]->{visibility};
         @posts = _post_helper($query, $tags, $query->{acls});
     }
 
@@ -936,7 +941,7 @@ sub posts ($query, $render_cb, $direct=0) {
         can_edit  => $is_admin,
         edittype  => $edittype,
         forms     => $forms,
-        post      => { tags => $tags, form => $edittype },
+        post      => { tags => $tags, form => $edittype, visibility => $user_visibility },
         post_visibilities => \@visibuddies,
         failure   => $query->{failure},
         to        => $query->{to},
