@@ -294,6 +294,7 @@ sub _process ($post) {
 
     # Handle acls/tags
     $post->{tags} //= [];
+    $post->{acls} //= [];
     @{$post->{tags}} = grep { my $subj = $_; !grep { $_ eq $subj} qw{public private unlisted} } @{$post->{tags}};
     push(@{$post->{tags}}, @{$post->{acls}}) if $post->{visibility} eq 'private';
     delete $post->{acls};
