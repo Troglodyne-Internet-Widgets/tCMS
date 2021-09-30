@@ -241,7 +241,8 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 }
 
 sub _build_social_meta ($query,$title) {
-    return (undef,undef,undef) unless $query->{social_meta};
+    return (undef,undef,undef) unless $query->{social_meta} && $query->{route} && $query->{domain};
+
     my $default_tags = $Theme::default_tags;
     $default_tags .= ','.join(',',@{$query->{primary_post}->{tags}}) if $default_tags && $query->{primary_post}->{tags};
 
@@ -1078,8 +1079,9 @@ sub sitemap ($query, $render_cb) {
                         title => substr($url->{title},0,100),
                     }] if $url->{is_image};
 
-	            # Truncate descriptions
-		    my $desc = substr($url->{data},0,2048);
+	                # Truncate descriptions
+		            my $desc = substr($url->{data},0,2048);
+                    $desc //= '';
                     $data{videos} = [{
                         content_loc   => "http://$query->{domain}$url->{href}",
                         thumbnail_loc => "http://$query->{domain}$url->{preview}",
