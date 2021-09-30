@@ -236,7 +236,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
         meta_tags      => $meta_tags,
-	deflate        => $query->{deflate},
+    deflate        => $query->{deflate},
     });
 }
 
@@ -276,8 +276,8 @@ sub _build_social_meta ($query,$title) {
     $sopts{image} = $image if $image;
     $sopts{fb_app_id} = $Theme::fb_app_id if $Theme::fb_app_id;
     if ($query->{primary_post} && $query->{primary_post}{is_video}) {
-	#$sopts{player} = "$primary_route?embed=1";
-	$sopts{player} = "https://$query->{domain}/$query->{primary_post}{href}";
+    #$sopts{player} = "$primary_route?embed=1";
+    $sopts{player} = "https://$query->{domain}/$query->{primary_post}{href}";
         #XXX don't hardcode this
         $sopts{player_width} = 1280;
         $sopts{player_height} = 720;
@@ -316,7 +316,7 @@ sub _generic_route ($rname, $code, $title, $query, $render_cb) {
         route    => $query->{route},
         user     => $query->{user},
         styles   => $styles,
-	deflate  => $query->{deflate},
+    deflate  => $query->{deflate},
     });
     return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
 }
@@ -1079,8 +1079,8 @@ sub sitemap ($query, $render_cb) {
                         title => substr($url->{title},0,100),
                     }] if $url->{is_image};
 
-	                # Truncate descriptions
-		            my $desc = substr($url->{data},0,2048);
+                    # Truncate descriptions
+                    my $desc = substr($url->{data},0,2048);
                     $desc //= '';
                     $data{videos} = [{
                         content_loc   => "http://$query->{domain}$url->{href}",
