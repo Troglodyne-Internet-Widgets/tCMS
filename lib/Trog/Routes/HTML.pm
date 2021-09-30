@@ -340,8 +340,6 @@ sub redirect_permanent ($to) {
     return [301, ["Location" => $to], ['']];
 }
 
-# TODO Rate limiting route
-
 =head1 NORMAL ROUTES
 
 These are expected to either return a 200, or redirect to something which does.
