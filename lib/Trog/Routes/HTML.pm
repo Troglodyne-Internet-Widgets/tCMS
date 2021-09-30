@@ -742,10 +742,10 @@ sub avatars ($query, $render_cb) {
     #XXX if you have more than 1000 editors you should stop
     push(@{$query->{acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
-    $query->{limit} = 1000;
     my $processor = Text::Xslate->new(
         path   => $template_dir,
     );
+
     my @posts = _post_helper($query, $tags, $query->{acls});
 
     my $content = $processor->render('avatars.tx', {
