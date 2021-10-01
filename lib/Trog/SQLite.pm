@@ -20,9 +20,12 @@ sub dbh {
     my $qq = read_text($schema);
     my $db = DBI->connect("dbi:SQLite:dbname=$dbname","","");
     $db->{sqlite_allow_multiple_statements} = 1;
-    $db->do($qq) or die "Could not ensure auth database consistency";
+    $db->do($qq) or die "Could not ensure database consistency";
     $db->{sqlite_allow_multiple_statements} = 0;
     $dbh->{$schema} = $db;
+
+    # Turn on fkeys
+    $db->do("PRAGMA foreign_keys = ON");
     return $db;
 }
 

@@ -250,6 +250,7 @@ sub add ($self, @posts) {
             push(@{$post->{aliases}}, "/posts/$post->{id}", "/series/$post->{id}" );
         }
 
+        $post->{callback}   //= 'Trog::Routes::HTML::posts';
         # If this is a user creation post, add in the /user/ route
         if ($post->{callback} eq 'Trog::Routes::HTML::users') {
             $post->{local_href} = "/users/$post->{user}";
@@ -257,7 +258,6 @@ sub add ($self, @posts) {
 
         $post->{local_href} //= "/posts/$post->{id}";
         $post->{method}     //= 'GET';
-        $post->{callback}   //= 'Trog::Routes::HTML::posts';
         $post->{created}    = time();
         my @existing_posts = $self->get( id => $post->{id} );
         if (@existing_posts) {
