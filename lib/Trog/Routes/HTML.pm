@@ -199,6 +199,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
             unshift(@styles, _themed_style("embed.css")) if -f 'www/'._themed_style("embed.css");
         }
         unshift(@styles, _themed_style("screen.css"))    if -f 'www/'._themed_style("screen.css");
+        unshift(@styles, _themed_style("print.css"))     if -f 'www/'._themed_style("print.css");
         unshift(@styles, _themed_style("structure.css")) if -f 'www/'._themed_style("structure.css");
     }
     push( @styles, @$i_styles );
