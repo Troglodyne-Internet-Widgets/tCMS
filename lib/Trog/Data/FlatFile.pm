@@ -123,4 +123,8 @@ sub delete($self, @posts) {
     return 0;
 }
 
+sub tags($self) {
+    return Trog::SQLite::TagIndex::tags();
+}
+
 1;

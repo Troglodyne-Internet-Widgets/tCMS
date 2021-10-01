@@ -45,6 +45,13 @@ sub aliases {
     return %aliases;
 }
 
+sub tags {
+    my $dbh = _dbh();
+    my $rows = $dbh->selectall_arrayref("SELECT name FROM tag", { Slice => {} });
+    return () unless ref $rows eq 'ARRAY' && @$rows;
+    return map { $_->{name} } @$rows;
+}
+
 sub add_post ($post,$data_obj) {
     my $dbh = _dbh();
     build_index($data_obj,[$post]);

@@ -9,6 +9,7 @@ use feature qw{signatures};
 use Carp qw{confess};
 use JSON::MaybeXS;
 use File::Slurper;
+use List::Util qw{uniq};
 use parent qw{Trog::DataModule};
 
 =head1 WARNING
@@ -63,6 +64,10 @@ sub delete($self, @posts) {
     }
     $self->write($example_posts,1);
     return 0;
+}
+
+sub tags($self) {
+    return (uniq map { @{$_->{tags}} } @$posts);
 }
 
 1;

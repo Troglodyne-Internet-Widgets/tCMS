@@ -9,6 +9,7 @@ use feature qw{signatures state};
 use Errno qw{ENOENT};
 use File::Touch();
 use List::Util();
+use List::MoreUtils();
 use Capture::Tiny qw{capture};
 use HTML::SocialMeta;
 
@@ -924,6 +925,7 @@ sub posts ($query, $render_cb, $direct=0) {
         @{$post->{tags}} = grep { my $tag = $_; !grep { $tag eq $_ } @visibuddies } @{$post->{tags}};
     }
 
+    #XXX note that we are explicitly relying on the first tag to be the ACL
     my $aclselected = $tags->[0] || '';
     my @acls  = map {
         $_->{selected} = $_->{aclname} eq $aclselected ? 'selected' : '';
@@ -934,13 +936,22 @@ sub posts ($query, $render_cb, $direct=0) {
     my $forms = [qw{microblog.tx blog.tx file.tx}];
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form} : $query->{form};
 
+    # Grab the rest of the tags to dump into the edit form
+    state $data = Trog::Data->new($conf);
+    my @tags_all = $data->tags();
+    #Filter out the visibilities and special series tags
+    @tags_all = grep { my $subj = $_; scalar(grep { $_ eq $subj } qw{public private unlisted admin series about}) == 0 } @tags_all;
+
+    @posts = map { my @et = List::MoreUtils::singleton(@{$_->{tags}}, @tags_all); $_->{extra_tags} = \@et; $_ } @posts;
+    my @et = List::MoreUtils::singleton(@$tags, @tags_all);
+
     my $content = $processor->render('posts.tx', {
         app       => $app,
         acls      => \@acls,
         can_edit  => $is_admin,
         edittype  => $edittype,
         forms     => $forms,
-        post      => { tags => $tags, form => $edittype, visibility => $user_visibility },
+        post      => { tags => $tags, extra_tags => \@et, form => $edittype, visibility => $user_visibility },
         post_visibilities => \@visibuddies,
         failure   => $query->{failure},
         to        => $query->{to},

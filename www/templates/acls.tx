@@ -6,7 +6,7 @@ Visibility<br />
 </select>
 <div id="<: $post.id :>-aclselect" >
     ACLs / Series<br/ >
-    <select multiple class="cooltext" name="acls">
+    <select class="cooltext" name="acls">
         : for $acls -> $acl {
             <option value="<: $acl.aclname :>" <: $acl.selected :> ><: $acl.aclname :></option>
         : }

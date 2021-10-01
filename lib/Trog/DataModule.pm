@@ -50,6 +50,7 @@ sub help  ($self) { ... }
 sub read  ($self,$query={}) { ... }
 sub write ($self) { ... }
 sub count ($self) { ... }
+sub tags  ($self) { ... }
 
 =head1 METHODS
 
