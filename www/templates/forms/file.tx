@@ -1,0 +1,63 @@
+:if ( !$post.addpost ) {
+    :if ( $tiled ) {
+        <a href="<: $post.local_href :>" class="tile">
+            : if ($post.is_video) {
+                <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
+                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                    Your browser does not support the video tag.
+                </video>
+            : } else {
+                <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
+            : }
+            <p class="midtitle"><: $post.title :></p>
+        </a>
+    : } else {
+        : include "post_title.tx";
+
+        : if ( $post.is_video ) {
+            <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
+                <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                Your browser does not support the video tag.
+            </video>
+        : }
+
+        : if ( $post.is_audio ) {
+            <audio controls>
+                <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                Your browser does not support the audio tag.
+            </audio>
+        : }
+
+        : if ( $post.is_image ) {
+            <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
+        : }
+
+        : if( $post.data ) {
+            : if ($post.is_video || $post.is_image) {
+                <div id="postData" class="responsive-text">
+            : } else {
+                <div id="postData">
+            : }
+            : if ( $style != 'media' ) {
+                <: render_it($post.data) | mark_raw  :>
+            : }
+            </div>
+        : }
+    : }
+: }
+
+: if ( $can_edit ) {
+    : include "edit_head.tx";
+    <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
+        Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+        File *<br /><input <: $post.href ? '' : 'required' :> class="cooltext" type="file" name="file" />
+        : if ( $post.href ) {
+        <input type="hidden" name="href" value="<: $post.href :>" />
+        : }
+        : include "preview.tx";
+        : include "acls.tx";
+        : include "tags.tx";
+        : include "form_common.tx";
+    </form>
+    : include "edit_foot.tx";
+: }

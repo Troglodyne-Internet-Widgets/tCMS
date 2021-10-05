@@ -1,0 +1,8 @@
+    : if (!$post.addpost) {
+    <form class="Submissions" action="/post/delete" method="POST" class="inline">
+        <input type="hidden" name="id" value="<: $post.id :>"></input>
+        <input type="hidden" name="to" value="<: $route :>"></input>
+        <input class="coolbutton" type="submit" value="Delete"></input>
+    </form>
+    : }
+</div>

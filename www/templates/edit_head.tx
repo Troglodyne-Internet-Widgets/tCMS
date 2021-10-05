@@ -1,0 +1,8 @@
+<br />
+: if ( !!$post.addpost ) {
+    <a style="cursor:pointer" onclick="switchMenu('submissions')">[Add Post]</a><hr />
+    <div id="submissions" style="display:none;">
+: } else {
+    <a style="display: inline-block;cursor:pointer;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
+    <div id="<: $post.id :>-<: $post.version :>" style="display:none;">
+:}

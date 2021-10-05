@@ -2,13 +2,7 @@
     <script type="text/javascript" src="/scripts/post.js"></script>
     : if (!$direct) {
         : if ($to) {
-        : include "jsalert.tx";
-        : }
-        : if ($edittype) {
-        <a style="cursor:pointer" onclick="switchMenu('submissions')">[Add Post]</a><hr />
-        <div id="submissions" style="display:none">
-          : include $edittype;
-        </div>
+            : include "jsalert.tx";
         : }
         <script type="text/javascript" src="/scripts/fgEmojiPicker.js"></script>
         <script type="text/javascript">
@@ -23,6 +17,7 @@
         });
         </script>
     : }
+    : include "forms/" ~ $post.form;
 : }
 <script type="text/javascript" src="/scripts/highlight.min.js"></script>
 <script>
@@ -52,146 +47,43 @@ document.addEventListener("DOMContentLoaded", function(){
     : if ( !$post.form ) {
     :     next;
     : }
-    :if ( $tiled ) {
-        <a href="<: $post.local_href :>" class="tile">
-        : if ($post.is_video) {
-            <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
-                <source src="<: $post.href :>" type="<: $post.content_type :>" />
-                Your browser does not support the video tag.
-            </video>
-        : } else {
-            : if ($post.is_profile) {
-                <div class="square circle bigprofile preview" style="background-image:url(<: $post.preview :>)"></div>
-            : } else {
-            <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
-            : }
-        : }
-            <p class="midtitle"><: $post.title :></p>
-        </a>
-    : } else {
-        <div class="post <: $style :>">
-            : if (!$post.is_profile) {
-            <h3 class='blogtitles'>
-                : if (!$style || $style == 'embed') {
-                    <a ><a href='<: $post.href :>' ><: $post.title :></a>
-                    <a class="undecorated" href='<: $post.local_href :>'>🔗</a>
-                : }
-                : if (!$style) {
-                    : if ( $post.version_max && !$rss ) {
-                    <form method="GET" action="<: $post.local_href :>" style="float:right;">
-                        <select id="<: $post.id :>-<: $post.version :>-version" name="version" class="coolbutton">
-                            : for [0..$post.version_max] -> $version {
-                                <option value="<: $version :>" <: if ($post.version == $version ) { :>selected<: } :> >v<: $version :></option>
-                            : }
-                        </select>
-                    </form>
-                    : }
-                    <span id="<: $post.id :>-<: $post.version :>-time" class="responsive-hide" style="float:right;"><: $post.created :></span>
-                    <a href="/users/<: $post.user :>" class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
-                : }
-            </h3>
-            : }
-            : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
-                <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
-            : }
-            : if ( $post.video_href ) {
-                <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
-                    <source src="<: $post.video_href :>" type="<: $post.video_content_type :>" />
-                    Your browser does not support the video tag.
-                </video>
-            : }
-            : if ( $post.audio_href ) {
-                <audio controls>
-                    <source src="<: $post.audio_href :>" type="<: $post.audio_content_type :>" />
-                    Your browser does not support the audio tag.
-                </audio>
-            : }
-            : if ( $post.is_video ) {
-                <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
-                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
-                    Your browser does not support the video tag.
-                </video>
-            : }
-            : if ( $post.is_audio ) {
-                <audio controls>
-                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
-                    Your browser does not support the audio tag.
-                </audio>
-            : }
-            : if ( $post.is_image ) {
-                <div style="background-image:url(<: $post.href :>);" class="responsive preview"></div>
-            : }
-            : if ( $post.is_profile ) {
-                <a href="<: $post.local_href :>" title="<: $post.title :> poasts">
-                <div style="background-image:url(<: $post.wallpaper :>);" class="banner profile">
-                    <div style="background-image:url(<: $post.preview :>);" class="circle portrait"></div>
-            : }
-            : if( $post.data ) {
-                : if ($post.is_video || $post.is_image) {
-                <div id="postData" class="responsive-text">
-                : } elsif ($post.is_profile) {
-                <div id="postData" class="nameBadge">
-                : } else {
-                <div id="postData">
-                : }
-                    : if ( $post.is_profile ) {
-                    <big><: $post.title :></big><br /><br />
-                    : }
-                    : if ( $style != 'media' ) {
-                        <: render_it($post.data) | mark_raw  :>
-                    : }
-                </div>
-            : }
-            : if( $post.is_profile ) {
-                </div></a><br />
-            : }
-            : if ( $can_edit ) {
-            <br />
-            <a style="display: inline-block;cursor:pointer;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
-            <div id="<: $post.id :>-<: $post.version :>" style="display:none;">
-                : include $post.form { post => $post };
-                <form class="Submissions" action="/post/delete" method="POST" class="inline">
-                    <input type="hidden" name="id" value="<: $post.id :>"></input>
-                    <input type="hidden" name="to" value="<: $route :>"></input>
-                    <input class="coolbutton" type="submit" value="Delete"></input>
-                </form>
-            </div>
-            : }
-            : if (!$post.is_profile) {
-            <script type="text/javascript">
-                document.addEventListener("DOMContentLoaded", function(event) {
+    : include "forms/" ~ $post.form { post => $post };
 
-                    // Fix post dates to be localized
-                    var e = document.getElementById("<: $post.id :>-<: $post.version :>-time");
-                    if (!e) {
-                        return;
-                    }
-                    var d = new Date(0);
-                    d.setUTCSeconds(e.innerText);
-                    e.innerHTML = "&nbsp;" + d.toDateString();
-
-                    //Make the version switcher do things
-                    var swit = document.getElementById("<: $post.id :>-<: $post.version :>-version"); // I am an elder scrolls fan
-                    if (swit) {
-                        swit.onchange = function (evt) {
-                            this.form.submit();
-                        };
-                    }
-                });
-            </script>
-            : }
-        </div>
-        : if ($posts.size() > 1) {
+    : if ($posts.size() > 1 && !$tiled ) {
         <hr class="divider" />
-        : }
     : }
+
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function(event) {
+
+            // Fix post dates to be localized
+            var e = document.getElementById("<: $post.id :>-<: $post.version :>-time");
+            if (!e) {
+                return;
+            }
+            var d = new Date(0);
+            d.setUTCSeconds(e.innerText);
+            e.innerHTML = "&nbsp;" + d.toDateString();
+
+            //Make the version switcher do things
+            var swit = document.getElementById("<: $post.id :>-<: $post.version :>-version");
+            if (swit) {
+                swit.onchange = function (evt) {
+                    this.form.submit();
+                };
+            }
+        });
+    </script>
 : }
+
 : if ( !$direct && ( $rss || $older ) ) {
 : include "paginator.tx";
 : }
+
 : if ( $footer ) {
     <: $footer | mark_raw :>
 : }
+
 <script>
 document.addEventListener("DOMContentLoaded", function(event) {
     var pagin = document.getElementById("paginatorTime");

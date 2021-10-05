@@ -30,12 +30,16 @@ See migrate.pl, and modify the $docroot variable appropriately
 
 Content Types
 =============
+Content templates are modular.
+Add in a template to /templates/forms which describe the content *and* how to edit it.
+Our post data storage being JSON allows us the flexibility to have any kind of meta associated with posts, so go hog wild.
+
+Currently supported:
 * Microblogs
 * Blogs
-* Video
-* Audio
-* Files
+* Files (Video/Audio/Images/Other)
 * About Pages
+* Post Series
 
 Planned development:
 * Presentations

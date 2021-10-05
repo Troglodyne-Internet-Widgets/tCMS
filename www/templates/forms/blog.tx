@@ -1,0 +1,25 @@
+<div class="post <: $style :>">
+    :if ( !$post.addpost ) {
+        : include "post_title.tx";
+
+        : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
+            <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
+        : }
+
+        <div id="postData-<: $post.id :>">
+            <: render_it($post.data) | mark_raw  :>
+        </div>
+    : }
+
+    : if ( $can_edit ) {
+        : include "edit_head.tx";
+        <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
+            Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+            : include "preview.tx";
+            : include "acls.tx";
+            : include "tags.tx";
+            : include "form_common.tx";
+        </form>
+        : include "edit_foot.tx";
+    : }
+</div>

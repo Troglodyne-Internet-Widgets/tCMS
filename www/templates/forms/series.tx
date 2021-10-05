@@ -1,0 +1,48 @@
+:if ( !$post.addpost ) {
+    :if ( $tiled ) {
+        <a href="<: $post.local_href :>" class="tile">
+            : if ($post.is_video) {
+                <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
+                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                    Your browser does not support the video tag.
+                </video>
+            : } else {
+                <div class="responsive preview" style="background-image:url(<: $post.preview :>)"></div>
+            : }
+            <p class="midtitle"><: $post.title :></p>
+        </a>
+    : } else {
+        : include "post_title.tx";
+
+        : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
+            <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
+        : }
+
+        : if( $post.data ) {
+            <div id="postData">
+                <: render_it($post.data) | mark_raw  :>
+            </div>
+        : }
+    : }
+: }
+
+: if ( $can_edit ) {
+    : include "edit_head.tx";
+    <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
+        Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+        URL *<br /><input required class="cooltext" type="text" name="local_href" placeholder="/someurl" value="<: $post.local_href :>" />
+        ACL name *<br /><input required class="cooltext" type="text" name="aclname" value="<: $post.aclname :>" />
+        Content Template *<br />
+        <select required class="cooltext" name="child_form">
+        : for $forms -> $form {
+            <option value="<: $form :>" <: if ( $post.child_form == $form ) { :>selected<: } :> ><: $form :></option>
+        : }
+        </select>
+        <input type="hidden" name="callback" value="Trog::Routes::HTML::series" />
+        : include "preview.tx";
+        : include "acls.tx";
+        : include "tags.tx";
+        : include "form_common.tx";
+    </form>
+    : include "edit_foot.tx";
+: }

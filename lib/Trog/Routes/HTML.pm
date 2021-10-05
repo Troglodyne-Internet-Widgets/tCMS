@@ -912,14 +912,6 @@ sub posts ($query, $render_cb, $direct=0) {
     #XXX messed up data has to be fixed unfortunately
     @$tags = List::Util::uniq @$tags;
 
-    #XXX also unsure this is actually necessary
-    my $app = 'file';
-    if ($query->{route}) {
-        $app = 'image' if $query->{route} =~ m/image$/;
-        $app = 'video' if $query->{route} =~ m/video$/;
-        $app = 'audio' if $query->{route} =~ m/audio$/;
-    }
-
     #Filter displaying visibility tags
     my @visibuddies = qw{public unlisted private};
     foreach my $post (@posts) {
@@ -933,8 +925,13 @@ sub posts ($query, $render_cb, $direct=0) {
         $_
     } _post_helper({}, ['series'], $query->{acls});
 
-    #TODO make this dynamic with a template subdirectory for users to plop things in
-    my $forms = [qw{microblog.tx blog.tx file.tx}];
+    my $forms = [];
+    opendir(my $dh, "$template_dir/forms");
+    while (my $form = readdir($dh)) {
+        push(@$forms, $form) if -f "$template_dir/forms/$form" && $form =~ m/.*\.tx$/;
+    }
+    close($dh);
+
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form} : $query->{form};
 
     # Grab the rest of the tags to dump into the edit form
@@ -947,12 +944,10 @@ sub posts ($query, $render_cb, $direct=0) {
     my @et = List::MoreUtils::singleton(@$tags, @tags_all);
 
     my $content = $processor->render('posts.tx', {
-        app       => $app,
         acls      => \@acls,
         can_edit  => $is_admin,
-        edittype  => $edittype,
         forms     => $forms,
-        post      => { tags => $tags, extra_tags => \@et, form => $edittype, visibility => $user_visibility },
+        post      => { tags => $tags, extra_tags => \@et, form => $edittype, visibility => $user_visibility, addpost => 1 },
         post_visibilities => \@visibuddies,
         failure   => $query->{failure},
         to        => $query->{to},
@@ -1240,9 +1235,16 @@ sub _build_themed_styles ($style) {
 
 sub _build_themed_scripts ($script) {
     my @scripts = ("/scripts/$script");
-    my $ts = _themed_style($script);
+    my $ts = _themed_script($script);
     push(@scripts, $ts) if $theme_dir && -f "www/$ts";
     return \@scripts;
+}
+
+sub _build_themed_templates ($template) {
+    my @templates = ("/templates/$template");
+    my $ts = _themed_template($template);
+    push(@templates, $ts) if $theme_dir && -f "www/$ts";
+    return \@templates;
 }
 
 sub _pick_processor($file, $normal, $themed) {
@@ -1260,6 +1262,10 @@ sub _themed_style ($resource) {
 
 sub _themed_script ($resource) {
     return _dir_for_resource("scripts/$resource")."/scripts/$resource";
+}
+
+sub _themed_template ($resource) {
+    return _dir_for_resource("templates/$resource")."/templates/$resource";
 }
 
 1;
