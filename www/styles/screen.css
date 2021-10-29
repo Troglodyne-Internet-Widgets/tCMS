@@ -356,6 +356,7 @@ p.posteditortitle {
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
+    margin-top: .5rem;
 }
 
 .profile {
@@ -430,4 +431,20 @@ pre {
     border-width: 1px;
     border-style: solid;
     border-color: #400 #700 #700 #400;
+}
+
+a.tag {
+    margin: .25rem 0rem .25rem 0rem;
+    padding: 0rem .5rem 0rem .5rem;
+    border-radius: 1rem;
+    background: #e4e4e4;
+    border-width: 1px;
+    border-style: solid;
+    border-color: grey;
+    text-decoration: none;
+    text-shadow 0 0 2px grey;
+}
+
+.postData {
+    margin-top: .5rem;
 }

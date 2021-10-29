@@ -813,8 +813,10 @@ sub posts ($query, $render_cb, $direct=0) {
         @posts = ($query->{user_obj});
         $user_visibility = $query->{user_obj}->{visibility};
     } else {
-        my @me = _post_helper({ author => $query->{user} }, ['about'], $query->{acls});
-        $user_visibility = $me[0]->{visibility};
+        if ($query->{user}) {
+            my @me = _post_helper({ author => $query->{user} }, ['about'], $query->{acls});
+            $user_visibility = $me[0]->{visibility};
+        }
         @posts = _post_helper($query, $tags, $query->{acls});
     }
 
@@ -827,7 +829,7 @@ sub posts ($query, $render_cb, $direct=0) {
         my $user = shift(@posts);
         my $id = delete $query->{id};
         $query->{author} = $user->{user};
-        @posts = _post_helper($query, [], $query->{acls});
+        @posts = _post_helper($query, $tags, $query->{acls});
         @posts = grep { $_->{id} ne $id } @posts;
         unshift @posts, $user;
     }
@@ -938,9 +940,17 @@ sub posts ($query, $render_cb, $direct=0) {
     state $data = Trog::Data->new($conf);
     my @tags_all = $data->tags();
     #Filter out the visibilities and special series tags
-    @tags_all = grep { my $subj = $_; scalar(grep { $_ eq $subj } qw{public private unlisted admin series about}) == 0 } @tags_all;
+    @tags_all = grep { my $subj = $_; scalar(grep { $_ eq $subj } qw{public private unlisted admin series about topbar}) == 0 } @tags_all;
 
-    @posts = map { my @et = List::MoreUtils::singleton(@{$_->{tags}}, @tags_all); $_->{extra_tags} = \@et; $_ } @posts;
+    use Data::Dumper;
+    print Dumper(\@tags_all);
+
+    @posts = map {
+        my $subject = $_;
+        my @et = grep { my $subj = $_; grep { $subj eq $_ } @tags_all } @{$subject->{tags}};
+        $_->{extra_tags} = \@et;
+        $_
+    } @posts;
     my @et = List::MoreUtils::singleton(@$tags, @tags_all);
 
     my $content = $processor->render('posts.tx', {

@@ -13,6 +13,7 @@
         </a>
     : } else {
         : include "post_title.tx";
+        : include "post_tags.tx";
 
         : if ( $post.is_video ) {
             <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
@@ -34,9 +35,9 @@
 
         : if( $post.data ) {
             : if ($post.is_video || $post.is_image) {
-                <div id="postData" class="responsive-text">
+                <div class="postData" id="postData" class="responsive-text">
             : } else {
-                <div id="postData">
+                <div class="postData" id="postData">
             : }
             : if ( $style != 'media' ) {
                 <: render_it($post.data) | mark_raw  :>
