@@ -942,12 +942,10 @@ sub posts ($query, $render_cb, $direct=0) {
     #Filter out the visibilities and special series tags
     @tags_all = grep { my $subj = $_; scalar(grep { $_ eq $subj } qw{public private unlisted admin series about topbar}) == 0 } @tags_all;
 
-    use Data::Dumper;
-    print Dumper(\@tags_all);
-
     @posts = map {
         my $subject = $_;
         my @et = grep { my $subj = $_; grep { $subj eq $_ } @tags_all } @{$subject->{tags}};
+        @et = grep { $_ ne $aclselected } @et;
         $_->{extra_tags} = \@et;
         $_
     } @posts;
