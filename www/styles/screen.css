@@ -227,7 +227,7 @@ img.mblogimg, {
  display: block;
 }
 h3.blogtitles {
- margin-bottom: .5em;
+ margin-bottom: 0px;
  margin-top: 0px;
 }
 em.blogdetail {
@@ -434,7 +434,6 @@ pre {
 }
 
 a.tag {
-    margin: .25rem 0rem .25rem 0rem;
     padding: 0rem .5rem 0rem .5rem;
     border-radius: 1rem;
     background: #e4e4e4;
@@ -443,6 +442,7 @@ a.tag {
     border-color: grey;
     text-decoration: none;
     text-shadow 0 0 2px grey;
+    font-size: 1rem;
 }
 
 .postData {
