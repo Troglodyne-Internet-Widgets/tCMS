@@ -35,8 +35,10 @@ my @all = $search_info->get( raw => 1, limit => 0 );
 
 #TODO add in the various things we need to data
 foreach my $post (@all) {
-    next unless $post->{form} eq 'series.tx';
-    $post->{tiled} = scalar(grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about});
+    if ( $post->{form} eq 'series.tx' ) {
+        $post->{tiled} = scalar(grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about});
+    }
+    # Otherwise re-save the posts with is_video etc
     $search_info->add($post);
 }
 

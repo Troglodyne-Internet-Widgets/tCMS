@@ -91,8 +91,6 @@ sub get ($self, %request) {
 }
 
 sub _fixup ($self, @filtered) {
-    @filtered = _add_media_type(@filtered);
-
     # urlencode spaces in filenames
     @filtered = map {
         my $subj = $_;
@@ -208,18 +206,6 @@ sub _dedup_versions ($version=-1, @posts) {
     return @deduped;
 }
 
-sub _add_media_type (@posts) {
-    return map {
-        my $post = $_;
-        $post->{content_type} //= '';
-        $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
-        $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
-        $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
-        $post->{is_profile} = 1 if grep {$_ eq 'about' } @{$post->{tags}};
-        $post
-    } @posts;
-}
-
 =head2 count() = INT $num
 
 Returns the total number of posts.
@@ -240,6 +226,7 @@ You probably won't want to override this.
 
 sub add ($self, @posts) {
     my @to_write;
+
     foreach my $post (@posts) {
         $post->{id} //= UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS);
         $post->{aliases} //= [];
@@ -269,6 +256,7 @@ sub add ($self, @posts) {
         $post->{version} //= 0;
 
         $post = _process($post);
+
         push @to_write, $post;
     }
     $self->write(\@to_write);
@@ -314,7 +302,8 @@ sub _process ($post) {
     }
 
     #Filter adding the same acl twice
-    @{$post->{tags}} = List::Util::uniq(@{$post->{tags}});
+    @{$post->{tags}}    = List::Util::uniq(@{$post->{tags}});
+    @{$post->{aliases}} = List::Util::uniq(@{$post->{aliases}});
 
     # Handle multimedia content types
     if ($post->{href}) {
@@ -333,6 +322,11 @@ sub _process ($post) {
         $post->{audio_content_type} = Plack::MIME->mime_type($ext) if $ext;
     }
     $post->{content_type} ||= 'text/html';
+
+    $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
+    $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
+    $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
+    $post->{is_profile} = 1 if grep {$_ eq 'about' } @{$post->{tags}};
 
     return $post;
 }
