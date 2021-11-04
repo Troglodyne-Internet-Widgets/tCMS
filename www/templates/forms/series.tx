@@ -33,6 +33,8 @@
         Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
         URL *<br /><input required class="cooltext" type="text" name="local_href" placeholder="/someurl" value="<: $post.local_href :>" />
         ACL name *<br /><input required class="cooltext" type="text" name="aclname" value="<: $post.aclname :>" />
+        <label for="<: $post.id :>-tiled">Tile Display?<input id="<: $post.id :>-tiled" class="coolcb" type="checkbox" name="tiled" <: if ( $post.tiled ) { "checked" } :> /></label>
+        <br />
         Content Template *<br />
         <select required class="cooltext" name="child_form">
         : for $forms -> $form {

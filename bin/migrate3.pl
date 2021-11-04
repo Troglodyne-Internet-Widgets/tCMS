@@ -34,6 +34,12 @@ my $search_info = Trog::Data->new($conf);
 my @all = $search_info->get( raw => 1, limit => 0 );
 
 #TODO add in the various things we need to data
+foreach my $post (@all) {
+    next unless $post->{form} eq 'series.tx';
+    $post->{tiled} = scalar(grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about});
+    $search_info->add($post);
+}
+
 
 # Rebuild the index
 Trog::SQLite::TagIndex::build_index($search_info);
@@ -60,4 +66,4 @@ my $series = [
         },
 ];
 
-$search_info->add(@$series,@extra_series);
+#$search_info->add(@$series,@extra_series);

@@ -935,6 +935,7 @@ sub posts ($query, $render_cb, $direct=0) {
     close($dh);
 
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form} : $query->{form};
+    my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
 
     # Grab the rest of the tags to dump into the edit form
     state $data = Trog::Data->new($conf);
@@ -972,7 +973,7 @@ sub posts ($query, $render_cb, $direct=0) {
         older     => $older,
         sizes     => [25,50,100],
         rss       => !$query->{id} && !$query->{older},
-        tiled     => !$is_admin && scalar(grep { $_ eq $query->{route} } qw{/files /audio /video /image /series /about}),
+        tiled     => $tiled,
         category  => $ph,
         subhead   => $query->{subhead},
         header    => $header,
