@@ -41,6 +41,20 @@
             <option value="<: $form :>" <: if ( $post.child_form == $form ) { :>selected<: } :> ><: $form :></option>
         : }
         </select>
+        Header<br />
+        <select class="cooltext" name="header">
+            <option value="">none</option>
+        : for $headers -> $header {
+            <option value="<: $header :>" <: if ( $post.header == $header ) { :>selected<: } :> ><: $header :></option>
+        : }
+        </select>
+        Footer<br />
+        <select class="cooltext" name="footer">
+            <option value="">none</option>
+        : for $footers -> $footer {
+            <option value="<: $footer :>" <: if ( $post.footer == $footer ) { :>selected<: } :> ><: $footer :></option>
+        : }
+        </select>
         <input type="hidden" name="callback" value="Trog::Routes::HTML::series" />
         : include "preview.tx";
         : include "acls.tx";

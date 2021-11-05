@@ -869,24 +869,18 @@ sub posts ($query, $render_cb, $direct=0) {
     my @post_aliases = map { $_->{local_href} } _get_series();
 
     my ($header,$footer);
-    my $should_header = grep { $_ eq $query->{route} } (@post_aliases,'/humans.txt');
-    if ($should_header) {
+    my $t_processor;
+    $t_processor = Text::Xslate->new(
+        path =>  "www/$theme_dir/templates",
+    ) if $theme_dir;
 
-        my $route = $query->{route};
-        my %alias = ( '/humans.txt' => '/about');
-        $route = $alias{$route} if exists $alias{$route};
+    $header = _pick_processor('templates/headers/'.$query->{primary_post}{header}, $processor,$t_processor)->render('headers/'.$query->{primary_post}{header}, { theme_dir => $td } ) if $query->{primary_post}{header};
+    $footer = _pick_processor('templates/footers/'.$query->{primary_post}{footer}, $processor,$t_processor)->render('footers/'.$query->{primary_post}{footer}, { theme_dir => $td } ) if $query->{primary_post}{footer};
 
-        my $t_processor;
-        $t_processor = Text::Xslate->new(
-            path =>  "www/$theme_dir/templates",
-        ) if $theme_dir;
+    # List the available headers/footers
+    my $headers = _templates_in_dir($theme_dir ? "www/$theme_dir/templates/headers" : "www/templates/headers");
+    my $footers = _templates_in_dir($theme_dir ? "www/$theme_dir/templates/footers" : "www/templates/footers");
 
-        my $no_leading_slash = $route;
-        $no_leading_slash =~ tr/\///d;
-
-        $header = _pick_processor("templates$route\_header.tx"  ,$processor,$t_processor)->render("$no_leading_slash\_header.tx", { theme_dir => $td } );
-        $footer = _pick_processor("templates$route\_header.tx"  ,$processor,$t_processor)->render("$no_leading_slash\_footer.tx", { theme_dir => $td } );
-    }
     my $styles = _build_themed_styles('posts.css');
 
     #Correct page headers
@@ -927,12 +921,7 @@ sub posts ($query, $render_cb, $direct=0) {
         $_
     } _post_helper({}, ['series'], $query->{acls});
 
-    my $forms = [];
-    opendir(my $dh, "$template_dir/forms");
-    while (my $form = readdir($dh)) {
-        push(@$forms, $form) if -f "$template_dir/forms/$form" && $form =~ m/.*\.tx$/;
-    }
-    close($dh);
+    my $forms = _templates_in_dir("$template_dir/forms");
 
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form} : $query->{form};
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
@@ -978,11 +967,23 @@ sub posts ($query, $render_cb, $direct=0) {
         subhead   => $query->{subhead},
         header    => $header,
         footer    => $footer,
+        headers   => $headers,
+        footers   => $footers,
         years     => [reverse($oldest_year..$now_year)],
         months    => [0..11],
     });
     return $content if $direct;
     return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
+}
+
+sub _templates_in_dir($path) {
+    my $forms = [];
+    opendir(my $dh, $path);
+    while (my $form = readdir($dh)) {
+        push(@$forms, $form) if -f "$path/$form" && $form =~ m/.*\.tx$/;
+    }
+    close($dh);
+    return $forms;
 }
 
 sub _themed_title ($path) {
