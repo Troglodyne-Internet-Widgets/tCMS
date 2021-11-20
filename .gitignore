@@ -4,6 +4,8 @@ favicon.ico
 dist/
 www/assets
 data/
+blib/
+pm_to_blib
 pod2htmd.tmp
 fgEmojiPicker.js
 full-emoji-list.json
