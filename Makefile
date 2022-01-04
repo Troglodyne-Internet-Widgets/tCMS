@@ -1,5 +1,9 @@
 SHELL := /bin/bash
 
+# TODO detect other popular distros/have a fallback
+.PHONY: depend
+depend: prereq-debian
+
 .PHONY: install
 install:
 	test -d www/themes || mkdir -p www/themes
@@ -22,8 +26,8 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend
 
 .PHONY: prereq-debs
 prereq-debs:
-	apt-get update
-	apt-get install -y sqlite3 libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl                         \
+	sudo apt-get update
+	sudo apt-get install -y sqlite3 libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl                         \
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \
@@ -31,7 +35,7 @@ prereq-debs:
 
 .PHONY: prereq-perl
 prereq-perl:
-	cpanm -n --installdeps .
+	sudo cpanm -n --installdeps .
 
 .PHONY: prereq-frontend
 prereq-frontend:
