@@ -16,6 +16,7 @@ install-service:
 	mkdir -p ~/.config/systemd/user
 	cp service-files/systemd.unit ~/.config/systemd/user/tCMS.service
 	sed -ie 's#__REPLACEME__#$(shell pwd)#g' ~/.config/systemd/user/tCMS.service
+	sed -ie 's#__PORT__#$(PORT)#g' ~/.config/systemd/user/tCMS.service
 	systemctl --user daemon-reload
 	systemctl --user enable tCMS
 	systemctl --user start tCMS

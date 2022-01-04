@@ -6,9 +6,15 @@ A flexible perl CMS which supports multiple data models and content types
 Deployment is currently:
 * make depend
 * make install
+
+Then:
 * Set up proxy rule in your webserver
 * open tmux or screen
 * `starman -p $PORT www/server.psgi`
+OR (if you want tCMS as a systemd service for the current user):
+* PORT=$PORT make install-service
+
+$PORT being whatever port you want it to sit on.
 
 TODO: Make the makefile not rewrite itself when running make! Reset for now after run.
 
