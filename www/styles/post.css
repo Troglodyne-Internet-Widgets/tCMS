@@ -28,6 +28,11 @@ section {
     display: table-cell;
     vertical-align: middle;
 }
+
+#backoffice {
+    margin: 0 2rem 0 2rem;
+}
+
 /* Styles for larger viewports */
 @media( min-width: 768px ) {
     section {

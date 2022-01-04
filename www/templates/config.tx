@@ -1,5 +1,6 @@
 : include "sysbar.tx";
 : include "jsalert.tx";
+<div id="backoffice">
 <p class="title">
  General settings:
 </p>
@@ -44,3 +45,4 @@ for information on how tCMS' templates, image sets and CSS work in the theming s
     <input required type="text" class="cooltext" placeholder="newTheme" name="newtheme" />
     <input type="submit" class="coolbutton" value="Clone" />
 </form>
+</div>

@@ -1,2 +1,4 @@
 : include "sysbar.tx";
+<div id="backoffice">
 <: $content | mark_raw :>
+</div>
