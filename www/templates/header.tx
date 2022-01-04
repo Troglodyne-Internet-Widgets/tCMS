@@ -3,7 +3,10 @@
     <head>
         <title><: $title :></title>
         <meta charset="utf-8" />
-        <link rel="icon" type="image/vnd.microsoft.icon" href="<: $theme_dir :>/img/icon/favicon.ico" />
+
+        <link rel="icon" type="image/svg+xml" href="<: $theme_dir :>/img/icon/favicon.svg">
+        <link rel="apple-touch-icon" href="<: $theme_dir :>/img/icon/favicon-180.png">
+        <link rel="manifest" href="/api/webmanifest">
 
         : if ($meta_desc) {
         <meta name="description" content="<: $meta_desc :>"/>

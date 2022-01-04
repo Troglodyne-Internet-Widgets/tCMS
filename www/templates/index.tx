@@ -39,6 +39,6 @@
 </div>
 : if ( $show_madeby ) {
 <a target="_blank" rel="noopener" class="trogged" href="https://tcms.troglodyne.net">
-<img src="/img/icon/tCMS.svg" style="height:2rem;" />
+<img src="/img/icon/favicon.svg" style="height:2rem;" />
 </a>
 : }
