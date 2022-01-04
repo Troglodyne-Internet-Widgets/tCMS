@@ -12,6 +12,8 @@ On debian, deployment is currently:
 
 ...On non-debian unixy environments, take a look at the Makefile and run the prereq steps that look right for you.
 
+TODO: Make the makefile not rewrite itself when running make! Reset for now after run.
+
 A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
 ```
 # Build and run the server
