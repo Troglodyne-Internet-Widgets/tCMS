@@ -3,14 +3,12 @@ tCMS
 
 A flexible perl CMS which supports multiple data models and content types
 
-On debian, deployment is currently:
+Deployment is currently:
 * make depend
 * make install
 * Set up proxy rule in your webserver
 * open tmux or screen
 * `starman -p $PORT www/server.psgi`
-
-...On non-debian unixy environments, take a look at the Makefile and run the prereq steps that look right for you.
 
 TODO: Make the makefile not rewrite itself when running make! Reset for now after run.
 

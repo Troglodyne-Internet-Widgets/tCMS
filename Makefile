@@ -1,8 +1,8 @@
 SHELL := /bin/bash
 
-# TODO detect other popular distros/have a fallback
 .PHONY: depend
-depend: prereq-debian
+depend:
+	[ -f "/etc/debian_version" ] make prereq-debian || make prereq-perl prereq-frontend
 
 .PHONY: install
 install:
