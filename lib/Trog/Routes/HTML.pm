@@ -30,6 +30,7 @@ our $htmltitle     = 'title.tx';
 our $midtitle      = 'midtitle.tx';
 our $rightbar      = 'rightbar.tx';
 our $leftbar       = 'leftbar.tx';
+our $topbar        = 'topbar.tx';
 our $footbar       = 'footbar.tx';
 
 # Note to maintainers: never ever remove backends from this list.
@@ -229,6 +230,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         midtitle       => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
         rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
         leftbar        => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
+        topbar         => _pick_processor("templates/$topbar"    ,$processor,$t_processor)->render($topbar,$query),
         footbar        => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
         categories     => \@series,
         stylesheets    => \@styles,

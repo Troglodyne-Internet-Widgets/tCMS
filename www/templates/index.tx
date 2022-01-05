@@ -9,6 +9,7 @@
     <div id="righttitle" class="toplel">
         : include "categories.tx";
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
+        <: $topbar | mark_raw :>
         <form action="<: $route :>" method="GET" class="ib">
             <input required type="search" class="coolbutton topform" name="like" autofocus></input>
             <input class="coolbutton topform" type="submit" value="🔎"></input>
