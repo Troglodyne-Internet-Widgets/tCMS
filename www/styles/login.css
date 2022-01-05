@@ -51,3 +51,7 @@ input[type="submit"] {
     background-color: #333;
     color: white;
 }
+
+matrix-signin-button {
+	margin-left: 25%;
+}

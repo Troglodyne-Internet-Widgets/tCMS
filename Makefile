@@ -46,8 +46,10 @@ prereq-frontend:
 		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json" \
 		"https://unpkg.com/signin-with-matrix@latest/dist/index.umd.js"                               \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js"; mv index.umd.js matrix-login.js; popd
-	mkdir -p www/styles; cd www/styles && curl -L --remote-name-all \
-		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css"
+	mkdir -p www/styles; pushd www/styles && curl -L --remote-name-all \
+		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css"; popd
+	mkdir -p www/img/icon/; pushd www/img/icon && curl -L --remote-name-all \
+		"https://element.io/images/logo-mark-primary.svg"; mv logo-mark-primary.svg matrix-element.svg; popd
 
 .PHONY: reset
 reset: reset-remove install

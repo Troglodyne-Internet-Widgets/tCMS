@@ -21,9 +21,13 @@
       <br />
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
+	<br><br>
 	<script defer src="/scripts/matrix-login.js"></script>
 	<matrix-signin id="signin"></matrix-signin>
 	<matrix-signin-button target="signin">
-		Sign in with Matrix
+		<span style="line-height: 2rem;">
+			<img style="width: 24px; vertical-align: middle;" src="img/icon/matrix-element.svg"></img>
+			Sign in with Matrix
+		</span>
 	</matrix-signin-button>
 </div>
