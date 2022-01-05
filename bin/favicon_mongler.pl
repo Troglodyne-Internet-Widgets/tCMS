@@ -3,15 +3,13 @@
 use strict;
 use warnings;
 
-use lib 'lib';
-
 use Cwd            ();
 use File::Basename ();
+use File::Which    ();
 
 die "Usage:\n    favicon_mongler.pl /path/to/favicon.svg" unless $ARGV[0];
 my $icon = Cwd::abs_path($ARGV[0]);
-my $bin = `which inkscape`;
-chomp($bin);
+my $bin = File::Which::which('inkscape');
 die "Please install inkscape" if !$bin;
 my $dir  = File::Basename::dirname($icon) || die "Can't figure out dir from $icon";
 
