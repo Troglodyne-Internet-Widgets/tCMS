@@ -6,6 +6,7 @@ body {
     margin: 0 auto;
     max-width: 25rem;
     color: white;
+    padding-top: 5rem;
 }
 #logo {
     display: block;
