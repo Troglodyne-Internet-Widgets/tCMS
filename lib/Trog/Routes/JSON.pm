@@ -7,6 +7,13 @@ no warnings 'experimental';
 use feature qw{signatures};
 
 use JSON::MaybeXS();
+use Trog::Config();
+
+my $conf = Trog::Config::get();
+
+# TODO de-duplicate this, it's shared in html
+my $theme_dir = '';
+$theme_dir = "themes/".$conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/".$conf->param('general.theme');
 
 our %routes = (
     '/api/catalog' => {
@@ -36,8 +43,8 @@ sub webmanifest ($query, $input, $=) {
     my $enc = JSON::MaybeXS->new( utf8 => 1 );
     my %manifest = (
         "icons" => [
-            { "src" => "$query->{theme_dir}/img/icon/favicon-192.png", "type" => "image/png", "sizes" => "192x192" },
-            { "src" => "$query->{theme_dir}/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
+            { "src" => "$theme_dir/img/icon/favicon-192.png", "type" => "image/png", "sizes" => "192x192" },
+            { "src" => "$theme_dir/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
         ],
     );
 
