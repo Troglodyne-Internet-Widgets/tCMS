@@ -32,16 +32,19 @@ my $conf = Trog::Config::get();
 my $search_info = Trog::Data->new($conf);
 
 my @all = $search_info->get( raw => 1, limit => 0 );
-
 #TODO add in the various things we need to data
 foreach my $post (@all) {
-    if ( $post->{form} eq 'series.tx' ) {
+    if ( defined $post->{form} && $post->{form} eq 'series.tx' ) {
         $post->{tiled} = scalar(grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about});
+    }
+    if (!defined $post->{visibility}) {
+        $post->{visibility} = 'public' if grep { $_ eq 'public' } @{$post->{tags}};
+        $post->{visibility} = 'private' if grep { $_ eq 'private' } @{$post->{tags}};
+        $post->{visibility} = 'unlisted' if grep { $_ eq 'unlisted' } @{$post->{tags}};
     }
     # Otherwise re-save the posts with is_video etc
     $search_info->add($post);
 }
-
 
 # Rebuild the index
 Trog::SQLite::TagIndex::build_index($search_info);

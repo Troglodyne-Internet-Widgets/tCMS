@@ -326,7 +326,7 @@ sub _process ($post) {
     $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
     $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
     $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
-    $post->{is_profile} = 1 if grep {$_ eq 'about' } @{$post->{tags}};
+    $post->{is_profile} = 1 if grep { $_ eq 'about' } @{$post->{tags}};
 
     return $post;
 }
