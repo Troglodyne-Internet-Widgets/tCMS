@@ -880,8 +880,8 @@ sub posts ($query, $render_cb, $direct=0) {
     $footer = _pick_processor('templates/footers/'.$query->{primary_post}{footer}, $processor,$t_processor)->render('footers/'.$query->{primary_post}{footer}, { theme_dir => $td } ) if $query->{primary_post}{footer};
 
     # List the available headers/footers
-    my $headers = _templates_in_dir($theme_dir ? "www/$theme_dir/templates/headers" : "www/templates/headers");
-    my $footers = _templates_in_dir($theme_dir ? "www/$theme_dir/templates/footers" : "www/templates/footers");
+    my $headers = _templates_in_dir(-d $theme_dir ? "www/$theme_dir/templates/headers" : "www/templates/headers");
+    my $footers = _templates_in_dir(-d $theme_dir ? "www/$theme_dir/templates/footers" : "www/templates/footers");
 
     my $styles = _build_themed_styles('posts.css');
 
@@ -980,6 +980,7 @@ sub posts ($query, $render_cb, $direct=0) {
 
 sub _templates_in_dir($path) {
     my $forms = [];
+    return $forms unless -d $path;
     opendir(my $dh, $path);
     while (my $form = readdir($dh)) {
         push(@$forms, $form) if -f "$path/$form" && $form =~ m/.*\.tx$/;
