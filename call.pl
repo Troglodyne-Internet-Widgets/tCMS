@@ -14,7 +14,10 @@ my %env = (
     QUERY_STRING   => $ARGV[2],
 );
 
+my $limit = $ARGV[3] || 1;
 our $app = \&TCMS::app;
-my $out = $app->(\%env);
+for (0..$limit) {
+    my $out = $app->(\%env);
+    print $out->[2][0];
+}
 
-print $out->[2][0];

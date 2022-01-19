@@ -30,6 +30,11 @@ You can only post once per second due to it storing each post as a file named af
 
 our $parser = JSON::MaybeXS->new( utf8 => 1);
 
+# Initialize the list of posts by tag for all known tags.
+# This is because the list won't ever change between HUPs
+our @tags = Trog::SQLite::TagIndex::tags();
+our %posts_by_tag;
+
 sub read ($self, $query={}) {
     $query->{limit} //= 25;
 
@@ -38,8 +43,17 @@ sub read ($self, $query={}) {
     if ($query->{id}) {
         @index = ("$datastore/$query->{id}");
     } else {
-        if (-f 'data/posts.db') {
-            @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags(@{$query->{tags}})
+        # Remove tags which we don't care about and sort to keep memoized memory usage down
+        @{$query->{tags}} = sort grep { my $t = $_; grep { $t eq $_ } @tags } @{$query->{tags}};
+        my $tagkey = join('&',@{$query->{tags}});
+
+        # Check against memoizer
+        $posts_by_tag{$tagkey} //= [];
+        @index = @{$posts_by_tag{$tagkey}} if @{$posts_by_tag{$tagkey}};
+
+        if (!@index && -f 'data/posts.db') {
+            @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags(@{$query->{tags}});
+            $posts_by_tag{$tagkey} = \@index;
         }
         @index = $self->_index() unless @index;
     }

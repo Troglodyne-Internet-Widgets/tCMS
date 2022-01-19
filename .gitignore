@@ -7,6 +7,8 @@ data/
 blib/
 nytprof/
 nytprof.out
+nytprof*
+www/nytprof
 pm_to_blib
 pod2htmd.tmp
 fgEmojiPicker.js
