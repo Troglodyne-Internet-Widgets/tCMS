@@ -843,26 +843,28 @@ sub posts ($query, $render_cb, $direct=0) {
     my $fmt = $query->{format} || '';
     return _rss($query,\@posts) if $fmt eq 'rss';
 
+    my $child_processor = Text::Xslate->new(
+        # Prevent a recursive descent.  If the renderer is hit again, just do nothing
+        # XXX unfortunately if the post tries to include itself, it will die.
+        function => {
+            embed => sub {
+                my ($this_id, $style) = @_;
+                $style //= 'embed';
+                # If instead the style is 'content', then we will only show the content w/ no formatting, and no title.
+                return Text::Xslate::mark_raw(Trog::Routes::HTML::posts(
+                    { route => "/post/$this_id", style => $style },
+                    sub {},
+                1));
+            },
+        }
+    );
+
     my $processor = Text::Xslate->new(
         path   => $template_dir,
         function => {
             render_it => sub {
                 my ($template_string, $options) = @_;
-                return Text::Xslate->new(
-                    # Prevent a recursive descent.  If the renderer is hit again, just do nothing
-                    # XXX unfortunately if the post tries to include itself, it will die.
-                    function => {
-                        embed => sub {
-                            my ($this_id, $style) = @_;
-                            $style //= 'embed';
-                            # If instead the style is 'content', then we will only show the content w/ no formatting, and no title.
-                            return Text::Xslate::mark_raw(Trog::Routes::HTML::posts(
-                                { route => "/post/$this_id", style => $style },
-                                sub {},
-                            1));
-                        },
-                    },
-                )->render_string($template_string,$options);
+                return $child_processor->render_string($template_string,$options);
             },
         },
     );
