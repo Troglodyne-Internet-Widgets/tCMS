@@ -858,14 +858,15 @@ sub posts ($query, $render_cb, $direct=0) {
             },
         }
     );
+    my $child_renderer = sub {
+        my ($template_string, $options) = @_;
+        return $child_processor->render_string($template_string,$options);
+    };
 
     my $processor = Text::Xslate->new(
         path   => $template_dir,
         function => {
-            render_it => sub {
-                my ($template_string, $options) = @_;
-                return $child_processor->render_string($template_string,$options);
-            },
+            render_it => $child_renderer,
         },
     );
 
