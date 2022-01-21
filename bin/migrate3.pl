@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-# Migrate early on tcms3 flatfile sites to 'all posts are series code' (august 2021) code
+# Migrate early on tcms3 flatfile sites to store rather than compute much data (dec 2021) code
 
 use FindBin;
 
@@ -32,7 +32,6 @@ my $conf = Trog::Config::get();
 my $search_info = Trog::Data->new($conf);
 
 my @all = $search_info->get( raw => 1, limit => 0 );
-#TODO add in the various things we need to data
 foreach my $post (@all) {
     if ( defined $post->{form} && $post->{form} eq 'series.tx' ) {
         $post->{tiled} = scalar(grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about});
