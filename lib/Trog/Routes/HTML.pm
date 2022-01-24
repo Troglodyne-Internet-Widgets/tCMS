@@ -171,6 +171,8 @@ if ($theme_dir) {
     }
 }
 
+my $data = Trog::Data->new($conf);
+
 =head1 PRIMARY ROUTE
 
 =head2 index
@@ -206,8 +208,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     push( @styles, @$i_styles );
 
     #TODO allow theming of print css
-    my $search_info = Trog::Data->new($conf);
-    my @series = _get_series(0, $search_info);
+    my @series = _get_series(0);
 
     my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
 
@@ -217,12 +218,9 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
     #Do embed content
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
     return $render_cb->( $tmpl, {
-        code           => $query->{code},
-        user           => $query->{user},
-        search_lang    => $search_info->lang(),
-        search_help    => $search_info->help(),
-        route          => $query->{route},
-        domain         => $query->{domain},
+        %$query,
+        search_lang    => $data->lang(),
+        search_help    => $data->help(),
         theme_dir      => $td,
         content        => $content,
         title          => $title,
@@ -240,7 +238,6 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         default_tags   => $default_tags,
         meta_desc      => $meta_desc,
         meta_tags      => $meta_tags,
-    deflate        => $query->{deflate},
     });
 }
 
@@ -551,9 +548,8 @@ sub config ($query, $render_cb) {
     });
 }
 
-sub _get_series($edit=0,$search_info=0) {
-    $search_info ||= Trog::Data->new($conf);
-    my @series = $search_info->get(
+sub _get_series($edit=0) {
+    my @series = $data->get(
         acls    => [qw{public}],
         tags    => [qw{topbar}],
         limit   => 10,
@@ -640,7 +636,6 @@ sub post_save ($query, $render_cb) {
     #Copy this down since it will be deleted later
     my $acls = $query->{acls};
 
-    state $data = Trog::Data->new($conf);
     $query->{tags}  = _coerce_array($query->{tags});
 
     # Filter bits and bobs
@@ -690,7 +685,6 @@ deletes posts.
 sub post_delete ($query, $render_cb) {
     return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
-    state $data = Trog::Data->new($conf);
     $query->{failure} = $data->delete($query);
     $query->{to} = $query->{to};
     $query->{message} = $query->{failure} ? "Failed to delete post $query->{id}!" : "Successfully deleted Post $query->{id}";
@@ -932,7 +926,6 @@ sub posts ($query, $render_cb, $direct=0) {
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
 
     # Grab the rest of the tags to dump into the edit form
-    state $data = Trog::Data->new($conf);
     my @tags_all = $data->tags();
     #Filter out the visibilities and special series tags
     @tags_all = grep { my $subj = $_; scalar(grep { $_ eq $subj } qw{public private unlisted admin series about topbar}) == 0 } @tags_all;
@@ -998,7 +991,6 @@ sub _themed_title ($path) {
 }
 
 sub _post_helper ($query, $tags, $acls) {
-    state $data = Trog::Data->new($conf);
     return $data->get(
         older   => $query->{older},
         page    => int($query->{page} || 1),
@@ -1040,7 +1032,6 @@ sub sitemap ($query, $render_cb) {
     } elsif ( !$query->{map} ) {
         # Return the index instead
         @to_map = ('static');
-        my $data = Trog::Data->new($conf);
         my $tot = $data->count();
         my $size = 50000;
         my $pages = int($tot / $size) + (($tot % $size) ? 1 : 0);
@@ -1086,7 +1077,7 @@ sub sitemap ($query, $render_cb) {
                     $true_uri = "http://$query->{domain}/posts/$url->{id}";
                     $true_uri = "http://$query->{domain}/users/$url->{title}" if $is_user_page;
                 }
-                my %data = (
+                my %out = (
                     loc        => $true_uri,
                     lastmod    => $xml_date,
                     mobile     => 1,
@@ -1096,7 +1087,7 @@ sub sitemap ($query, $render_cb) {
 
                 if (ref $url eq 'HASH') {
                     #add video & preview image if applicable
-                    $data{images} = [{
+                    $out{images} = [{
                         loc => "http://$query->{domain}$url->{href}",
                         caption => $url->{data},
                         title => substr($url->{title},0,100),
@@ -1105,7 +1096,7 @@ sub sitemap ($query, $render_cb) {
                     # Truncate descriptions
                     my $desc = substr($url->{data},0,2048);
                     $desc //= '';
-                    $data{videos} = [{
+                    $out{videos} = [{
                         content_loc   => "http://$query->{domain}$url->{href}",
                         thumbnail_loc => "http://$query->{domain}$url->{preview}",
                         title         => substr($url->{title},0,100),
@@ -1113,7 +1104,7 @@ sub sitemap ($query, $render_cb) {
                     }] if $url->{is_video};
                 }
 
-                $sm->add(%data);
+                $sm->add(%out);
             }
         }
         my $xml = $sm->as_xml();
