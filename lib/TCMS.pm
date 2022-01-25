@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 no warnings 'experimental';
-use feature qw{signatures};
+use feature qw{signatures state};
 
 use Date::Format qw{strftime};
 
@@ -237,18 +237,10 @@ sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
 
 sub _render ($template, $vars, @headers) {
 
-    my $processor = Text::Xslate->new(
+    state $processor = Text::Xslate->new(
         path   => 'www/templates',
         header => ['header.tx'],
         footer => ['footer.tx'],
-        function => {
-            iso8601 => sub {
-                my $t = shift;
-                my $dt  = DateTime->from_epoch( epoch => $t );
-                return $dt->iso8601;
-            },
-            strip_and_trunc => \&Trog::Utils::strip_and_trunc,
-        },
     );
 
     #XXX default vars that need to be pulled from config

@@ -185,16 +185,7 @@ Most subsequent functions simply pass content to this function.
 sub index ($query,$render_cb, $content = '', $i_styles = []) {
     $query->{theme_dir}  = $td;
 
-    my $processor = Text::Xslate->new(
-        path   => $template_dir,
-    );
-
-    my $t_processor;
-    $t_processor = Text::Xslate->new(
-        path =>  "www/$theme_dir/templates",
-    ) if $theme_dir;
-
-    $content ||= _pick_processor("templates/$landing_page",$processor,$t_processor)->render($landing_page,$query);
+    $content ||= themed_render($landing_page, $query);
 
     my @styles = ('/styles/avatars.css');
     if ($theme_dir) {
@@ -224,12 +215,12 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
         theme_dir      => $td,
         content        => $content,
         title          => $title,
-        htmltitle      => _pick_processor("templates/$htmltitle" ,$processor,$t_processor)->render($htmltitle,$query),
-        midtitle       => _pick_processor("templates/$midtitle"  ,$processor,$t_processor)->render($midtitle,$query),
-        rightbar       => _pick_processor("templates/$rightbar"  ,$processor,$t_processor)->render($rightbar,$query),
-        leftbar        => _pick_processor("templates/$leftbar"   ,$processor,$t_processor)->render($leftbar,$query),
-        topbar         => _pick_processor("templates/$topbar"    ,$processor,$t_processor)->render($topbar,$query),
-        footbar        => _pick_processor("templates/$footbar"   ,$processor,$t_processor)->render($footbar,$query),
+        htmltitle      => themed_render($htmltitle,$query),
+        midtitle       => themed_render($midtitle,$query),
+        rightbar       => themed_render($rightbar,$query),
+        leftbar        => themed_render($leftbar,$query),
+        topbar         => themed_render($topbar,$query),
+        footbar        => themed_render($footbar,$query),
         categories     => \@series,
         stylesheets    => \@styles,
         show_madeby    => $Theme::show_madeby ? 1 : 0,
@@ -306,13 +297,9 @@ Implements the 4XX status codes.  Override templates named the same for theming 
 sub _generic_route ($rname, $code, $title, $query, $render_cb) {
     $query->{code} = $code;
 
-    my $processor = Text::Xslate->new(
-        path   => _dir_for_resource("$rname.tx"),
-    );
-
     $query->{title} = $title;
     my $styles = _build_themed_styles("$rname.css");
-    my $content = $processor->render("$rname.tx", {
+    my $content = themed_render("$rname.tx", {
         title    => $title,
         route    => $query->{route},
         user     => $query->{user},
@@ -353,10 +340,7 @@ Return an appropriate robots.txt
 =cut
 
 sub robots ($query, $render_cb) {
-    my $processor = Text::Xslate->new(
-        path   => _dir_for_resource("robots.txt"),
-    );
-    return [200, ["Content-type:text/plain\n"],[$processor->render('robots.tx', { domain => $query->{domain} })]];
+    return [200, ["Content-type:text/plain\n"],[themed_render('robots.tx', { domain => $query->{domain} })]];
 }
 
 =head2 setup
@@ -868,13 +852,8 @@ sub posts ($query, $render_cb, $direct=0) {
     my @post_aliases = map { $_->{local_href} } _get_series();
 
     my ($header,$footer);
-    my $t_processor;
-    $t_processor = Text::Xslate->new(
-        path =>  "www/$theme_dir/templates",
-    ) if $theme_dir;
-
-    $header = _pick_processor('templates/headers/'.$query->{primary_post}{header}, $processor,$t_processor)->render('headers/'.$query->{primary_post}{header}, { theme_dir => $td } ) if $query->{primary_post}{header};
-    $footer = _pick_processor('templates/footers/'.$query->{primary_post}{footer}, $processor,$t_processor)->render('footers/'.$query->{primary_post}{footer}, { theme_dir => $td } ) if $query->{primary_post}{footer};
+    $header = themed_render('headers/'.$query->{primary_post}{header}, { theme_dir => $td } ) if $query->{primary_post}{header};
+    $footer = themed_render('footers/'.$query->{primary_post}{footer}, { theme_dir => $td } ) if $query->{primary_post}{footer};
 
     # List the available headers/footers
     my $headers = _templates_in_dir(-d $theme_dir ? "www/$theme_dir/templates/headers" : "www/templates/headers");
@@ -1252,6 +1231,20 @@ sub _build_themed_templates ($template) {
     my $ts = _themed_template($template);
     push(@templates, $ts) if $theme_dir && -f "www/$ts";
     return \@templates;
+}
+
+sub themed_render ($template, $data) {
+    state $processor = Text::Xslate->new(
+        path   => $template_dir,
+    );
+
+    state $t_processor = $theme_dir ?
+        Text::Xslate->new(
+            path =>  "www/$theme_dir/templates",
+        ) :
+        undef;
+
+    return _pick_processor("templates/$template", $processor, $t_processor)->render($template, $data);
 }
 
 sub _pick_processor($file, $normal, $themed) {
