@@ -354,7 +354,7 @@ Return an appropriate robots.txt
 
 sub robots ($query, $render_cb) {
     my $processor = Text::Xslate->new(
-        path   => $template_dir,
+        path   => _dir_for_resource("robots.txt"),
     );
     return [200, ["Content-type:text/plain\n"],[$processor->render('robots.tx', { domain => $query->{domain} })]];
 }
@@ -742,7 +742,7 @@ sub avatars ($query, $render_cb) {
     push(@{$query->{acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
     my $processor = Text::Xslate->new(
-        path   => $template_dir,
+        path   => _dir_for_resource('avatars.tx'),
     );
 
     my @posts = _post_helper($query, $tags, $query->{acls});
