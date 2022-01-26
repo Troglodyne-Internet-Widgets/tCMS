@@ -30,7 +30,7 @@ our %routes = (
 
 my $contenttype = "Content-type:application/json;";
 
-sub catalog ($query, $input, $=) {
+sub catalog ($query) {
     my $enc = JSON::MaybeXS->new( utf8 => 1 );
     my %rcopy = %{\%routes};
     foreach my $r (keys(%rcopy)) {
@@ -39,7 +39,7 @@ sub catalog ($query, $input, $=) {
     return [200,[$contenttype],[$enc->encode(\%rcopy)]];
 }
 
-sub webmanifest ($query, $input, $=) {
+sub webmanifest ($query) {
     my $enc = JSON::MaybeXS->new( utf8 => 1 );
     my %manifest = (
         "icons" => [

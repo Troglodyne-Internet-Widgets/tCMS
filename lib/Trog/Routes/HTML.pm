@@ -13,6 +13,9 @@ use List::MoreUtils();
 use Capture::Tiny qw{capture};
 use HTML::SocialMeta;
 
+use Encode qw{encode_utf8};
+use IO::Compress::Deflate;
+
 use Trog::Utils;
 use Trog::Config;
 use Trog::Data;
@@ -182,7 +185,7 @@ Most subsequent functions simply pass content to this function.
 
 =cut
 
-sub index ($query,$render_cb, $content = '', $i_styles = []) {
+sub index ($query, $content = '', $i_styles = []) {
     $query->{theme_dir}  = $td;
 
     $content ||= themed_render($landing_page, $query);
@@ -208,7 +211,7 @@ sub index ($query,$render_cb, $content = '', $i_styles = []) {
 
     #Do embed content
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
-    return $render_cb->( $tmpl, {
+    return finish_render( $tmpl, {
         %$query,
         search_lang    => $data->lang(),
         search_help    => $data->help(),
@@ -294,7 +297,7 @@ Implements the 4XX status codes.  Override templates named the same for theming 
 
 =cut
 
-sub _generic_route ($rname, $code, $title, $query, $render_cb) {
+sub _generic_route ($rname, $code, $title, $query) {
     $query->{code} = $code;
 
     $query->{title} = $title;
@@ -306,7 +309,7 @@ sub _generic_route ($rname, $code, $title, $query, $render_cb) {
         styles   => $styles,
     deflate  => $query->{deflate},
     });
-    return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
+    return Trog::Routes::HTML::index($query, $content, $styles);
 }
 
 sub notfound (@args) {
@@ -339,7 +342,7 @@ Return an appropriate robots.txt
 
 =cut
 
-sub robots ($query, $render_cb) {
+sub robots ($query) {
     return [200, ["Content-type:text/plain\n"],[themed_render('robots.tx', { domain => $query->{domain} })]];
 }
 
@@ -349,9 +352,9 @@ One time setup page; should only display to the first user to visit the site whi
 
 =cut
 
-sub setup ($query, $render_cb) {
+sub setup ($query) {
     File::Touch::touch("config/setup");
-    return $render_cb->('notconfigured.tx', {
+    return finish_render('notconfigured.tx', {
         title => 'tCMS Requires Setup to Continue...',
         stylesheets => _build_themed_styles('notconfigured.css'),
     });
@@ -363,7 +366,7 @@ Sets the user cookie if the provided user exists, or sets up the user as an admi
 
 =cut
 
-sub login ($query, $render_cb) {
+sub login ($query) {
 
     # Redirect if we actually have a logged in user.
     # Note to future me -- this user value is overwritten explicitly in server.psgi.
@@ -371,7 +374,7 @@ sub login ($query, $render_cb) {
     $query->{to} //= $query->{route};
     $query->{to} = '/config' if $query->{to} eq '/login';
     if ($query->{user}) {
-        return $routes{$query->{to}}{callback}->($query,$render_cb);
+        return $routes{$query->{to}}{callback}->($query);
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
@@ -404,7 +407,7 @@ sub login ($query, $render_cb) {
     }
 
     $query->{failed} //= -1;
-    return $render_cb->('login.tx', {
+    return finish_render('login.tx', {
         title         => 'tCMS 2 ~ Login',
         to            => $query->{to},
         failure => int( $query->{failed} ),
@@ -491,10 +494,10 @@ Deletes your users' session and opens the index.
 
 =cut
 
-sub logout ($query, $render_cb) {
+sub logout ($query) {
     Trog::Auth::killsession($query->{user}) if $query->{user};
     delete $query->{user};
-    return Trog::Routes::HTML::index($query,$render_cb);
+    return Trog::Routes::HTML::index($query);
 }
 
 =head2 config
@@ -503,12 +506,12 @@ Renders the configuration page, or redirects you back to the login page.
 
 =cut
 
-sub config ($query, $render_cb) {
+sub config ($query) {
     if (!$query->{user}) {
-        return login($query,$render_cb);
+        return login($query);
     }
     #NOTE: we are relying on this to skip the ACL check with 'admin', this may not be viable in future?
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $css   = _build_themed_styles('config.css');
     my $js    = _build_themed_scripts('post.js');
@@ -516,7 +519,7 @@ sub config ($query, $render_cb) {
     $query->{failure} //= -1;
     my @series = _get_series(1);
 
-    return $render_cb->('config.tx', {
+    return finish_render('config.tx', {
         title              => 'Configure tCMS',
         theme_dir          => $td,
         stylesheets        => $css,
@@ -565,8 +568,8 @@ Implements /config/save route.  Saves what little configuration we actually use 
 
 =cut
 
-sub config_save ($query, $render_cb) {
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+sub config_save ($query) {
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
@@ -581,7 +584,7 @@ sub config_save ($query, $render_cb) {
     my $parent = getppid;
     kill 'HUP', $parent;
 
-    return config($query, $render_cb);
+    return config($query);
 }
 
 =head2 themeclone
@@ -590,8 +593,8 @@ Clone a theme by copying a directory.
 
 =cut
 
-sub themeclone ($query, $render_cb) {
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+sub themeclone ($query) {
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
     my ($theme, $newtheme) = ($query->{theme},$query->{newtheme});
 
     my $themedir = 'www/themes';
@@ -603,7 +606,7 @@ sub themeclone ($query, $render_cb) {
         $query->{failure} = 0;
         $query->{message} = "Successfully cloned theme '$theme' as '$newtheme'.";
     }
-    return config($query, $render_cb);
+    return config($query);
 }
 
 =head2 post_save
@@ -612,9 +615,9 @@ Saves posts submitted via the /post pages
 
 =cut
 
-sub post_save ($query, $render_cb) {
+sub post_save ($query) {
 
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
     my $to = delete $query->{to};
 
     #Copy this down since it will be deleted later
@@ -636,7 +639,7 @@ sub post_save ($query, $render_cb) {
     $query->{acls} = $acls;
     $query->{message} = $query->{failure} ? "Failed to add post!" : "Successfully added Post";
     delete $query->{id};
-    return posts($query, $render_cb);
+    return posts($query);
 }
 
 =head2 profile
@@ -645,8 +648,8 @@ Saves / updates new users.
 
 =cut
 
-sub profile ($query, $render_cb) {
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+sub profile ($query) {
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     #TODO allow users to do something OTHER than be admins
     if ($query->{password}) {
@@ -657,7 +660,7 @@ sub profile ($query, $render_cb) {
     $query->{user} = delete $query->{username};
     delete $query->{password};
 
-    return post_save($query, $render_cb);
+    return post_save($query);
 }
 
 =head2 post_delete
@@ -666,14 +669,14 @@ deletes posts.
 
 =cut
 
-sub post_delete ($query, $render_cb) {
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+sub post_delete ($query) {
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     $query->{failure} = $data->delete($query);
     $query->{to} = $query->{to};
     $query->{message} = $query->{failure} ? "Failed to delete post $query->{id}!" : "Successfully deleted Post $query->{id}";
     delete $query->{id};
-    return posts($query, $render_cb);
+    return posts($query);
 }
 
 =head2 series
@@ -683,7 +686,7 @@ Displays identified series, not all series.
 
 =cut
 
-sub series ($query, $render_cb) {
+sub series ($query) {
     my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
 
     #we are either viewed one of two ways, /post/$id or /$aclname
@@ -712,7 +715,7 @@ sub series ($query, $render_cb) {
     $query->{primary_post} = $posts[0];
     $query->{in_series} = 1;
 
-    return posts($query,$render_cb);
+    return posts($query);
 }
 
 =head2 avatars
@@ -721,17 +724,14 @@ Returns the avatars.css.  Limited to 1000 users.
 
 =cut
 
-sub avatars ($query, $render_cb) {
+sub avatars ($query) {
     #XXX if you have more than 1000 editors you should stop
     push(@{$query->{acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
-    my $processor = Text::Xslate->new(
-        path   => _dir_for_resource('avatars.tx'),
-    );
 
     my @posts = _post_helper($query, $tags, $query->{acls});
 
-    my $content = $processor->render('avatars.tx', {
+    my $content = themed_render('avatars.tx', {
         users => \@posts,
     });
 
@@ -744,7 +744,7 @@ Implements direct user profile view.
 
 =cut
 
-sub users ($query, $render_cb) {
+sub users ($query) {
     # Capture the username
     my (undef, undef, $username) = split(/\//, $query->{route});
 
@@ -762,7 +762,7 @@ sub users ($query, $render_cb) {
     $query->{user_obj}     = $posts[0];
     $query->{primary_post} = $posts[0];
     $query->{in_series}    = 1;
-    return posts($query,$render_cb);
+    return posts($query);
 }
 
 =head2 posts
@@ -771,7 +771,7 @@ Display multi or single posts, supports RSS and pagination.
 
 =cut
 
-sub posts ($query, $render_cb, $direct=0) {
+sub posts ($query, $direct=0) {
     #Process the input URI to capture tag/id
     $query->{route} //= $query->{to};
     my (undef, undef, $id) = split(/\//, $query->{route});
@@ -815,7 +815,7 @@ sub posts ($query, $render_cb, $direct=0) {
     }
 
     if (!$is_admin) {
-        return notfound($query, $render_cb) unless @posts;
+        return notfound($query) unless @posts;
     }
 
     my $fmt = $query->{format} || '';
@@ -950,7 +950,7 @@ sub posts ($query, $render_cb, $direct=0) {
         months    => [0..11],
     });
     return $content if $direct;
-    return Trog::Routes::HTML::index($query, $render_cb, $content, $styles);
+    return Trog::Routes::HTML::index($query, $content, $styles);
 }
 
 sub _templates_in_dir($path) {
@@ -999,7 +999,7 @@ Passing compressed=1 will gzip the output.
 
 =cut
 
-sub sitemap ($query, $render_cb) {
+sub sitemap ($query) {
 
     my (@to_map, $is_index, $route_type);
     my $warning = '';
@@ -1105,14 +1105,10 @@ sub sitemap ($query, $render_cb) {
     }
 
     @to_map = sort @to_map unless $is_index;
-    my $processor = Text::Xslate->new(
-        path   => _dir_for_resource('sitemap.tx'),
-    );
-
     my $styles = _build_themed_styles('sitemap.css');
 
     $query->{title} = "$query->{domain} : Sitemap";
-    my $content = $processor->render('sitemap.tx', {
+    my $content = themed_render('sitemap.tx', {
         title      => "Site Map",
         to_map     => \@to_map,
         is_index   => $is_index,
@@ -1120,7 +1116,7 @@ sub sitemap ($query, $render_cb) {
         route      => $query->{route},
     });
 
-    return Trog::Routes::HTML::index($query, $render_cb,$content,$styles);
+    return Trog::Routes::HTML::index($query,$content,$styles);
 }
 
 sub _rss ($query,$posts) {
@@ -1180,22 +1176,22 @@ Basically a thin wrapper around Pod::Html.
 
 =cut
 
-sub manual ($query, $render_cb) {
+sub manual ($query) {
     require Pod::Html;
     require Capture::Tiny;
 
-    return forbidden($query, $render_cb) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     #Fix links from Pod::HTML
     $query->{module} =~ s/\.html$//g if $query->{module};
 
     my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
-    return notfound($query,$render_cb) unless -f "lib/$infile";
+    return notfound($query) unless -f "lib/$infile";
     my $content = capture { Pod::Html::pod2html(qw{--podpath=lib --podroot=.},"--infile=lib/$infile") };
 
     my @series = _get_series(1);
 
-    return $render_cb->('manual.tx', {
+    return finish_render('manual.tx', {
         title       => 'tCMS Manual',
         theme_dir   => $td,
         content     => $content,
@@ -1267,5 +1263,55 @@ sub _themed_script ($resource) {
 sub _themed_template ($resource) {
     return _dir_for_resource("templates/$resource")."/templates/$resource";
 }
+
+sub finish_render ($template, $vars, @headers) {
+
+    #XXX default vars that need to be pulled from config
+    $vars->{dir}       //= 'ltr';
+    $vars->{lang}      //= 'en-US';
+    $vars->{title}     //= 'tCMS';
+    #XXX Need to have minification detection and so forth, use LESS
+    $vars->{stylesheets}  //= [];
+    #XXX Need to have minification detection, use Typescript
+    $vars->{scripts} //= [];
+
+    # Absolute-ize the paths for scripts & stylesheets
+    @{$vars->{stylesheets}} = map { CORE::index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{stylesheets}};
+    @{$vars->{scripts}}     = map { CORE::index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{scripts}};
+
+    $vars->{contenttype} //= $Trog::Vars::content_types{html};
+    $vars->{cachecontrol} //= $Trog::Vars::cache_control{revalidate};
+
+    $vars->{code} ||= 200;
+
+    my $body = themed_render('header.tx', $vars);
+    $body   .= themed_render($template,$vars);
+    $body   .= themed_render('footer.tx', $vars);
+    $body = encode_utf8($body);
+
+    my $ct = 'Content-type';
+    my $cc = 'Cache-control';
+    push(@headers, $ct => $vars->{contenttype});
+    push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
+
+    #Return data in the event the caller does not support deflate
+    if (!$vars->{deflate}) {
+        push( @headers, "Content-Length" => length($body) );
+        return [ $vars->{code}, \@headers, [$body]];
+    }
+
+    #Compress
+    push( @headers, "Content-Encoding" => "deflate" );
+
+    #Disallow framing UNLESS we are in embed mode
+    push( @headers, "Content-Security-Policy" => qq{frame-ancestors 'none'} ) unless $vars->{embed};
+
+    my $dfh;
+    IO::Compress::Deflate::deflate( \$body => \$dfh );
+    print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
+    push( @headers, "Content-Length" => length($dfh) );
+    return [$vars->{code}, \@headers, [$dfh]];
+}
+
 
 1;

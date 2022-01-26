@@ -14,7 +14,6 @@ use Text::Xslate ();
 use Plack::MIME  ();
 use Mojo::File   ();
 use DateTime::Format::HTTP();
-use Encode qw{encode_utf8};
 use CGI::Cookie ();
 use File::Basename();
 use IO::Compress::Deflate();
@@ -28,6 +27,7 @@ use Trog::Auth;
 use Trog::Utils;
 use Trog::Config;
 use Trog::Data;
+use Trog::Vars;
 
 # Troglodyne philosophy - simple as possible
 
@@ -45,22 +45,6 @@ my %aliases = $data->aliases();
 
 #1MB chunks
 my $CHUNK_SIZE = 1024000;
-
-# Things we will actually produce from routes rather than just serving up files
-my $ct = 'Content-type';
-my %content_types = (
-    plain => "text/plain;",
-    html  => "text/html; charset=UTF-8",
-    json  => "application/json;",
-    blob  => "application/octet-stream;",
-);
-
-my $cc = 'Cache-control';
-my %cache_control = (
-    revalidate => "no-cache, max-age=0",
-    nocache    => "no-store",
-    static     => "public, max-age=604800, immutable",
-);
 
 #Stuff that isn't in upstream finders
 my %extra_types = (
@@ -97,7 +81,7 @@ sub app {
     $path =~ s/[\/]+/\//g;
 
     # Let's open up our default route before we bother to see if users even exist
-    return $routes{default}{callback}->($query,\&_render) unless -f "config/setup";
+    return $routes{default}{callback}->($query) unless -f "config/setup";
 
     my $cookies = {};
     if ($env->{HTTP_COOKIE}) {
@@ -111,7 +95,7 @@ sub app {
 
     #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if (index($path,'/templates') == 0 || $path =~ m/.*\.psgi$/i ) {
-        return Trog::Routes::HTML::forbidden($query, \&_render);
+        return Trog::Routes::HTML::forbidden($query);
     }
 
     # If it's just a file, serve it up
@@ -142,8 +126,8 @@ sub app {
     $query->{deflate} = $deflate;
     $query->{user}    = $active_user;
 
-    return Trog::Routes::HTML::notfound($query, \&_render) unless exists $routes{$path};
-    return Trog::Routes::HTML::badrequest($query, \&_render) unless grep { $env->{REQUEST_METHOD} eq $_ } ($routes{$path}{method},'HEAD');
+    return Trog::Routes::HTML::notfound($query) unless exists $routes{$path};
+    return Trog::Routes::HTML::badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ($routes{$path}{method},'HEAD');
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
 
@@ -174,7 +158,7 @@ sub app {
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {
         no strict 'refs';
-        my $output = $routes{$path}{callback}->($query, \&_render);
+        my $output = $routes{$path}{callback}->($query);
         return $output;
     }
 };
@@ -187,11 +171,13 @@ sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
         $ft = Plack::MIME->mime_type($ext) if $ext;
         $ft ||= $extra_types{$ext} if exists $extra_types{$ext};
     }
-    $ft ||= $content_types{plain};
+    $ft ||= $Trog::Vars::content_types{plain};
 
+    my $ct = 'Content-type';
     my @headers = ($ct => $ft);
     #TODO use static Cache-Control for everything but JS/CSS?
-    push(@headers,$cc => $cache_control{revalidate});
+
+    push(@headers,'Cache-control' => $Trog::Vars::cache_control{revalidate});
 
     #TODO Return 304 unchanged for files that haven't changed since the requestor reports they last fetched
     my $mt = (stat($path))[9];
@@ -232,54 +218,7 @@ sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
         return [ $code, \@headers, [$dfh]];
     }
 
-    return [ 403, [$ct => $content_types{plain}], ["STAY OUT YOU RED MENACE"]];
-}
-
-sub _render ($template, $vars, @headers) {
-
-    #XXX default vars that need to be pulled from config
-    $vars->{dir}       //= 'ltr';
-    $vars->{lang}      //= 'en-US';
-    $vars->{title}     //= 'tCMS';
-    #XXX Need to have minification detection and so forth, use LESS
-    $vars->{stylesheets}  //= [];
-    #XXX Need to have minification detection, use Typescript
-    $vars->{scripts} //= [];
-
-    # Absolute-ize the paths for scripts & stylesheets
-    @{$vars->{stylesheets}} = map { index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{stylesheets}};
-    @{$vars->{scripts}}     = map { index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{scripts}};
-
-    $vars->{contenttype} //= $content_types{html};
-    $vars->{cachecontrol} //= $cache_control{revalidate};
-
-    $vars->{code} ||= 200;
-
-    push(@headers, $ct => $vars->{contenttype});
-    push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
-
-    my $body = Trog::Routes::HTML::themed_render('header.tx', $vars);
-    $body   .= Trog::Routes::HTML::themed_render($template,$vars);
-    $body   .= Trog::Routes::HTML::themed_render('footer.tx', $vars);
-    $body = encode_utf8($body);
-
-    #Return data in the event the caller does not support deflate
-    if (!$vars->{deflate}) {
-        push( @headers, "Content-Length" => length($body) );
-        return [ $vars->{code}, \@headers, [$body]];
-    }
-
-    #Compress
-    push( @headers, "Content-Encoding" => "deflate" );
-
-    #Disallow framing UNLESS we are in embed mode
-    push( @headers, "Content-Security-Policy" => qq{frame-ancestors 'none'} ) unless $vars->{embed};
-
-    my $dfh;
-    IO::Compress::Deflate::deflate( \$body => \$dfh );
-    print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
-    push( @headers, "Content-Length" => length($dfh) );
-    return [$vars->{code}, \@headers, [$dfh]];
+    return [ 403, [$ct => $Trog::Vars::content_types{plain}], ["STAY OUT YOU RED MENACE"]];
 }
 
 1;
