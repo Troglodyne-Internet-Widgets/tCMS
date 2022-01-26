@@ -343,7 +343,7 @@ Return an appropriate robots.txt
 =cut
 
 sub robots ($query) {
-    return [200, ["Content-type:text/plain\n"],[themed_render('robots.tx', { domain => $query->{domain} })]];
+    return [200, ["Content-type" => "text/plain"],[themed_render('robots.tx', { domain => $query->{domain} })]];
 }
 
 =head2 setup
@@ -1311,6 +1311,5 @@ sub finish_render ($template, $vars, @headers) {
     push( @headers, "Content-Length" => length($dfh) );
     return [$vars->{code}, \@headers, [$dfh]];
 }
-
 
 1;

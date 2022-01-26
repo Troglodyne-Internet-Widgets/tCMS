@@ -17,6 +17,7 @@ use DateTime::Format::HTTP();
 use CGI::Cookie ();
 use File::Basename();
 use IO::Compress::Deflate();
+use Time::HiRes qw{gettimeofday tv_interval};
 
 #Grab our custom routes
 use lib 'lib';
@@ -62,6 +63,9 @@ If a path passed is not a defined route (or regex route), but exists as a file u
 =cut
 
 sub app {
+    # Start the server timing clock
+    my $start = [gettimeofday];
+
     my $env = shift;
 
     my $last_fetch = 0;
@@ -105,7 +109,7 @@ sub app {
     @accept_encodings = split(/,/, $alist);
     my $deflate = grep { 'deflate' eq $_ } @accept_encodings;
 
-    return _serve("www/$path", $env->{'psgi.streaming'}, $last_fetch, $deflate) if -f "www/$path";
+    return _serve("www/$path", $start, $env->{'psgi.streaming'}, $last_fetch, $deflate) if -f "www/$path";
 
     #Handle regex/capture routes
     if (!exists $routes{$path}) {
@@ -159,11 +163,14 @@ sub app {
     {
         no strict 'refs';
         my $output = $routes{$path}{callback}->($query);
+        # Append server-timing headers
+        my $tot = tv_interval($start) * 1000;
+        push(@{$output->[1]}, 'Server-Timing' => "app;dur=$tot");
         return $output;
     }
 };
 
-sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
+sub _serve ($path, $start, $streaming=0, $last_fetch=0, $deflate=0) {
     my $mf = Mojo::File->new($path);
     my $ext = '.'.$mf->extname();
     my $ft;
@@ -206,6 +213,10 @@ sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
         #Return data in the event the caller does not support deflate
         if (!$deflate) {
             push( @headers, "Content-Length" => $sz );
+            # Append server-timing headers
+            my $tot = tv_interval($start) * 1000;
+            push(@headers, 'Server-Timing' => "file;dur=$tot");
+
             return [ $code, \@headers, $fh];
         }
 
@@ -215,6 +226,11 @@ sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
         IO::Compress::Deflate::deflate( $fh => \$dfh );
         print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
         push( @headers, "Content-Length" => length($dfh) );
+
+        # Append server-timing headers
+        my $tot = tv_interval($start) * 1000;
+        push(@headers, 'Server-Timing' => "file;dur=$tot");
+
         return [ $code, \@headers, [$dfh]];
     }
 
