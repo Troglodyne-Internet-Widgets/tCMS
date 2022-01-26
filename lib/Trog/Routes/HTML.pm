@@ -821,33 +821,6 @@ sub posts ($query, $direct=0) {
     my $fmt = $query->{format} || '';
     return _rss($query,\@posts) if $fmt eq 'rss';
 
-    my $child_processor = Text::Xslate->new(
-        # Prevent a recursive descent.  If the renderer is hit again, just do nothing
-        # XXX unfortunately if the post tries to include itself, it will die.
-        function => {
-            embed => sub {
-                my ($this_id, $style) = @_;
-                $style //= 'embed';
-                # If instead the style is 'content', then we will only show the content w/ no formatting, and no title.
-                return Text::Xslate::mark_raw(Trog::Routes::HTML::posts(
-                    { route => "/post/$this_id", style => $style },
-                    sub {},
-                1));
-            },
-        }
-    );
-    my $child_renderer = sub {
-        my ($template_string, $options) = @_;
-        return $child_processor->render_string($template_string,$options);
-    };
-
-    my $processor = Text::Xslate->new(
-        path   => $template_dir,
-        function => {
-            render_it => $child_renderer,
-        },
-    );
-
     #XXX Is used by the sitemap, maybe just fix there?
     my @post_aliases = map { $_->{local_href} } _get_series();
 
@@ -918,7 +891,7 @@ sub posts ($query, $direct=0) {
     } @posts;
     my @et = List::MoreUtils::singleton(@$tags, @tags_all);
 
-    my $content = $processor->render('posts.tx', {
+    my $content = themed_render('posts.tx', {
         acls      => \@acls,
         can_edit  => $is_admin,
         forms     => $forms,
@@ -1230,13 +1203,39 @@ sub _build_themed_templates ($template) {
 }
 
 sub themed_render ($template, $data) {
+    state $child_processor = Text::Xslate->new(
+        # Prevent a recursive descent.  If the renderer is hit again, just do nothing
+        # XXX unfortunately if the post tries to include itself, it will die.
+        function => {
+            embed => sub {
+                my ($this_id, $style) = @_;
+                $style //= 'embed';
+                # If instead the style is 'content', then we will only show the content w/ no formatting, and no title.
+                return Text::Xslate::mark_raw(Trog::Routes::HTML::posts(
+                    { route => "/post/$this_id", style => $style },
+                    sub {},
+                1));
+            },
+        }
+    );
+    state $child_renderer = sub {
+        my ($template_string, $options) = @_;
+        return $child_processor->render_string($template_string,$options);
+    };
+
     state $processor = Text::Xslate->new(
         path   => $template_dir,
+        function => {
+            render_it => $child_renderer,
+        },
     );
 
     state $t_processor = $theme_dir ?
         Text::Xslate->new(
             path =>  "www/$theme_dir/templates",
+            function => {
+                render_it => $child_renderer,
+            },
         ) :
         undef;
 
