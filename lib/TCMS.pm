@@ -237,12 +237,6 @@ sub _serve ($path, $streaming=0, $last_fetch=0, $deflate=0) {
 
 sub _render ($template, $vars, @headers) {
 
-    state $processor = Text::Xslate->new(
-        path   => 'www/templates',
-        header => ['header.tx'],
-        footer => ['footer.tx'],
-    );
-
     #XXX default vars that need to be pulled from config
     $vars->{dir}       //= 'ltr';
     $vars->{lang}      //= 'en-US';
@@ -264,7 +258,9 @@ sub _render ($template, $vars, @headers) {
     push(@headers, $ct => $vars->{contenttype});
     push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
 
-    my $body = $processor->render($template,$vars);
+    my $body = Trog::Routes::HTML::themed_render('header.tx', $vars);
+    $body   .= Trog::Routes::HTML::themed_render($template,$vars);
+    $body   .= Trog::Routes::HTML::themed_render('footer.tx', $vars);
     $body = encode_utf8($body);
 
     #Return data in the event the caller does not support deflate
