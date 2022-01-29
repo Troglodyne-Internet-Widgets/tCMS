@@ -4,7 +4,7 @@
       <img id="logo" src="/img/icon/favicon.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
     </div>
     <div id="spacer" style="clear: both;"><br /></div>
-    <form method="POST" action="/auth">
+    <form id="loginForm" method="POST" action="/auth">
       <input type="hidden" name="app" value="login" />
       <input type="hidden" name="to" value="<: $to :>" />
       Username<br />
@@ -20,14 +20,41 @@
       </div>
       <br />
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
+
+	  <!--
+		External authentication provider data.
+		Provider = Driver to use
+	    Data     = JSON encoded blob of data gotten back from auth source
+	  -->
+      <input type="hidden" id="extAuthProvider" value=""></input>
+	  <input type="hidden" id="extAuthData" value=""></input>
     </form>
 	<br><br>
-	<script defer src="/scripts/matrix-login.js"></script>
-	<matrix-signin id="signin"></matrix-signin>
-	<matrix-signin-button target="signin">
-		<span style="line-height: 2rem;">
-			<img style="width: 24px; vertical-align: middle;" src="img/icon/matrix-element.svg"></img>
-			Sign in with Matrix
-		</span>
-	</matrix-signin-button>
+	<div id="matrixLogin" style="display:none;">
+		<script defer src="/scripts/matrix-login.js"></script>
+		<matrix-signin id="signin"></matrix-signin>
+		<script>
+		  var hasusers = <: $hasusers :>;
+		  console.log("Has Users? " + hasusers);
+		  var loginBits = document.getElementById("matrixLogin");
+		  if(hasusers) {
+			  loginBits.style = "display:block";
+			  const signIn = document.querySelector('matrix-signin')
+			  signIn.addEventListener('success', ({ detail }) => {
+				let form = document.getElementById("loginForm");
+				form.querySelector("#extAuthProvider").value = "matrix";
+				form.querySelector("#extAuthData").value = JSON.stringify(detail.user);
+				form.submit();
+			  })
+		  } else {
+			  loginBits.remove();
+		  }
+		</script>
+		<matrix-signin-button target="signin">
+			<span style="line-height: 2rem;">
+				<img style="width: 24px; vertical-align: middle;" src="img/icon/matrix-element.svg"></img>
+				Sign in with Matrix
+			</span>
+		</matrix-signin-button>
+	</div>
 </div>

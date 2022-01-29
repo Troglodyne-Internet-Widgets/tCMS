@@ -429,6 +429,7 @@ sub login ($query, $render_cb) {
         failure => int( $query->{failed} ),
         message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
         btnmsg        => $btnmsg,
+        hasusers      => $hasusers ? 1 : 0,
         stylesheets   => _build_themed_styles('login.css'),
         theme_dir     => $td,
     }, @headers);
