@@ -60,7 +60,7 @@ Returns a session ID, or blank string in the event the user does not exist or in
 
 =cut
 
-sub mksession ($user,$pass) {
+sub mksession ($type,$user,$pass) {
     my $dbh = _dbh();
     my $records = $dbh->selectall_arrayref("SELECT salt FROM user WHERE name = ?", { Slice => {} }, $user);
     return '' unless ref $records eq 'ARRAY' && @$records;

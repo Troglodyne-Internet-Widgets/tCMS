@@ -394,42 +394,27 @@ sub login ($query, $render_cb) {
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
-    my $hasusers = -f "config/has_users";
-    my $btnmsg = $hasusers ? "Log In" : "Register";
+    $query->{'hasusers'} = -f "config/has_users";
+    my $btnmsg = $query->{'hasusers'} ? "Log In" : "Register";
 
     my @headers;
-    if ($query->{username} && $query->{password}) {
-        if (!$hasusers) {
-            # Make the first user
-            Trog::Auth::useradd($query->{username}, $query->{password}, ['admin'] );
-            # Add a stub user page and the initial series.
-            my $dat = Trog::Data->new($conf);
-            _setup_initial_db($dat,$query->{username});
-            # Ensure we stop registering new users
-            File::Touch::touch("config/has_users");
-        }
-
-        $query->{failed} = 1;
-        my $cookie = Trog::Auth::mksession($query->{username}, $query->{password});
-        if ($cookie) {
-            # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
-            my $secure = '';
-            $secure = '; Secure' if $query->{scheme} eq 'https';
-            @headers = (
-                "Set-Cookie" => "tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
-            );
-            $query->{failed} = 0;
-        }
+    my $do_auth = grep { $query->{$_} } qw{username extAuthProvider};
+    my $failed = -1;
+    if($do_auth) {
+        my $auth_module = "Default";
+        $auth_module = ucfirst($query->{'extAuthProvider'}) if($query->{'extAuthProvider'});
+        require Trog::Authz;
+        my $auth_obj = Trog::Authz::do_auth_for( $auth_module, $query );
+        $failed = $auth_obj->failed();
     }
 
-    $query->{failed} //= -1;
     return $render_cb->('login.tx', {
         title         => 'tCMS 2 ~ Login',
         to            => $query->{to},
         failure => int( $query->{failed} ),
         message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
         btnmsg        => $btnmsg,
-        hasusers      => $hasusers ? 1 : 0,
+        hasusers      => $query->{'hasusers'} ? 1 : 0,
         stylesheets   => _build_themed_styles('login.css'),
         theme_dir     => $td,
     }, @headers);
