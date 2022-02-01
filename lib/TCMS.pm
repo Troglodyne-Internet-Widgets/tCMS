@@ -148,7 +148,7 @@ sub app {
     }
 
     #Set various things we don't want overridden
-    $query->{acls} = [$query->{acls}] if (ref $query->{acls} ne 'ARRAY');
+    $query->{acls} = [$query->{acls}] if ($query->{acls} && ref $query->{acls} ne 'ARRAY');
     $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
     $query->{user}         = $active_user;
