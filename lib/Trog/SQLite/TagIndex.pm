@@ -84,8 +84,8 @@ sub build_index($data_obj,$posts=[]) {
         $post->{post_id} = $pids->{$post->{id}}{id};
     }
 
-    # Slap in the tags
-    my @tags = uniq map { @{$_->{tags}} } @$posts;
+    # Slap in the tags, plus the aclname in the event this is a series
+    my @tags = uniq map { @{$_->{tags}}, $_->{aclname} } @$posts;
     Trog::SQLite::bulk_insert($dbh,'tag', ['name'], 'IGNORE', @tags);
     #TODO restrict query to only the specific tags we care about
     my $t = $dbh->selectall_hashref("SELECT id,name FROM tag", 'name');
