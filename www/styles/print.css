@@ -1,4 +1,4 @@
-#littlemenu, #topkek, #leftbar, #rightbar, #footbar {
+#littlemenu, #topkek, #leftbar, #rightbar, #footbar, #paginator, .postedit {
  display: none !important;
 }
 #kontent {

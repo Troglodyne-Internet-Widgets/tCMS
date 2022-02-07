@@ -17,9 +17,11 @@
         });
         </script>
     : }
+    <div class="postedit">
     : if ( $post.form ) {
     : include "forms/" ~ $post.form;
     : }
+    </div>
 : }
 <script type="text/javascript" src="/scripts/highlight.min.js"></script>
 <script>
