@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
+use Digest::SHA();
 use JSON::MaybeXS();
 use Trog::Config();
 
@@ -28,7 +29,7 @@ our %routes = (
     },
 );
 
-my $contenttype = "Content-type:application/json;";
+my $headers = ['Content-type' => "application/json"];
 
 sub catalog ($query) {
     my $enc = JSON::MaybeXS->new( utf8 => 1 );
@@ -36,7 +37,13 @@ sub catalog ($query) {
     foreach my $r (keys(%rcopy)) {
         delete $rcopy{$r}{callback}
     }
-    return [200,[$contenttype],[$enc->encode(\%rcopy)]];
+    # Make the ETag the sha256 of the routes
+    my $content = $enc->encode(\%rcopy);
+    my $state = Digest::SHA->new(256);
+    my $hash = $state->add($content);
+
+    push(@$headers, ETag => $state->hexdigest);
+    return [200,$headers,[$content]];
 }
 
 sub webmanifest ($query) {
@@ -47,8 +54,13 @@ sub webmanifest ($query) {
             { "src" => "$theme_dir/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
         ],
     );
+    # Make the ETag the sha256 of the routes
+    my $content = $enc->encode(\%manifest);
+    my $state = Digest::SHA->new(256);
+    my $hash = $state->add($content);
 
-    return [ 200, [$contenttype], [$enc->encode(\%manifest)] ];
+    push(@$headers, ETag => $state->hexdigest);
+    return [ 200, $headers, [$content] ];
 }
 
 1;

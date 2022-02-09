@@ -44,6 +44,9 @@ WriteMakefile(
     'UUID::Tiny'             => '0',
     'WWW::Sitemap::XML'      => '0',
     'WWW::SitemapIndex::XML' => '0',
+    'CSS::Minifier::XS'      => '0',
+    'JavaScript::Minifier::XS' => '0',
+    'Digest::SHA'            => '0',
   },
   test => {TESTS => 't/*.t'}
 );
