@@ -4,9 +4,9 @@ use strict;
 use warnings;
 
 no warnings 'experimental';
-use feature qw{signatures};
+use feature qw{signatures state};
 
-use Digest::SHA();
+use Clone qw{clone};
 use JSON::MaybeXS();
 use Trog::Config();
 
@@ -27,39 +27,46 @@ our %routes = (
         callback       => \&webmanifest,
         parameters     => [],
     },
+    '/api/version' => {
+        method     => 'GET',
+        callback   => \&version,
+        parameters => [],
+    },
 );
 
-my $headers = ['Content-type' => "application/json"];
+# Clone / redact for catalog
+my $cloned = clone(\%routes);
+foreach my $r (keys(%$cloned)) {
+    delete $cloned->{$r}{callback}
+}
+
+my $enc = JSON::MaybeXS->new( utf8 => 1 );
+
+# Note to authors, don't forget to update this
+sub _version () {
+    return '1.0';
+}
+
+sub version ($query) {
+    state $ret = [200, ['Content-type' => "application/json", ETag => 'version-'._version()],[_version()]];
+    return $ret;
+}
 
 sub catalog ($query) {
-    my $enc = JSON::MaybeXS->new( utf8 => 1 );
-    my %rcopy = %{\%routes};
-    foreach my $r (keys(%rcopy)) {
-        delete $rcopy{$r}{callback}
-    }
-    # Make the ETag the sha256 of the routes
-    my $content = $enc->encode(\%rcopy);
-    my $state = Digest::SHA->new(256);
-    my $hash = $state->add($content);
-
-    push(@$headers, ETag => $state->hexdigest);
-    return [200,$headers,[$content]];
+    state $ret = [200, ['Content-type' => "application/json", ETag => 'catalog-'._version()], [$enc->encode($cloned)]];
+    return $ret;
 }
 
 sub webmanifest ($query) {
-    my $enc = JSON::MaybeXS->new( utf8 => 1 );
-    my %manifest = (
+    state $headers = ['Content-type' => "application/json", ETag => 'manifest-'._version()];
+    state %manifest = (
         "icons" => [
             { "src" => "$theme_dir/img/icon/favicon-192.png", "type" => "image/png", "sizes" => "192x192" },
             { "src" => "$theme_dir/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
         ],
     );
-    # Make the ETag the sha256 of the routes
-    my $content = $enc->encode(\%manifest);
-    my $state = Digest::SHA->new(256);
-    my $hash = $state->add($content);
+    state $content = $enc->encode(\%manifest);
 
-    push(@$headers, ETag => $state->hexdigest);
     return [ 200, $headers, [$content] ];
 }
 

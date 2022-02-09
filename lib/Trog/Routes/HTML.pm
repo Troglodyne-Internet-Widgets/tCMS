@@ -325,12 +325,22 @@ sub badrequest (@args) {
     return _generic_route('badrequest', 400, "Bad Request", @args);
 }
 
+=head2 redirect, redirect_permanent, see_also
+
+Redirects to the provided page.
+
+=cut
+
 sub redirect ($to) {
     return [302, ["Location" => $to],['']]
 }
 
 sub redirect_permanent ($to) {
     return [301, ["Location" => $to], ['']];
+}
+
+sub see_also ($to) {
+    return [303, ["Location" => $to], ['']];
 }
 
 =head1 NORMAL ROUTES
@@ -376,7 +386,7 @@ sub login ($query) {
     $query->{to} //= $query->{route};
     $query->{to} = '/config' if $query->{to} eq '/login';
     if ($query->{user}) {
-        return $routes{$query->{to}}{callback}->($query);
+        return see_also($query->{to});
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
@@ -608,7 +618,7 @@ sub themeclone ($query) {
         $query->{failure} = 0;
         $query->{message} = "Successfully cloned theme '$theme' as '$newtheme'.";
     }
-    return config($query);
+    return see_also('/config');
 }
 
 =head2 post_save
@@ -636,12 +646,8 @@ sub post_save ($query) {
     # Ensure there are no null tags
     @{$query->{tags}} = grep { defined $_ } @{$query->{tags}};
 
-    $query->{failure} = $data->add($query);
-    $query->{to} = $to;
-    $query->{acls} = $acls;
-    $query->{message} = $query->{failure} ? "Failed to add post!" : "Successfully added Post";
-    delete $query->{id};
-    return posts($query);
+    $data->add($query) and die "Could not add post";
+    return see_also($to);
 }
 
 =head2 profile
@@ -674,11 +680,8 @@ deletes posts.
 sub post_delete ($query) {
     return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
-    $query->{failure} = $data->delete($query);
-    $query->{to} = $query->{to};
-    $query->{message} = $query->{failure} ? "Failed to delete post $query->{id}!" : "Successfully deleted Post $query->{id}";
-    delete $query->{id};
-    return posts($query);
+    $data->delete($query) and die "Could not delete post";
+    return see_also($query->{to});
 }
 
 =head2 series

@@ -43,6 +43,9 @@ my %routes = %Trog::Routes::HTML::routes;
 @routes{keys(%roots)} = values(%roots);
 
 my %aliases = $data->aliases();
+
+# XXX this is built progressively across the forks, leading to inconsistent behavior.
+# This should eventually be pre-filled from DB.
 my %etags;
 
 #1MB chunks
@@ -72,8 +75,8 @@ sub app {
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning
     if ($env->{HTTP_IF_NONE_MATCH}) {
+        return [304, [], ['']] if $env->{HTTP_IF_NONE_MATCH} eq ($etags{$env->{REQUEST_URI}} || '');
         $etags{$env->{REQUEST_URI}} = $env->{HTTP_IF_NONE_MATCH} unless exists $etags{$env->{REQUEST_URI}};
-        return [304, [], ['']] if $env->{HTTP_IF_NONE_MATCH} eq $etags{$env->{REQUEST_URI}};
     }
 
     my $last_fetch = 0;
