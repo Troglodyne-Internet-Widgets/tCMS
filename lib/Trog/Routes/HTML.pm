@@ -1235,7 +1235,9 @@ sub themed_render ($template, $data) {
     );
     state $child_renderer = sub {
         my ($template_string, $options) = @_;
-        return $child_processor->render_string($template_string,$options);
+        # If it fails to render, it must be something else
+        my $out = eval { $child_processor->render_string($template_string,$options) };
+        return $out ? $out : $template_string;
     };
 
     state $processor = Text::Xslate->new(
