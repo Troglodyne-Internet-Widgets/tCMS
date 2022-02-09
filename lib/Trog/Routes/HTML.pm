@@ -735,7 +735,14 @@ sub avatars ($query) {
         users => \@posts,
     });
 
-    return [200, ["Content-type" => "text/css" ],[$content]];
+    my $headers = ["Content-type" => "text/css" ];
+    if (@posts) {
+        # Set the eTag so that we don't get a re-fetch
+        my $etag = "$posts[0]{id}-$posts[0]{version}";
+        push(@$headers, ETag => $etag);
+    }
+
+    return [200, $headers,[$content]];
 }
 
 =head2 users
