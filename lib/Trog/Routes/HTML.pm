@@ -343,7 +343,8 @@ Return an appropriate robots.txt
 =cut
 
 sub robots ($query) {
-    return [200, ["Content-type" => "text/plain"],[themed_render('robots.tx', { domain => $query->{domain} })]];
+    state $etag = "robots-".time();
+    return finish_render(undef , { etag => $etag, contenttype => 'text/plain', body => encode_utf8(themed_render('robots.tx', { domain => $query->{domain} })) } );
 }
 
 =head2 setup
@@ -731,18 +732,17 @@ sub avatars ($query) {
 
     my @posts = _post_helper($query, $tags, $query->{acls});
 
-    my $content = themed_render('avatars.tx', {
+    $query->{body} = themed_render('avatars.tx', {
         users => \@posts,
     });
 
-    my $headers = ["Content-type" => "text/css" ];
+    $query->{contenttype} = "text/css";
     if (@posts) {
         # Set the eTag so that we don't get a re-fetch
-        my $etag = "$posts[0]{id}-$posts[0]{version}";
-        push(@$headers, ETag => $etag);
+        $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
     }
 
-    return [200, $headers,[$content]];
+    return finish_render(undef, $query);
 }
 
 =head2 users
@@ -825,6 +825,9 @@ sub posts ($query, $direct=0) {
         return notfound($query) unless @posts;
     }
 
+    # Set the eTag so that we don't get a re-fetch
+    $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
+
     my $fmt = $query->{format} || '';
     return _rss($query,\@posts) if $fmt eq 'rss';
 
@@ -897,9 +900,6 @@ sub posts ($query, $direct=0) {
         $_
     } @posts;
     my @et = List::MoreUtils::singleton(@$tags, @tags_all);
-
-    # Set the eTag so that we don't get a re-fetch
-    $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
 
     my $content = themed_render('posts.tx', {
         acls      => \@acls,
@@ -984,6 +984,7 @@ Passing compressed=1 will gzip the output.
 
 sub sitemap ($query) {
 
+    state $etag = "sitemap-".time();
     my (@to_map, $is_index, $route_type);
     my $warning = '';
     $query->{map} //= '';
@@ -1084,7 +1085,8 @@ sub sitemap ($query) {
             $buf = $compressed;
             seek $compressed, 0, 0;
         }
-        return [200,["Content-type" => $ct], $buf];
+        #XXX This is one of the few exceptions where we don't use finish_render, as it *requires* gzip.
+        return [200,["Content-type" => $ct, 'ETag' => $etag], $buf];
     }
 
     @to_map = sort @to_map unless $is_index;
@@ -1098,6 +1100,7 @@ sub sitemap ($query) {
         route_type => $route_type,
         route      => $query->{route},
     });
+    $query->{etag} = $etag;
 
     return Trog::Routes::HTML::index($query,$content,$styles);
 }
@@ -1135,8 +1138,7 @@ sub _rss ($query,$posts) {
         }
     }
 
-    require Encode;
-    return [200, ["Content-type" => "application/rss+xml"], [Encode::encode_utf8($rss->as_string)]];
+    return finish_render(undef, { etag => $query->{etag}, contenttype => "application/rss+xml", body => encode_utf8($rss->as_string) });
 }
 
 sub _post2rss ($rss,$url,$post) {
@@ -1293,10 +1295,13 @@ sub finish_render ($template, $vars, @headers) {
 
     $vars->{code} ||= 200;
 
-    my $body = themed_render('header.tx', $vars);
-    $body   .= themed_render($template,$vars);
-    $body   .= themed_render('footer.tx', $vars);
-    $body = encode_utf8($body);
+    my $body = exists $vars->{body} ? $vars->{body} : '';
+    if ($template) {
+        $body  = themed_render('header.tx', $vars);
+        $body .= themed_render($template,$vars);
+        $body .= themed_render('footer.tx', $vars);
+        $body  = encode_utf8($body);
+    }
 
     my $ct = 'Content-type';
     my $cc = 'Cache-control';

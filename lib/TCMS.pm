@@ -159,6 +159,7 @@ sub app {
     $query->{acls} = [$query->{acls}] if ($query->{acls} && ref $query->{acls} ne 'ARRAY');
     $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
+    $query->{body}         = '';
     $query->{user}         = $active_user;
     $query->{domain}       = $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
     $query->{route}        = $path;
@@ -204,6 +205,7 @@ sub _serve ($path, $start, $streaming=0, $last_fetch=0, $deflate=0) {
     #XXX doing metadata=preload on videos doesn't work right?
     #push(@headers, "Content-Length: $sz");
     push(@headers, "Last-Modified" => $now_string);
+    push(@headers, 'Vary' => 'Accept-Encoding');
 
     if (open(my $fh, '<', $path)) {
         return sub {
