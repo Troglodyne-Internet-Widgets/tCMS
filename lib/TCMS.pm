@@ -43,6 +43,7 @@ my %routes = %Trog::Routes::HTML::routes;
 @routes{keys(%roots)} = values(%roots);
 
 my %aliases = $data->aliases();
+my %etags;
 
 #1MB chunks
 my $CHUNK_SIZE = 1024000;
@@ -67,6 +68,13 @@ sub app {
     my $start = [gettimeofday];
 
     my $env = shift;
+
+    # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
+    # XXX yes, this allows cache poisoning
+    if ($env->{HTTP_IF_NONE_MATCH}) {
+        $etags{$env->{REQUEST_URI}} = $env->{HTTP_IF_NONE_MATCH} unless exists $etags{$env->{REQUEST_URI}};
+        return [304, [], ['']] if $env->{HTTP_IF_NONE_MATCH} eq $etags{$env->{REQUEST_URI}};
+    }
 
     my $last_fetch = 0;
     if ($env->{HTTP_IF_MODIFIED_SINCE}) {
@@ -187,14 +195,11 @@ sub _serve ($path, $start, $streaming=0, $last_fetch=0, $deflate=0) {
 
     push(@headers,'Cache-control' => $Trog::Vars::cache_control{revalidate});
 
-    #TODO Return 304 unchanged for files that haven't changed since the requestor reports they last fetched
     my $mt = (stat($path))[9];
     my $sz = (stat(_))[7];
     my @gm = gmtime($mt);
     my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
     my $code = $mt > $last_fetch ? 200 : 304;
-    #XXX something broken about the above logic
-    $code=200;
 
     #XXX doing metadata=preload on videos doesn't work right?
     #push(@headers, "Content-Length: $sz");

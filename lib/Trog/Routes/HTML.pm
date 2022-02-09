@@ -891,6 +891,9 @@ sub posts ($query, $direct=0) {
     } @posts;
     my @et = List::MoreUtils::singleton(@$tags, @tags_all);
 
+    # Set the eTag so that we don't get a re-fetch
+    $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
+
     my $content = themed_render('posts.tx', {
         acls      => \@acls,
         can_edit  => $is_admin,
@@ -1292,6 +1295,7 @@ sub finish_render ($template, $vars, @headers) {
     my $cc = 'Cache-control';
     push(@headers, $ct => $vars->{contenttype});
     push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
+    push(@headers, 'ETag' => $vars->{etag}) if $vars->{etag};
 
     #Return data in the event the caller does not support deflate
     if (!$vars->{deflate}) {
