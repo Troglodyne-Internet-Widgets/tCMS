@@ -15,6 +15,7 @@ use HTML::SocialMeta;
 
 use Encode qw{encode_utf8};
 use IO::Compress::Deflate;
+use CSS::Minifier::XS;
 
 use Trog::Utils;
 use Trog::Config;
@@ -721,20 +722,19 @@ sub series ($query) {
 
 =head2 avatars
 
-Returns the avatars.css.  Limited to 1000 users.
+Returns the avatars.css.
 
 =cut
 
 sub avatars ($query) {
-    #XXX if you have more than 1000 editors you should stop
     push(@{$query->{acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
 
     my @posts = _post_helper($query, $tags, $query->{acls});
 
-    $query->{body} = themed_render('avatars.tx', {
+    $query->{body} = encode_utf8(CSS::Minifier::XS::minify(themed_render('avatars.tx', {
         users => \@posts,
-    });
+    })));
 
     $query->{contenttype} = "text/css";
     if (@posts) {
@@ -1281,14 +1281,14 @@ sub finish_render ($template, $vars, @headers) {
     $vars->{dir}       //= 'ltr';
     $vars->{lang}      //= 'en-US';
     $vars->{title}     //= 'tCMS';
-    #XXX Need to have minification detection and so forth, use LESS
     $vars->{stylesheets}  //= [];
-    #XXX Need to have minification detection, use Typescript
     $vars->{scripts} //= [];
 
     # Absolute-ize the paths for scripts & stylesheets
     @{$vars->{stylesheets}} = map { CORE::index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{stylesheets}};
     @{$vars->{scripts}}     = map { CORE::index($_, '/') == 0 ? $_ : "/$_" } @{$vars->{scripts}};
+
+    # TODO Smash together the stylesheets and minify
 
     $vars->{contenttype} //= $Trog::Vars::content_types{html};
     $vars->{cachecontrol} //= $Trog::Vars::cache_control{revalidate};
