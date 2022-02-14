@@ -111,6 +111,8 @@ iframe.responsive {
     height: 26rem;
 }
 .responsive-text {
+    font-family: serif;
+    font-size: larger;
     max-width: 45rem;
 }
 .responsive-img {
