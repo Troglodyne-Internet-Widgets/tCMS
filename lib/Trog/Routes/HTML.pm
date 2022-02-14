@@ -1060,7 +1060,7 @@ sub sitemap ($query) {
                     }] if $url->{is_image};
 
                     # Truncate descriptions
-                    my $desc = substr($url->{data},0,2048);
+                    my $desc = substr($url->{data},0,2048) || '';
                     $desc //= '';
                     $out{videos} = [{
                         content_loc   => "http://$query->{domain}$url->{href}",
