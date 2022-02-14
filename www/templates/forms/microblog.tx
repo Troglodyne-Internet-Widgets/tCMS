@@ -5,7 +5,7 @@
         : include "post_tags.tx";
 
         : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
-            <div style="background-image:url(<: $post.preview :>);" class="responsive preview"></div>
+            <img src="<: $post.preview :>" class="responsive-img" />
         : }
         : if ( $post.video_href ) {
             <video preload="none" class="responsive" controls poster="<: $post.preview :>" >
@@ -21,7 +21,7 @@
         : }
 
         : if ( !!$post.data ) {
-            <div class="postData" id="postData-<: $post.id :>">
+            <div class="postData responsive-text" id="postData-<: $post.id :>">
                 <: render_it($post.data) | mark_raw  :>
             </div>
         : }
