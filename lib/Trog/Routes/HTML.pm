@@ -1060,12 +1060,14 @@ sub sitemap ($query) {
                     }] if $url->{is_image};
 
                     # Truncate descriptions
-                    my $desc = substr($url->{data},0,2048) || '';
-                    $desc //= '';
+                    my $desc    = substr($url->{data},0,2048) || '';
+                    my $href    = $url->{href} || '';
+                    my $preview = $url->{preview} || '';
+                    my $domain  = $query->{domain} || '';
                     $out{videos} = [{
-                        content_loc   => "http://$query->{domain}$url->{href}",
-                        thumbnail_loc => "http://$query->{domain}$url->{preview}",
-                        title         => substr($url->{title},0,100),
+                        content_loc   => "http://$domain$href",
+                        thumbnail_loc => "http://$domain$preview",
+                        title         => substr($url->{title},0,100) || '',
                         description   => $desc,
                     }] if $url->{is_video};
                 }
