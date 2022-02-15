@@ -1,0 +1,7 @@
+{
+    "name": "tCMS",
+    "version": "1.0.0",
+    "dependencies": {
+        "juice": "^8.0.0"
+    }
+}

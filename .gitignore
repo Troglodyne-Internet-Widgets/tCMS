@@ -22,3 +22,4 @@ config/main.cfg
 config/setup
 MYMETA.yml
 MYMETA.json
+node_modules/
