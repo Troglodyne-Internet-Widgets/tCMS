@@ -8,6 +8,7 @@ use List::Util;
 use File::Copy;
 use Mojo::File;
 use Plack::MIME;
+use Path::Tiny();
 
 no warnings 'experimental';
 use feature qw{signatures};
@@ -266,6 +267,9 @@ sub add ($self, @posts) {
         my $parent = getppid;
         kill 'HUP', $parent;
     }
+
+    # Gorilla cache invalidation
+    Path::Tiny::path('www/statics')->remove_tree;
 
     return 0;
 }

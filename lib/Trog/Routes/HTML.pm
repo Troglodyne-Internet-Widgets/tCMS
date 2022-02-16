@@ -14,8 +14,10 @@ use Capture::Tiny qw{capture};
 use HTML::SocialMeta;
 
 use Encode qw{encode_utf8};
-use IO::Compress::Deflate;
+use IO::Compress::Gzip;
 use CSS::Minifier::XS;
+use Path::Tiny();
+use File::Basename qw{dirname};
 
 use Trog::Utils;
 use Trog::Config;
@@ -38,16 +40,17 @@ our $topbar        = 'topbar.tx';
 our $footbar       = 'footbar.tx';
 
 # Note to maintainers: never ever remove backends from this list.
-# the auth => 1 is a crucial protection, even with forbidden() guards in these routes.
+# the auth => 1 is a crucial protection.
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
     },
-    '/' => {
+    '/index' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::index,
     },
     #Deal with most indexDocument directives interfering with proxied requests to /
+    #TODO replace with alias routes
     '/index.html' => {
         method   => 'GET',
         callback  => \&Trog::Routes::HTML::index,
@@ -71,7 +74,6 @@ our %routes = (
     },
     '/auth' => {
         method   => 'POST',
-        nostatic => 1,
         callback => \&Trog::Routes::HTML::login,
     },
     '/post/save' => {
@@ -300,7 +302,7 @@ Implements the 4XX status codes.  Override templates named the same for theming 
 
 sub _generic_route ($rname, $code, $title, $query) {
     $query->{code} = $code;
-
+    $query->{route} //= $rname;
     $query->{title} = $title;
     my $styles = _build_themed_styles("$rname.css");
     my $content = themed_render("$rname.tx", {
@@ -308,7 +310,7 @@ sub _generic_route ($rname, $code, $title, $query) {
         route    => $query->{route},
         user     => $query->{user},
         styles   => $styles,
-    deflate  => $query->{deflate},
+        deflate  => $query->{deflate},
     });
     return Trog::Routes::HTML::index($query, $content, $styles);
 }
@@ -519,11 +521,8 @@ Renders the configuration page, or redirects you back to the login page.
 =cut
 
 sub config ($query) {
-    if (!$query->{user}) {
-        return login($query);
-    }
-    #NOTE: we are relying on this to skip the ACL check with 'admin', this may not be viable in future?
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     my $css   = _build_themed_styles('config.css');
     my $js    = _build_themed_scripts('post.js');
@@ -581,7 +580,8 @@ Implements /config/save route.  Saves what little configuration we actually use 
 =cut
 
 sub config_save ($query) {
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
@@ -606,7 +606,9 @@ Clone a theme by copying a directory.
 =cut
 
 sub themeclone ($query) {
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     my ($theme, $newtheme) = ($query->{theme},$query->{newtheme});
 
     my $themedir = 'www/themes';
@@ -628,8 +630,9 @@ Saves posts submitted via the /post pages
 =cut
 
 sub post_save ($query) {
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
     my $to = delete $query->{to};
 
     #Copy this down since it will be deleted later
@@ -657,7 +660,8 @@ Saves / updates new users.
 =cut
 
 sub profile ($query) {
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     #TODO allow users to do something OTHER than be admins
     if ($query->{password}) {
@@ -678,7 +682,8 @@ deletes posts.
 =cut
 
 sub post_delete ($query) {
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     $data->delete($query) and die "Could not delete post";
     return see_also($query->{to});
@@ -1167,10 +1172,11 @@ Basically a thin wrapper around Pod::Html.
 =cut
 
 sub manual ($query) {
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+
     require Pod::Html;
     require Capture::Tiny;
-
-    return forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
 
     #Fix links from Pod::HTML
     $query->{module} =~ s/\.html$//g if $query->{module};
@@ -1282,7 +1288,7 @@ sub _themed_template ($resource) {
     return _dir_for_resource("templates/$resource")."/templates/$resource";
 }
 
-sub finish_render ($template, $vars, @headers) {
+sub finish_render ($template, $vars, %headers) {
 
     #XXX default vars that need to be pulled from config
     $vars->{dir}       //= 'ltr';
@@ -1309,30 +1315,50 @@ sub finish_render ($template, $vars, @headers) {
         $body .= themed_render('footer.tx', $vars);
         $body  = encode_utf8($body);
     }
+    #Disallow framing UNLESS we are in embed mode
+    $headers{"Content-Security-Policy"} = qq{frame-ancestors 'none'} unless $vars->{embed};
 
     my $ct = 'Content-type';
     my $cc = 'Cache-control';
-    push(@headers, $ct => $vars->{contenttype});
-    push(@headers, $cc => $vars->{cachecontrol}) if $vars->{cachecontrol};
-    push(@headers, 'ETag' => $vars->{etag}) if $vars->{etag};
+    $headers{$ct} = $vars->{contenttype};
+    $headers{$cc} = $vars->{cachecontrol} if $vars->{cachecontrol};
+    $headers{'Vary'} = 'Accept-Encoding';
+    $headers{"Content-Length"} = length($body);
+
+    # We only set etags when users are logged in, cause we don't use statics
+    $headers{'ETag'} = $vars->{etag} if $vars->{etag} && $vars->{user};
+
+    my $skip_render = !$vars->{route};
+
+    # Time to stash (and cache!) the bodies for public routes, everything else should be fine
+    save_render($vars, $body, %headers) unless $vars->{user} || $skip_render;
 
     #Return data in the event the caller does not support deflate
-    if (!$vars->{deflate}) {
-        push( @headers, "Content-Length" => length($body) );
-        return [ $vars->{code}, \@headers, [$body]];
-    }
+    return [ $vars->{code}, [%headers], [$body]] unless $vars->{deflate};
 
     #Compress
-    push( @headers, "Content-Encoding" => "deflate" );
-
-    #Disallow framing UNLESS we are in embed mode
-    push( @headers, "Content-Security-Policy" => qq{frame-ancestors 'none'} ) unless $vars->{embed};
-
+    $headers{"Content-Encoding"} = "gzip";
     my $dfh;
-    IO::Compress::Deflate::deflate( \$body => \$dfh );
-    print $IO::Compress::Deflate::DeflateError if $IO::Compress::Deflate::DeflateError;
-    push( @headers, "Content-Length" => length($dfh) );
-    return [$vars->{code}, \@headers, [$dfh]];
+    IO::Compress::Gzip::gzip( \$body => \$dfh );
+    print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
+    $headers{"Content-Length"} = length($dfh);
+
+    save_render({ route => "$vars->{route}.z", code => $vars->{code} },$dfh,%headers) unless $vars->{user} || $skip_render;
+
+    return [$vars->{code}, [%headers], [$dfh]];
+}
+
+sub save_render ($vars, $body, %headers) {
+    Path::Tiny::path("www/statics/".dirname($vars->{route}))->mkpath;
+    my $file = "www/statics/$vars->{route}";
+    open(my $fh, '>', $file) or die "Could not open $file for writing";
+    print $fh "HTTP/1.1 $vars->{code} OK\n";
+    foreach my $h (keys(%headers)) {
+        print $fh "$h:$headers{$h}\n";
+    }
+    print $fh "\n";
+    print $fh $body;
+    close $fh;
 }
 
 1;

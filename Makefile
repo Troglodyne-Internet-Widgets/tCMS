@@ -10,6 +10,7 @@ install:
 	test -d www/themes || mkdir -p www/themes
 	test -d data/files || mkdir -p data/files
 	test -d www/assets || mkdir -p www/assets
+	test -d www/statics || mkdir -p www/statics
 	$(RM) pod2htmd.tmp;
 
 .PHONY: install-service
@@ -33,7 +34,7 @@ prereq-debs:
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \
-	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl
+	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl
 
 .PHONY: prereq-perl
 prereq-perl:

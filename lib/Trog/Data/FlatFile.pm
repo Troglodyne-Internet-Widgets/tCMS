@@ -11,6 +11,7 @@ use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
 use Mojo::File;
+use Path::Tiny();
 
 use lib 'lib';
 use Trog::SQLite::TagIndex;
@@ -134,6 +135,10 @@ sub delete($self, @posts) {
         unlink "$datastore/$update->{id}" or confess;
         Trog::SQLite::TagIndex::remove_post($update);
     }
+
+    # Gorilla cache invalidation
+    Path::Tiny::path('www/statics')->remove_tree;
+
     return 0;
 }
 

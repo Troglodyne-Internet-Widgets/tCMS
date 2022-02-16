@@ -10,6 +10,7 @@ use Carp qw{confess};
 use JSON::MaybeXS;
 use File::Slurper;
 use List::Util qw{uniq};
+use Path::Tiny();
 use parent qw{Trog::DataModule};
 
 =head1 WARNING
@@ -63,6 +64,10 @@ sub delete($self, @posts) {
         @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
     }
     $self->write($example_posts,1);
+
+    # Gorilla cache invalidation
+    Path::Tiny::path('www/statics')->remove_tree;
+
     return 0;
 }
 

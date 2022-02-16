@@ -47,6 +47,10 @@ WriteMakefile(
     'CSS::Minifier::XS'      => '0',
     'JavaScript::Minifier::XS' => '0',
     'Digest::SHA'            => '0',
+    'Path::Tiny'             => '0',
+    'IO::Compress::Brotli'   => '0',
+    'IO::Compress::Gzip'     => '0',
+    'IO::Compress::Deflate'  => '0',
   },
   test => {TESTS => 't/*.t'}
 );
