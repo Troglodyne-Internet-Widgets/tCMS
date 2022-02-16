@@ -245,7 +245,7 @@ sub _build_social_meta ($query,$title) {
     $default_tags .= ','.join(',',@{$query->{primary_post}->{tags}}) if $default_tags && $query->{primary_post}->{tags};
 
     my $meta_desc  = $query->{primary_post}{data} // $Theme::description // "tCMS Site";
-    $meta_desc = Trog::Utils::strip_and_trunc($meta_desc);
+    $meta_desc = Trog::Utils::strip_and_trunc($meta_desc) || '';
 
     my $meta_tags = '';
     my $card_type = 'summary';
