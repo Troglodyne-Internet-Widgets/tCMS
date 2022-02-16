@@ -134,9 +134,10 @@ sub app {
 
     my $streaming = $env->{'psgi.streaming'};
     $query->{streaming} = $streaming;
+    $query->{start} = $start;
     if (!$active_user && !$has_query) {
-        return _static("$path.z",$streaming) if -f "www/statics/$path.z" && $deflate;
-        return _static($path,$streaming) if -f "www/statics/$path";
+        return _static("$path.z",$start) if -f "www/statics/$path.z" && $deflate;
+        return _static($path,$start) if -f "www/statics/$path";
     }
 
     return _serve("www/$path", $start, $streaming, $last_fetch, $deflate) if -f "www/$path";
@@ -198,8 +199,8 @@ sub app {
 };
 
 sub _generic($type, $query) {
-    return _static("$type.z",$query->{streaming}) if -f "www/statics/$type.z";
-    return _static($type, $query->{streaming}) if -f "www/statics/$type";
+    return _static("$type.z",$query->{start}) if -f "www/statics/$type.z";
+    return _static($type, $query->{start}) if -f "www/statics/$type";
     my %lookup = (
         notfound => \&Trog::Routes::HTML::notfound,
         forbidden => \&Trog::Routes::HTML::forbidden,
@@ -208,7 +209,7 @@ sub _generic($type, $query) {
     return $lookup{$type}->($query);
 }
 
-sub _notfound ( $query ) {
+sub _notfound ($query) {
     return _generic('notfound', $query);
 }
 
@@ -220,7 +221,7 @@ sub _badrequest($query) {
     return _generic('badrequest', $query);
 }
 
-sub _static($path,$streaming=0,$last_fetch=0) {
+sub _static($path,$start,$last_fetch=0) {
 
     # XXX because of psgi I can't just vomit the file directly
     if (open(my $fh, '<', "www/statics/$path")) {
@@ -239,6 +240,10 @@ sub _static($path,$streaming=0,$last_fetch=0) {
         my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
         my $code = $mt > $last_fetch ? $hdrs->getStatusCode() : 304;
         $headers_parsed->{"Last-Modified"} = $now_string;
+
+        # Append server-timing headers
+        my $tot = tv_interval($start) * 1000;
+        $headers_parsed->{'Server-Timing'} = "static;dur=$tot";
 
         return [$code, [%$headers_parsed], $fh];
     }
