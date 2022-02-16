@@ -93,6 +93,21 @@ sub app {
     my $query = {};
     $query = URL::Encode::url_params_mixed($env->{QUERY_STRING}) if $env->{QUERY_STRING};
 
+    #Actually parse the POSTDATA and dump it into the QUERY object if this is a POST
+    if ($env->{REQUEST_METHOD} eq 'POST') {
+
+        my $body = HTTP::Body->new( $env->{CONTENT_TYPE}, $env->{CONTENT_LENGTH} );
+        while ( read($env->{'psgi.input'}, my $buf, $CHUNK_SIZE) ) {
+            $body->add($buf);
+        }
+
+        @$query{keys(%{$body->param})}  = values(%{$body->param});
+        @$query{keys(%{$body->upload})} = values(%{$body->upload});
+    }
+
+    # Grab the list of ACLs we want to add to a post, if any.
+    $query->{acls} = [$query->{acls}] if ($query->{acls} && ref $query->{acls} ne 'ARRAY');
+
     my $path = $env->{PATH_INFO};
     $path = '/index' if $path eq '/';
 
@@ -121,8 +136,12 @@ sub app {
     if (exists $cookies->{tcmslogin}) {
          $active_user = Trog::Auth::session2user($cookies->{tcmslogin}->value);
     }
-    $query->{acls} = [];
-    $query->{acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
+    $query->{user_acls} = [];
+    $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
+
+    # Filter out passed ACLs which are naughty
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{user_acls}};
+    @{$query->{acls}} = grep { $_ ne 'admin' } @{$query->{acls}} unless $is_admin;
 
     #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if (index($path,'/templates') == 0 || index($path, '/statics') == 0 || $path =~ m/.*(\.psgi|\.pm)$/i ) {
@@ -165,18 +184,6 @@ sub app {
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ($routes{$path}{method} || '','HEAD');
 
     @{$query}{keys(%{$routes{$path}{'data'}})} = values(%{$routes{$path}{'data'}}) if ref $routes{$path}{'data'} eq 'HASH' && %{$routes{$path}{'data'}};
-
-    #Actually parse the POSTDATA and dump it into the QUERY object if this is a POST
-    if ($env->{REQUEST_METHOD} eq 'POST') {
-
-        my $body = HTTP::Body->new( $env->{CONTENT_TYPE}, $env->{CONTENT_LENGTH} );
-        while ( read($env->{'psgi.input'}, my $buf, $CHUNK_SIZE) ) {
-            $body->add($buf);
-        }
-
-        @$query{keys(%{$body->param})}  = values(%{$body->param});
-        @$query{keys(%{$body->upload})} = values(%{$body->upload});
-    }
 
     #Set various things we don't want overridden
     $query->{body}         = '';

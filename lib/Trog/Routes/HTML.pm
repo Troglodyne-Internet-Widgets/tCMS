@@ -522,7 +522,7 @@ Renders the configuration page, or redirects you back to the login page.
 
 sub config ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     my $css   = _build_themed_styles('config.css');
     my $js    = _build_themed_scripts('post.js');
@@ -581,7 +581,7 @@ Implements /config/save route.  Saves what little configuration we actually use 
 
 sub config_save ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
@@ -607,7 +607,7 @@ Clone a theme by copying a directory.
 
 sub themeclone ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     my ($theme, $newtheme) = ($query->{theme},$query->{newtheme});
 
@@ -631,7 +631,7 @@ Saves posts submitted via the /post pages
 
 sub post_save ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     my $to = delete $query->{to};
 
@@ -661,7 +661,7 @@ Saves / updates new users.
 
 sub profile ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     #TODO allow users to do something OTHER than be admins
     if ($query->{password}) {
@@ -683,7 +683,7 @@ deletes posts.
 
 sub post_delete ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     $data->delete($query) and die "Could not delete post";
     return see_also($query->{to});
@@ -697,7 +697,7 @@ Displays identified series, not all series.
 =cut
 
 sub series ($query) {
-    my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     #we are either viewed one of two ways, /post/$id or /$aclname
     my (undef,$aclname,$id) = split(/\//,$query->{route});
@@ -714,7 +714,7 @@ sub series ($query) {
     # That will essentially necessitate it *becoming* the ID for real.
 
     #Grab the relevant tag (aclname), then pass that to posts
-    my @posts = _post_helper($query, ['series'], $query->{acls});
+    my @posts = _post_helper($query, ['series'], $query->{user_acls});
 
     delete $query->{id};
     delete $query->{aclname};
@@ -735,10 +735,10 @@ Returns the avatars.css.
 =cut
 
 sub avatars ($query) {
-    push(@{$query->{acls}}, 'public');
+    push(@{$query->{user_acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
 
-    my @posts = _post_helper($query, $tags, $query->{acls});
+    my @posts = _post_helper($query, $tags, $query->{user_acls});
 
     $query->{body} = encode_utf8(CSS::Minifier::XS::minify(themed_render('avatars.tx', {
         users => \@posts,
@@ -764,14 +764,14 @@ sub users ($query) {
     my (undef, undef, $username) = split(/\//, $query->{route});
 
     $query->{username} //= $username;
-    push(@{$query->{acls}}, 'public');
+    push(@{$query->{user_acls}}, 'public');
     $query->{exclude_tags} = ['about'];
 
     # Don't show topbar series on the series page.  That said, don't exclude it from direct series view.
-    my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{user_acls}};
     push(@{$query->{exclude_tags}}, 'topbar') if !$is_admin;
 
-    my @posts = _post_helper({ author => $query->{username} }, ['about'], $query->{acls});
+    my @posts = _post_helper({ author => $query->{username} }, ['about'], $query->{user_acls});
     $query->{id}           = $posts[0]->{id};
     $query->{title}        = $posts[0]->{title};
     $query->{user_obj}     = $posts[0];
@@ -794,10 +794,10 @@ sub posts ($query, $direct=0) {
     my $tags = _coerce_array($query->{tag});
     $query->{id} = $id if $id && !$query->{in_series};
 
-    my $is_admin = grep { $_ eq 'admin' } @{$query->{acls}};
-    push(@{$query->{acls}}, 'public');
-    push(@{$query->{acls}}, 'unlisted') if $query->{id};
-    push(@{$query->{acls}}, 'private')  if $is_admin;
+    my $is_admin = grep { $_ eq 'admin' } @{$query->{user_acls}};
+    push(@{$query->{user_acls}}, 'public');
+    push(@{$query->{user_acls}}, 'unlisted') if $query->{id};
+    push(@{$query->{user_acls}}, 'private')  if $is_admin;
     my @posts;
 
     # Discover this user's visibility, so we can make them post in this category by default
@@ -809,10 +809,10 @@ sub posts ($query, $direct=0) {
         $user_visibility = $query->{user_obj}->{visibility};
     } else {
         if ($query->{user}) {
-            my @me = _post_helper({ author => $query->{user} }, ['about'], $query->{acls});
+            my @me = _post_helper({ author => $query->{user} }, ['about'], $query->{user_acls});
             $user_visibility = $me[0]->{visibility};
         }
-        @posts = _post_helper($query, $tags, $query->{acls});
+        @posts = _post_helper($query, $tags, $query->{user_acls});
     }
 
     if ($query->{id}) {
@@ -824,7 +824,7 @@ sub posts ($query, $direct=0) {
         my $user = shift(@posts);
         my $id = delete $query->{id};
         $query->{author} = $user->{user};
-        @posts = _post_helper($query, $tags, $query->{acls});
+        @posts = _post_helper($query, $tags, $query->{user_acls});
         @posts = grep { $_->{id} ne $id } @posts;
         unshift @posts, $user;
     }
@@ -888,7 +888,7 @@ sub posts ($query, $direct=0) {
     my @acls  = map {
         $_->{selected} = $_->{aclname} eq $aclselected ? 'selected' : '';
         $_
-    } _post_helper({}, ['series'], $query->{acls});
+    } _post_helper({}, ['series'], $query->{user_acls});
 
     my $forms = _templates_in_dir("$template_dir/forms");
 
@@ -1173,7 +1173,7 @@ Basically a thin wrapper around Pod::Html.
 
 sub manual ($query) {
     return see_also('/login') unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{acls}};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
     require Pod::Html;
     require Capture::Tiny;
