@@ -51,7 +51,7 @@ WriteMakefile(
     'IO::Compress::Brotli'   => '0',
     'IO::Compress::Gzip'     => '0',
     'IO::Compress::Deflate'  => '0',
-    'HTTP::HeaderParser::XS' => '0',
+    'HTTP::Parser::XS' => '0',
   },
   test => {TESTS => 't/*.t'}
 );

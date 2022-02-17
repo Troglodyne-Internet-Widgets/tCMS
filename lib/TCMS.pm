@@ -18,7 +18,7 @@ use CGI::Cookie ();
 use File::Basename();
 use IO::Compress::Gzip();
 use Time::HiRes qw{gettimeofday tv_interval};
-use HTTP::HeaderParser::XS;
+use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 
 #Grab our custom routes
 use lib 'lib';
@@ -238,14 +238,13 @@ sub _static($path,$start,$last_fetch=0) {
             last if $_ eq "\n";
             $headers .= $_;
         }
-        my $hdrs = HTTP::HeaderParser::XS->new(\$headers);
-        my $headers_parsed = $hdrs->getHeaders();
+        my(undef, undef, $status, undef, $headers_parsed) = HTTP::Parser::XS::parse_http_response("$headers\n", HEADERS_AS_HASHREF);
 
         #XXX need to put this into the file itself
         my $mt = (stat($fh))[9];
         my @gm = gmtime($mt);
         my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
-        my $code = $mt > $last_fetch ? $hdrs->getStatusCode() : 304;
+        my $code = $mt > $last_fetch ? $status : 304;
         $headers_parsed->{"Last-Modified"} = $now_string;
 
         # Append server-timing headers
