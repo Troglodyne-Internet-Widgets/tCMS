@@ -2,4 +2,4 @@
 : for $post.extra_tags -> $tag {
     <a href="/posts?tag=<: $tag :>" class="tag">🏷️ <: $tag :></a>
 : }
-</span>
+</span><br />
