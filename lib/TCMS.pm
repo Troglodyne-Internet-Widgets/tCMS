@@ -19,6 +19,7 @@ use File::Basename();
 use IO::Compress::Gzip();
 use Time::HiRes qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
+use List::Util;
 
 #Grab our custom routes
 use lib 'lib';
@@ -51,6 +52,7 @@ my %etags;
 
 #1MB chunks
 my $CHUNK_SIZE = 1024000;
+my $CHUNK_SEP  = 'tCMSep666YOLO42069';
 
 #Stuff that isn't in upstream finders
 my %extra_types = (
@@ -143,23 +145,42 @@ sub app {
     my $is_admin = grep { $_ eq 'admin' } @{$query->{user_acls}};
     @{$query->{acls}} = grep { $_ ne 'admin' } @{$query->{acls}} unless $is_admin;
 
-    #Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
+    # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if (index($path,'/templates') == 0 || index($path, '/statics') == 0 || $path =~ m/.*(\.psgi|\.pm)$/i ) {
         return _forbidden($query);
     }
 
     # If we have a static render, just use it instead (These will ALWAYS be correct, data saves invalidate this)
     # TODO: make this key on admin INSTEAD of active user when we add non-admin users.
-
-    my $streaming = $env->{'psgi.streaming'};
-    $query->{streaming} = $streaming;
     $query->{start} = $start;
     if (!$active_user && !$has_query) {
         return _static("$path.z",$start) if -f "www/statics/$path.z" && $deflate;
         return _static($path,$start) if -f "www/statics/$path";
     }
 
-    return _serve("www/$path", $start, $streaming, $last_fetch, $deflate) if -f "www/$path";
+    # Handle HTTP range/streaming requests
+    my $range = $env->{HTTP_RANGE} || "bytes=0-" if $env->{HTTP_RANGE} || $env->{HTTP_IF_RANGE};
+
+    # If they ONLY want the default case of bytes 0-end, just do chunks and ignore their nonsense
+    $range = '' if $range && $range eq 'bytes=0-';
+
+    #XXX chrome/edge is broken for range requests
+    my $is_chrome = $env->{HTTP_USER_AGENT} =~ /Chrome/;
+
+    my @ranges;
+    if ($range) {
+        $range =~ s/bytes=//g;
+        push(@ranges, map {
+            [split(/-/, $_)];
+            #$tuples[1] //= $tuples[0] + $CHUNK_SIZE;
+            #\@tuples
+        } split(/,/, $range) );
+    }
+
+    my $streaming = $env->{'psgi.streaming'};
+    $query->{streaming} = $streaming;
+
+    return _serve("www/$path", $start, $streaming, $is_chrome, \@ranges, $last_fetch, $deflate) if -f "www/$path";
 
     #Handle regex/capture routes
     if (!exists $routes{$path}) {
@@ -187,6 +208,7 @@ sub app {
 
     #Set various things we don't want overridden
     $query->{body}         = '';
+    $query->{dnt}          = $env->{HTTP_DNT};
     $query->{user}         = $active_user;
     $query->{domain}       = $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
     $query->{route}        = $path;
@@ -256,7 +278,61 @@ sub _static($path,$start,$last_fetch=0) {
     return [ 403, ['Content-Type' => $Trog::Vars::content_types{plain}], ["STAY OUT YOU RED MENACE"]];
 }
 
-sub _serve ($path, $start, $streaming=0, $last_fetch=0, $deflate=0) {
+sub _range ($fh, $ranges, $sz, %headers) {
+    # Set mode
+    my $primary_ct = "Content-Type: $headers{'Content-type'}";
+    my $is_multipart = scalar(@$ranges) > 1;
+    if ( $is_multipart ) {
+        $headers{'Content-type'} = "multipart/byteranges; boundary=$CHUNK_SEP";
+    }
+    my $code = 206;
+
+    my $fc = '';
+    # Calculate the content-length up-front.  We have to fix unspecified lengths first, and reject bad requests.
+    foreach my $range (@$ranges) {
+        $range->[1] //= $sz;
+        return [416, [%headers], ["Requested range not satisfiable"]] if $range->[0] > $sz || $range->[0] < 0 || $range->[1] < 0 || $range->[0] > $range->[1];
+    }
+    $headers{'Content-Length'} = List::Util::sum(map { my $arr=$_; $arr->[1], -$arr->[0] } @$ranges);
+
+    #XXX Add the entity header lengths to the value - should hash-ify this to DRY
+    if ($is_multipart) {
+        foreach my $range (@$ranges) {
+            $headers{'Content-Length'} += length("$fc--$CHUNK_SEP\n$primary_ct\nContent-Range: bytes $range->[0]-$range->[1]/$sz\n\n" );
+            $fc = "\n";
+        }
+        $headers{'Content-Length'} += length( "\n--$CHUNK_SEP\--\n" );
+        $fc = '';
+    }
+
+    return sub {
+        my $responder = shift;
+        my $writer;
+
+        foreach my $range (@$ranges) {
+            $headers{'Content-Range'} = "bytes $range->[0]-$range->[1]/$sz" unless $is_multipart;
+            $writer //= $responder->([ $code, [%headers]]);
+            $writer->write( "$fc--$CHUNK_SEP\n$primary_ct\nContent-Range: bytes $range->[0]-$range->[1]/$sz\n\n" ) if $is_multipart;
+            $fc = "\n";
+
+            my $len = List::Util::min($sz,$range->[1]) - $range->[0];
+
+            seek($fh, $range->[0], 0);
+            while ($len) {
+                read($fh, my $buf, List::Util::min($len,$CHUNK_SIZE) );
+                $writer->write($buf);
+
+                # Adjust for amount written
+                $len = List::Util::max($len - $CHUNK_SIZE, 0);
+            }
+        }
+        close($fh);
+        $writer->write( "\n--$CHUNK_SEP\--\n" ) if $is_multipart;
+        $writer->close;
+    };
+}
+
+sub _serve ($path, $start, $streaming, $is_chrome, $ranges, $last_fetch=0, $deflate=0) {
     my $mf = Mojo::File->new($path);
     my $ext = '.'.$mf->extname();
     my $ft;
@@ -269,8 +345,10 @@ sub _serve ($path, $start, $streaming=0, $last_fetch=0, $deflate=0) {
     my $ct = 'Content-type';
     my @headers = ($ct => $ft);
     #TODO use static Cache-Control for everything but JS/CSS?
-
     push(@headers,'Cache-control' => $Trog::Vars::cache_control{revalidate});
+
+    #XXX chrome is just broken as hell when it comes to seeks
+    push(@headers,'Accept-Ranges' => 'bytes') unless $is_chrome;
 
     my $mt = (stat($path))[9];
     my $sz = (stat(_))[7];
@@ -278,14 +356,16 @@ sub _serve ($path, $start, $streaming=0, $last_fetch=0, $deflate=0) {
     my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
     my $code = $mt > $last_fetch ? 200 : 304;
 
-    #XXX doing metadata=preload on videos doesn't work right?
-    #push(@headers, "Content-Length: $sz");
     push(@headers, "Last-Modified" => $now_string);
     push(@headers, 'Vary' => 'Accept-Encoding');
 
     if (open(my $fh, '<', $path)) {
+        return _range($fh, $ranges, $sz, @headers) if @$ranges && $streaming;
+
+        # Transfer-encoding: chunked
         return sub {
             my $responder = shift;
+            push(@headers, 'Content-Length' => $sz);
             my $writer = $responder->([ $code, \@headers]);
             while ( read($fh, my $buf, $CHUNK_SIZE) ) {
                 $writer->write($buf);
