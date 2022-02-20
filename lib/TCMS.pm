@@ -161,12 +161,6 @@ sub app {
     # Handle HTTP range/streaming requests
     my $range = $env->{HTTP_RANGE} || "bytes=0-" if $env->{HTTP_RANGE} || $env->{HTTP_IF_RANGE};
 
-    # If they ONLY want the default case of bytes 0-end, just do chunks and ignore their nonsense
-    $range = '' if $range && $range eq 'bytes=0-';
-
-    #XXX chrome/edge is broken for range requests
-    my $is_chrome = $env->{HTTP_USER_AGENT} =~ /Chrome/;
-
     my @ranges;
     if ($range) {
         $range =~ s/bytes=//g;
@@ -180,7 +174,7 @@ sub app {
     my $streaming = $env->{'psgi.streaming'};
     $query->{streaming} = $streaming;
 
-    return _serve("www/$path", $start, $streaming, $is_chrome, \@ranges, $last_fetch, $deflate) if -f "www/$path";
+    return _serve("www/$path", $start, $streaming, \@ranges, $last_fetch, $deflate) if -f "www/$path";
 
     #Handle regex/capture routes
     if (!exists $routes{$path}) {
@@ -290,10 +284,10 @@ sub _range ($fh, $ranges, $sz, %headers) {
     my $fc = '';
     # Calculate the content-length up-front.  We have to fix unspecified lengths first, and reject bad requests.
     foreach my $range (@$ranges) {
-        $range->[1] //= $sz;
+        $range->[1] //= $sz-1;
         return [416, [%headers], ["Requested range not satisfiable"]] if $range->[0] > $sz || $range->[0] < 0 || $range->[1] < 0 || $range->[0] > $range->[1];
     }
-    $headers{'Content-Length'} = List::Util::sum(map { my $arr=$_; $arr->[1], -$arr->[0] } @$ranges);
+    $headers{'Content-Length'} = List::Util::sum(map { my $arr=$_; $arr->[1]+1, -$arr->[0] } @$ranges);
 
     #XXX Add the entity header lengths to the value - should hash-ify this to DRY
     if ($is_multipart) {
@@ -315,7 +309,7 @@ sub _range ($fh, $ranges, $sz, %headers) {
             $writer->write( "$fc--$CHUNK_SEP\n$primary_ct\nContent-Range: bytes $range->[0]-$range->[1]/$sz\n\n" ) if $is_multipart;
             $fc = "\n";
 
-            my $len = List::Util::min($sz,$range->[1]) - $range->[0];
+            my $len = List::Util::min($sz,$range->[1]+1) - $range->[0];
 
             seek($fh, $range->[0], 0);
             while ($len) {
@@ -332,7 +326,7 @@ sub _range ($fh, $ranges, $sz, %headers) {
     };
 }
 
-sub _serve ($path, $start, $streaming, $is_chrome, $ranges, $last_fetch=0, $deflate=0) {
+sub _serve ($path, $start, $streaming, $ranges, $last_fetch=0, $deflate=0) {
     my $mf = Mojo::File->new($path);
     my $ext = '.'.$mf->extname();
     my $ft;
@@ -348,7 +342,7 @@ sub _serve ($path, $start, $streaming, $is_chrome, $ranges, $last_fetch=0, $defl
     push(@headers,'Cache-control' => $Trog::Vars::cache_control{revalidate});
 
     #XXX chrome is just broken as hell when it comes to seeks
-    push(@headers,'Accept-Ranges' => 'bytes') unless $is_chrome;
+    push(@headers,'Accept-Ranges' => 'bytes');
 
     my $mt = (stat($path))[9];
     my $sz = (stat(_))[7];
