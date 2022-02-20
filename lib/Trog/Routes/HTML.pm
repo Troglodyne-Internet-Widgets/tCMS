@@ -834,7 +834,7 @@ sub posts ($query, $direct=0) {
     }
 
     # Set the eTag so that we don't get a re-fetch
-    $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
+    $query->{etag} = "$posts[0]{id}-$posts[0]{version}" if @posts;
 
     my $fmt = $query->{format} || '';
     return _rss($query,\@posts) if $fmt eq 'rss';
