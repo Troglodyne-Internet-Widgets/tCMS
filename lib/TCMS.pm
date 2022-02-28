@@ -209,6 +209,7 @@ sub app {
     $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
     $query->{social_meta}  = 1;
     $query->{primary_post} = {};
+    $query->{has_query}    = $has_query;
 
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {

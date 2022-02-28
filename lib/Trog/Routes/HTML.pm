@@ -1328,7 +1328,7 @@ sub finish_render ($template, $vars, %headers) {
     # We only set etags when users are logged in, cause we don't use statics
     $headers{'ETag'} = $vars->{etag} if $vars->{etag} && $vars->{user};
 
-    my $skip_render = !$vars->{route};
+    my $skip_render = !$vars->{route} || $vars->{has_query};
 
     # Time to stash (and cache!) the bodies for public routes, everything else should be fine
     save_render($vars, $body, %headers) unless $vars->{user} || $skip_render;
