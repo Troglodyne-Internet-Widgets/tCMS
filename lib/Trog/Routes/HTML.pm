@@ -405,89 +405,20 @@ sub login ($query, $render_cb) {
         $auth_module = ucfirst($query->{'extAuthProvider'}) if($query->{'extAuthProvider'});
         require Trog::Authz;
         my $auth_obj = Trog::Authz::do_auth_for( $auth_module, $query );
-        $failed = $auth_obj->failed();
+        $failed  = $auth_obj->failed();
+        @headers = $auth_obj->headers();
     }
 
     return $render_cb->('login.tx', {
-        title         => 'tCMS 2 ~ Login',
-        to            => $query->{to},
-        failure => int( $query->{failed} ),
-        message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
-        btnmsg        => $btnmsg,
-        hasusers      => $query->{'hasusers'} ? 1 : 0,
-        stylesheets   => _build_themed_styles('login.css'),
-        theme_dir     => $td,
+        title       => 'tCMS 2 ~ Login',
+        to          => $query->{to},
+        failure     => int( $failed ),
+        message     => int( $failed ) == 0 ? "Login Successful, Redirecting..." : "Login Failed.",
+        btnmsg      => $btnmsg,
+        hasusers    => $query->{'hasusers'} ? 1 : 0,
+        stylesheets => _build_themed_styles('login.css'),
+        theme_dir   => $td,
     }, @headers);
-}
-
-sub _setup_initial_db ($dat, $user) {
-   $dat->add(
-        {
-            "aclname"    => "series",
-            "acls"       => [],
-            "callback"   => "Trog::Routes::HTML::series",
-            method       => 'GET',
-            "data"       => "Series",
-            "href"       => "/series",
-            "local_href" => "/series",
-            "preview"    => "/img/sys/testpattern.jpg",
-            "tags"       => [qw{series topbar}],
-            visibility   => 'public',
-            "title"      => "Series",
-            user         => $user,
-            form         => 'series.tx',
-            child_form   => 'series.tx',
-            aliases      => [],
-        },
-        {
-            "aclname"    => "about",
-            "acls"       => [],
-            "callback"   => "Trog::Routes::HTML::series",
-            method       => 'GET',
-            "data"       => "About",
-            "href"       => "/about",
-            "local_href" => "/about",
-            "preview"    => "/img/sys/testpattern.jpg",
-            "tags"       => [qw{series topbar public}],
-            visibility   => 'public',
-            "title"      => "About",
-            user         => $user,
-            form         => 'series.tx',
-            child_form   => 'profile.tx',
-            aliases      => [],
-        },
-        {
-            "aclname"      => "config",
-            acls           => [],
-            "callback"     => "Trog::Routes::HTML::config",
-            'method'       => 'GET',
-            "content_type" => "text/html",
-            "data"         => "Config",
-            "href"         => "/config",
-            "local_href"   => "/config",
-            "preview"      => "/img/sys/testpattern.jpg",
-            "tags"         => [qw{admin}],
-            visibility     => 'private',
-            "title"        => "Configure tCMS",
-            user           => $user,
-            aliases        => [],
-        },
-        {
-            title      => $user,
-            data       => 'Default user',
-            preview    => '/img/avatar/humm.gif',
-            wallpaper  => '/img/sys/testpattern.jpg',
-            tags       => ['about'],
-            visibility => 'public',
-            acls       => ['admin'],
-            local_href => "/users/$user",
-            callback   => "Trog::Routes::HTML::users",
-            method     => 'GET',
-            user       => $user,
-            form       => 'profile.tx',
-            aliases    => [],
-        },
-    );
 }
 
 =head2 logout

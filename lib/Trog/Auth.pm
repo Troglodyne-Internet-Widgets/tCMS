@@ -60,7 +60,7 @@ Returns a session ID, or blank string in the event the user does not exist or in
 
 =cut
 
-sub mksession ($type,$user,$pass) {
+sub mksession ($user,$pass) {
     my $dbh = _dbh();
     my $records = $dbh->selectall_arrayref("SELECT salt FROM user WHERE name = ?", { Slice => {} }, $user);
     return '' unless ref $records eq 'ARRAY' && @$records;
@@ -95,10 +95,10 @@ Returns True or False (likely false when user already exists).
 =cut
 
 sub useradd ($user, $pass, $acls) {
-    my $dbh = _dbh();
+    my $dbh  = _dbh();
     my $salt = create_uuid();
     my $hash = sha256($pass.$salt);
-    my $res =  $dbh->do("INSERT OR REPLACE INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash);
+    my $res  = $dbh->do("INSERT OR REPLACE INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash);
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users

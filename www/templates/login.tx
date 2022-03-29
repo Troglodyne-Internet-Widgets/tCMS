@@ -35,7 +35,6 @@
 		<matrix-signin id="signin"></matrix-signin>
 		<script>
 		  var hasusers = <: $hasusers :>;
-		  console.log("Has Users? " + hasusers);
 		  var loginBits = document.getElementById("matrixLogin");
 		  if(hasusers) {
 			  loginBits.style = "display:block";

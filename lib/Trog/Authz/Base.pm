@@ -18,9 +18,28 @@ sub do_auth {
     die "Implemented in subclass";
 }
 
-sub failed {
+sub failed ($self, $failed) {
+    $self->{'failed'} = $failed if defined($failed);
     $self->{'failed'} //= -1;
     return $self->{'failed'};
+}
+
+sub headers ($self, @headers) {
+    $self->{'headers'} = \@headers if @headers;
+    return @{$self->{'headers'}};
+}
+
+sub handle_cookie ($self, $cookie) {
+    if ($cookie) {
+        # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
+        my $secure = '';
+        $secure = '; Secure' if $self->{'params'}->{scheme} eq 'https';
+        $self->headers(
+            "Set-Cookie" => "tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
+        );
+        $self->failed(0);
+    }
+    return;
 }
 
 1;

@@ -5,5 +5,5 @@ Description=tCMS
 WantedBy=default.target
 
 [Service]
-ExecStart=starman -p __PORT__ __REPLACEME__/www/server.psgi
+ExecStart=starman --error-log __REPLACEME__/tCMS.log -p __PORT__ __REPLACEME__/www/server.psgi
 WorkingDirectory= __REPLACEME__/

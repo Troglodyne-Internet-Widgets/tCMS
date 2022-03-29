@@ -17,8 +17,10 @@ Returns a configuration object that will be used by server.psgi, the data model 
 
 our $home_cfg = "config/main.cfg";
 
+# Cache it in memory since we do that a lot elsewhere.
+my $cf;
 sub get {
-    my $cf;
+    return $cf if $cf;
     $cf = Config::Simple->new($home_cfg) if -f $home_cfg;
     return $cf if $cf;
     $cf = Config::Simple->new('config/default.cfg');
