@@ -20,3 +20,4 @@ config/main.cfg
 config/setup
 MYMETA.yml
 MYMETA.json
+tCMS.log
