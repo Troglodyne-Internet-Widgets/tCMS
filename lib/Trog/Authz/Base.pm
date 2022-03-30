@@ -1,4 +1,4 @@
-package Trog::Authz;
+package Trog::Authz::Base;
 
 use strict;
 use warnings;
@@ -18,7 +18,7 @@ sub do_auth {
     die "Implemented in subclass";
 }
 
-sub failed ($self, $failed) {
+sub failed ($self, $failed = $self->{'failed'} ) {
     $self->{'failed'} = $failed if defined($failed);
     $self->{'failed'} //= -1;
     return $self->{'failed'};

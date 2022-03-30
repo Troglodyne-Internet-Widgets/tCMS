@@ -6,7 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
-use parent Trog::Authz::Base;
+use parent 'Trog::Authz::Base';
 
 use Trog::Auth ();
 use HTTP::Tiny ();
