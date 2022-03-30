@@ -14,7 +14,7 @@ use HTTP::Tiny ();
 use constant 'required_params' => [ 'extAuthData' ];
 
 sub do_auth ($self) {
-    die "Please setup an admin user first" if !$self->{'params'}{'hasuers'};
+    die "Please setup an admin user first" if !$self->{'params'}{'hasusers'};
     $self->failed(1);
 
     require JSON::XS;
@@ -54,12 +54,16 @@ sub do_auth ($self) {
             'Matrix', # Never used here, so just put in the ext auth provider name.
             [ 'extAuthUser' ], # This ACL is important, and should be non-removable.
         );
+
+        # By default, the avatar is cropped to 20x20, let's get a larger one if available.
+        my $avatar_url = substr( $decoded->{avatar_content}, 0, index( $decoded->{'avatar_content'}, '?' ) );
+        $avatar_url .= "?height=120&width=120&method=crop";
         my $dat = Trog::Data->new($cfg);
         $dat->add(
             {
                 title      => $decoded->{user_id},
                 data       => $decoded->{displayname},
-                preview    => $decoded->{avatar_content},
+                preview    => $avatar_url,
                 wallpaper  => '/img/sys/testpattern.jpg',
                 tags       => ['about'],
                 visibility => 'public',

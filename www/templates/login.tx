@@ -19,15 +19,16 @@
         <input required name="password" id="password" placeholder="hunter2" value="" type="password"></input>
       </div>
       <br />
-      <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
 
-	  <!--
+<!--
 		External authentication provider data.
 		Provider = Driver to use
 	    Data     = JSON encoded blob of data gotten back from auth source
 	  -->
-      <input type="hidden" id="extAuthProvider" value=""></input>
-	  <input type="hidden" id="extAuthData" value=""></input>
+      <input type="hidden" id="extAuthProvider" name="extAuthProvider" value=""></input>
+	  <input type="hidden" id="extAuthData" name="extAuthData" value=""></input>
+
+      <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
 	<br><br>
 	<div id="matrixLogin" style="display:none;">

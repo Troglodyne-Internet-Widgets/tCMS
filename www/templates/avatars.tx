@@ -1,6 +1,6 @@
 /*User Images set here*/
 : for $users -> $post {
-a.<: $post.user :> {
+a.<: css_escape($post.user) :> {
  background-image: url(<: $post.preview :>);
  filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='<: $post.preview :>', sizingMethod='scale');
  -ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='<: $post.preview :>', sizingMethod='scale')"

@@ -400,6 +400,7 @@ sub login ($query, $render_cb) {
     my @headers;
     my $do_auth = grep { $query->{$_} } qw{username extAuthProvider};
     my $failed = -1;
+
     if($do_auth) {
         my $auth_module = "Default";
         $auth_module = ucfirst($query->{'extAuthProvider'}) if($query->{'extAuthProvider'});
@@ -665,7 +666,15 @@ sub avatars ($query, $render_cb) {
     push(@{$query->{acls}}, 'public');
     my $tags = _coerce_array($query->{tag});
     my $processor = Text::Xslate->new(
-        path   => $template_dir,
+        function => {
+            css_escape => sub {
+                my ( $str ) = @_;
+                return '' if !$str;
+                $str =~ s/([!"#$%&'()*+,.\/:;<=>?@\[\\\]^`{|}~-]+)/\\$1/g;
+                return $str;
+            },
+        },
+        path     => $template_dir,
     );
 
     my @posts = _post_helper($query, $tags, $query->{acls});
