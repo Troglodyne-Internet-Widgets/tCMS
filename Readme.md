@@ -81,6 +81,14 @@ Planned Development:
 * Elasticsearch - Documents are ideally indexed in a search engine, should be nice and fast too.
 * Git - More for the APE crossover
 
+Supported PSGI servers
+======================
+
+Starman and uWSGI
+
+In production, I would expect you to run under uWSGI, and the `tcms` command in the TLD runs this.
+Otherwise, you can run `www/server.psgi` to start starman normally.
+
 Ideas to come:
 =============
 

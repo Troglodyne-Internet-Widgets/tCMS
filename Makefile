@@ -31,6 +31,7 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
 prereq-debs:
 	sudo apt-get update
 	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl         \
+		uwsgi uwsgi-plugin-psgi \
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \

@@ -152,12 +152,15 @@ sub app {
         return _forbidden($query);
     }
 
+    my $streaming = $env->{'psgi.streaming'};
+    $query->{streaming} = $streaming;
+
     # If we have a static render, just use it instead (These will ALWAYS be correct, data saves invalidate this)
     # TODO: make this key on admin INSTEAD of active user when we add non-admin users.
     $query->{start} = $start;
     if (!$active_user && !$has_query) {
-        return _static("$path.z",$start) if -f "www/statics/$path.z" && $deflate;
-        return _static($path,$start) if -f "www/statics/$path";
+        return _static("$path.z",$start, $streaming) if -f "www/statics/$path.z" && $deflate;
+        return _static($path,$start, $streaming) if -f "www/statics/$path";
     }
 
     # Handle HTTP range/streaming requests
@@ -172,9 +175,6 @@ sub app {
             #\@tuples
         } split(/,/, $range) );
     }
-
-    my $streaming = $env->{'psgi.streaming'};
-    $query->{streaming} = $streaming;
 
     return _serve("www/$path", $start, $streaming, \@ranges, $last_fetch, $deflate) if -f "www/$path";
 
@@ -225,8 +225,8 @@ sub app {
 };
 
 sub _generic($type, $query) {
-    return _static("$type.z",$query->{start}) if -f "www/statics/$type.z";
-    return _static($type, $query->{start}) if -f "www/statics/$type";
+    return _static("$type.z",$query->{start}, $query->{streaming}) if -f "www/statics/$type.z";
+    return _static($type, $query->{start}, $query->{streaming}) if -f "www/statics/$type";
     my %lookup = (
         notfound => \&Trog::Routes::HTML::notfound,
         forbidden => \&Trog::Routes::HTML::forbidden,
@@ -252,7 +252,7 @@ sub _toolong() {
     return _generic('toolong', {});
 }
 
-sub _static($path,$start,$last_fetch=0) {
+sub _static($path,$start,$streaming,$last_fetch=0) {
 
     # XXX because of psgi I can't just vomit the file directly
     if (open(my $fh, '<', "www/statics/$path")) {
@@ -274,6 +274,22 @@ sub _static($path,$start,$last_fetch=0) {
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
         $headers_parsed->{'Server-Timing'} = "static;dur=$tot";
+
+        #XXX uwsgi just opens the file *again* when we already have a filehandle if it has a path.
+        # starman by comparison doesn't violate the principle of least astonishment here.
+        # This is probably a performance optimization, but makes the kind of micromanagement I need to do inconvenient.
+        # As such, we will just return a stream.
+
+        return sub {
+            my $responder = shift;
+            #push(@headers, 'Content-Length' => $sz);
+            my $writer = $responder->([ $code, [%$headers_parsed]]);
+            while ( read($fh, my $buf, $CHUNK_SIZE) ) {
+                $writer->write($buf);
+            }
+            close $fh;
+            $writer->close;
+        } if $streaming;
 
         return [$code, [%$headers_parsed], $fh];
     }
