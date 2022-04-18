@@ -75,6 +75,8 @@ sub app {
 
     my $env = shift;
 
+    return _toolong() if length($env->{REQUEST_URI}) > 2048;
+
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
     if ($env->{HTTP_IF_NONE_MATCH}) {
@@ -229,6 +231,7 @@ sub _generic($type, $query) {
         notfound => \&Trog::Routes::HTML::notfound,
         forbidden => \&Trog::Routes::HTML::forbidden,
         badrequest => \&Trog::Routes::HTML::badrequest,
+        toolong    => \&Trog::Routes::HTML::toolong,
     );
     return $lookup{$type}->($query);
 }
@@ -243,6 +246,10 @@ sub _forbidden($query) {
 
 sub _badrequest($query) {
     return _generic('badrequest', $query);
+}
+
+sub _toolong() {
+    return _generic('toolong', {});
 }
 
 sub _static($path,$start,$last_fetch=0) {

@@ -327,6 +327,10 @@ sub badrequest (@args) {
     return _generic_route('badrequest', 400, "Bad Request", @args);
 }
 
+sub toolong (@args) {
+    return _generic_route('toolong', 419, "URI too long", @args);
+}
+
 =head2 redirect, redirect_permanent, see_also
 
 Redirects to the provided page.
