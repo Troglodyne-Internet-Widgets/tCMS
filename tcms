@@ -1,2 +1,2 @@
 #!/bin/bash
-uwsgi --ini config/tcms.ini --perl-auto-reload=1
+uwsgi --ini config/tcms.ini
