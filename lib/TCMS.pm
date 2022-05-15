@@ -101,7 +101,7 @@ sub app {
     if ($env->{REQUEST_METHOD} eq 'POST') {
 
         my $body = HTTP::Body->new( $env->{CONTENT_TYPE}, $env->{CONTENT_LENGTH} );
-        while ( read($env->{'psgi.input'}, my $buf, $CHUNK_SIZE) ) {
+        while ( $env->{'psgi.input'}->read(my $buf, $CHUNK_SIZE) ) {
             $body->add($buf);
         }
 
