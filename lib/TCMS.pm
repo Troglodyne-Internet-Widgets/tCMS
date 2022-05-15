@@ -335,7 +335,7 @@ sub _range ($fh, $ranges, $sz, %headers) {
 
             my $len = List::Util::min($sz,$range->[1]+1) - $range->[0];
 
-            seek($fh, $range->[0], 0);
+            $fh->seek( $range->[0], 0);
             while ($len) {
                 $fh->read(my $buf, List::Util::min($len,$CHUNK_SIZE) );
                 $writer->write($buf);
@@ -344,7 +344,7 @@ sub _range ($fh, $ranges, $sz, %headers) {
                 $len = List::Util::max($len - $CHUNK_SIZE, 0);
             }
         }
-        close($fh);
+        $fh->close();
         $writer->write( "\n--$CHUNK_SEP\--\n" ) if $is_multipart;
         $writer->close;
     };
@@ -365,7 +365,6 @@ sub _serve ($path, $start, $streaming, $ranges, $last_fetch=0, $deflate=0) {
     #TODO use static Cache-Control for everything but JS/CSS?
     push(@headers,'Cache-control' => $Trog::Vars::cache_control{revalidate});
 
-    #XXX chrome is just broken as hell when it comes to seeks
     push(@headers,'Accept-Ranges' => 'bytes');
 
     my $mt = (stat($path))[9];
