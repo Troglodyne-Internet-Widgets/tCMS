@@ -284,7 +284,7 @@ sub _static($path,$start,$streaming,$last_fetch=0) {
             my $responder = shift;
             #push(@headers, 'Content-Length' => $sz);
             my $writer = $responder->([ $code, [%$headers_parsed]]);
-            while ( read($fh, my $buf, $CHUNK_SIZE) ) {
+            while ( $fh->read( my $buf, $CHUNK_SIZE) ) {
                 $writer->write($buf);
             }
             close $fh;
@@ -337,7 +337,7 @@ sub _range ($fh, $ranges, $sz, %headers) {
 
             seek($fh, $range->[0], 0);
             while ($len) {
-                read($fh, my $buf, List::Util::min($len,$CHUNK_SIZE) );
+                $fh->read(my $buf, List::Util::min($len,$CHUNK_SIZE) );
                 $writer->write($buf);
 
                 # Adjust for amount written
@@ -385,7 +385,7 @@ sub _serve ($path, $start, $streaming, $ranges, $last_fetch=0, $deflate=0) {
             my $responder = shift;
             push(@headers, 'Content-Length' => $sz);
             my $writer = $responder->([ $code, \@headers]);
-            while ( read($fh, my $buf, $CHUNK_SIZE) ) {
+            while ( $fh->read( my $buf, $CHUNK_SIZE) ) {
                 $writer->write($buf);
             }
             close $fh;
