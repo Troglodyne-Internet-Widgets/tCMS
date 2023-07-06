@@ -11,6 +11,7 @@ install:
 	test -d data/files || mkdir -p data/files
 	test -d www/assets || mkdir -p www/assets
 	test -d www/statics || mkdir -p www/statics
+	test -d totp/ || mkdir -p totp
 	$(RM) pod2htmd.tmp;
 
 .PHONY: install-service

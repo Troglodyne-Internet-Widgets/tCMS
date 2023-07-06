@@ -21,6 +21,7 @@ use File::Basename qw{dirname};
 
 use Trog::Utils;
 use Trog::Config;
+use Trog::Auth;
 use Trog::Data;
 
 my $conf = Trog::Config::get();
@@ -75,6 +76,11 @@ our %routes = (
     '/auth' => {
         method   => 'POST',
         callback => \&Trog::Routes::HTML::login,
+    },
+    '/totp' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::totp,
     },
     '/post/save' => {
         method   => 'POST',
@@ -378,6 +384,29 @@ sub setup ($query) {
     });
 }
 
+=head2 totp
+
+Enable 2 factor auth via TOTP for the currently authenticated user.
+Returns a page with a QR code & TOTP uri for pasting into your authenticator app of choice.
+
+=cut
+
+sub totp($query) {
+    my $active_user = $query->{user};
+	my $domain      = $query->{domain}; 
+    my ($uri, $qr, $failure, $message) = Trog::Auth::totp($active_user, $domain);
+
+    return finish_render('totp.tx', {
+        title       => 'Enable TOTP 2-Factor Auth',
+        theme_dir   => $td,
+        uri         => $uri,
+		qr          => $qr,
+		failure     => $failure,
+		message     => $message,
+        stylesheets => _build_themed_styles('post.css'),
+    });
+}
+
 =head2 login
 
 Sets the user cookie if the provided user exists, or sets up the user as an admin with the provided credentials in the event that no users exist.
@@ -400,6 +429,7 @@ sub login ($query) {
     my $btnmsg = $hasusers ? "Log In" : "Register";
 
     my @headers;
+	my $has_totp = 0;
     if ($query->{username} && $query->{password}) {
         if (!$hasusers) {
             # Make the first user
@@ -412,7 +442,7 @@ sub login ($query) {
         }
 
         $query->{failed} = 1;
-        my $cookie = Trog::Auth::mksession($query->{username}, $query->{password});
+        my $cookie = Trog::Auth::mksession($query->{username}, $query->{password}, $query->{token});
         if ($cookie) {
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
             my $secure = '';
@@ -426,13 +456,13 @@ sub login ($query) {
 
     $query->{failed} //= -1;
     return finish_render('login.tx', {
-        title         => 'tCMS 2 ~ Login',
-        to            => $query->{to},
-        failure => int( $query->{failed} ),
-        message => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
-        btnmsg        => $btnmsg,
-        stylesheets   => _build_themed_styles('login.css'),
-        theme_dir     => $td,
+        title       => 'tCMS 2 ~ Login',
+        to          => $query->{to},
+        failure		=> int( $query->{failed} ),
+        message		=> int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
+        btnmsg      => $btnmsg,
+        stylesheets => _build_themed_styles('login.css'),
+        theme_dir   => $td,
     }, @headers);
 }
 
@@ -532,18 +562,17 @@ sub config ($query) {
     my $js    = _build_themed_scripts('post.js');
 
     $query->{failure} //= -1;
-    my @series = _get_series(1);
 
     return finish_render('config.tx', {
         title              => 'Configure tCMS',
         theme_dir          => $td,
         stylesheets        => $css,
         scripts            => $js,
-        categories         => \@series,
         themes             => _get_themes() || [],
         data_models        => _get_data_models(),
         current_theme      => $conf->param('general.theme') // '',
         current_data_model => $conf->param('general.data_model') // 'DUMMY',
+        totp_secret        => $conf->param('totp.secret'),
         message     => $query->{message},
         failure     => $query->{failure},
         to          => '/config',
@@ -587,8 +616,14 @@ sub config_save ($query) {
     return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{$query->{user_acls}};
 
-    $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
-    $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
+    $conf->param( 'general.theme',      $query->{theme} )       if defined $query->{theme};
+    $conf->param( 'general.data_model', $query->{data_model} )  if $query->{data_model};
+
+    # Erase all TOTP secrets in the event we change the global secret
+    if ($query->{totp_secret}) {
+        $conf->param( 'totp.secret',        $query->{totp_secret} );
+        Trog::Auth::clear_totp();
+    }
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
@@ -1192,13 +1227,10 @@ sub manual ($query) {
     return notfound($query) unless -f "lib/$infile";
     my $content = capture { Pod::Html::pod2html(qw{--podpath=lib --podroot=.},"--infile=lib/$infile") };
 
-    my @series = _get_series(1);
-
     return finish_render('manual.tx', {
         title       => 'tCMS Manual',
         theme_dir   => $td,
         content     => $content,
-        categories  => \@series,
         stylesheets => _build_themed_styles('post.css'),
     });
 }

@@ -177,6 +177,7 @@ sub app {
     }
 
     return _serve("www/$path", $start, $streaming, \@ranges, $last_fetch, $deflate) if -f "www/$path";
+	return _serve("totp/$path", $start, $streaming, \@ranges, $last_fetch, $deflate) if -f "totp/$path" && $active_user;
 
     #Handle regex/capture routes
     if (!exists $routes{$path}) {
@@ -197,6 +198,7 @@ sub app {
     $query->{deflate} = $deflate;
     $query->{user}    = $active_user;
 
+    return _forbidden($query) if $routes{$path}{auth} && !$active_user;
     return _notfound($query) unless exists $routes{$path};
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ($routes{$path}{method} || '','HEAD');
 

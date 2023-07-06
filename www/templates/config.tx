@@ -24,6 +24,10 @@ If for example, you use mysql it will have to rely on either a local server, val
         : }
     </select>
     </div>
+    <div>
+    Global TOTP Secret:
+    <input class="cooltext" type="text" name="totp_secret" value="<: $totp_secret :>" />
+    </div>
     <br />
     <input type="submit" class="coolbutton" value="Commit Changes" />
 </form>

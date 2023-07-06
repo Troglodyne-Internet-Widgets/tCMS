@@ -19,6 +19,12 @@
         <input required name="password" id="password" placeholder="hunter2" value="" type="password"></input>
       </div>
       <br />
+      TOTP 2FA code (ignore unless enabled)<br />
+      <div class="input-group">
+        <label for="token">🔒</label>
+        <input name="token" id="token" placeholder="7779311" value="" type="password"></input>
+      </div>
+      <br />
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
 </div>

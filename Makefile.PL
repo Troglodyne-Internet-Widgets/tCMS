@@ -16,6 +16,7 @@ WriteMakefile(
     },
   },
   PREREQ_PM => {
+    'Authen::TOTP'           => '0',
     'CGI::Cookie'            => '0',
     'Capture::Tiny'          => '0',
     'Carp'                   => '0',
@@ -33,6 +34,7 @@ WriteMakefile(
     'HTML::SocialMeta'       => '0',
     'HTTP::Body'             => '0',
     'IO::String'             => '0',
+    'Imager::QRCode'         => '0',
     'JSON::MaybeXS'          => '0',
     'List::Util'             => '0',
     'Mojo::File'             => '0',
@@ -51,7 +53,7 @@ WriteMakefile(
     'IO::Compress::Brotli'   => '0',
     'IO::Compress::Gzip'     => '0',
     'IO::Compress::Deflate'  => '0',
-    'HTTP::Parser::XS' => '0',
+    'HTTP::Parser::XS'       => '0',
   },
   test => {TESTS => 't/*.t'}
 );
