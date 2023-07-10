@@ -10,16 +10,17 @@ use POSIX qw{floor};
 
 use DBI;
 use DBD::SQLite;
+use File::Touch;
 use File::Slurper();
 use List::Util qw{any};
 
 =head1 Name
 
-Bogo::SQLite - Abstracts the boilerpain away!
+Trog::SQLite - Abstracts the boilerpain away!
 
 =head1 SYNOPSIS
 
-    my $dbh = Bogo::SQLite::dbh("my_schema.sql", "my_sqlite3.db");
+    my $dbh = Trog::SQLite::dbh("my_schema.sql", "my_sqlite3.db");
     ...
 
 =head1 FUNCTIONS
@@ -40,6 +41,7 @@ my $dbh = {};
 sub dbh {
     my ($schema,$dbname) = @_;
     return $dbh->{$schema} if $dbh->{$schema};
+    File::Touch::touch($dbname) unless -f $dbname;
     my $qq = File::Slurper::read_text($schema);
     my $db = DBI->connect("dbi:SQLite:dbname=$dbname","","");
     $db->{sqlite_allow_multiple_statements} = 1;
