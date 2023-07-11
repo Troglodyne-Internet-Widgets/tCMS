@@ -913,6 +913,8 @@ sub posts ($query, $direct=0) {
     } @posts;
     my @et = List::MoreUtils::singleton(@$tags, @tags_all);
 
+    $query->{author} = $query->{primary_post}{user} // $posts[0]{user};
+
     my $content = themed_render('posts.tx', {
         acls      => \@acls,
         can_edit  => $is_admin,
@@ -924,6 +926,7 @@ sub posts ($query, $direct=0) {
         message   => $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}",
         direct    => $direct,
         title     => $query->{title},
+        author    => $query->{primary_post}{user} // $posts[0]{user},
         style     => $query->{style},
         posts     => \@posts,
         like      => $query->{like},

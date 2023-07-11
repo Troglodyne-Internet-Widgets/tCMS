@@ -8,6 +8,10 @@
         <link rel="apple-touch-icon" href="<: $theme_dir :>/img/icon/favicon-180.png">
         <link rel="manifest" href="/api/webmanifest">
 
+        : if ($author) {
+        <meta name="author" content="<: $author :>"/>
+        : }
+
         : if ($meta_desc) {
         <meta name="description" content="<: $meta_desc :>"/>
         : }
