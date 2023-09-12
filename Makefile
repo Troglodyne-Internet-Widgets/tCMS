@@ -51,8 +51,8 @@ prereq-node:
 .PHONY: prereq-frontend
 prereq-frontend:
 	mkdir -p www/scripts; pushd www/scripts && curl -L --remote-name-all                                 \
-		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/fgEmojiPicker.js"     \
-		"https://github.com/woody180/vanilla-javascript-emoji-picker/raw/master/full-emoji-list.json" \
+		"https://raw.githubusercontent.com/woody180/vanilla-javascript-emoji-picker/e357923d49fcc23f17cf1727045e802f765969cd/fgEmojiPicker.js"     \
+		"https://github.com/woody180/vanilla-javascript-emoji-picker/blob/e357923d49fcc23f17cf1727045e802f765969cd/full-emoji-list.json" \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js"; popd
 	mkdir -p www/styles; cd www/styles && curl -L --remote-name-all \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css"
