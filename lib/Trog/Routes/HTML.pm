@@ -908,7 +908,7 @@ sub posts ( $query, $direct = 0 ) {
     }
 
     #OK, so if we have a user as the ID we found, go grab the rest of their posts
-    if ( $query->{id} && @posts && grep { $_ eq 'about' } @{ $posts[0]->{tags} } ) {
+    if ( $query->{id} && @posts && List::Util::any { $_ eq 'about' } @{ $posts[0]->{tags} } ) {
         my $user = shift(@posts);
         my $id   = delete $query->{id};
         $query->{author} = $user->{user};

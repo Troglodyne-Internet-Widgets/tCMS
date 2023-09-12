@@ -102,7 +102,7 @@ sub _fixup ( $self, @filtered ) {
         }
 
         #XXX Add dynamic routing data for posts which don't have them (/posts/$id) and (/users/$user)
-        my $is_user_page = grep { $_ eq 'about' } @{ $subj->{tags} };
+        my $is_user_page = List::Util::any { $_ eq 'about' } @{ $subj->{tags} };
         if ( !exists $subj->{local_href} ) {
             $subj->{local_href} = "/posts/$subj->{id}";
             $subj->{local_href} = "/users/$subj->{user}" if $is_user_page;
