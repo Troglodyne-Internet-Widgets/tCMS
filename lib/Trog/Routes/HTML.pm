@@ -1486,13 +1486,11 @@ sub finish_render ( $template, $vars, %headers ) {
     $headers{'X-Frame-Options'} = 'DENY' unless $vars->{embed};
     $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
 
-    # Force loading of https only resources from this host.
-    my $scheme = $vars->{scheme} ? "$vars->{scheme}:" : '';
-    $headers{'Content-Security-Policy'} .= ";default-src '$scheme' 'self'";
-
-    # Allow video embeds from the big boys
+    #CSP. Yet another layer of 'no mixed content' plus whitelisted execution of remote resources.
+    my $scheme = $vars->{scheme} ? $vars->{scheme} : '';
     my $sites = $conf->param('security.allow_embeds_from') // '';
-    $headers{'Content-Security-Policy'} .= qq{;frame-src 'self' $sites;child-src 'self' $sites; script-src 'self' $sites};
+    $headers{'Content-Security-Policy'} .= ";default-src '$scheme' 'self' 'unsafe-eval' 'unsafe-inline' $sites";
+    $headers{'Content-Security-Policy'} .= ";object-src 'none'";
 
     # Force https if we are https
     $headers{'Strict-Transport-Security'} = 'max-age=63072000';
