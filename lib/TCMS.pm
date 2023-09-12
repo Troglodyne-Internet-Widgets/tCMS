@@ -8,6 +8,7 @@ use feature qw{signatures state};
 
 use Date::Format qw{strftime};
 
+use Sys::Hostname();
 use HTTP::Body   ();
 use URL::Encode  ();
 use Text::Xslate ();
@@ -218,7 +219,7 @@ sub app {
     $query->{body}         = '';
     $query->{dnt}          = $env->{HTTP_DNT};
     $query->{user}         = $active_user;
-    $query->{domain}       = $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
+    $query->{domain}       = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
     $query->{route}        = $path;
     $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
     $query->{social_meta}  = 1;
@@ -267,6 +268,7 @@ sub _toolong() {
 
 sub _static ( $path, $start, $streaming, $last_fetch = 0 ) {
 
+    DEBUG("Rendering static for $path");
     # XXX because of psgi I can't just vomit the file directly
     if ( open( my $fh, '<', "www/statics/$path" ) ) {
         my $headers = '';

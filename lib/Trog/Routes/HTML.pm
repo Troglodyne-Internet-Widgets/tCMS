@@ -1447,7 +1447,7 @@ sub finish_render ( $template, $vars, %headers ) {
 
     my $ct = 'Content-type';
     my $cc = 'Cache-control';
-    $headers{$ct}              = $vars->{contenttype};
+    $headers{$ct}              = $vars->{contenttype} // "text/html";
     $headers{$cc}              = $vars->{cachecontrol} if $vars->{cachecontrol};
     $headers{'Vary'}           = 'Accept-Encoding';
     $headers{"Content-Length"} = length($body);
@@ -1478,10 +1478,13 @@ sub finish_render ( $template, $vars, %headers ) {
 sub save_render ( $vars, $body, %headers ) {
     Path::Tiny::path( "www/statics/" . dirname( $vars->{route} ) )->mkpath;
     my $file = "www/statics/$vars->{route}";
+
+    my $verb = -f $file ? 'Overwrite' : 'Write';
+    DEBUG("$verb static for $vars->{route}");
     open( my $fh, '>', $file ) or die "Could not open $file for writing";
     print $fh "HTTP/1.1 $vars->{code} OK\n";
     foreach my $h ( keys(%headers) ) {
-        print $fh "$h:$headers{$h}\n";
+        print $fh "$h:$headers{$h}\n" if $headers{$h};
     }
     print $fh "\n";
     print $fh $body;
