@@ -58,6 +58,7 @@ sub uuid {
 BEGIN {
     our $user;
     $Trog::Log::user = 'nobody';
+    $Trog::Log::ip   = '0.0.0.0';
 }
 
 sub _log {
@@ -66,7 +67,7 @@ sub _log {
     my $tstamp = strftime "%a %b %d %T %Y", localtime;
     my $uuid   = uuid();
 
-    return "[$level]: <$tstamp> {Request $uuid} |$Trog::Log::user| $msg\n";
+    return "[$level]: <$tstamp> {Request $uuid} $Trog::Log::ip |$Trog::Log::user| $msg\n";
 }
 
 sub DEBUG {

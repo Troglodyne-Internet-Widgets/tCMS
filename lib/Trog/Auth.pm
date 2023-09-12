@@ -183,7 +183,10 @@ sub mksession ( $user, $pass, $token ) {
     my $salt   = $records->[0]->{salt};
     my $hash   = sha256( $pass . $salt );
     my $worked = $dbh->selectall_arrayref( "SELECT name, totp_secret FROM user WHERE hash=? AND name = ?", { Slice => {} }, $hash, $user );
-    return '' unless ref $worked eq 'ARRAY' && @$worked;
+    if (!(ref $worked eq 'ARRAY' && @$worked)) {
+        INFO("Failed login for user $user");
+        return '';
+    }
     my $uid    = $worked->[0]{name};
     my $secret = $worked->[0]{totp_secret};
 
@@ -191,7 +194,8 @@ sub mksession ( $user, $pass, $token ) {
     if ($secret) {
         return '' unless $token;
         DEBUG("TOTP Auth: Sent code $token, expect ".expected_totp_code());
-        my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 5, period => 30, digits => 6 );
+        my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
+        INFO("TOTP Auth failed for user $user") unless $rc;
         return '' unless $rc;
     }
 

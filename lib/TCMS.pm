@@ -139,6 +139,9 @@ sub app {
         $cookies = CGI::Cookie->parse( $env->{HTTP_COOKIE} );
     }
 
+    # Set the IP of the request so we can fail2ban
+    $Trog::Log::ip = $env->{HTTP_X_FORWARDED_FOR} || $env->{REMOTE_ADDR};
+
     my $active_user = '';
     $Trog::Log::user = 'nobody';
     if ( exists $cookies->{tcmslogin} ) {
