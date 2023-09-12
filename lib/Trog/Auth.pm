@@ -6,11 +6,13 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
-use Trog::Log qw{:all};
 use UUID::Tiny ':std';
 use Digest::SHA 'sha256';
 use Authen::TOTP;
 use Imager::QRCode;
+
+use Trog::Log qw{:all};
+use Trog::Config;
 use Trog::SQLite;
 
 =head1 Trog::Auth
@@ -193,7 +195,7 @@ sub mksession ( $user, $pass, $token ) {
     # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
     if ($secret) {
         return '' unless $token;
-        DEBUG("TOTP Auth: Sent code $token, expect ".expected_totp_code());
+        DEBUG("TOTP Auth: Sent code $token, expect ".expected_totp_code($totp, $secret));
         my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
         INFO("TOTP Auth failed for user $user") unless $rc;
         return '' unless $rc;
