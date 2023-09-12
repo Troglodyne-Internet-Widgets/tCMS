@@ -20,12 +20,14 @@ use IO::Compress::Gzip();
 use Time::HiRes      qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
+use UUID::Tiny();
 
 #Grab our custom routes
 use lib 'lib';
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
 
+use Trog::Log qw{:all};
 use Trog::Auth;
 use Trog::Utils;
 use Trog::Config;
@@ -138,11 +140,17 @@ sub app {
     }
 
     my $active_user = '';
+    $Trog::Log::user = 'nobody';
     if ( exists $cookies->{tcmslogin} ) {
         $active_user = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
+        $Trog::Log::user = $active_user if $active_user;
     }
     $query->{user_acls} = [];
     $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
+
+    # Log the request.
+    Trog::Log::uuid(UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ));
+    INFO("$env->{REQUEST_METHOD} $path");
 
     # Filter out passed ACLs which are naughty
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };

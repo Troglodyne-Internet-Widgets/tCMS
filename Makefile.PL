@@ -54,6 +54,10 @@ WriteMakefile(
     'IO::Compress::Gzip'     => '0',
     'IO::Compress::Deflate'  => '0',
     'HTTP::Parser::XS'       => '0',
+    'Log::Dispatch'          => '0',
+    'Log::Dispatch::FileRotate' => '0',
+    'Digest::SHA'               => '0',
+    'MIME::Base32::XS'          => '0',
   },
   test => {TESTS => 't/*.t'}
 );

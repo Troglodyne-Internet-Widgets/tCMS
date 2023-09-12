@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
+use Trog::Log qw{:all};
 use UUID::Tiny ':std';
 use Digest::SHA 'sha256';
 use Authen::TOTP;
@@ -54,7 +55,7 @@ sub acls4user ($username) {
     return \@acls;
 }
 
-=head2 totp(user)
+=head2 totp(user, domain)
 
 Enable TOTP 2fa for the specified user, or if already enabled return the existing info.
 Returns a QR code and URI for pasting into authenticator apps.
@@ -82,6 +83,7 @@ sub totp ( $user, $domain ) {
 
         #XXX verifier apps will only do 30s :(
         period => 30,
+        digits => 6,
         $secret ? ( secret => $secret ) : (),
     );
 
@@ -116,9 +118,45 @@ sub _totp {
         die "Global secret must be set in tCMS configuration totp section!" unless $global_secret;
         $totp = Authen::TOTP->new( secret => $global_secret );
         die "Cannot instantiate TOTP client!" unless $totp;
+        $totp->{DEBUG} = 1 if is_debug();
     }
     return $totp;
 }
+
+=head2 expected_totp_code(totp, secret, when, digits)
+
+Return the expected totp code at a given time with a given secret.
+
+=cut
+
+#XXX authen::totp does not expose this, sigh
+sub expected_totp_code {
+    my ( $self, $secret, $when, $digits ) = @_;
+    $self //= _totp();
+    $when   //= time;
+    my $period  = 30;
+    $digits //= 6;
+    $self->{secret} = $secret;
+
+    my $T  = sprintf( "%016x", int( $when / $period ) );
+    my $Td = pack( 'H*', $T );
+
+    my $hmac = $self->hmac($Td);
+
+    # take the 4 least significant bits (1 hex char) from the encrypted string as an offset
+    my $offset = hex( substr( $hmac, -1 ) );
+
+    # take the 4 bytes (8 hex chars) at the offset (* 2 for hex), and drop the high bit
+    my $encrypted = hex( substr( $hmac, $offset * 2, 8 ) ) & 0x7fffffff;
+
+    return sprintf( "%0" . $digits . "d", ( $encrypted % ( 10**$digits ) ) );
+}
+
+=head2 clear_totp
+
+Clear the totp codes for all users
+
+=cut
 
 sub clear_totp {
     my $dbh = _dbh();
@@ -151,7 +189,9 @@ sub mksession ( $user, $pass, $token ) {
 
     # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
     if ($secret) {
-        my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 1, period => 30 );
+        return '' unless $token;
+        DEBUG("TOTP Auth: Sent code $token, expect ".expected_totp_code());
+        my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 5, period => 30, digits => 6 );
         return '' unless $rc;
     }
 

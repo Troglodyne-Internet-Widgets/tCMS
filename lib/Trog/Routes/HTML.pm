@@ -19,6 +19,7 @@ use CSS::Minifier::XS;
 use Path::Tiny();
 use File::Basename qw{dirname};
 
+use Trog::Log qw{:all};
 use Trog::Utils;
 use Trog::Config;
 use Trog::Auth;
