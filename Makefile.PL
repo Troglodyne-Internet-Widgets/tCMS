@@ -58,7 +58,7 @@ WriteMakefile(
     'Log::Dispatch::FileRotate' => '0',
     'Digest::SHA'               => '0',
     'MIME::Base32::XS'          => '0',
-    'URI::XS'                   => '0',
+    'URI'                       => '0',
   },
   test => {TESTS => 't/*.t'}
 );

@@ -22,7 +22,7 @@ use Time::HiRes      qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
 use UUID::Tiny();
-use URI::XS();
+use URI();
 
 #Grab our custom routes
 use lib 'lib';
@@ -147,8 +147,9 @@ sub app {
     $query->{user_acls} = [];
     $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
-    # Log the request.
-    Trog::Log::uuid(UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ));
+    # Log the request.  UUID::Tiny can explode sometimes.
+    my $requestid = eval { UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ) } // "00000000-0000-0000-0000-000000000000";
+    Trog::Log::uuid($requestid);
     INFO("$env->{REQUEST_METHOD} $path");
 
     # Filter out passed ACLs which are naughty
@@ -227,7 +228,7 @@ sub app {
     $query->{primary_post} = {};
     $query->{has_query}    = $has_query;
     # Redirecting somewhere naughty not allow
-    $query->{to}           = URI::XS->new($query->{to})->path;
+    $query->{to}           = URI->new($query->{to} // '')->path() || $query->{to} if $query->{to};
 
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {

@@ -18,6 +18,7 @@ use IO::Compress::Gzip;
 use CSS::Minifier::XS;
 use Path::Tiny();
 use File::Basename qw{dirname};
+use URI();
 
 use Trog::Log qw{:all};
 use Trog::Utils;
@@ -181,6 +182,15 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::icon,
     },
+    '/styles/rss-style.xsl' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::rss_style,
+    },
+    '/rss.xml' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::posts,
+        data     => { format => 'rss' },
+    }
 );
 
 # Grab theme routes
@@ -402,6 +412,7 @@ sub setup ($query) {
         {
             title       => 'tCMS Requires Setup to Continue...',
             stylesheets => _build_themed_styles('notconfigured.css'),
+            scheme      => $query->{scheme},
         }
     );
 }
@@ -428,6 +439,7 @@ sub totp ($query) {
             failure     => $failure,
             message     => $message,
             stylesheets => _build_themed_styles('post.css'),
+            scheme      => $query->{scheme},
         }
     );
 }
@@ -494,6 +506,7 @@ sub login ($query) {
             btnmsg      => $btnmsg,
             stylesheets => _build_themed_styles('login.css'),
             theme_dir   => $td,
+            scheme      => $query->{scheme},
         },
         @headers
     );
@@ -611,6 +624,8 @@ sub config ($query) {
             message            => $query->{message},
             failure            => $query->{failure},
             to                 => '/config',
+            scheme             => $query->{scheme},
+            embeds             => $conf->param('security.allow_embeds_from') // '',
         }
     );
 }
@@ -873,6 +888,11 @@ Display multi or single posts, supports RSS and pagination.
 
 sub posts ( $query, $direct = 0 ) {
 
+    # Allow rss.xml to tell what posts to loop over
+    my $fmt = $query->{format} || '';
+    my $for = URI->new($query->{for} || '')->path() || $query->{route};
+    $query->{route} = $for if $fmt eq 'rss';
+
     #Process the input URI to capture tag/id
     $query->{route} //= $query->{to};
     my ( undef, undef, $id ) = split( /\//, $query->{route} );
@@ -924,7 +944,6 @@ sub posts ( $query, $direct = 0 ) {
     # Set the eTag so that we don't get a re-fetch
     $query->{etag} = "$posts[0]{id}-$posts[0]{version}" if @posts;
 
-    my $fmt = $query->{format} || '';
     return _rss( $query, \@posts ) if $fmt eq 'rss';
 
     #XXX Is used by the sitemap, maybe just fix there?
@@ -1241,11 +1260,11 @@ sub sitemap ($query) {
 
 sub _rss ( $query, $posts ) {
     require XML::RSS;
-    my $rss = XML::RSS->new( version => '2.0' );
+    my $rss = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
     my $now = DateTime->from_epoch( epoch => time() );
     $rss->channel(
         title         => "$query->{domain}",
-        link          => "http://$query->{domain}/$query->{route}?format=rss",
+        link          => "http://$query->{domain}/$query->{route}.rss.xml",
         language      => 'en',                                                   #TODO localization
         description   => "$query->{domain} : $query->{route}",
         pubDate       => $now,
@@ -1271,7 +1290,16 @@ sub _rss ( $query, $posts ) {
         }
     }
 
-    return finish_render( undef, { etag => $query->{etag}, contenttype => "application/rss+xml", body => encode_utf8( $rss->as_string ) } );
+    return finish_render(
+        undef,
+        {
+            etag => $query->{etag},
+            contenttype => "application/rss+xml",
+            body => encode_utf8( $rss->as_string ),
+            scheme => $query->{scheme}
+        },
+        'Content-Disposition' => 'inline; filename="rss.xml"',
+    );
 }
 
 sub _post2rss ( $rss, $url, $post ) {
@@ -1315,6 +1343,7 @@ sub manual ($query) {
             theme_dir   => $td,
             content     => $content,
             stylesheets => _build_themed_styles('post.css'),
+            scheme      => $query->{scheme},
         }
     );
 }
@@ -1453,6 +1482,20 @@ sub finish_render ( $template, $vars, %headers ) {
     $headers{$cc}              = $vars->{cachecontrol} if $vars->{cachecontrol};
     $headers{'Vary'}           = 'Accept-Encoding';
     $headers{"Content-Length"} = length($body);
+    $headers{'X-Content-Type-Options'} = 'nosniff';
+    $headers{'X-Frame-Options'} = 'DENY' unless $vars->{embed};
+    $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
+
+    # Force loading of https only resources from this host.
+    my $scheme = $vars->{scheme} ? "$vars->{scheme}:" : '';
+    $headers{'Content-Security-Policy'} .= ";default-src '$scheme' 'self'";
+
+    # Allow video embeds from the big boys
+    my $sites = $conf->param('security.allow_embeds_from') // '';
+    $headers{'Content-Security-Policy'} .= qq{;frame-src 'self' $sites;child-src 'self' $sites; script-src 'self' $sites};
+
+    # Force https if we are https
+    $headers{'Strict-Transport-Security'} = 'max-age=63072000';
 
     # We only set etags when users are logged in, cause we don't use statics
     $headers{'ETag'} = $vars->{etag} if $vars->{etag} && $vars->{user};
@@ -1497,6 +1540,27 @@ sub save_render ( $vars, $body, %headers ) {
 sub icon ($query) {
     my $path = $query->{route};
     return Trog::FileHandler::serve("$td/img/icon/$path");
+}
+
+# TODO make statics, abstract gzipped outputting & header handling
+sub rss_style ($query) {
+    my $body = encode_utf8(themed_render('rss-style.tx', $query));
+    my %headers = (
+        'Content-Type'   => 'text/xsl',
+        'Content-Length' => length($body),
+        'Cache-Control'  => $Trog::Vars::cache_control{revalidate},
+        'X-Content-Type-Options' => 'nosniff',
+        'Vary'           => 'Accept-Encoding',
+    );
+    return [ 200, [%headers], [$body]] unless $query->{deflate};
+
+    $headers{"Content-Encoding"} = "gzip";
+    my $dfh;
+    IO::Compress::Gzip::gzip( \$body => \$dfh );
+    print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
+    $headers{"Content-Length"} = length($dfh);
+
+    return [ 200, [%headers], [$dfh] ];
 }
 
 1;
