@@ -89,13 +89,15 @@ sub totp ( $user, $domain ) {
         $secret ? ( secret => $secret ) : (),
     );
 
+    my $qr = "$user\@$domain.bmp";
     if ( !$secret ) {
+        # Liquidate the QR code if it's already there
+        unlink "totp/$qr" if -f "totp/$qr";
         $secret = $totp->secret();
         $dbh->do( "UPDATE user SET totp_secret=? WHERE name=?", undef, $secret, $user ) or return ( undef, undef, 1, "Failed to store TOTP secret." );
     }
 
     # This is subsequently served via authenticated _serve() in TCMS.pm
-    my $qr = "$user\@$domain.bmp";
     if ( !-f "totp/$qr" ) {
         my $qrcode = Imager::QRCode->new(
             size          => 4,
@@ -196,6 +198,8 @@ sub mksession ( $user, $pass, $token ) {
     if ($secret) {
         return '' unless $token;
         DEBUG("TOTP Auth: Sent code $token, expect ".expected_totp_code($totp, $secret));
+        #XXX we have to force the secret into compliance, otherwise it generates one on the fly, oof
+        $totp->{secret} = $secret;
         my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
         INFO("TOTP Auth failed for user $user") unless $rc;
         return '' unless $rc;
