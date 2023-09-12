@@ -25,9 +25,9 @@ sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 our $posts;
 
-sub read ($self, $query={}) {
-    if ( !-f $datastore) {
-        open(my $fh, '>', $datastore);
+sub read ( $self, $query = {} ) {
+    if ( !-f $datastore ) {
+        open( my $fh, '>', $datastore );
         print $fh '[]';
         close $fh;
     }
@@ -45,25 +45,26 @@ sub count ($self) {
     return scalar(@$posts);
 }
 
-sub write($self,$data,$overwrite=0) {
+sub write ( $self, $data, $overwrite = 0 ) {
     my $orig = [];
     if ($overwrite) {
         $orig = $data;
-    } else {
-        $orig = $self->read();
-        push(@$orig,@$data);
     }
-    open(my $fh, '>', $datastore) or confess;
+    else {
+        $orig = $self->read();
+        push( @$orig, @$data );
+    }
+    open( my $fh, '>', $datastore ) or confess;
     print $fh JSON::MaybeXS::encode_json($orig);
     close $fh;
 }
 
-sub delete($self, @posts) {
+sub delete ( $self, @posts ) {
     my $example_posts = $self->read();
     foreach my $update (@posts) {
         @$example_posts = grep { $_->{id} ne $update->{id} } @$example_posts;
     }
-    $self->write($example_posts,1);
+    $self->write( $example_posts, 1 );
 
     # Gorilla cache invalidation
     Path::Tiny::path('www/statics')->remove_tree;
@@ -71,8 +72,8 @@ sub delete($self, @posts) {
     return 0;
 }
 
-sub tags($self) {
-    return (uniq map { @{$_->{tags}} } @$posts);
+sub tags ($self) {
+    return ( uniq map { @{ $_->{tags} } } @$posts );
 }
 
 1;
