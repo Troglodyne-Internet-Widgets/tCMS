@@ -143,8 +143,14 @@ sub filter ( $self, $query, @filtered ) {
 
     #Filter out posts which are too old
     #Coerce older into numeric
-    $query->{older} =~ s/[^0-9]//g                                 if $query->{older};
-    @filtered = grep { $_->{created} < $query->{older} } @filtered if $query->{older};
+    if ($query->{older}) {
+        $query->{older} =~ s/[^0-9]//g;
+        @filtered = grep { $_->{created} < $query->{older} } @filtered;
+    }
+    if ($query->{newer}) {
+        $query->{newer} =~ s/[^0-9]//g;
+        @filtered = grep { $_->{created} > $query->{newer} } @filtered;
+    }
 
     # Filter posts not matching the passed tag(s), if any
     @filtered = grep {

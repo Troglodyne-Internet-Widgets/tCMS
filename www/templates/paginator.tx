@@ -3,11 +3,12 @@
 : } else {
 <div id="paginator" class="disabled">
 : }
-    : if ( $older ) {
+    : if ( $older || $newer ) {
     <div style="float:left; margin-top:.5rem;"> <: $limit :> most recent posts older than <span id="paginatorTime"><: $older :></span></div>
     : }
     <div style="float:right;">
-        <a href="?older=<: $older :>&limit=<: $limit :><: if( $like )  { "&like=" ~ $like } :>">Prev</a>
+        <a rel="prev" href="?older=<: $older :>&limit=<: $limit :><: if( $like ) { "&like=" ~ $like } :>">Prev</a>
+        <a rel="next" href="?newer=<: $newer :>&limit=<: $limit :><: if( $like ) { "&like=" ~ $like } :>">Next</a>
         Size:
         <form style="display:inline;">
             : if ( $older ) {

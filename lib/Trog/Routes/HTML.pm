@@ -961,6 +961,7 @@ sub posts ( $query, $direct = 0 ) {
     my $older = !@posts ? 0 : $posts[-1]->{created};
     $query->{failure} //= -1;
     $query->{id}      //= '';
+    my $newer = !@posts ? 0 : $posts[0]->{created};
 
     #XXX messed up data has to be fixed unfortunately
     @$tags = List::Util::uniq @$tags;
@@ -1031,6 +1032,7 @@ sub posts ( $query, $direct = 0 ) {
             limit             => $limit,
             pages             => scalar(@posts) == $limit,
             older             => $older,
+            newer             => $newer,
             sizes             => [ 25, 50, 100 ],
             rss               => !$query->{id} && !$query->{older},
             tiled             => $tiled,
@@ -1067,6 +1069,7 @@ sub _themed_title ($path) {
 sub _post_helper ( $query, $tags, $acls ) {
     return $data->get(
         older        => $query->{older},
+        newer        => $query->{newer},
         page         => int( $query->{page}  || 1 ),
         limit        => int( $query->{limit} || 25 ),
         tags         => $tags,
@@ -1417,7 +1420,6 @@ sub _themed_template ($resource) {
 sub finish_render ( $template, $vars, %headers ) {
 
     #XXX default vars that need to be pulled from config
-    $vars->{dir}         //= 'ltr';
     $vars->{lang}        //= 'en-US';
     $vars->{title}       //= 'tCMS';
     $vars->{stylesheets} //= [];
