@@ -79,7 +79,8 @@ sub totp($user, $domain) {
 	my $uri = $totp->generate_otp(
 		user   => "$user\@$domain",
 		issuer => $domain,
-		period => 60,
+        #XXX verifier apps will only do 30s :(
+		period => 30,
 		$secret ? ( secret => $secret ) : (),
 	);
 
@@ -148,7 +149,7 @@ sub mksession ($user, $pass, $token) {
 
     # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
     if ($secret) {
-        my $rc   = $totp->validate_otp(otp => $token, secret => $secret, tolerance => 1);
+        my $rc   = $totp->validate_otp(otp => $token, secret => $secret, tolerance => 1, period => 30);
         return '' unless $rc;
     }
 
