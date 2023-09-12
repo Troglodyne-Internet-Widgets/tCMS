@@ -22,6 +22,7 @@ use Time::HiRes      qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
 use UUID::Tiny();
+use URI::XS();
 
 #Grab our custom routes
 use lib 'lib';
@@ -225,6 +226,8 @@ sub app {
     $query->{social_meta}  = 1;
     $query->{primary_post} = {};
     $query->{has_query}    = $has_query;
+    # Redirecting somewhere naughty not allow
+    $query->{to}           = URI::XS->new($query->{to})->path;
 
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {
