@@ -24,6 +24,7 @@ use Trog::Utils;
 use Trog::Config;
 use Trog::Auth;
 use Trog::Data;
+use Trog::FileHandler;
 
 my $conf         = Trog::Config::get();
 my $template_dir = 'www/templates';
@@ -175,6 +176,10 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
+    },
+    '/favicon.ico' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::icon,
     },
 );
 
@@ -1244,13 +1249,12 @@ sub _rss ( $query, $posts ) {
         lastBuildDate => $now,
     );
 
-    #TODO configurability
     $rss->image(
         title       => $query->{domain},
-        url         => "$td/img/icon/favicon.ico",
+        url         => "/favicon.ico",
         link        => "http://$query->{domain}",
-        width       => 88,
-        height      => 31,
+        width       => 32,
+        height      => 32,
         description => "$query->{domain} favicon",
     );
 
@@ -1482,6 +1486,12 @@ sub save_render ( $vars, $body, %headers ) {
     print $fh "\n";
     print $fh $body;
     close $fh;
+}
+
+# basically a file rewrite rule for themes
+sub icon ($query) {
+    my $path = $query->{route};
+    return Trog::FileHandler::serve("$td/img/icon/$path");
 }
 
 1;

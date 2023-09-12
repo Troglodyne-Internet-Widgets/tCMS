@@ -59,3 +59,8 @@ The module controlling this is L<Trog::Auth>.
 
 Themes are subdirectories of /themes, which mirror the structure of www/ internally.
 Stylesheets are included after the mainline ones, so that your styles will override the default.
+
+=head3 Theme Icons
+
+You will want your theme icon to be in the img/icon directory, make sure it's an SVG named 'favicon.svg'.
+From there, run bin/favicon_mongler.pl $PATH_TO_YOUR_FAVICON_SVG
