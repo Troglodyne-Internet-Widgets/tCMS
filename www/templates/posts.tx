@@ -10,6 +10,7 @@
             trigger: ['button.emojiPicker'],
             position: ['bottom'],
             dir: `/scripts/`,
+            preFetch: true,
             emit(obj, triggerElement) {
                 const emoji = obj.emoji;
                 document.querySelector('textarea').value += emoji;

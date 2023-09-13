@@ -190,7 +190,12 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::posts,
         data     => { format => 'rss' },
-    }
+    },
+    '/emoji' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::emojis,
+        auth => 1,
+    },
 );
 
 # Grab theme routes
@@ -944,7 +949,10 @@ sub posts ( $query, $direct = 0 ) {
     # Set the eTag so that we don't get a re-fetch
     $query->{etag} = "$posts[0]{id}-$posts[0]{version}" if @posts;
 
-    return _rss( $query, \@posts ) if $fmt eq 'rss';
+    #Correct page headers
+    my $ph = $themed ? _themed_title( $query->{route} ) : $query->{route};
+
+    return _rss( $query, $ph, \@posts ) if $fmt eq 'rss';
 
     #XXX Is used by the sitemap, maybe just fix there?
     my @post_aliases = map { $_->{local_href} } _get_series();
@@ -958,9 +966,6 @@ sub posts ( $query, $direct = 0 ) {
     my $footers = _templates_in_dir( -d $theme_dir ? "www/$theme_dir/templates/footers" : "www/templates/footers" );
 
     my $styles = _build_themed_styles('posts.css');
-
-    #Correct page headers
-    my $ph = $themed ? _themed_title( $query->{route} ) : $query->{route};
 
     # Build page title if it wasn't set by a wrapping sub
     $query->{title} = "$query->{domain} : $query->{title}" if $query->{title} && $query->{domain};
@@ -1258,12 +1263,13 @@ sub sitemap ($query) {
     return Trog::Routes::HTML::index( $query, $content, $styles );
 }
 
-sub _rss ( $query, $posts ) {
+sub _rss ( $query, $subtitle, $posts ) {
     require XML::RSS;
     my $rss = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
     my $now = DateTime->from_epoch( epoch => time() );
     $rss->channel(
         title         => "$query->{domain}",
+        subtitle      => $subtitle,
         link          => "http://$query->{domain}/$query->{route}.rss.xml",
         language      => 'en',                                                   #TODO localization
         description   => "$query->{domain} : $query->{route}",
@@ -1294,9 +1300,9 @@ sub _rss ( $query, $posts ) {
         undef,
         {
             etag => $query->{etag},
-            contenttype => "application/rss+xml",
+            contenttype => "application/xml",
             body => encode_utf8( $rss->as_string ),
-            scheme => $query->{scheme}
+            scheme => $query->{scheme},
         },
         'Content-Disposition' => 'inline; filename="rss.xml"',
     );
@@ -1426,12 +1432,16 @@ sub themed_render ( $template, $data ) {
 }
 
 sub _pick_processor ( $file, $normal, $themed ) {
-    return _dir_for_resource($file) eq $template_dir ? $normal : $themed;
+    return _template_dir($file) eq $template_dir ? $normal : $themed;
+}
+
+sub _template_dir ($template) {
+    return $theme_dir && -f "www/$theme_dir/$template" ? $theme_dir : $template_dir;
 }
 
 # Pick appropriate dir based on whether theme override exists
 sub _dir_for_resource ($resource) {
-    return $theme_dir && -f "www/$theme_dir/$resource" ? $theme_dir : $template_dir;
+    return $theme_dir && -f "www/$theme_dir/$resource" ? $theme_dir : '';
 }
 
 sub _themed_style ($resource) {
@@ -1487,9 +1497,9 @@ sub finish_render ( $template, $vars, %headers ) {
     $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
 
     #CSP. Yet another layer of 'no mixed content' plus whitelisted execution of remote resources.
-    my $scheme = $vars->{scheme} ? $vars->{scheme} : '';
+    my $scheme = $vars->{scheme} ? "$vars->{scheme}:" : '';
     my $sites = $conf->param('security.allow_embeds_from') // '';
-    $headers{'Content-Security-Policy'} .= ";default-src '$scheme' 'self' 'unsafe-eval' 'unsafe-inline' $sites";
+    $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' 'unsafe-eval' 'unsafe-inline' $sites";
     $headers{'Content-Security-Policy'} .= ";object-src 'none'";
 
     # Force https if we are https
@@ -1542,6 +1552,8 @@ sub icon ($query) {
 
 # TODO make statics, abstract gzipped outputting & header handling
 sub rss_style ($query) {
+    $query->{port} = ":$query->{port}" if $query->{port};
+    $query->{rss_css} = _themed_style("rss.css");
     my $body = encode_utf8(themed_render('rss-style.tx', $query));
     my %headers = (
         'Content-Type'   => 'text/xsl',
@@ -1559,6 +1571,21 @@ sub rss_style ($query) {
     $headers{"Content-Length"} = length($dfh);
 
     return [ 200, [%headers], [$dfh] ];
+}
+
+sub emojis ($query) {
+    my $file = 'www/scripts/list.min.json';
+    die "Run make prereq-frontend first" unless -f $file;
+
+    my $raw = File::Slurper::read_binary($file);
+    my $emojis = Cpanel::JSON::XS::decode_json($raw);
+    my %categorized;
+    foreach my $emoji (@{$emojis->{emojis}}) {
+        $categorized{$emoji->{category}} //= [];
+        push(@{$categorized{$emoji->{category}}}, $emoji->{emoji});
+    }
+
+    return finish_render('emojis.tx', { %$query, categories => \%categorized, scripts => _build_themed_scripts('emoji.js') });
 }
 
 1;

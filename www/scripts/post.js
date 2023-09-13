@@ -1,9 +1,13 @@
 function switchMenu(obj) {
     var el = document.getElementById(obj);
+    if ( el === null ) {
+        console.log('no such element '+el);
+        return;
+    }
     if ( el.style.display != 'none' ) {
         el.style.display = 'none';
     } else {
-        el.style.display = '';
+        el.style.display = 'inline-block';
     }
 }
 

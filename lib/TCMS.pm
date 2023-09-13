@@ -25,7 +25,7 @@ use UUID::Tiny();
 use URI();
 
 #Grab our custom routes
-use lib 'lib';
+use FindBin::libs;
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
 
@@ -40,7 +40,6 @@ use Trog::FileHandler;
 # Troglodyne philosophy - simple as possible
 
 # Import the routes
-
 my $conf  = Trog::Config::get();
 my $data  = Trog::Data->new($conf);
 my %roots = $data->routes();
@@ -227,6 +226,7 @@ sub app {
     $query->{social_meta}  = 1;
     $query->{primary_post} = {};
     $query->{has_query}    = $has_query;
+    $query->{port}         = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
     # Redirecting somewhere naughty not allow
     $query->{to}           = URI->new($query->{to} // '')->path() || $query->{to} if $query->{to};
 

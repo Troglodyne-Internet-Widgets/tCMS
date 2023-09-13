@@ -199,6 +199,16 @@ span#clickme:hover {
  background-color: #333;
  width: 100%;
 }
+.cooltab {
+    box-shadow: 0 0 .5em black;
+    background-color: #333;
+    cursor:pointer;
+    border-color: gray;
+    box-sizing: border-box;
+    border-radius: .5em;
+    border: .25em solid black;
+    color: white;
+}
 .coolcb {
     height: 1.5rem !important;
     width: 1.5rem !important;
@@ -302,6 +312,9 @@ p.posteditortitle {
 }
 #newpostlink {
  color: #990000;
+}
+.hidon {
+    display:none;
 }
 /*Responsive design stuff that used to be in JS, modify as needed*/
 @media (max-width: 1024px) {
@@ -455,4 +468,23 @@ a.tag {
 
 .postData {
     margin-top: .5rem;
+}
+
+#emojis {
+    width: 30vw;
+    height: 30vh;
+    overflow: scroll;
+}
+#emoji-container {
+    border-radius: 1rem;
+    background: #e4e4e4;
+    border-width: 1px;
+    border-style: solid;
+    border-color: grey;
+    text-decoration: none;
+    text-shadow 0 0 2px grey;
+    font-size: 1rem;
+    width: 30vw;
+    text-align: center;
+    padding: .25rem;
 }

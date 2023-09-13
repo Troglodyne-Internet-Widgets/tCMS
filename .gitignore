@@ -11,8 +11,7 @@ nytprof*
 www/nytprof
 pm_to_blib
 pod2htmd.tmp
-fgEmojiPicker.js
-full-emoji-list.json
+list.min.json
 highlight.min.js
 obsidian.min.css
 www/.well_known

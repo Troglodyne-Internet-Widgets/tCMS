@@ -1,0 +1,18 @@
+<div id="emoji-container">
+    <select id="emoji-category" class="mojitab" >
+    : for $categories.keys() -> $category {
+        <option value="<: $category :>"><: $category :></option>
+    : }
+    </select>
+    <div id="emojis">
+    : for $categories.keys() -> $category {
+        <span id="<: $category :>" class="mojipane" style="display:none">
+    :   for $categories[$category] -> $emoji {
+            <span>
+            <: $emoji :>
+            </span>
+    :   }
+        </span>
+    : }
+    </div>
+</div>
