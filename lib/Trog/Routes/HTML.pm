@@ -755,6 +755,9 @@ sub post_save ($query) {
     # Ensure there are no null tags
     @{ $query->{tags} } = grep { defined $_ } @{ $query->{tags} };
 
+    # Posts will always be GET
+    $query->{method} = 'GET';
+
     $data->add($query) and die "Could not add post";
     return see_also($to);
 }
