@@ -412,13 +412,15 @@ One time setup page; should only display to the first user to visit the site whi
 
 sub setup ($query) {
     File::Touch::touch("config/setup");
-    return finish_render(
-        'notconfigured.tx',
-        {
+    Trog::Renderer->render(
+        template => 'notconfigured.tx',
+        data => {
             title       => 'tCMS Requires Setup to Continue...',
-            stylesheets => ['notconfigured.css'],
-            scheme      => $query->{scheme},
-        }
+            stylesheets => _build_themed_styles(['notconfigured.css']),
+            %$query,
+        },
+        contenttype => 'text/html',
+        code => 200,
     );
 }
 
@@ -464,7 +466,7 @@ sub login ($query) {
     # Note to future me -- this user value is overwritten explicitly in server.psgi.
     # If that ever changes, you will die
     $query->{to} //= $query->{route};
-    $query->{to} = '/config' if $query->{to} eq '/login';
+    $query->{to} = '/config' if List::Util::any { $query->{to} eq $_ } qw{/login /logout};
     if ( $query->{user} ) {
         DEBUG("Login by $query->{user}, redirecting to $query->{to}");
         return see_also( $query->{to} );
@@ -515,6 +517,7 @@ sub login ($query) {
             btnmsg      => $btnmsg,
             stylesheets => _build_themed_styles([qw{login.css}]),
             theme_dir   => $Trog::Themes::td,
+            has_users   => $hasusers,
             %$query,
         },
         headers     => $headers,
