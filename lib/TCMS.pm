@@ -73,6 +73,9 @@ sub app {
 
     return _toolong() if length( $env->{REQUEST_URI} ) > 2048;
 
+    my $requestid = eval { UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ) } // "00000000-0000-0000-0000-000000000000";
+    Trog::Log::uuid($requestid);
+
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
     if ( $env->{HTTP_IF_NONE_MATCH} ) {
@@ -146,14 +149,13 @@ sub app {
     $query->{user_acls} = [];
     $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
-    # Log the request.  UUID::Tiny can explode sometimes.
-    my $requestid = eval { UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ) } // "00000000-0000-0000-0000-000000000000";
-    Trog::Log::uuid($requestid);
-    INFO("$env->{REQUEST_METHOD} $path");
-
     # Filter out passed ACLs which are naughty
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
     @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
+
+    # Ensure any short-circuit routes can log the request
+    $query->{method} = $env->{REQUEST_METHOD};
+    $query->{route}  = $path;
 
     # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if ( index( $path, '/templates' ) == 0 || index( $path, '/statics' ) == 0 || $path =~ m/.*(\.psgi|\.pm)$/i ) {
@@ -210,8 +212,8 @@ sub app {
     $query->{deflate} = $deflate;
     $query->{user}    = $active_user;
 
-    return _forbidden($query) if $routes{$path}{auth} && !$active_user;
-    return _notfound($query)   unless exists $routes{$path};
+    return _forbidden($query)  if exists $routes{$path}{auth} && !$active_user;
+    return _notfound($query)   unless $routes{$path} && ref $routes{$path} eq 'HASH' && keys(%{$routes{$path}});
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ( $routes{$path}{method} || '', 'HEAD' );
 
     @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
@@ -234,6 +236,8 @@ sub app {
     {
         no strict 'refs';
         my $output = $routes{$path}{callback}->($query);
+
+        INFO("$env->{REQUEST_METHOD} $output->[0] $path");
 
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
@@ -315,7 +319,7 @@ sub _static ( $path, $start, $streaming, $last_fetch = 0 ) {
 
         return [ $code, [%$headers_parsed], $fh ];
     }
-    return [ 403, [ 'Content-Type' => $Trog::Vars::content_types{plain} ], ["STAY OUT YOU RED MENACE"] ];
+    return [ 403, [ 'Content-Type' => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 
 1;

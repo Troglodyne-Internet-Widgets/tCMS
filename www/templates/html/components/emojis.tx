@@ -1,0 +1,78 @@
+<div id="emoji-container">
+    <select id="emoji-category" class="mojitab" >
+    : for $categories.keys() -> $category {
+        <option value="<: $category :>"><: $category :></option>
+    : }
+    </select>
+    <div id="emojis">
+    : for $categories.keys() -> $category {
+        <span id="<: $category :>" class="mojipane" style="display:none">
+    :   for $categories[$category] -> $emoji {
+            <span class="emoji"><: $emoji :></span>
+    :   }
+        </span>
+    : }
+    </div>
+</div>
+<script>
+class TcmsEmojiPicker {
+    constructor () {
+        this.clearBinds();
+    }
+    binds = [];
+
+    switchEmojiDropDown (e) {
+        var panes = document.querySelectorAll('.mojipane');
+        for (var pane of panes) {
+            pane.style.display="none";
+        }
+
+        var theId = e.target.value;
+        var el = document.getElementById(theId);
+        if ( el === null ) {
+            console.log('no such element '+el);
+            return;
+        }
+        el.style.display = 'inline-block';
+    }
+
+    emitEmoji (e) {
+        var emoji = e.target.innerText;
+        // Emit the emoji to all the bound components.
+        for (var bind of this.binds) {
+            if (!bind) {
+                continue;
+            }
+            bind.value = bind.value+emoji;
+        }
+    }
+
+    addBinds (elements) {
+        for (var element of elements) {
+            this.binds.push(element);
+        }
+    }
+
+    clearBinds () {
+        this.binds = [];
+    }
+};
+
+addEventListener("load", function () {
+    window.emojiPicker = new TcmsEmojiPicker();
+
+    var cat = document.getElementById('emoji-category');
+    cat.addEventListener("change", function (e) { window.emojiPicker.switchEmojiDropDown(e) });
+    const ev = new Event("change");
+    cat.dispatchEvent(ev);
+
+    // Setup the listeners on the emojis themselves
+    var mojis = document.querySelectorAll('.emoji');
+    for (emoji of mojis) {
+        emoji.addEventListener("click", function (e) { window.emojiPicker.emitEmoji(e) } );
+    }
+
+    const emojiEvent = new Event("emojiComponentReady");
+    window.dispatchEvent(emojiEvent);
+});
+</script>

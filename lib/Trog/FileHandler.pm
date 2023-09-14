@@ -34,7 +34,7 @@ sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) 
         $ft = Plack::MIME->mime_type($ext) if $ext;
         $ft ||= $extra_types{$ext}         if exists $extra_types{$ext};
     }
-    $ft ||= $Trog::Vars::content_types{plain};
+    $ft ||= $Trog::Vars::content_types{text};
 
     my $ct      = 'Content-type';
     my @headers = ( $ct => $ft );
@@ -94,7 +94,7 @@ sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) 
         return [ $code, \@headers, [$dfh] ];
     }
 
-    return [ 403, [ $ct => $Trog::Vars::content_types{plain} ], ["STAY OUT YOU RED MENACE"] ];
+    return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 
 sub _range ( $fh, $ranges, $sz, %headers ) {

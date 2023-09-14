@@ -99,7 +99,6 @@ audio, video {
  display: table;
 }
 #submissions {
- width: 20%;
  display: table-cell;
 }
 #stories {
@@ -487,4 +486,22 @@ a.tag {
     width: 30vw;
     text-align: center;
     padding: .25rem;
+    line-height: 125%;
+}
+.emoji {
+    cursor: pointer;
+    font-size: 100%;
+    padding-left:.25rem;
+}
+.emoji:hover {
+    font-size: 120%;
+    text-shadow: 0 0 .3rem gold;
+}
+.posteditor {
+    width: 100%;
+}
+#emoji_picker_modal {
+    position: fixed;
+    top: 3rem;
+    right: 3rem;
 }

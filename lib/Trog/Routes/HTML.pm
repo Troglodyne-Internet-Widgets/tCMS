@@ -3,7 +3,7 @@ package Trog::Routes::HTML;
 use strict;
 use warnings;
 
-no warnings 'experimental';
+no warnings qw{experimental once};
 use feature qw{signatures state};
 
 use Errno qw{ENOENT};
@@ -15,10 +15,11 @@ use HTML::SocialMeta;
 
 use Encode qw{encode_utf8};
 use IO::Compress::Gzip;
-use CSS::Minifier::XS;
 use Path::Tiny();
 use File::Basename qw{dirname};
 use URI();
+
+use FindBin::libs;
 
 use Trog::Log qw{:all};
 use Trog::Utils;
@@ -26,14 +27,12 @@ use Trog::Config;
 use Trog::Auth;
 use Trog::Data;
 use Trog::FileHandler;
+use Trog::Themes;
+use Trog::Renderer;
 
-my $conf         = Trog::Config::get();
-my $template_dir = 'www/templates';
-my $theme_dir    = '';
-$theme_dir = "themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
-my $td = $theme_dir ? "/$theme_dir" : '';
+use Trog::Component::EmojiPicker;
 
-use lib 'www';
+my $conf = Trog::Config::get();
 
 our $landing_page = 'default.tx';
 our $htmltitle    = 'title.tx';
@@ -191,21 +190,19 @@ our %routes = (
         callback => \&Trog::Routes::HTML::posts,
         data     => { format => 'rss' },
     },
-    '/emoji' => {
-        method => 'GET',
-        callback => \&Trog::Routes::HTML::emojis,
-        auth => 1,
-    },
 );
 
 # Grab theme routes
 my $themed = 0;
-if ($theme_dir) {
-    my $theme_mod = "$theme_dir/routes.pm";
+if ($Trog::Themes::theme_dir) {
+    my $theme_mod = "$Trog::Themes::theme_dir/routes.pm";
     if ( -f "www/$theme_mod" ) {
         require $theme_mod;
         @routes{ keys(%Theme::routes) } = values(%Theme::routes);
         $themed = 1;
+    } else {
+        # Use the special "default" theme
+        require Theme;
     }
 }
 
@@ -221,18 +218,19 @@ Most subsequent functions simply pass content to this function.
 =cut
 
 sub index ( $query, $content = '', $i_styles = [] ) {
-    $query->{theme_dir} = $td;
+    $query->{theme_dir} = $Trog::Themes::td;
 
-    $content ||= themed_render( $landing_page, $query );
+    my $to_render = $query->{template} // $landing_page;
+    $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
 
-    my @styles = ('/styles/avatars.css');
-    if ($theme_dir) {
+    my @styles = ('avatars.css');
+    if ($Trog::Themes::theme_dir) {
         if ( $query->{embed} ) {
-            unshift( @styles, _themed_style("embed.css") ) if -f 'www/' . _themed_style("embed.css");
+            unshift( @styles, Trog::Themes::themed_style("embed.css") ) if -f 'www/' . Trog::Themes::themed_style("embed.css");
         }
-        unshift( @styles, _themed_style("screen.css") )    if -f 'www/' . _themed_style("screen.css");
-        unshift( @styles, _themed_style("print.css") )     if -f 'www/' . _themed_style("print.css");
-        unshift( @styles, _themed_style("structure.css") ) if -f 'www/' . _themed_style("structure.css");
+        unshift( @styles, Trog::Themes::themed_style("screen.css") )    if -f 'www/' . Trog::Themes::themed_style("screen.css");
+        unshift( @styles, Trog::Themes::themed_style("print.css") )     if -f 'www/' . Trog::Themes::themed_style("print.css");
+        unshift( @styles, Trog::Themes::themed_style("structure.css") ) if -f 'www/' . Trog::Themes::themed_style("structure.css");
     }
     push( @styles, @$i_styles );
 
@@ -252,15 +250,15 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             %$query,
             search_lang  => $data->lang(),
             search_help  => $data->help(),
-            theme_dir    => $td,
+            theme_dir    => $Trog::Themes::td,
             content      => $content,
             title        => $title,
-            htmltitle    => themed_render( $htmltitle, $query ),
-            midtitle     => themed_render( $midtitle,  $query ),
-            rightbar     => themed_render( $rightbar,  $query ),
-            leftbar      => themed_render( $leftbar,   $query ),
-            topbar       => themed_render( $topbar,    $query ),
-            footbar      => themed_render( $footbar,   $query ),
+            htmltitle    => Trog::Renderer->render( template => $htmltitle, data => $query, component => 1, contenttype => 'text/html' ),
+            midtitle     => Trog::Renderer->render( template => $midtitle,  data => $query, component => 1, contenttype => 'text/html' ),
+            rightbar     => Trog::Renderer->render( template => $rightbar,  data => $query, component => 1, contenttype => 'text/html' ),
+            leftbar      => Trog::Renderer->render( template => $leftbar,   data => $query, component => 1, contenttype => 'text/html' ),
+            topbar       => Trog::Renderer->render( template => $topbar,    data => $query, component => 1, contenttype => 'text/html' ),
+            footbar      => Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' ),
             categories   => \@series,
             stylesheets  => \@styles,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
@@ -287,7 +285,7 @@ sub _build_social_meta ( $query, $title ) {
     $card_type = 'featured_image' if $query->{primary_post} && $query->{primary_post}{is_image};
     $card_type = 'player'         if $query->{primary_post} && $query->{primary_post}{is_video};
 
-    my $image = $Theme::default_image ? "https://$query->{domain}/$td/$Theme::default_image" : '';
+    my $image = $Theme::default_image ? "https://$query->{domain}/$Trog::Themes::td/$Theme::default_image" : '';
     $image = "https://$query->{domain}/$query->{primary_post}{preview}" if $query->{primary_post} && $query->{primary_post}{preview};
     $image = "https://$query->{domain}/$query->{primary_post}{href}"    if $query->{primary_post} && $query->{primary_post}{is_image};
 
@@ -323,7 +321,7 @@ sub _build_social_meta ( $query, $title ) {
     $meta_tags =~ s/content="video"/content="video:other"/mg if $meta_tags;
     $meta_tags .= $extra_tags                                if $extra_tags;
 
-    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $theme_dir && !$meta_tags;
+    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $Trog::Themes::theme_dir && !$meta_tags;
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 
@@ -341,18 +339,9 @@ sub _generic_route ( $rname, $code, $title, $query ) {
     $query->{code} = $code;
     $query->{route} //= $rname;
     $query->{title} = $title;
-    my $styles  = _build_themed_styles("$rname.css");
-    my $content = themed_render(
-        "$rname.tx",
-        {
-            title   => $title,
-            route   => $query->{route},
-            user    => $query->{user},
-            styles  => $styles,
-            deflate => $query->{deflate},
-        }
-    );
-    return Trog::Routes::HTML::index( $query, $content, $styles );
+    $query->{template} = "$rname.tx";
+    INFO("$query->{method} $code $query->{route}");
+    return Trog::Routes::HTML::index( $query );
 }
 
 sub notfound (@args) {
@@ -378,14 +367,17 @@ Redirects to the provided page.
 =cut
 
 sub redirect ($to) {
+    INFO("redirect: $to");
     return [ 302, [ "Location" => $to ], [''] ];
 }
 
 sub redirect_permanent ($to) {
+    INFO("permanent redirect: $to");
     return [ 301, [ "Location" => $to ], [''] ];
 }
 
 sub see_also ($to) {
+    INFO("see also: $to");
     return [ 303, [ "Location" => $to ], [''] ];
 }
 
@@ -401,7 +393,15 @@ Return an appropriate robots.txt
 
 sub robots ($query) {
     state $etag = "robots-" . time();
-    return finish_render( undef, { etag => $etag, contenttype => 'text/plain', body => encode_utf8( themed_render( 'robots.tx', { domain => $query->{domain} } ) ) } );
+    return Trog::Renderer->render(
+        contenttype => 'text/plain',
+        template => 'robots.tx',
+        data => {
+            etag   => $etag,
+            %$query,
+        },
+        code => 200,
+    );
 }
 
 =head2 setup
@@ -416,7 +416,7 @@ sub setup ($query) {
         'notconfigured.tx',
         {
             title       => 'tCMS Requires Setup to Continue...',
-            stylesheets => _build_themed_styles('notconfigured.css'),
+            stylesheets => ['notconfigured.css'],
             scheme      => $query->{scheme},
         }
     );
@@ -432,20 +432,23 @@ Returns a page with a QR code & TOTP uri for pasting into your authenticator app
 sub totp ($query) {
     my $active_user = $query->{user};
     my $domain      = $query->{domain};
+    $query->{failure} //= -1;
     my ( $uri, $qr, $failure, $message ) = Trog::Auth::totp( $active_user, $domain );
 
-    return finish_render(
-        'totp.tx',
+    return Trog::Routes::HTML::index(
         {
             title       => 'Enable TOTP 2-Factor Auth',
-            theme_dir   => $td,
+            theme_dir   => $Trog::Themes::td,
             uri         => $uri,
             qr          => $qr,
             failure     => $failure,
             message     => $message,
-            stylesheets => _build_themed_styles('post.css'),
-            scheme      => $query->{scheme},
-        }
+            template    => 'totp.tx',
+            is_admin    => 1,
+            %$query,
+        },
+        undef,
+        [qw{post.css}],
     );
 }
 
@@ -463,6 +466,7 @@ sub login ($query) {
     $query->{to} //= $query->{route};
     $query->{to} = '/config' if $query->{to} eq '/login';
     if ( $query->{user} ) {
+        DEBUG("Login by $query->{user}, redirecting to $query->{to}");
         return see_also( $query->{to} );
     }
 
@@ -470,7 +474,7 @@ sub login ($query) {
     my $hasusers = -f "config/has_users";
     my $btnmsg   = $hasusers ? "Log In" : "Register";
 
-    my @headers;
+    my $headers;
     my $has_totp = 0;
     if ( $query->{username} && $query->{password} ) {
         if ( !$hasusers ) {
@@ -493,27 +497,29 @@ sub login ($query) {
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
             my $secure = '';
             $secure  = '; Secure' if $query->{scheme} eq 'https';
-            @headers = (
+            $headers = {
                 "Set-Cookie" => "tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
-            );
+            };
             $query->{failed} = 0;
         }
     }
 
     $query->{failed} //= -1;
-    return finish_render(
-        'login.tx',
-        {
+    return Trog::Renderer->render(
+        template => 'login.tx',
+        data => {
             title       => 'tCMS 2 ~ Login',
             to          => $query->{to},
             failure     => int( $query->{failed} ),
             message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
             btnmsg      => $btnmsg,
-            stylesheets => _build_themed_styles('login.css'),
-            theme_dir   => $td,
-            scheme      => $query->{scheme},
+            stylesheets => _build_themed_styles([qw{login.css}]),
+            theme_dir   => $Trog::Themes::td,
+            %$query,
         },
-        @headers
+        headers     => $headers,
+        contenttype => 'text/html',
+        code => 200,
     );
 }
 
@@ -609,18 +615,14 @@ sub config ($query) {
     return see_also('/login')                    unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
-    my $css = _build_themed_styles('config.css');
-    my $js  = _build_themed_scripts('post.js');
-
     $query->{failure} //= -1;
 
-    return finish_render(
-        'config.tx',
+    return Trog::Routes::HTML::index(
         {
             title              => 'Configure tCMS',
-            theme_dir          => $td,
-            stylesheets        => $css,
-            scripts            => $js,
+            theme_dir          => $Trog::Themes::td,
+            stylesheets        => [qw{config.css}],
+            scripts            => [qw{post.js}],
             themes             => _get_themes() || [],
             data_models        => _get_data_models(),
             current_theme      => $conf->param('general.theme')      // '',
@@ -631,7 +633,12 @@ sub config ($query) {
             to                 => '/config',
             scheme             => $query->{scheme},
             embeds             => $conf->param('security.allow_embeds_from') // '',
-        }
+            is_admin           => 1,
+            template           => 'config.tx',
+            %$query,
+        },
+        undef,
+        [qw{config.css}],
     );
 }
 
@@ -734,7 +741,7 @@ sub post_save ($query) {
     #Copy this down since it will be deleted later
     my $acls = $query->{acls};
 
-    $query->{tags} = _coerce_array( $query->{tags} );
+    $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
 
     # Filter bits and bobs
     delete $query->{primary_post};
@@ -832,29 +839,23 @@ Returns the avatars.css.
 
 sub avatars ($query) {
     push( @{ $query->{user_acls} }, 'public' );
-    my $tags = _coerce_array( $query->{tag} );
+    my $tags = Trog::Utils::coerce_array( $query->{tag} );
 
     my @posts = _post_helper( $query, $tags, $query->{user_acls} );
-
-    $query->{body} = encode_utf8(
-        CSS::Minifier::XS::minify(
-            themed_render(
-                'avatars.tx',
-                {
-                    users => \@posts,
-                }
-            )
-        )
-    );
-
-    $query->{contenttype} = "text/css";
     if (@posts) {
-
         # Set the eTag so that we don't get a re-fetch
         $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
     }
 
-    return finish_render( undef, $query );
+    return Trog::Renderer->render(
+        template => 'avatars.tx',
+        data => {
+            users => \@posts,
+            %$query,
+        },
+        code        => 200,
+        contenttype => 'text/css',
+    );
 }
 
 =head2 users
@@ -902,7 +903,7 @@ sub posts ( $query, $direct = 0 ) {
     $query->{route} //= $query->{to};
     my ( undef, undef, $id ) = split( /\//, $query->{route} );
 
-    my $tags = _coerce_array( $query->{tag} );
+    my $tags = Trog::Utils::coerce_array( $query->{tag} );
     $query->{id} = $id if $id && !$query->{in_series};
 
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
@@ -957,15 +958,17 @@ sub posts ( $query, $direct = 0 ) {
     #XXX Is used by the sitemap, maybe just fix there?
     my @post_aliases = map { $_->{local_href} } _get_series();
 
+    # Allow themes to put in custom headers/footers on posts
     my ( $header, $footer );
-    $header = themed_render( 'headers/' . $query->{primary_post}{header}, { theme_dir => $td } ) if $query->{primary_post}{header};
-    $footer = themed_render( 'footers/' . $query->{primary_post}{footer}, { theme_dir => $td } ) if $query->{primary_post}{footer};
+    $header = Trog::Renderer->render( 'headers/' . $query->{primary_post}{header}, { theme_dir => $Trog::Themes::td } ) if $query->{primary_post}{header};
+    $footer = Trog::Renderer->render( 'footers/' . $query->{primary_post}{footer}, { theme_dir => $Trog::Themes::td } ) if $query->{primary_post}{footer};
 
     # List the available headers/footers
-    my $headers = _templates_in_dir( -d $theme_dir ? "www/$theme_dir/templates/headers" : "www/templates/headers" );
-    my $footers = _templates_in_dir( -d $theme_dir ? "www/$theme_dir/templates/footers" : "www/templates/footers" );
+    my $headers = Trog::Themes::templates_in_dir( "headers", 'text/html', 1 );
+    my $footers = Trog::Themes::templates_in_dir( "footers", 'text/html', 1 );
 
-    my $styles = _build_themed_styles('posts.css');
+    #XXX used to be post.css, but probably not good anymore?
+    my $styles = [];
 
     # Build page title if it wasn't set by a wrapping sub
     $query->{title} = "$query->{domain} : $query->{title}" if $query->{title} && $query->{domain};
@@ -1006,7 +1009,7 @@ sub posts ( $query, $direct = 0 ) {
         $_
     } _post_helper( {}, ['series'], $query->{user_acls} );
 
-    my $forms = _templates_in_dir("$template_dir/forms");
+    my $forms = Trog::Themes::templates_in_dir("forms", 'text/html', 1);
 
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form}          : $query->{form};
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
@@ -1034,9 +1037,14 @@ sub posts ( $query, $direct = 0 ) {
 
     $query->{author} = $query->{primary_post}{user} // $posts[0]{user};
 
-    my $content = themed_render(
-        'posts.tx',
-        {
+    my $picker = Trog::Component::EmojiPicker::render();
+    return $picker if ref $picker eq 'ARRAY';
+
+    #XXX the only reason this is needed is due to direct=1
+    #XXX is this even used?
+    my $content = Trog::Renderer->render(
+        template => 'posts.tx',
+        data => {
             acls              => \@acls,
             can_edit          => $is_admin,
             forms             => $forms,
@@ -1068,21 +1076,16 @@ sub posts ( $query, $direct = 0 ) {
             footers           => $footers,
             years             => [ reverse( $oldest_year .. $now_year ) ],
             months            => [ 0 .. 11 ],
-        }
+            emoji_picker      => $picker,
+        },
+        contenttype => 'text/html',
+        component   => 1,
     );
+    # Something exploded
+    return $content if ref $content eq "ARRAY";
+
     return $content if $direct;
     return Trog::Routes::HTML::index( $query, $content, $styles );
-}
-
-sub _templates_in_dir ($path) {
-    my $forms = [];
-    return $forms unless -d $path;
-    opendir( my $dh, $path );
-    while ( my $form = readdir($dh) ) {
-        push( @$forms, $form ) if -f "$path/$form" && $form =~ m/.*\.tx$/;
-    }
-    close($dh);
-    return $forms;
 }
 
 sub _themed_title ($path) {
@@ -1160,6 +1163,7 @@ sub sitemap ($query) {
     }
 
     if ( $query->{xml} ) {
+        DEBUG("RENDER SITEMAP XML");
         my $sm;
         my $xml_date = time();
         my $fmt      = "xml";
@@ -1245,22 +1249,16 @@ sub sitemap ($query) {
     }
 
     @to_map = sort @to_map unless $is_index;
-    my $styles = _build_themed_styles('sitemap.css');
+    my $styles = ['sitemap.css'];
 
     $query->{title} = "$query->{domain} : Sitemap";
-    my $content = themed_render(
-        'sitemap.tx',
-        {
-            title      => "Site Map",
-            to_map     => \@to_map,
-            is_index   => $is_index,
-            route_type => $route_type,
-            route      => $query->{route},
-        }
-    );
+    $query->{template} = 'sitemap.tx',
+    $query->{to_map} = \@to_map,
+    $query->{is_index} = $is_index,
+    $query->{route_type} = $route_type,
     $query->{etag} = $etag;
 
-    return Trog::Routes::HTML::index( $query, $content, $styles );
+    return Trog::Routes::HTML::index( $query, undef, $styles );
 }
 
 sub _rss ( $query, $subtitle, $posts ) {
@@ -1337,123 +1335,53 @@ sub manual ($query) {
 
     #Fix links from Pod::HTML
     $query->{module} =~ s/\.html$//g if $query->{module};
+    $query->{failure} //= -1;
 
     my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
     return notfound($query) unless -f "lib/$infile";
     my $content = capture { Pod::Html::pod2html( qw{--podpath=lib --podroot=.}, "--infile=lib/$infile" ) };
 
-    return finish_render(
-        'manual.tx',
+    return Trog::Routes::HTML::index(
         {
             title       => 'tCMS Manual',
-            theme_dir   => $td,
+            theme_dir   => $Trog::Themes::td,
             content     => $content,
-            stylesheets => _build_themed_styles('post.css'),
-            scheme      => $query->{scheme},
-        }
+            template    => 'manual.tx',
+            is_admin    => 1,
+            %$query,
+        },
+        undef,
+        ['post.css'],
     );
 }
 
-# Deal with Params which may or may not be arrays
-sub _coerce_array ($param) {
-    my $p = $param || [];
-    $p = [$param] if $param && ( ref $param ne 'ARRAY' );
-    return $p;
+# basically a file rewrite rule for themes
+sub icon ($query) {
+    my $path = $query->{route};
+    return Trog::FileHandler::serve("$Trog::Themes::td/img/icon/$path");
 }
 
-sub _build_themed_styles ($style) {
-    my @styles;
-    @styles = ("/styles/$style") if -f "www/styles/$style";
-    my $ts = _themed_style($style);
-    push( @styles, $ts ) if $theme_dir && -f "www/$ts";
+# TODO make statics, abstract gzipped outputting & header handling
+sub rss_style ($query) {
+    $query->{port} = ":$query->{port}" if $query->{port};
+    $query->{rss_css} = Trog::Themes::themed_style("rss.css");
+
+    return Trog::Renderer->render(
+        template    => 'rss-style.tx',
+        contenttype => 'text/xsl',
+        data        => $query,
+        code        => 200,
+    );
+}
+
+sub _build_themed_styles ($styles) {
+    my @styles = map { Trog::Themes::themed_style("$_") } @{Trog::Utils::coerce_array($styles)};
     return \@styles;
 }
 
-sub _build_themed_scripts ($script) {
-    my @scripts = ("/scripts/$script");
-    my $ts      = _themed_script($script);
-    push( @scripts, $ts ) if $theme_dir && -f "www/$ts";
+sub _build_themed_scripts ($scripts) {
+    my @scripts = map { Trog::Themes::themed_script("$_") } @{Trog::Utils::coerce_array($scripts)};
     return \@scripts;
-}
-
-sub _build_themed_templates ($template) {
-    my @templates = ("/templates/$template");
-    my $ts        = _themed_template($template);
-    push( @templates, $ts ) if $theme_dir && -f "www/$ts";
-    return \@templates;
-}
-
-sub themed_render ( $template, $data ) {
-    state $child_processor = Text::Xslate->new(
-
-        # Prevent a recursive descent.  If the renderer is hit again, just do nothing
-        # XXX unfortunately if the post tries to include itself, it will die.
-        function => {
-            embed => sub {
-                my ( $this_id, $style ) = @_;
-                $style //= 'embed';
-
-                # If instead the style is 'content', then we will only show the content w/ no formatting, and no title.
-                return Text::Xslate::mark_raw(
-                    Trog::Routes::HTML::posts(
-                        { route => "/post/$this_id", style => $style },
-                        sub { },
-                        1
-                    )
-                );
-            },
-        }
-    );
-    state $child_renderer = sub {
-        my ( $template_string, $options ) = @_;
-
-        # If it fails to render, it must be something else
-        my $out = eval { $child_processor->render_string( $template_string, $options ) };
-        return $out ? $out : $template_string;
-    };
-
-    state $processor = Text::Xslate->new(
-        path     => $template_dir,
-        function => {
-            render_it => $child_renderer,
-        },
-    );
-
-    state $t_processor = $theme_dir
-      ? Text::Xslate->new(
-        path     => "www/$theme_dir/templates",
-        function => {
-            render_it => $child_renderer,
-        },
-      )
-      : undef;
-
-    return _pick_processor( "templates/$template", $processor, $t_processor )->render( $template, $data );
-}
-
-sub _pick_processor ( $file, $normal, $themed ) {
-    return _template_dir($file) eq $template_dir ? $normal : $themed;
-}
-
-sub _template_dir ($template) {
-    return $theme_dir && -f "www/$theme_dir/$template" ? $theme_dir : $template_dir;
-}
-
-# Pick appropriate dir based on whether theme override exists
-sub _dir_for_resource ($resource) {
-    return $theme_dir && -f "www/$theme_dir/$resource" ? $theme_dir : '';
-}
-
-sub _themed_style ($resource) {
-    return _dir_for_resource("styles/$resource") . "/styles/$resource";
-}
-
-sub _themed_script ($resource) {
-    return _dir_for_resource("scripts/$resource") . "/scripts/$resource";
-}
-
-sub _themed_template ($resource) {
-    return _dir_for_resource("templates/$resource") . "/templates/$resource";
 }
 
 sub finish_render ( $template, $vars, %headers ) {
@@ -1463,6 +1391,10 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{title}       //= 'tCMS';
     $vars->{stylesheets} //= [];
     $vars->{scripts}     //= [];
+
+    # Theme-ize the paths
+    $vars->{stylesheets} = _build_themed_styles($vars->{stylesheets});
+    $vars->{scripts}     = _build_themed_scripts($vars->{scripts});
 
     # Absolute-ize the paths for scripts & stylesheets
     @{ $vars->{stylesheets} } = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{stylesheets} };
@@ -1474,118 +1406,10 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{cachecontrol} //= $Trog::Vars::cache_control{revalidate};
 
     $vars->{code} ||= 200;
+    $vars->{header} = Trog::Renderer->render( template => 'header.tx', data => $vars, contenttype => 'text/html', component => 1 );
+    $vars->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $vars, contenttype => 'text/html', component => 1 );
 
-    my $body = exists $vars->{body} ? $vars->{body} : '';
-    if ($template) {
-        $body = themed_render( 'header.tx', $vars );
-        $body .= themed_render( $template,   $vars );
-        $body .= themed_render( 'footer.tx', $vars );
-        $body = encode_utf8($body);
-    }
-
-    #Disallow framing UNLESS we are in embed mode
-    $headers{"Content-Security-Policy"} = qq{frame-ancestors 'none'} unless $vars->{embed};
-
-    my $ct = 'Content-type';
-    my $cc = 'Cache-control';
-    $headers{$ct}              = $vars->{contenttype} // "text/html";
-    $headers{$cc}              = $vars->{cachecontrol} if $vars->{cachecontrol};
-    $headers{'Vary'}           = 'Accept-Encoding';
-    $headers{"Content-Length"} = length($body);
-    $headers{'X-Content-Type-Options'} = 'nosniff';
-    $headers{'X-Frame-Options'} = 'DENY' unless $vars->{embed};
-    $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
-
-    #CSP. Yet another layer of 'no mixed content' plus whitelisted execution of remote resources.
-    my $scheme = $vars->{scheme} ? "$vars->{scheme}:" : '';
-    my $sites = $conf->param('security.allow_embeds_from') // '';
-    $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' 'unsafe-eval' 'unsafe-inline' $sites";
-    $headers{'Content-Security-Policy'} .= ";object-src 'none'";
-
-    # Force https if we are https
-    $headers{'Strict-Transport-Security'} = 'max-age=63072000';
-
-    # We only set etags when users are logged in, cause we don't use statics
-    $headers{'ETag'} = $vars->{etag} if $vars->{etag} && $vars->{user};
-
-    my $skip_render = !$vars->{route} || $vars->{has_query};
-
-    # Time to stash (and cache!) the bodies for public routes, everything else should be fine
-    save_render( $vars, $body, %headers ) unless $vars->{user} || $skip_render;
-
-    #Return data in the event the caller does not support deflate
-    return [ $vars->{code}, [%headers], [$body] ] unless $vars->{deflate};
-
-    #Compress
-    $headers{"Content-Encoding"} = "gzip";
-    my $dfh;
-    IO::Compress::Gzip::gzip( \$body => \$dfh );
-    print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
-    $headers{"Content-Length"} = length($dfh);
-
-    save_render( { route => "$vars->{route}.z", code => $vars->{code} }, $dfh, %headers ) unless $vars->{user} || $skip_render;
-
-    return [ $vars->{code}, [%headers], [$dfh] ];
-}
-
-sub save_render ( $vars, $body, %headers ) {
-    Path::Tiny::path( "www/statics/" . dirname( $vars->{route} ) )->mkpath;
-    my $file = "www/statics/$vars->{route}";
-
-    my $verb = -f $file ? 'Overwrite' : 'Write';
-    DEBUG("$verb static for $vars->{route}");
-    open( my $fh, '>', $file ) or die "Could not open $file for writing";
-    print $fh "HTTP/1.1 $vars->{code} OK\n";
-    foreach my $h ( keys(%headers) ) {
-        print $fh "$h:$headers{$h}\n" if $headers{$h};
-    }
-    print $fh "\n";
-    print $fh $body;
-    close $fh;
-}
-
-# basically a file rewrite rule for themes
-sub icon ($query) {
-    my $path = $query->{route};
-    return Trog::FileHandler::serve("$td/img/icon/$path");
-}
-
-# TODO make statics, abstract gzipped outputting & header handling
-sub rss_style ($query) {
-    $query->{port} = ":$query->{port}" if $query->{port};
-    $query->{rss_css} = _themed_style("rss.css");
-    my $body = encode_utf8(themed_render('rss-style.tx', $query));
-    my %headers = (
-        'Content-Type'   => 'text/xsl',
-        'Content-Length' => length($body),
-        'Cache-Control'  => $Trog::Vars::cache_control{revalidate},
-        'X-Content-Type-Options' => 'nosniff',
-        'Vary'           => 'Accept-Encoding',
-    );
-    return [ 200, [%headers], [$body]] unless $query->{deflate};
-
-    $headers{"Content-Encoding"} = "gzip";
-    my $dfh;
-    IO::Compress::Gzip::gzip( \$body => \$dfh );
-    print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
-    $headers{"Content-Length"} = length($dfh);
-
-    return [ 200, [%headers], [$dfh] ];
-}
-
-sub emojis ($query) {
-    my $file = 'www/scripts/list.min.json';
-    die "Run make prereq-frontend first" unless -f $file;
-
-    my $raw = File::Slurper::read_binary($file);
-    my $emojis = Cpanel::JSON::XS::decode_json($raw);
-    my %categorized;
-    foreach my $emoji (@{$emojis->{emojis}}) {
-        $categorized{$emoji->{category}} //= [];
-        push(@{$categorized{$emoji->{category}}}, $emoji->{emoji});
-    }
-
-    return finish_render('emojis.tx', { %$query, categories => \%categorized, scripts => _build_themed_scripts('emoji.js') });
+    return Trog::Renderer->render( template => $template, data => $vars, contenttype => 'text/html', code => $vars->{code} );
 }
 
 1;

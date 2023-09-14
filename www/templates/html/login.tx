@@ -1,3 +1,4 @@
+: include "components/header.tx";
 <div id="login">
     : include "jsalert.tx";
     <div>
@@ -28,3 +29,4 @@
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
 </div>
+: include "components/footer.tx";

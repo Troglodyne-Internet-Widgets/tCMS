@@ -1,5 +1,3 @@
-: include "sysbar.tx";
-: include "jsalert.tx";
 <div id="backoffice">
     Use the following URI, or scan the below QR code into your authenticator Application of choice:<br />
     <: $uri :>

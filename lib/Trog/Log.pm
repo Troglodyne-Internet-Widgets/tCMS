@@ -64,6 +64,8 @@ BEGIN {
 sub _log {
     my ( $msg, $level ) = @_;
 
+    $msg //= "No message passed.  This is almost certainly a bug. ";
+
     my $tstamp = strftime "%a %b %d %T %Y", localtime;
     my $uuid   = uuid();
 

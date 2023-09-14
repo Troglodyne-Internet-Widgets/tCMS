@@ -1,4 +1,9 @@
-<div id="topkek">
+<: $header | mark_raw :>
+: if ($is_admin) {
+: include "sysbar.tx";
+: include "jsalert.tx";
+: } else {
+<div id="topkek" <: $is_admin ? "style='display:none'" : "" :>>
     <div id="lefttitle" class="toplel">
         <: $htmltitle | mark_raw :>
     </div>
@@ -22,6 +27,7 @@
     <a href="/login?to=<: $route :>" title="Login" class="topbar usericon" style="font-size: 1.5rem;">🔑</a>
     : }
 </div>
+: }
 <div id="littlemenu">
 </div>
 <div id="kontainer">
@@ -35,6 +41,7 @@
         <: $rightbar | mark_raw :>
     </div>
 </div>
+
 <div id="footbar">
     <: $footbar | mark_raw :>
 </div>
@@ -43,3 +50,4 @@
 <img src="/img/icon/favicon.svg" style="height:2rem;" />
 </a>
 : }
+<: $footer | mark_raw :>

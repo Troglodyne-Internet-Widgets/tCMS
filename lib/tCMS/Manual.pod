@@ -64,3 +64,16 @@ Stylesheets are included after the mainline ones, so that your styles will overr
 
 You will want your theme icon to be in the img/icon directory, make sure it's an SVG named 'favicon.svg'.
 From there, run bin/favicon_mongler.pl $PATH_TO_YOUR_FAVICON_SVG
+
+=head2 Renderers
+
+Each routing module calls out to the appropriate rendering modules (based on content-type) to build output based on the templates either in www/templates or in your theme's templates/ dir.
+This templates dir is further subdivided by content-type.
+
+=head3 Components, Forms, Footers and Headers
+
+Within that we have a components subdirectory for UI components intended to be included within other templates.
+The idea is that these are not dynamic, but can be statically compiled to strings for faster template builds.
+Things like emoji pickers, modals and other stuff you might populate later with an XHR are good candidates for being a component.
+Each component will have it's own module encapsulating it in the Trog::Component namespace.
+They must have a render() method which returns a string processed by Trog::Renderer->render().

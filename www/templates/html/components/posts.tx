@@ -1,21 +1,32 @@
 : if ( $can_edit ) {
     <script type="text/javascript" src="/scripts/post.js"></script>
+    <div id="emoji_picker_modal" class="modal" style="display:none;">
+    <: $emoji_picker | mark_raw :>
+    </div>
     : if (!$direct) {
         : if ($to) {
             : include "jsalert.tx";
         : }
-        <script type="text/javascript" src="/scripts/fgEmojiPicker.js"></script>
         <script type="text/javascript">
-        new FgEmojiPicker({
-            trigger: ['button.emojiPicker'],
-            position: ['bottom'],
-            dir: `/scripts/`,
-            preFetch: true,
-            emit(obj, triggerElement) {
-                const emoji = obj.emoji;
-                document.querySelector('textarea').value += emoji;
-            }
-        });
+            addEventListener("load", function () {
+                var buttons = document.querySelectorAll('.emojiPicker');
+                for (button of buttons) {
+                    // Make the emoji picker appear.
+                    button.addEventListener('click', function (e) {
+                        switchMenu('emoji_picker_modal');
+                    });
+                }
+                var mojis = document.querySelectorAll('.emoji');
+                for (emoji of mojis) {
+                    emoji.addEventListener('click', function (e) {
+                        switchMenu('emoji_picker_modal');
+                    });
+                }
+
+            });
+            addEventListener("emojiComponentReady", function () {
+                emojiPicker.addBinds(document.querySelectorAll('textarea.cooltext'));
+            });
         </script>
     : }
     <div class="postedit">
