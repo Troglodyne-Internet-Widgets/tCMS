@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+rm config/auth.db
+rm config/has_users
+rm config/main.cfg
+rm config/setup
+rm data/posts.db
+rm www/assets/*
+rm data/files/*
