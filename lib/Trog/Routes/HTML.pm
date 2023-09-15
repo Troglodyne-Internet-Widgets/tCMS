@@ -1325,15 +1325,16 @@ sub _rss ( $query, $subtitle, $posts ) {
         }
     }
 
-    return finish_render(
-        undef,
-        {
-            etag => $query->{etag},
-            contenttype => "application/xml",
-            body => encode_utf8( $rss->as_string ),
+    return Trog::Renderer->render(
+        template => 'raw.tx', 
+        data => {
+            etag   => $query->{etag},
+            body   => encode_utf8( $rss->as_string ),
             scheme => $query->{scheme},
         },
-        'Content-Disposition' => 'inline; filename="rss.xml"',
+        headers     => { 'Content-Disposition' => 'inline; filename="rss.xml"' },
+        contenttype => "text/xml",
+        code        => 200,
     );
 }
 
@@ -1395,7 +1396,12 @@ sub icon ($query) {
 # TODO make statics, abstract gzipped outputting & header handling
 sub rss_style ($query) {
     $query->{port} = ":$query->{port}" if $query->{port};
-    $query->{rss_css} = Trog::Themes::themed_style("rss.css");
+    $query->{title} = qq{<xsl:value-of select="rss/channel/title"/>};
+    $query->{no_doctype} = 1;
+
+    # Due to this being html rather than XML, we can't use an include directive.
+    $query->{header} = Trog::Renderer->render( template => 'header.tx', data => $query, contenttype => 'text/html', component => 1 );
+    $query->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $query, contenttype => 'text/html', component => 1 );
 
     return Trog::Renderer->render(
         template    => 'rss-style.tx',
@@ -1403,6 +1409,7 @@ sub rss_style ($query) {
         data        => $query,
         code        => 200,
     );
+
 }
 
 sub _build_themed_styles ($styles) {
@@ -1442,7 +1449,7 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{cachecontrol} //= $Trog::Vars::cache_control{revalidate};
 
     $vars->{code} ||= 200;
-    $vars->{theme_dir} =~ s/^\/www\///;
+    $vars->{theme_dir} =~ s/^\/www\/// if $vars->{theme_dir};
     $vars->{header} = Trog::Renderer->render( template => 'header.tx', data => $vars, contenttype => 'text/html', component => 1 );
     $vars->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $vars, contenttype => 'text/html', component => 1 );
 

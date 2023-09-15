@@ -1,15 +1,17 @@
+: if (!$no_doctype) {
 <!doctype html>
+: }
 <html dir="auto" lang="<: $lang :>">
     <head>
-        <title><: $title :></title>
+        <title><: $title | mark_raw :></title>
         <meta charset="utf-8" />
 
-        <link rel="icon" type="image/svg+xml" href="<: $theme_dir :>/img/icon/favicon.svg">
-        <link rel="apple-touch-icon" type="image/png" sizes="167x167" href="<: $theme_dir :>/img/icon/favicon-167.png">
-        <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="<: $theme_dir :>/img/icon/favicon-180.png">
-        <link rel="icon" type="image/png" sizes="48x48" href="<: $theme_dir :>/img/icon/favicon-48.png">
-        <link rel="icon" type="image/png" sizes="192x192" href="<: $theme_dir :>/img/icon/favicon-192.png">
-        <link rel="manifest" href="/api/webmanifest">
+        <link rel="icon" type="image/svg+xml" href="<: $theme_dir :>/img/icon/favicon.svg" />
+        <link rel="apple-touch-icon" type="image/png" sizes="167x167" href="<: $theme_dir :>/img/icon/favicon-167.png" />
+        <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="<: $theme_dir :>/img/icon/favicon-180.png" />
+        <link rel="icon" type="image/png" sizes="48x48" href="<: $theme_dir :>/img/icon/favicon-48.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="<: $theme_dir :>/img/icon/favicon-192.png" />
+        <link rel="manifest" href="/api/webmanifest" />
 
         : if ($author) {
         <meta name="author" content="<: $author :>"/>
@@ -25,7 +27,7 @@
         <: $meta_tags | mark_raw :>
         : }
 
-        <meta name="viewport" content="width=device-width">
+        <meta name="viewport" content="width=device-width" />
         <link rel="preload" type="text/css" href="/styles/structure.css" as="style" />
         <link rel="stylesheet" type="text/css" href="/styles/structure.css" />
         <link rel="stylesheet" type="text/css" href="/styles/screen.css" media="screen" />
