@@ -41,6 +41,9 @@
         : for $stylesheets -> $stylesheet {
         <link rel="stylesheet" type="text/css" href="<: $stylesheet :>" media="screen" />
         : }
+        : for $print_styles -> $print_style {
+        <link rel="stylesheet" type="text/css" href="<: $print_style :>" media="print" />
+        : }
         : for $scripts -> $script {
         <script type="text/javascript" src="<: $script :>"></script>
         : }

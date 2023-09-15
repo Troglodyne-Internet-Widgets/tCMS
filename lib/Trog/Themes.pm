@@ -39,6 +39,10 @@ sub _dir_for_resource ($resource) {
     return $theme_dir && -f "www/$theme_dir/$resource" ? $theme_dir : '';
 }
 
+sub themed ($resource) {
+    return _dir_for_resource("$resource") . "/$resource";
+}
+
 sub themed_style ($resource) {
     return _dir_for_resource("styles/$resource") . "/styles/$resource";
 }

@@ -225,15 +225,10 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
 
     my @styles = ('avatars.css');
-    if ($Trog::Themes::theme_dir) {
-        if ( $query->{embed} ) {
-            unshift( @styles, Trog::Themes::themed_style("embed.css") ) if -f 'www/' . Trog::Themes::themed_style("embed.css");
-        }
-        unshift( @styles, Trog::Themes::themed_style("screen.css") )    if -f 'www/' . Trog::Themes::themed_style("screen.css");
-        unshift( @styles, Trog::Themes::themed_style("print.css") )     if -f 'www/' . Trog::Themes::themed_style("print.css");
-        unshift( @styles, Trog::Themes::themed_style("structure.css") ) if -f 'www/' . Trog::Themes::themed_style("structure.css");
-    }
+    unshift( @styles, qw{embed.css}) if $query->{embed};
+    unshift( @styles, qw{screen.css structure.css});
     push( @styles, @$i_styles );
+    my @p_styles = qw{print.css};
 
     #TODO allow theming of print css
     my @series = _get_series(0);
@@ -262,6 +257,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             footbar      => Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' ),
             categories   => \@series,
             stylesheets  => \@styles,
+            print_styles => \@p_styles,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
             embed        => $query->{embed}     ? 1 : 0,
             embed_video  => $query->{primary_post}{is_video},
@@ -1365,7 +1361,7 @@ sub manual ($query) {
 # basically a file rewrite rule for themes
 sub icon ($query) {
     my $path = $query->{route};
-    return Trog::FileHandler::serve("$Trog::Themes::td/img/icon/$path");
+    return Trog::FileHandler::serve(Trog::Themes::themed("img/icon/$path"));
 }
 
 # TODO make statics, abstract gzipped outputting & header handling
@@ -1400,12 +1396,16 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{scripts}     //= [];
 
     # Theme-ize the paths
-    $vars->{stylesheets} = _build_themed_styles($vars->{stylesheets});
-    $vars->{scripts}     = _build_themed_scripts($vars->{scripts});
+    $vars->{stylesheets}  = [grep { -f "www/$_" } @{_build_themed_styles($vars->{stylesheets})}];
+    $vars->{print_styles} = [grep { -f "www/$_" } @{_build_themed_styles($vars->{p_styles})}];
+    $vars->{scripts}      = [grep { -f "www/$_" } @{_build_themed_scripts($vars->{scripts})}];
+
+    print Dumper($vars->{stylesheets});
 
     # Absolute-ize the paths for scripts & stylesheets
-    @{ $vars->{stylesheets} } = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{stylesheets} };
-    @{ $vars->{scripts} }     = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{scripts} };
+    @{ $vars->{stylesheets} }  = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{stylesheets} };
+    @{ $vars->{print_styles} } = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{print_styles} };
+    @{ $vars->{scripts} }      = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{scripts} };
 
     # TODO Smash together the stylesheets and minify
 
