@@ -1333,6 +1333,7 @@ sub _rss ( $query, $subtitle, $posts ) {
             scheme => $query->{scheme},
         },
         headers     => { 'Content-Disposition' => 'inline; filename="rss.xml"' },
+        #XXX if you do the "proper" content-type of application/rss+xml, browsers download rather than display.
         contenttype => "text/xml",
         code        => 200,
     );

@@ -27,7 +27,8 @@ sub render (%options) {
     die "Templated renders require a template to be passed" unless $options{template};
 
     my $template_dir = Trog::Themes::template_dir($options{template}, $options{contenttype}, $options{component});
-    die "Templated renders require an existing template to be passed, got $template_dir/$options{template}" unless -f "$template_dir/$options{template}";
+    my $t = "$template_dir/$options{template}";
+    die "Templated renders require an existing template to be passed, got $template_dir/$options{template}" unless -f $t || -s $t;
 
     #TODO make this work with posts all the time
     $options{child_processor} //= Text::Xslate->new( path => $template_dir );

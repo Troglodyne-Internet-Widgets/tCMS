@@ -32,6 +32,7 @@ our %renderers = (
     blob  => \&Trog::Renderer::blob::render,
     xsl   => \&Trog::Renderer::text::render,
     xml   => \&Trog::Renderer::text::render,
+    rss   => \&Trog::Renderer::html::render,
     css   => \&Trog::Renderer::css::render,
 );
 

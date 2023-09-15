@@ -15,6 +15,7 @@ our %content_types = (
     xml   => "text/xml",
     xsl   => "text/xsl",
     css   => "text/css",
+    rss   => "application/rss+xml"
 );
 
 our %byct = reverse %Trog::Vars::content_types;
