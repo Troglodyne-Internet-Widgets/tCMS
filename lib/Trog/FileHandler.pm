@@ -12,6 +12,7 @@ use Plack::MIME;
 use IO::Compress::Gzip;
 use Time::HiRes qw{tv_interval};
 
+use Trog::Log qw{:all};
 use Trog::Vars;
 
 #TODO consider integrating libfile
@@ -87,6 +88,8 @@ sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) 
         print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
         push( @headers, "Content-Length" => length($dfh) );
 
+        INFO("GET 200 $path");
+
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
         push( @headers, 'Server-Timing' => "file;dur=$tot" );
@@ -94,6 +97,7 @@ sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) 
         return [ $code, \@headers, [$dfh] ];
     }
 
+    INFO("GET 403 $path");
     return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 
