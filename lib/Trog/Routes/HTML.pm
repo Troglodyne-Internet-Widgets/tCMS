@@ -979,8 +979,20 @@ sub posts ( $query, $direct = 0 ) {
 
     # Allow themes to put in custom headers/footers on posts
     my ( $header, $footer );
-    $header = Trog::Renderer->render( 'headers/' . $query->{primary_post}{header}, { theme_dir => $Trog::Themes::td } ) if $query->{primary_post}{header};
-    $footer = Trog::Renderer->render( 'footers/' . $query->{primary_post}{footer}, { theme_dir => $Trog::Themes::td } ) if $query->{primary_post}{footer};
+    $header = Trog::Renderer->render(
+        template    => 'headers/' . $query->{primary_post}{header},
+        data        => { theme_dir => $Trog::Themes::td, %$query },
+        component   => 1,
+        contenttype => 'text/html',
+    ) if $query->{primary_post}{header};
+    return $header if ref $header eq 'ARRAY';
+    $footer = Trog::Renderer->render(
+        template    => 'footers/' . $query->{primary_post}{footer},
+        data        => { theme_dir => $Trog::Themes::td, %$query },
+        component   => 1,
+        contenttype => 'text/html',
+    ) if $query->{primary_post}{footer};
+    return $header if ref $footer eq 'ARRAY';
 
     # List the available headers/footers
     my $headers = Trog::Themes::templates_in_dir( "headers", 'text/html', 1 );
