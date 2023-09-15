@@ -196,8 +196,8 @@ our %routes = (
 my $themed = 0;
 if ($Trog::Themes::theme_dir) {
     my $theme_mod = "$Trog::Themes::theme_dir/routes.pm";
-    if ( -f "www/$theme_mod" ) {
-        use lib 'www';
+    if ( -f $theme_mod ) {
+        use lib '.';
         require $theme_mod;
         @routes{ keys(%Theme::routes) } = values(%Theme::routes);
         $themed = 1;
@@ -224,7 +224,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     my $to_render = $query->{template} // $landing_page;
     $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
 
-    my @styles = ('avatars.css');
+    my @styles;
     unshift( @styles, qw{embed.css}) if $query->{embed};
     unshift( @styles, qw{screen.css structure.css});
     push( @styles, @$i_styles );
@@ -240,6 +240,22 @@ sub index ( $query, $content = '', $i_styles = [] ) {
 
     #Do embed content
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
+    $query->{theme_dir} =~ s/^\/www\///;
+
+    # TO support theming we have to do things like this rather than with an include directive in the templates.
+    my $htmltitle = Trog::Renderer->render( template => $htmltitle, data => $query, component => 1, contenttype => 'text/html' );
+    return $htmltitle if ref $htmltitle eq 'ARRAY';
+    my $midtitle  = Trog::Renderer->render( template => $midtitle,  data => $query, component => 1, contenttype => 'text/html' );
+    return $midtitle if ref $htmltitle eq 'ARRAY';
+    my $rightbar  = Trog::Renderer->render( template => $rightbar,  data => $query, component => 1, contenttype => 'text/html' );
+    return $rightbar if ref $htmltitle eq 'ARRAY';
+    my $leftbar   = Trog::Renderer->render( template => $leftbar,   data => $query, component => 1, contenttype => 'text/html' );
+    return $leftbar if ref $htmltitle eq 'ARRAY';
+    my $topbar    = Trog::Renderer->render( template => $topbar,    data => $query, component => 1, contenttype => 'text/html' );
+    return $topbar if ref $htmltitle eq 'ARRAY';
+    my $footbar   = Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' );
+    return $footbar if ref $htmltitle eq 'ARRAY';
+
     return finish_render(
         $tmpl,
         {
@@ -249,12 +265,12 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             theme_dir    => $Trog::Themes::td,
             content      => $content,
             title        => $title,
-            htmltitle    => Trog::Renderer->render( template => $htmltitle, data => $query, component => 1, contenttype => 'text/html' ),
-            midtitle     => Trog::Renderer->render( template => $midtitle,  data => $query, component => 1, contenttype => 'text/html' ),
-            rightbar     => Trog::Renderer->render( template => $rightbar,  data => $query, component => 1, contenttype => 'text/html' ),
-            leftbar      => Trog::Renderer->render( template => $leftbar,   data => $query, component => 1, contenttype => 'text/html' ),
-            topbar       => Trog::Renderer->render( template => $topbar,    data => $query, component => 1, contenttype => 'text/html' ),
-            footbar      => Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' ),
+            htmltitle    => $htmltitle,
+            midtitle     => $midtitle,
+            rightbar     => $rightbar,
+            leftbar      => $leftbar,
+            topbar       => $topbar,
+            footbar      => $footbar,
             categories   => \@series,
             stylesheets  => \@styles,
             print_styles => \@p_styles,
@@ -1396,11 +1412,12 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{scripts}     //= [];
 
     # Theme-ize the paths
-    $vars->{stylesheets}  = [grep { -f "www/$_" } @{_build_themed_styles($vars->{stylesheets})}];
-    $vars->{print_styles} = [grep { -f "www/$_" } @{_build_themed_styles($vars->{p_styles})}];
-    $vars->{scripts}      = [grep { -f "www/$_" } @{_build_themed_scripts($vars->{scripts})}];
+    $vars->{stylesheets}  = [map { s/^www\///; $_ } grep { -f $_ } @{_build_themed_styles($vars->{stylesheets})}];
+    $vars->{print_styles} = [map { s/^www\///; $_ } grep { -f $_ } @{_build_themed_styles($vars->{p_styles})}];
+    $vars->{scripts}      = [map { s/^www\///; $_ } grep { -f $_ } @{_build_themed_scripts($vars->{scripts})}];
 
-    print Dumper($vars->{stylesheets});
+    # Add in avatars.css, it's special
+    push(@{$vars->{stylesheets}},"/styles/avatars.css");
 
     # Absolute-ize the paths for scripts & stylesheets
     @{ $vars->{stylesheets} }  = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{stylesheets} };
@@ -1413,6 +1430,7 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{cachecontrol} //= $Trog::Vars::cache_control{revalidate};
 
     $vars->{code} ||= 200;
+    $vars->{theme_dir} =~ s/^\/www\///;
     $vars->{header} = Trog::Renderer->render( template => 'header.tx', data => $vars, contenttype => 'text/html', component => 1 );
     $vars->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $vars, contenttype => 'text/html', component => 1 );
 

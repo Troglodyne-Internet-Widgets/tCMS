@@ -18,25 +18,25 @@ Utility functions for getting themed paths.
 my $conf         = Trog::Config::get();
 our $template_dir = 'www/templates';
 our $theme_dir    = '';
-$theme_dir = "themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
+$theme_dir = "www/themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
 our $td = $theme_dir ? "/$theme_dir" : '';
 
 sub template_dir ($template, $content_type, $is_component=0, $is_dir=0) {
     my $ct = $Trog::Vars::byct{$content_type};
-    my ($mtd, $mtemp) = ("$theme_dir/$ct", "$template_dir/$ct");
+    my ($mtd, $mtemp) = ("$theme_dir/templates/$ct", "$template_dir/$ct");
     if ($is_component) {
         $mtd   .= "/components";
         $mtemp .= "/components";
     }
     if ($is_dir) {
-        return $mtd && -d "www/$mtd/$template" ? $mtd : $mtemp;
+        return $mtd && -d "$mtd/$template" ? $mtd : $mtemp;
     }
-    return $mtd && -f "www/$mtd/$template" ? $mtd : $mtemp;
+    return $mtd && -f "$mtd/$template" ? $mtd : $mtemp;
 }
 
 # Pick appropriate dir based on whether theme override exists
 sub _dir_for_resource ($resource) {
-    return $theme_dir && -f "www/$theme_dir/$resource" ? $theme_dir : '';
+    return $theme_dir && -f "$theme_dir/$resource" ? $theme_dir : '';
 }
 
 sub themed ($resource) {
