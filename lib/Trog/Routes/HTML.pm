@@ -197,6 +197,7 @@ my $themed = 0;
 if ($Trog::Themes::theme_dir) {
     my $theme_mod = "$Trog::Themes::theme_dir/routes.pm";
     if ( -f "www/$theme_mod" ) {
+        use lib 'www';
         require $theme_mod;
         @routes{ keys(%Theme::routes) } = values(%Theme::routes);
         $themed = 1;
