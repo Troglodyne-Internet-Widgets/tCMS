@@ -55,13 +55,14 @@ sub render ($class, %options) {
     return _yeet($renderer, "Template data not provided", %options) unless $options{data};
     return _yeet($renderer, "Template not provided", %options) unless $options{template};
 
-    my $skip_save = !$options{data}{route} || $options{data}{has_query} || $options{data}{user} || ($options{code} // 0) != 200 || Trog::Log::is_debug();
+    #TODO future - save the components too and then compose them?
+    my $skip_save = !$options{component} || !$options{data}{route} || $options{data}{has_query} || $options{data}{user} || ($options{code} // 0) != 200 || Trog::Log::is_debug();
 
     my $ret;
     local $@;
     eval {
         $ret = $renderer->(%options);
-        save_render( $options{data}, $ret->[2], $ret->[1]) unless $skip_save;
+        save_render( $options{data}, $ret->[2], %{$ret->[1]}) unless $skip_save;
         1;
     } or do {
         return _yeet($renderer, $@, %options);

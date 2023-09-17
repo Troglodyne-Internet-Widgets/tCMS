@@ -60,6 +60,7 @@ WriteMakefile(
     'MIME::Base32::XS'          => '0',
     'URI'                       => '0',
     'FindBin::libs'             => '0',
+    'Carp::Always'              => '0',
   },
   test => {TESTS => 't/*.t'}
 );
