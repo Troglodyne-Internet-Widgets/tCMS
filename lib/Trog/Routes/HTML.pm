@@ -185,11 +185,6 @@ our %routes = (
         method => 'GET',
         callback => \&Trog::Routes::HTML::rss_style,
     },
-    '/rss.xml' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::posts,
-        data     => { format => 'rss' },
-    },
 );
 
 # Grab theme routes
@@ -915,8 +910,6 @@ sub posts ( $query, $direct = 0 ) {
 
     # Allow rss.xml to tell what posts to loop over
     my $fmt = $query->{format} || '';
-    my $for = URI->new($query->{for} || '')->path() || $query->{route};
-    $query->{route} = $for if $fmt eq 'rss';
 
     #Process the input URI to capture tag/id
     $query->{route} //= $query->{to};
@@ -1293,13 +1286,14 @@ sub sitemap ($query) {
 }
 
 sub _rss ( $query, $subtitle, $posts ) {
+
     require XML::RSS;
     my $rss = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
     my $now = DateTime->from_epoch( epoch => time() );
     $rss->channel(
         title         => "$query->{domain}",
         subtitle      => $subtitle,
-        link          => "http://$query->{domain}/$query->{route}.rss.xml",
+        link          => "http://$query->{domain}/$query->{route}?format=xml",
         language      => 'en',                                                   #TODO localization
         description   => "$query->{domain} : $query->{route}",
         pubDate       => $now,
@@ -1326,7 +1320,7 @@ sub _rss ( $query, $subtitle, $posts ) {
     }
 
     return Trog::Renderer->render(
-        template => 'raw.tx', 
+        template => 'raw.tx',
         data => {
             etag   => $query->{etag},
             body   => encode_utf8( $rss->as_string ),

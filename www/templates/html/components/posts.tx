@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function(){
 </script>
 <span class="title">
 : if ( $rss ) {
-<a title="RSS" class="rss" href="rss.xml?for=<: $route :>"></a>
+<a title="RSS" class="rss" href="?format=rss"></a>
 <: $category :>:
 : }
 </span>
