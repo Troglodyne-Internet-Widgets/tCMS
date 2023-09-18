@@ -6,6 +6,7 @@
         <title><: $title | mark_raw :></title>
         <meta charset="utf-8" />
 
+        <link rel="alternate" title="rss" type="application/rss+xml" href="<: $route :?format=rss" />
         <link rel="icon" type="image/svg+xml" href="<: $theme_dir :>/img/icon/favicon.svg" />
         <link rel="apple-touch-icon" type="image/png" sizes="167x167" href="<: $theme_dir :>/img/icon/favicon-167.png" />
         <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="<: $theme_dir :>/img/icon/favicon-180.png" />

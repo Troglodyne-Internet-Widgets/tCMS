@@ -1290,10 +1290,11 @@ sub _rss ( $query, $subtitle, $posts ) {
     require XML::RSS;
     my $rss = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
     my $now = DateTime->from_epoch( epoch => time() );
+    my $port = $query->{port} ? ":$query->{port}" : '';
     $rss->channel(
         title         => "$query->{domain}",
         subtitle      => $subtitle,
-        link          => "http://$query->{domain}/$query->{route}?format=xml",
+        link          => "http://$query->{domain}$port/$query->{route}?format=xml",
         language      => 'en',                                                   #TODO localization
         description   => "$query->{domain} : $query->{route}",
         pubDate       => $now,
@@ -1303,18 +1304,18 @@ sub _rss ( $query, $subtitle, $posts ) {
     $rss->image(
         title       => $query->{domain},
         url         => "/favicon.ico",
-        link        => "http://$query->{domain}",
+        link        => "http://$query->{domain}$port",
         width       => 32,
         height      => 32,
         description => "$query->{domain} favicon",
     );
 
     foreach my $post (@$posts) {
-        my $url = "http://$query->{domain}$post->{local_href}";
+        my $url = "http://$query->{domain}$port$post->{local_href}";
         _post2rss( $rss, $url, $post );
         next unless ref $post->{aliases} eq 'ARRAY';
         foreach my $alias ( @{ $post->{aliases} } ) {
-            $url = "http://$query->{domain}$alias";
+            $url = "http://$query->{domain}$port$alias";
             _post2rss( $rss, $url, $post );
         }
     }
