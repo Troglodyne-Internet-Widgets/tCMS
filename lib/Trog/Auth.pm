@@ -93,6 +93,10 @@ sub totp ( $user, $domain ) {
     if ( !$secret ) {
         # Liquidate the QR code if it's already there
         unlink "totp/$qr" if -f "totp/$qr";
+
+        # Generate a new secret
+        $totp->valid_secret();
+
         $secret = $totp->secret();
         $dbh->do( "UPDATE user SET totp_secret=? WHERE name=?", undef, $secret, $user ) or return ( undef, undef, 1, "Failed to store TOTP secret." );
     }
