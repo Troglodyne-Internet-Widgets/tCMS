@@ -1,0 +1,23 @@
+{
+   "applications" : {
+      "tcms" : {
+         "group" : "__USER__",
+         "processes" : 5,
+         "script" : "__WD__/www/server.psgi",
+         "type" : "perl",
+         "user" : "__USER__",
+         "working_directory" : "__WD__"
+      }
+   },
+   "listeners" : {
+      "*:5001" : {
+         "pass" : "applications/tcms"
+      }
+   },
+   "settings" : {
+      "http" : {
+         "body_read_timeout" : 60,
+         "max_body_size" : 85899345920
+      }
+   }
+}
