@@ -2,11 +2,20 @@
    "applications" : {
       "tcms" : {
          "group" : "__USER__",
-         "processes" : 5,
          "script" : "__WD__/www/server.psgi",
          "type" : "perl",
          "user" : "__USER__",
-         "working_directory" : "__WD__"
+         "working_directory" : "__WD__",
+         "environment": {
+            "PSGI_ENGINE":"nginx-unit"
+         },
+         "limits": {
+            "requests": 1000
+         "processes": {
+            "spare": 5,
+            "max": 100,
+            "idle_timeout": 30
+         }
       }
    },
    "listeners" : {

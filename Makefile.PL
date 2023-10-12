@@ -61,6 +61,7 @@ WriteMakefile(
     'URI'                       => '0',
     'FindBin::libs'             => '0',
     'Carp::Always'              => '0',
+    'HTTP::Tiny::UNIX'          => '0',
   },
   test => {TESTS => 't/*.t'}
 );
