@@ -300,11 +300,14 @@ sub _build_social_meta ( $query, $title ) {
     my $primary_route = "https://$query->{domain}/$query->{route}";
     $primary_route =~ s/[\/]+/\//g;
 
-    my $display_name = $Theme::display_name // 'Another tCMS Site';
+    my $display_name = $Theme::display_name || 'Another tCMS Site';
 
     my $extra_tags = '';
 
     my %sopts = (
+        site        => '',
+        image       => '',
+        fb_app_id   => '',
         site_name   => $display_name,
         app_name    => $display_name,
         title       => $title,
