@@ -69,9 +69,10 @@ sub render (%options) {
     return [ $code, [%headers], [$dfh] ];
 }
 
-sub headers ($query,$body) {
-    my $uh = ref $query->{headers} eq 'HASH' ? $query->{headers} : {};
-    my $ct = $query->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$query->{contenttype};";
+sub headers ($options,$body) {
+    my $query = $options->{data};
+    my $uh = ref $options->{headers} eq 'HASH' ? $options->{headers} : {};
+    my $ct = $options->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$options->{contenttype};";
     my %headers = (
         'Content-Type'   => $ct,
         'Content-Length' => length($body),
@@ -82,7 +83,8 @@ sub headers ($query,$body) {
     );
 
     #Disallow framing UNLESS we are in embed mode
-    $headers{"Content-Security-Policy"} = qq{frame-ancestors 'none'} unless $query->{embed};
+    my $ancestor = $query->{domain} || 'none';
+    $headers{"Content-Security-Policy"} = qq{frame-ancestors '$ancestor'} unless $query->{embed};
 
     $headers{'X-Frame-Options'} = 'DENY' unless $query->{embed};
     $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
