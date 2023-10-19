@@ -1,3 +1,4 @@
+<: $header | mark_raw :>
 :if ($embed_video) {
 <style>
 .divider, .blogtitles, #postData {
@@ -17,3 +18,5 @@ video {
 : if (!$embed_video) {
 </div>
 : }
+<: $footer | mark_raw :>
+

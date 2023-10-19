@@ -1,8 +1,8 @@
-<br />
+<: if ( !$embed ) { :><br /><: } :>
 : if ( !!$post.addpost ) {
-    <a style="cursor:pointer" onclick="switchMenu('submissions')">[Add Post]</a><hr />
+    <a style="cursor:pointer" <: if ( $embed ) { :>class="hidon"<: } :> onclick="switchMenu('submissions')">[Add Post]</a><: if ( !$embed ) { :><hr /><: } :>
     <div id="submissions" style="display:none;" class="posteditor">
 : } else {
-    <a style="display: inline-block;cursor:pointer;" onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
+    <a <: if ( $embed ) { :>class="hidon"<: } else { :>style="display: inline-block;cursor:pointer;"<: } :> onclick="switchMenu('<: $post.id :>-<: $post.version :>');">[Edit]</a>
     <div id="<: $post.id :>-<: $post.version :>" style="display:none;" class="posteditor">
-:}
+: }

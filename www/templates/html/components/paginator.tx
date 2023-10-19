@@ -1,4 +1,4 @@
-:if ( $pages ) {
+:if ( $pages && !$embed ) {
 <div id="paginator">
 : } else {
 <div id="paginator" class="disabled">

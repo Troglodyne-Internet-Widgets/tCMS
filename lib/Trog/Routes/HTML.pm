@@ -1104,6 +1104,7 @@ sub posts ( $query, $direct = 0 ) {
             years             => [ reverse( $oldest_year .. $now_year ) ],
             months            => [ 0 .. 11 ],
             emoji_picker      => $picker,
+            embed             => $query->{embed},
         },
         contenttype => 'text/html',
         component   => 1,
