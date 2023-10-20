@@ -13,6 +13,7 @@
     <span title="Menu" id="clickme" onclick="this.focus()">🌐</span>
     <div id="righttitle" class="toplel">
         <: $categorybar | mark_raw :>
+        <span id="common-search">
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <: $topbar | mark_raw :>
         <form action="<: $route :>" method="GET" class="ib">
@@ -20,6 +21,7 @@
             <input class="coolbutton topform" type="submit" value="🔎"></input>
             <a class="topbar" target="_blank" href="<: $search_help :>" title="<: $search_lang :>">❓</a>
         </form>
+        </span>
     </div>
     : if ($user) {
     <a href="/config" title="Preferences" class="topbar topbarimg usericon <: $user :>"></a>
