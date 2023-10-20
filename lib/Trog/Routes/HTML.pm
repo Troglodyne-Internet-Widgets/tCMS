@@ -41,6 +41,7 @@ our $rightbar     = 'rightbar.tx';
 our $leftbar      = 'leftbar.tx';
 our $topbar       = 'topbar.tx';
 our $footbar      = 'footbar.tx';
+our $categorybar  = 'categories.tx';
 
 # Note to maintainers: never ever remove backends from this list.
 # the auth => 1 is a crucial protection.
@@ -241,15 +242,17 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     my $htmltitle = Trog::Renderer->render( template => $htmltitle, data => $query, component => 1, contenttype => 'text/html' );
     return $htmltitle if ref $htmltitle eq 'ARRAY';
     my $midtitle  = Trog::Renderer->render( template => $midtitle,  data => $query, component => 1, contenttype => 'text/html' );
-    return $midtitle if ref $htmltitle eq 'ARRAY';
+    return $midtitle if ref $midtitle eq 'ARRAY';
     my $rightbar  = Trog::Renderer->render( template => $rightbar,  data => $query, component => 1, contenttype => 'text/html' );
-    return $rightbar if ref $htmltitle eq 'ARRAY';
+    return $rightbar if ref $rightbar eq 'ARRAY';
     my $leftbar   = Trog::Renderer->render( template => $leftbar,   data => $query, component => 1, contenttype => 'text/html' );
-    return $leftbar if ref $htmltitle eq 'ARRAY';
+    return $leftbar if ref $leftbar eq 'ARRAY';
     my $topbar    = Trog::Renderer->render( template => $topbar,    data => $query, component => 1, contenttype => 'text/html' );
-    return $topbar if ref $htmltitle eq 'ARRAY';
+    return $topbar if ref $topbar eq 'ARRAY';
     my $footbar   = Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' );
-    return $footbar if ref $htmltitle eq 'ARRAY';
+    return $footbar if ref $footbar eq 'ARRAY';
+    my $categorybar   = Trog::Renderer->render( template => $categorybar,   data => $query, component => 1, contenttype => 'text/html' );
+    return $categorybar if ref $categorybar eq 'ARRAY';
 
     return finish_render(
         $tmpl,
@@ -266,6 +269,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             leftbar      => $leftbar,
             topbar       => $topbar,
             footbar      => $footbar,
+            categorybar  => $categorybar,
             categories   => \@series,
             stylesheets  => \@styles,
             print_styles => \@p_styles,

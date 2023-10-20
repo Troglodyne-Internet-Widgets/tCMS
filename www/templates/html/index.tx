@@ -12,7 +12,7 @@
     </div>
     <span title="Menu" id="clickme" onclick="this.focus()">🌐</span>
     <div id="righttitle" class="toplel">
-        : include "categories.tx";
+        <: $categorybar | mark_raw :>
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
         <: $topbar | mark_raw :>
         <form action="<: $route :>" method="GET" class="ib">
