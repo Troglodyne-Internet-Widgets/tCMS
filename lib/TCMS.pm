@@ -236,6 +236,7 @@ sub app {
     {
         no strict 'refs';
         my $output = $routes{$path}{callback}->($query);
+        die "$path returned no data!" unless ref $output eq 'ARRAY' && @$output == 3;
 
         INFO("$env->{REQUEST_METHOD} $output->[0] $path");
 
