@@ -251,7 +251,8 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     return $topbar if ref $topbar eq 'ARRAY';
     my $footbar   = Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' );
     return $footbar if ref $footbar eq 'ARRAY';
-    my $categorybar   = Trog::Renderer->render( template => $categorybar,   data => $query, component => 1, contenttype => 'text/html' );
+    my $categorybar   = Trog::Renderer->render( template => $categorybar,   data => { %$query, categories => \@series}, component => 1, contenttype => 'text/html' );
+    DEBUG(\@series);
     return $categorybar if ref $categorybar eq 'ARRAY';
 
     return finish_render(

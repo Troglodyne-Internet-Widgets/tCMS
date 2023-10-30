@@ -12,6 +12,7 @@ use File::Slurper;
 use File::Copy;
 use Mojo::File;
 use Path::Tiny();
+use Capture::Tiny qw{capture_merged};
 
 use lib 'lib';
 use Trog::SQLite::TagIndex;
@@ -71,7 +72,8 @@ sub read ( $self, $query = {} ) {
             print "Failed to Read $item:\n$@\n";
             next;
         }
-        my $parsed = eval { $parser->decode($slurped) };
+        my $parsed;
+        capture_merged { $parsed = eval { $parser->decode($slurped) } };
         if ( !$parsed ) {
 
             # Try and read it in binary in case it was encoded incorrectly the first time

@@ -1,0 +1,5 @@
+<span id="categories">
+: for $categories -> $category {
+<a href="<: $category.local_href :>"   title="<: $category.title :>" class="topbar"><: $category.title :></a>
+: }
+</span>
