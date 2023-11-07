@@ -6,6 +6,8 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
+use FindBin::libs;
+
 use UUID::Tiny ':std';
 use Digest::SHA 'sha256';
 use Authen::TOTP;
@@ -64,23 +66,6 @@ sub user_exists ($user) {
     my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE name=?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
-    return 1;
-}
-
-=head2 killsession
-
-Whack the active session for a user.
-Useful for password resets and so forth.
-
-=cut
-
-sub killsession ($user) {
-    my $dbh  = _dbh();
-    my $rows = $dbh->do( "DELETE FROM sess_user WHERE name=?", undef, $user );
-    if ($dbh->errstr()) {
-        WARN("Could not killsession: ".$dbh->errstr());
-        return 0;
-    }
     return 1;
 }
 
@@ -293,6 +278,7 @@ sub useradd ( $user, $pass, $acls ) {
 }
 
 sub add_change_request ( %args ) {
+    my $dbh  = _dbh();
     my $res  = $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
     return !!$res;
 }
@@ -321,7 +307,7 @@ sub process_change_request ( $token ) {
             return "TOTP auth turned off for $user";
         },
     );
-    return $dispatch->{$type}->($user, $secret);
+    return $dispatch{$type}->($user, $secret);
 }
 
 # Ensure the db schema is OK, and give us a handle
