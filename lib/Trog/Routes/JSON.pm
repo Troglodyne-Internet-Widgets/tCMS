@@ -8,7 +8,10 @@ use feature qw{signatures state};
 
 use Clone qw{clone};
 use JSON::MaybeXS();
+
 use Trog::Config();
+use Trog::Auth();
+use Trog::Routes::HTML();
 
 my $conf = Trog::Config::get();
 
@@ -31,6 +34,12 @@ our %routes = (
         method     => 'GET',
         callback   => \&version,
         parameters => [],
+    },
+    '/api/auth_change_request' => {
+        method     => 'POST',
+        callback   => \&process_auth_change_request,
+        parameters => ['token'],
+        noindex    => 1,
     },
 );
 
@@ -68,6 +77,19 @@ sub webmanifest ($query) {
     state $content = $enc->encode( \%manifest );
 
     return [ 200, $headers, [$content] ];
+}
+
+sub process_auth_change_request($query) {
+    my $token = $query->{token};
+    return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::change_request_exists($token);
+
+    my $msg = Trog::Auth::process_change_request($token);
+    return Trog::Routes::HTML::forbidden($query) unless $msg;
+    return Trog::Renderer->render(
+        code => 200,
+        message => $msg,
+        result  => 'success',
+    );
 }
 
 1;

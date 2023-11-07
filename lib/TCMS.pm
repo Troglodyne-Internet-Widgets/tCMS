@@ -21,7 +21,6 @@ use IO::Compress::Gzip();
 use Time::HiRes      qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
-use UUID::Tiny();
 use URI();
 
 #Grab our custom routes
@@ -73,7 +72,7 @@ sub app {
 
     return _toolong() if length( $env->{REQUEST_URI} ) > 2048;
 
-    my $requestid = eval { UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ) } // "00000000-0000-0000-0000-000000000000";
+    my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
 
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache

@@ -30,5 +30,9 @@
 : }
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
+    <div id="resetpass">
+        <a href="/request_password_reset">Reset Password</a>
+    </div>
+
 </div>
 : include "components/footer.tx";

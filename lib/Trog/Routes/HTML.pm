@@ -48,6 +48,7 @@ our $categorybar  = 'categories.tx';
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
+        noindex  => 1,
     },
     '/index' => {
         method   => 'GET',
@@ -70,17 +71,23 @@ our %routes = (
     #        method   => 'GET',
     #        callback => \&Trog::Routes::HTML::setup,
     #    },
+
+    # IMPORTANT: YOU MUST setup fail2ban rules for the following routes.
+    # TODO: Put a rule in fail2ban/ subdir, make say a generator for it based on the routes having fail2ban=1
     '/login' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::login,
+        noindex  => 1,
     },
     '/logout' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::logout,
+        noindex  => 1,
     },
     '/auth' => {
         method   => 'POST',
         callback => \&Trog::Routes::HTML::login,
+        noindex  => 1,
     },
     '/totp' => {
         method   => 'GET',
@@ -123,6 +130,22 @@ our %routes = (
         captures => ['module'],
         callback => \&Trog::Routes::HTML::manual,
     },
+    '/request_password_reset' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::resetpass,
+        noindex  => 1,
+    },
+    '/request_password_reset' => {
+        method => 'POST',
+        callback => \&Trog::Routes::HTML::do_resetpass,
+        noindex  => 1,
+    },
+    '/request_totp_clear' => {
+        method => 'POST',
+        callback => \&Trog::Routes::HTML::do_totp_clear,
+        noindex  => 1,
+    },
+    # END FAIL2BAN ROUTES
 
     #TODO transform into posts?
     '/sitemap',
@@ -406,6 +429,7 @@ Return an appropriate robots.txt
 
 =cut
 
+#TODO make this dynamic based on routes with the noindex=1 flag (they'll never see anything behind /auth)
 sub robots ($query) {
     state $etag = "robots-" . time();
     return Trog::Renderer->render(
@@ -658,6 +682,59 @@ sub config ($query) {
         undef,
         [qw{config.css}],
     );
+}
+
+=head2 resetpass
+
+=head2 do_resetpass
+
+=head2 do_totp_clear
+
+Routes for user service of their authentication details.
+
+=cut
+
+sub resetpass($query) {
+    $query->{failure} //= -1;
+
+    return Trog::Routes::HTML::index(
+        {
+            title              => 'Request Authentication Resets',
+            theme_dir          => $Trog::Themes::td,
+            stylesheets        => [qw{config.css}],
+            scripts            => [qw{post.js}],
+            message            => $query->{message},
+            failure            => $query->{failure},
+            scheme             => $query->{scheme},
+            template           => 'resetpass.tx',
+            %$query,
+        },
+        undef,
+        [qw{config.css}],
+    );
+}
+
+sub do_resetpass($query) {
+    my $user = $query->{username};
+    # User Does not exist
+    return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::user_exists($user);
+    # User exists, but is not logged in this session
+    return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
+
+    my $token = Trog::Util::uuid();
+    my $newpass = $query->{password} // Trog::Util::uuid();
+    return Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
+}
+
+sub do_totp_clear($query) {
+    my $user = $query->{username};
+    # User Does not exist
+    return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::user_exists($user);
+    # User exists, but is not logged in this session
+    return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
+
+    my $token = Trog::Util::uuid();
+    return Trog::Auth::add_change_request( type => 'clear_totp', user => $user, token => $token );
 }
 
 sub _get_series ( $edit = 0 ) {
@@ -1166,7 +1243,7 @@ sub sitemap ($query) {
 
         # Return the map of static routes
         $route_type = 'Static Routes';
-        @to_map     = grep { !defined $routes{$_}->{captures} && $_ !~ m/^default|login|auth$/ && !$routes{$_}->{auth} } keys(%routes);
+        @to_map     = grep { !defined $routes{$_}->{captures} && !$routes{$_}->{auth} && !$routes{$_}->{noindex} } keys(%routes);
     }
     elsif ( !$query->{map} ) {
 

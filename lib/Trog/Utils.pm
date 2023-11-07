@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
+use UUID::Tiny();
 use HTTP::Tiny::UNIX();
 use Trog::Log qw{WARN};
 use Trog::Config();
@@ -35,6 +36,10 @@ sub restart_parent ( $env ) {
     }
     my $parent = getppid;
     kill 'HUP', $parent;
+}
+
+sub uuid {
+    return UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS );
 }
 
 1;

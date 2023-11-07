@@ -13,4 +13,5 @@ my ($user, $pass) = @ARGV;
 die "User must be first arg" unless $user;
 die "Password must be second arg" unless $pass;
 
+Trog::Auth::killsession($user);
 Trog::Auth::useradd($user, $pass, ['admin']);

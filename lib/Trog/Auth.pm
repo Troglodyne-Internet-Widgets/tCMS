@@ -40,6 +40,50 @@ sub session2user ($sessid) {
     return $rows->[0]->{name};
 }
 
+=head2 user_has_session
+
+Return whether the user has an active session.
+If the user has an active session, things like password reset requests should fail when not coming from said session.
+
+=cut
+
+sub user_has_session ($user) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT session FROM sess_user WHERE user=?", { Slice => {} }, $user );
+    return 0 unless ref $rows eq 'ARRAY' && @$rows;
+    return 1;
+}
+
+=head2 user_exists
+
+Return whether the user exists at all.
+
+=cut
+
+sub user_exists ($user) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE name=?", { Slice => {} }, $user );
+    return 0 unless ref $rows eq 'ARRAY' && @$rows;
+    return 1;
+}
+
+=head2 killsession
+
+Whack the active session for a user.
+Useful for password resets and so forth.
+
+=cut
+
+sub killsession ($user) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->do( "DELETE FROM sess_user WHERE name=?", undef, $user );
+    if ($dbh->errstr()) {
+        WARN("Could not killsession: ".$dbh->errstr());
+        return 0;
+    }
+    return 1;
+}
+
 =head2 acls4user(STRING username) = ARRAYREF
 
 Return the list of ACLs belonging to the user.
@@ -162,15 +206,14 @@ sub expected_totp_code {
 
 =head2 clear_totp
 
-Clear the totp codes for all users
+Clear the totp codes for provided user
 
 =cut
 
-sub clear_totp {
+sub clear_totp($user) {
     my $dbh = _dbh();
-    $dbh->do("UPDATE user SET totp_secret=null") or die "Could not clear user TOTP secrets";
-
-    #TODO notify users this has happened
+    my $res = $dbh->do("UPDATE user SET totp_secret=null WHERE name=?", undef, $user) or die "Could not clear user TOTP secrets";
+    return !!$res;
 }
 
 =head2 mksession(user, pass, token) = STRING
@@ -247,6 +290,38 @@ sub useradd ( $user, $pass, $acls ) {
         return unless $dbh->do( "INSERT OR REPLACE INTO user_acl (username,acl) VALUES (?,?)", undef, $user, $acl );
     }
     return 1;
+}
+
+sub add_change_request ( %args ) {
+    my $res  = $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
+    return !!$res;
+}
+
+sub process_change_request ( $token ) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT username, type FROM change_request WHERE token=?", { Slice => {} }, $token );
+    return 0 unless ref $rows eq 'ARRAY' && @$rows;
+
+    my $type = $rows->[0]{type};
+    my $user = $rows->[0]{username};
+    my $secret = $rows->[0]{secret};
+    state %dispatch = (
+        reset_pass => sub {
+            my ($user, $pass) = @_;
+            useradd( $user, $pass ) or do {
+               return ''; 
+            };
+            return "Password set to $pass for $user";
+        },
+        clear_totp => sub {
+            my ($user) = @_;
+            clear_totp($user) or do {
+                return '';
+            };
+            return "TOTP auth turned off for $user";
+        },
+    );
+    return $dispatch->{$type}->($user, $secret);
 }
 
 # Ensure the db schema is OK, and give us a handle

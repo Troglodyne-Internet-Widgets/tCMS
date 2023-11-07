@@ -17,8 +17,15 @@ Render JSON.  Rather than be templated, we just run the input thru the encoder.
 sub render (%options) {
     my $code    = delete $options{code};
     my $headers = delete $options{headers};
+
+    my %h = (
+        'Content-type' => "application/json",
+        %$headers,
+    );
+
+    delete $options{contenttype};
     my $body    = encode_json(\%options);
-    return [$code, [$headers], [$body]];
+    return [$code, [%h], [$body]];
 }
 
 1;

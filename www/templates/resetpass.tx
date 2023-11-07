@@ -1,0 +1,13 @@
+<h2>Reset Authentication Details</h2>
+
+<form id="resetpass" action="/request_password_reset" method="POST">
+    <label for="username">Username:</label>
+    <input type="text" class="cooltext" name="username" placeholder="DrBoomer" />
+    <input type="submit" value="Reset Password">
+</form>
+
+<form id="resettotp" action="/request_totp_clear" method="POST">
+    <label for="username">Username:</label>
+    <input type="text" class="cooltext" name="username" placeholder="WhoWasPhone" />
+    <input type="submit" value="Reset TOTP">
+</form>
