@@ -26,7 +26,7 @@ sub render (%options) {
     delete $options{contenttype};
     delete $options{template};
 
-    my $body    = encode_json(\%options);
+    my $body    = encode_json($options{data});
     return [$code, [%h], [$body]];
 }
 
