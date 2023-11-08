@@ -8,6 +8,7 @@ use feature qw{signatures state};
 
 use FindBin::libs;
 
+use Ref::Util qw{is_arrayref};
 use UUID::Tiny ':std';
 use Digest::SHA 'sha256';
 use Authen::TOTP;
@@ -67,6 +68,19 @@ sub user_exists ($user) {
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE name=?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return 1;
+}
+
+=head2 email4user(STRING username) = STRING
+
+Return the associated contact email for the user.
+
+=cut
+
+sub email4user ($user) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT contact_email FROM user WHERE name=?", { Slice => {} }, $user );
+    return '' unless ref $rows eq 'ARRAY' && @$rows;
+    return $rows->[0]{contact_email};
 }
 
 =head2 acls4user(STRING username) = ARRAYREF
@@ -263,11 +277,16 @@ Returns True or False (likely false when user already exists).
 
 =cut
 
-sub useradd ( $user, $pass, $acls ) {
+sub useradd ( $user, $pass, $acls, $contactemail ) {
+	die "No username set!" unless $user;
+	die "No password set for user!" unless $pass;
+	die "ACLs must be array" unless is_arrayref($acls);
+	die "No contact email set for user!" unless $contactemail;
+
     my $dbh  = _dbh();
     my $salt = create_uuid();
     my $hash = sha256( $pass . $salt );
-    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name,salt,hash) VALUES (?,?,?)", undef, $user, $salt, $hash );
+    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name,salt,hash,contact_email) VALUES (?,?,?,?)", undef, $user, $salt, $hash, $contactemail );
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
@@ -285,18 +304,24 @@ sub add_change_request ( %args ) {
 
 sub process_change_request ( $token ) {
     my $dbh  = _dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT username, type FROM change_request WHERE token=?", { Slice => {} }, $token );
+    my $rows = $dbh->selectall_arrayref( "SELECT username, type, secret, contact_email FROM change_request_full WHERE processed=0 AND token=?", { Slice => {} }, $token );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
-    my $type = $rows->[0]{type};
     my $user = $rows->[0]{username};
+    my $type = $rows->[0]{type};
     my $secret = $rows->[0]{secret};
+    my $contactemail = $rows->[0]{contact_email};
+
     state %dispatch = (
         reset_pass => sub {
             my ($user, $pass) = @_;
-            useradd( $user, $pass ) or do {
+			#XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
+			# This is also why we have to snag the user's ACLs or they will be wiped.
+			my @acls = acls4user($user);
+            useradd( $user, $pass, \@acls, $contactemail ) or do {
                return ''; 
             };
+            killsession($user);
             return "Password set to $pass for $user";
         },
         clear_totp => sub {
@@ -304,10 +329,15 @@ sub process_change_request ( $token ) {
             clear_totp($user) or do {
                 return '';
             };
+            killsession($user);
             return "TOTP auth turned off for $user";
         },
     );
-    return $dispatch{$type}->($user, $secret);
+    my $res = $dispatch{$type}->($user, $secret);
+    $dbh->do("UPDATE change_request SET processed=1 WHERE token=?", undef, $token) or do {
+        FATAL("Could not set job with token $token to completed!");
+    };
+    return $res;
 }
 
 # Ensure the db schema is OK, and give us a handle

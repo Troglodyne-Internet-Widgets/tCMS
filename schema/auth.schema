@@ -27,3 +27,5 @@ CREATE TABLE IF NOT EXISTS change_request (
     secret   TEXT,
     processed NUMERIC DEFAULT 0
 );
+
+CREATE VIEW IF NOT EXISTS change_request_full AS SELECT cr.username, cr.type, cr.token, cr.secret, cr.processed, u.contact_email from change_request AS cr JOIN user AS u ON u.name=cr.username;

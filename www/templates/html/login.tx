@@ -1,6 +1,6 @@
 : include "components/header.tx";
+: include "jsalert.tx";
 <div id="login">
-    : include "jsalert.tx";
     <div>
       <img id="logo" src="/img/icon/favicon.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
     </div>
@@ -27,12 +27,22 @@
         <input name="token" id="token" placeholder="7779311" value="" type="password"></input>
       </div>
       <br />
+: } else {
+      Contact Email:<br />
+      <div class="input-group">
+        <label for="contact_email">📧</label>
+        <input required name="contact_email" id="contact_email" placeholder="bl00d_n1nja@wh.gov" value="" type="text"></input>
+      </div>
+      <br />
 : }
+
       <input type="submit" id="maximumGo" value="<: $btnmsg :>"></input>
     </form>
+: if ($has_users) {
     <div id="resetpass">
-        <a href="/request_password_reset">Reset Password</a>
+        <a href="/password_reset">Reset Password</a>
     </div>
+: }
 
 </div>
 : include "components/footer.tx";

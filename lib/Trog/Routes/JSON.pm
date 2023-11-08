@@ -35,10 +35,11 @@ our %routes = (
         callback   => \&version,
         parameters => [],
     },
-    '/api/auth_change_request' => {
-        method     => 'POST',
+    '/api/auth_change_request/(.*)' => {
+        method     => 'GET',
         callback   => \&process_auth_change_request,
         parameters => ['token'],
+        captures   => ['token'],
         noindex    => 1,
     },
 );
@@ -81,14 +82,21 @@ sub webmanifest ($query) {
 
 sub process_auth_change_request($query) {
     my $token = $query->{token};
-    return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::change_request_exists($token);
 
     my $msg = Trog::Auth::process_change_request($token);
     return Trog::Routes::HTML::forbidden($query) unless $msg;
+    return _render(200,
+        	message => $msg,
+        	result  => 'success',
+    );
+}
+
+sub _render ($code, %data) {
     return Trog::Renderer->render(
         code => 200,
-        message => $msg,
-        result  => 'success',
+		data => \%data,
+		template => 'bogus.tx',
+		contenttype => 'application/json',
     );
 }
 

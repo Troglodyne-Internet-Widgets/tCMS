@@ -130,7 +130,7 @@ our %routes = (
         captures => ['module'],
         callback => \&Trog::Routes::HTML::manual,
     },
-    '/request_password_reset' => {
+    '/password_reset' => {
         method => 'GET',
         callback => \&Trog::Routes::HTML::resetpass,
         noindex  => 1,
@@ -143,6 +143,11 @@ our %routes = (
     '/request_totp_clear' => {
         method => 'POST',
         callback => \&Trog::Routes::HTML::do_totp_clear,
+        noindex  => 1,
+    },
+    '/processed' => {
+        method => 'GET',
+        callback => \&Trog::Routes::HTML::processed,
         noindex  => 1,
     },
     # END FAIL2BAN ROUTES
@@ -242,6 +247,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
 
     my $to_render = $query->{template} // $landing_page;
     $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
+    return $content if ref $content eq "ARRAY";
 
     my @styles;
     unshift( @styles, qw{embed.css}) if $query->{embed};
@@ -519,9 +525,8 @@ sub login ($query) {
     my $has_totp = 0;
     if ( $query->{username} && $query->{password} ) {
         if ( !$hasusers ) {
-
             # Make the first user
-            Trog::Auth::useradd( $query->{username}, $query->{password}, ['admin'] );
+            Trog::Auth::useradd( $query->{username}, $query->{password}, ['admin'], $query->{contact_email} );
 
             # Add a stub user page and the initial series.
             my $dat = Trog::Data->new($conf);
@@ -721,9 +726,22 @@ sub do_resetpass($query) {
     # User exists, but is not logged in this session
     return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
-    my $token = Trog::Util::uuid();
-    my $newpass = $query->{password} // Trog::Util::uuid();
-    return Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
+    my $token = Trog::Utils::uuid();
+    my $newpass = $query->{password} // Trog::Utils::uuid();
+    my $res = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
+	die "Could not add auth change request!" unless $res;
+
+    # If the user is logged in, just do the deed, otherwise send them the token in an email
+    if ($query->{user}) {
+        return see_also("/api/auth_change_request/$token");
+    }
+    Trog::Email::contact(
+		$user,
+		"root\@$query->{domain}",
+		"$query->{domain}: Password reset URL for $user",
+		{ uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'password_reset.tx' }
+	);
+    return see_also("/processed");
 }
 
 sub do_totp_clear($query) {
@@ -733,8 +751,21 @@ sub do_totp_clear($query) {
     # User exists, but is not logged in this session
     return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
-    my $token = Trog::Util::uuid();
-    return Trog::Auth::add_change_request( type => 'clear_totp', user => $user, token => $token );
+    my $token = Trog::Utils::uuid();
+    my $res   = Trog::Auth::add_change_request( type => 'clear_totp', user => $user, token => $token );
+	die "Could not add auth change request!" unless $res;
+
+    # If the user is logged in, just do the deed, otherwise send them the token in an email
+    if ($query->{user}) {
+        return see_also("/api/auth_change_request/$token");
+    }
+    Trog::Email::contact(
+		$user,
+		"root\@$query->{domain}",
+		"$query->{domain}: Password reset URL for $user",
+		{ uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'totp_reset.tx' }
+	);
+    return see_also("/processed");
 }
 
 sub _get_series ( $edit = 0 ) {
@@ -864,14 +895,17 @@ sub profile ($query) {
     return see_also('/login')                    unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
-    #TODO allow users to do something OTHER than be admins
-    if ( $query->{password} ) {
-        Trog::Auth::useradd( $query->{username}, $query->{password}, ['admin'] );
+    #TODO allow new users to do something OTHER than be admins
+	#TODO allow username changes
+    if ( $query->{password} || $query->{contact_email} ) {
+		my @acls = Trog::Auth::acls4user($query->{username}) || qw{admin};
+        Trog::Auth::useradd( $query->{username}, $query->{password}, \@acls, $query->{contact_email} );
     }
 
     #Make sure it is "self-authored", redact pw
     $query->{user} = delete $query->{username};
     delete $query->{password};
+	delete $query->{contact_email};
 
     return post_save($query);
 }
@@ -1466,6 +1500,15 @@ sub manual ($query) {
         undef,
         ['post.css'],
     );
+}
+
+sub processed ($query) {
+    return Trog::Routes::HTML::index({
+        title => "Your request has been processed",
+        theme_dir => $Trog::Themes::td,
+    },
+	"Your request has been processed.<br /><br />You will recieve subsequent communications about this matter via means you have provided earlier.",
+	['post.css']);
 }
 
 # basically a file rewrite rule for themes

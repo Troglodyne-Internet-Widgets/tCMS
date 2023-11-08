@@ -5,6 +5,7 @@
         <a href="/config"      title="Configuration" class="topbar">Settings</a>
         <a href="/manual"      title="Manual"        class="topbar">Manual</a>
         <a href="/totp"        title="TOTP"          class="topbar">Enable/View TOTP 2fa</a>
+        <a href="/password_reset" title="Reset Auth" class="topbar">Reset Password/TOTP</a>
         <a href="/logout"      title="Logout"        class="topbar">🚪</a>
     </span>
 </div>

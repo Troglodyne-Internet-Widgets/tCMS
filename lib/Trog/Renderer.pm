@@ -16,6 +16,7 @@ use Trog::Renderer::html;
 use Trog::Renderer::json;
 use Trog::Renderer::blob;
 use Trog::Renderer::css;
+use Trog::Renderer::email;
 
 =head1 Trog::Renderer
 
@@ -34,6 +35,7 @@ our %renderers = (
     xml   => \&Trog::Renderer::text::render,
     rss   => \&Trog::Renderer::html::render,
     css   => \&Trog::Renderer::css::render,
+    email => \&Trog::Renderer::email::render,
 );
 
 =head2 Trog::Renderer->render(%options)

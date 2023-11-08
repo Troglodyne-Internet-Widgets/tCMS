@@ -15,7 +15,8 @@ our %content_types = (
     xml   => "text/xml",
     xsl   => "text/xsl",
     css   => "text/css",
-    rss   => "application/rss+xml"
+    rss   => "application/rss+xml",
+    email => "multipart/related",
 );
 
 our %byct = reverse %Trog::Vars::content_types;

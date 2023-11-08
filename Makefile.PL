@@ -62,6 +62,8 @@ WriteMakefile(
     'FindBin::libs'             => '0',
     'Carp::Always'              => '0',
     'HTTP::Tiny::UNIX'          => '0',
+    'Email::MIME'               => '0',
+    'Email::Sender::Simple'     => '0',
   },
   test => {TESTS => 't/*.t'}
 );

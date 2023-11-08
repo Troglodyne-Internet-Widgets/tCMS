@@ -1,13 +1,25 @@
 <h2>Reset Authentication Details</h2>
-
+<h3>Reset Password</h3>
 <form id="resetpass" action="/request_password_reset" method="POST">
+: if ($user) {
+    <label for="password">Password:</label>
+    <input type="password" class="cooltext" name="password" placeholder="password123" />
+    <input type="hidden" name="username" value="<: $user :>" />
+: } else {
     <label for="username">Username:</label>
     <input type="text" class="cooltext" name="username" placeholder="DrBoomer" />
+: }
     <input type="submit" value="Reset Password">
 </form>
 
+<br /><br />
+<h3>Turn off TOTP 2fa</h3>
 <form id="resettotp" action="/request_totp_clear" method="POST">
+: if ($user) {
+    <input type="hidden" name="username" value="<: $user :>" />
+: } else {
     <label for="username">Username:</label>
     <input type="text" class="cooltext" name="username" placeholder="WhoWasPhone" />
+: }
     <input type="submit" value="Reset TOTP">
 </form>
