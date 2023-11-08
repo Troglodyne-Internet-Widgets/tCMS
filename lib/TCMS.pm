@@ -164,12 +164,18 @@ sub app {
     my $streaming = $env->{'psgi.streaming'};
     $query->{streaming} = $streaming;
 
+    my $domain = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
+    my $port   = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
+    my $pport  = defined $port ? ":$port" : "";
+    my $scheme = $env->{'psgi.url_scheme'} // 'http';
+    my $fullpath = "$scheme://$domain$pport$path";
+
     # If we have a static render, just use it instead (These will ALWAYS be correct, data saves invalidate this)
     # TODO: make this key on admin INSTEAD of active user when we add non-admin users.
     $query->{start} = $start;
     if ( !$active_user && !$has_query ) {
-        return _static( "$path.z", $start, $streaming ) if -f "www/statics/$path.z" && $deflate;
-        return _static( $path,     $start, $streaming ) if -f "www/statics/$path";
+        return _static( $fullpath, "$path.z", $start, $streaming ) if -f "www/statics/$path.z" && $deflate;
+        return _static( $fullpath, $path,     $start, $streaming ) if -f "www/statics/$path";
     }
 
     # Handle HTTP range/streaming requests
@@ -189,12 +195,13 @@ sub app {
         );
     }
 
-    return Trog::FileHandler::serve( "www/$path",  $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "www/$path";
-    return Trog::FileHandler::serve( "totp/$path", $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "totp/$path" && $active_user;
+    return Trog::FileHandler::serve( $fullpath, "www/$path",  $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "www/$path";
+    return Trog::FileHandler::serve( $fullpath, "totp/$path", $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "totp/$path" && $active_user;
 
     #Handle regex/capture routes
     if ( !exists $routes{$path} ) {
         my @captures;
+        # TODO can optimize by having separate hashes for capture/non-capture routes
         foreach my $pattern ( keys(%routes) ) {
             @captures = $path =~ m/^$pattern$/;
             if (@captures) {
@@ -221,13 +228,14 @@ sub app {
     $query->{body}         = '';
     $query->{dnt}          = $env->{HTTP_DNT};
     $query->{user}         = $active_user;
-    $query->{domain}       = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
+    $query->{domain}       = $domain;
     $query->{route}        = $path;
-    $query->{scheme}       = $env->{'psgi.url_scheme'} // 'http';
+    $query->{scheme}       = $scheme;
     $query->{social_meta}  = 1;
     $query->{primary_post} = {};
     $query->{has_query}    = $has_query;
-    $query->{port}         = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
+    $query->{port}         = $port;
+    $query->{fullpath}     = $fullpath;
     # Redirecting somewhere naughty not allow
     $query->{to}           = URI->new($query->{to} // '')->path() || $query->{to} if $query->{to};
 
@@ -237,7 +245,8 @@ sub app {
         my $output = $routes{$path}{callback}->($query);
         die "$path returned no data!" unless ref $output eq 'ARRAY' && @$output == 3;
 
-        INFO("$env->{REQUEST_METHOD} $output->[0] $path");
+        my $pport = defined $query->{port} ? ":$query->{port}" : "";
+        INFO("$env->{REQUEST_METHOD} $output->[0] $fullpath");
 
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
@@ -255,6 +264,7 @@ sub _generic ( $type, $query ) {
         badrequest => \&Trog::Routes::HTML::badrequest,
         toolong    => \&Trog::Routes::HTML::toolong,
     );
+    INFO("GOT HERE");
     return $lookup{$type}->($query);
 }
 
@@ -274,7 +284,7 @@ sub _toolong() {
     return _generic( 'toolong', {} );
 }
 
-sub _static ( $path, $start, $streaming, $last_fetch = 0 ) {
+sub _static ( $fullpath, $path, $start, $streaming, $last_fetch = 0 ) {
 
     DEBUG("Rendering static for $path");
     # XXX because of psgi I can't just vomit the file directly
@@ -303,6 +313,7 @@ sub _static ( $path, $start, $streaming, $last_fetch = 0 ) {
         # starman by comparison doesn't violate the principle of least astonishment here.
         # This is probably a performance optimization, but makes the kind of micromanagement I need to do inconvenient.
         # As such, we will just return a stream.
+        INFO("GET 200 $fullpath");
 
         return sub {
             my $responder = shift;
@@ -319,6 +330,7 @@ sub _static ( $path, $start, $streaming, $last_fetch = 0 ) {
 
         return [ $code, [%$headers_parsed], $fh ];
     }
+    INFO("GET 403 $fullpath");
     return [ 403, [ 'Content-Type' => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 

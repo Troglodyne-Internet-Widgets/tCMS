@@ -27,7 +27,7 @@ Serve a file, with options to stream and cache the output.
 
 =cut
 
-sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) {
+sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) {
     my $mf  = Mojo::File->new($path);
     my $ext = '.' . $mf->extname();
     my $ft;
@@ -88,7 +88,7 @@ sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) 
         print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
         push( @headers, "Content-Length" => length($dfh) );
 
-        INFO("GET 200 $path");
+        INFO("GET 200 $fullpath");
 
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
@@ -97,7 +97,7 @@ sub serve ( $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) 
         return [ $code, \@headers, [$dfh] ];
     }
 
-    INFO("GET 403 $path");
+    INFO("GET 403 $fullpath");
     return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 

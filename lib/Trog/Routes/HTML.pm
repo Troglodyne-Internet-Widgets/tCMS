@@ -384,7 +384,6 @@ sub _generic_route ( $rname, $code, $title, $query ) {
     $query->{route} //= $rname;
     $query->{title} = $title;
     $query->{template} = "$rname.tx";
-    INFO("$query->{method} $code $query->{route}");
     return Trog::Routes::HTML::index( $query );
 }
 

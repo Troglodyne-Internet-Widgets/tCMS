@@ -1,5 +1,10 @@
 : include "components/header.tx";
 : include "jsalert.tx";
+<style>
+#jsalert {
+    margin-top: 1rem;
+}
+</style>
 <div id="login">
     <div>
       <img id="logo" src="/img/icon/favicon.svg" style="float:left" /><span style="font-family:courier;font-size:2rem;">CMS Login</span>
