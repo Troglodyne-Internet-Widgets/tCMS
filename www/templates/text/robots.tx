@@ -1,10 +1,9 @@
+# robots.txt for <: $domain :>
 User-agent: *
 Sitemap: http://<: $domain :>/sitemap_index.xml.gz
-Disallow: /login
-Disallow: /auth
-Disallow: /request_password_reset
-Disallow: /api
-Disallow: /json
+<: for $banned -> $route { -:>
+Disallow: <: $route :>
+<: } -:>
 Disallow: /themes
 Disallow: /img
 Disallow: /templates

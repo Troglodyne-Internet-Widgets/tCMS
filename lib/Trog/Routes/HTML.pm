@@ -48,7 +48,6 @@ our $categorybar  = 'categories.tx';
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
-        noindex  => 1,
     },
     '/index' => {
         method   => 'GET',
@@ -191,10 +190,6 @@ our %routes = (
         callback => \&Trog::Routes::HTML::sitemap,
         data     => { xml => 1, compressed => 1 },
         captures => ['map'],
-    },
-    '/robots.txt' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::robots,
     },
     '/humans.txt' => {
         method   => 'GET',
@@ -427,26 +422,6 @@ sub see_also ($to) {
 =head1 NORMAL ROUTES
 
 These are expected to either return a 200, or redirect to something which does.
-
-=head2 robots
-
-Return an appropriate robots.txt
-
-=cut
-
-#TODO make this dynamic based on routes with the noindex=1 flag (they'll never see anything behind /auth)
-sub robots ($query) {
-    state $etag = "robots-" . time();
-    return Trog::Renderer->render(
-        contenttype => 'text/plain',
-        template => 'robots.tx',
-        data => {
-            etag   => $etag,
-            %$query,
-        },
-        code => 200,
-    );
-}
 
 =head2 setup
 

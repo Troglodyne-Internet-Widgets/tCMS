@@ -47,6 +47,13 @@ my %routes = %Trog::Routes::HTML::routes;
 @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
 @routes{ keys(%roots) }                      = values(%roots);
 
+# Add in global routes, here because they *must* know about all other routes
+# Also, nobody should ever override these.
+$routes{'/robots.txt'} = {
+    method   => 'GET',
+    callback => \&robots,
+};
+
 my %aliases = $data->aliases();
 
 # XXX this is built progressively across the forks, leading to inconsistent behavior.
@@ -276,6 +283,32 @@ sub app {
         return $output;
     }
 }
+
+=head2 robots
+
+Return an appropriate robots.txt
+
+This is a "special" route as it needs to know about all the routes in order to disallow noindex=1 routes.
+
+=cut
+
+sub robots ($query) {
+    state $etag = "robots-" . time();
+    # If there's a 'capture' route, we need to format it correctly.
+	state @banned = map { exists $routes{$_}{robot_name} ? $routes{$_}{robot_name} : $_ } grep { $routes{$_}{noindex} } sort keys(%routes);
+
+    return Trog::Renderer->render(
+        contenttype => 'text/plain',
+        template => 'robots.tx',
+        data => {
+            etag   => $etag,
+			banned => \@banned,
+            %$query,
+        },
+        code => 200,
+    );
+}
+
 
 sub _generic ( $type, $query ) {
     return _static( "$type.z", $query->{start}, $query->{streaming} ) if -f "www/statics/$type.z";

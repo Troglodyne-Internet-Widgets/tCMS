@@ -40,6 +40,7 @@ our %routes = (
         callback   => \&process_auth_change_request,
         captures   => ['token'],
         noindex    => 1,
+		robot_name => '/api/auth_change_request/*',
     },
 );
 
