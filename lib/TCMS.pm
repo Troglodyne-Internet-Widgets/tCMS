@@ -70,14 +70,26 @@ sub app {
 
     my $env = shift;
 
-    return _toolong() if length( $env->{REQUEST_URI} ) > 2048;
+    # Discard the path used in the log, it's too long and enough 4xx error code = ban
+    return _toolong({ method => $env->{REQUEST_METHOD}, fullpath => '...' }) if length( $env->{REQUEST_URI} ) > 2048;
 
     my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
 
+    # Various stuff important for logging requests
+    state $domain = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
+    my $path = $env->{PATH_INFO};
+    my $port   = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
+    my $pport  = defined $port ? ":$port" : "";
+    my $scheme = $env->{'psgi.url_scheme'} // 'http';
+
+    # It's important that we log what the user ACTUALLY requested rather than the rewritten path later on.
+    my $fullpath = "$scheme://$domain$pport$path";
+
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
     if ( $env->{HTTP_IF_NONE_MATCH} ) {
+        INFO("$env->{REQUEST_METHOD} 304 $fullpath");
         return [ 304, [], [''] ] if $env->{HTTP_IF_NONE_MATCH} eq ( $etags{ $env->{REQUEST_URI} } || '' );
         $etags{ $env->{REQUEST_URI} } = $env->{HTTP_IF_NONE_MATCH} unless exists $etags{ $env->{REQUEST_URI} };
     }
@@ -110,7 +122,7 @@ sub app {
     # Grab the list of ACLs we want to add to a post, if any.
     $query->{acls} = [ $query->{acls} ] if ( $query->{acls} && ref $query->{acls} ne 'ARRAY' );
 
-    my $path = $env->{PATH_INFO};
+    # It's mod_rewrite!
     $path = '/index' if $path eq '/';
     #XXX this is hardcoded in browsers, so just rewrite the path
     $path = '/img/icon/favicon.ico' if $path eq '/favicon.ico';
@@ -164,12 +176,6 @@ sub app {
     my $streaming = $env->{'psgi.streaming'};
     $query->{streaming} = $streaming;
 
-    my $domain = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
-    my $port   = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
-    my $pport  = defined $port ? ":$port" : "";
-    my $scheme = $env->{'psgi.url_scheme'} // 'http';
-    my $fullpath = "$scheme://$domain$pport$path";
-
     # If we have a static render, just use it instead (These will ALWAYS be correct, data saves invalidate this)
     # TODO: make this key on admin INSTEAD of active user when we add non-admin users.
     $query->{start} = $start;
@@ -215,8 +221,9 @@ sub app {
         }
     }
 
-    $query->{deflate} = $deflate;
-    $query->{user}    = $active_user;
+    $query->{fullpath} = $fullpath;
+    $query->{deflate}  = $deflate;
+    $query->{user}     = $active_user;
 
     return _forbidden($query)  if exists $routes{$path}{auth} && !$active_user;
     return _notfound($query)   unless $routes{$path} && ref $routes{$path} eq 'HASH' && keys(%{$routes{$path}});
@@ -235,7 +242,6 @@ sub app {
     $query->{primary_post} = {};
     $query->{has_query}    = $has_query;
     $query->{port}         = $port;
-    $query->{fullpath}     = $fullpath;
     # Redirecting somewhere naughty not allow
     $query->{to}           = URI->new($query->{to} // '')->path() || $query->{to} if $query->{to};
 
@@ -264,23 +270,26 @@ sub _generic ( $type, $query ) {
         badrequest => \&Trog::Routes::HTML::badrequest,
         toolong    => \&Trog::Routes::HTML::toolong,
     );
-    INFO("GOT HERE");
     return $lookup{$type}->($query);
 }
 
 sub _notfound ($query) {
+    INFO("$query->{method} 404 $query->{fullpath}");
     return _generic( 'notfound', $query );
 }
 
 sub _forbidden ($query) {
+    INFO("$query->{method} 403 $query->{fullpath}");
     return _generic( 'forbidden', $query );
 }
 
 sub _badrequest ($query) {
+    INFO("$query->{method} 400 $query->{fullpath}");
     return _generic( 'badrequest', $query );
 }
 
-sub _toolong() {
+sub _toolong($query) {
+    INFO("$query->{method} 419 $query->{fullpath}");
     return _generic( 'toolong', {} );
 }
 

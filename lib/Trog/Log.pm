@@ -65,11 +65,12 @@ sub _log {
     my ( $msg, $level ) = @_;
 
     $msg //= "No message passed.  This is almost certainly a bug. ";
-
-    my $tstamp = strftime "%a %b %d %T %Y", localtime;
+    
+    #XXX Log lines must start as an ISO8601 date, anything else breaks fail2ban's beautiful mind
+    my $tstamp = strftime "%Y-%m-%dT%H:%M:%SZ", localtime;
     my $uuid   = uuid();
 
-    return "[$level]: <$tstamp> {Request $uuid} $Trog::Log::ip |$Trog::Log::user| $msg\n";
+    return "$tstamp [$level]: RequestId $uuid From $Trog::Log::ip |$Trog::Log::user| $msg\n";
 }
 
 sub DEBUG {
