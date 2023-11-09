@@ -67,7 +67,7 @@ sub _log {
     $msg //= "No message passed.  This is almost certainly a bug. ";
     
     #XXX Log lines must start as an ISO8601 date, anything else breaks fail2ban's beautiful mind
-    my $tstamp = strftime "%Y-%m-%dT%H:%M:%SZ", localtime;
+    my $tstamp = strftime "%Y-%m-%dT%H:%M:%SZ", gmtime;
     my $uuid   = uuid();
 
     return "$tstamp [$level]: RequestId $uuid From $Trog::Log::ip |$Trog::Log::user| $msg\n";
