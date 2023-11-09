@@ -34,7 +34,7 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
 prereq-debs:
 	sudo apt-get update
 	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl         \
-		uwsgi uwsgi-plugin-psgi fail2ban \
+		uwsgi uwsgi-plugin-psgi fail2ban nginx certbot\
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \
@@ -73,3 +73,20 @@ reset-remove:
 fail2ban:
 	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/tcms.conf
 	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/tcms.conf
+
+.PHONY: nginx
+nginx:
+	[ -n "$$SERVER_NAME" ] || ( echo "Please set the SERVER_NAME environment variable before running (e.g. test.test)" && /bin/false )
+	[ -n "$$SERVER_PORT" ] || ( echo "Please set the SERVER_PORT environment variable before running (e.g. 5000)" && /bin/false )
+	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
+	sed 's/\%SERVER_PORT\%/$(SERVER_PORT)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
+	rm nginx/tcms.conf.intermediate
+	mkdir -p '/var/www/$(SERVER_NAME)'
+	mkdir -p '/var/www/$(SERVER_NAME)'
+	ln -sr nginx/tcms.conf '/etc/nginx/sites-enabled/$(SERVER_NAME).conf'
+	openssl req -x509 -nodes -newkey -in '$(SERVER_NAME)' rsa:4096 -keyout key.pem -out cert.pem -days 365
+	openssl req -x509 -nodes -newkey -in '$(SERVER_NAME)' rsa:4096 -keyout key.pem -out cert.pem -days 365
+	certbot certonly --webroot -w '/var/www/$(SERVER_NAME)/' -d '$(SERVER_NAME)' -d 'www.$(SERVER_NAME)' -w '/var/www/mail.$(SERVER_NAME)' -d 'mail.$(SERVER_NAME)'
+	systemctl restart nginx
+	systemctl restart dovecot
+	systemctl restart postfix

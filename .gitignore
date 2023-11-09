@@ -24,3 +24,4 @@ MYMETA.json
 node_modules/
 www/statics/
 totp/
+nginx/tcms.conf

@@ -86,6 +86,9 @@ sub app {
     # It's important that we log what the user ACTUALLY requested rather than the rewritten path later on.
     my $fullpath = "$scheme://$domain$pport$path";
 
+    use Data::Dumper;
+    print Dumper($env);
+
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
     if ( $env->{HTTP_IF_NONE_MATCH} ) {
@@ -93,6 +96,19 @@ sub app {
         return [ 304, [], [''] ] if $env->{HTTP_IF_NONE_MATCH} eq ( $etags{ $env->{REQUEST_URI} } || '' );
         $etags{ $env->{REQUEST_URI} } = $env->{HTTP_IF_NONE_MATCH} unless exists $etags{ $env->{REQUEST_URI} };
     }
+
+    # TODO: Actually do something with the language passed to the renderer
+    my $lang = $env->{HTTP_ACCEPT_LANGUAGE};
+
+    #TODO: Actually do something with the acceptable output formats in the renderer
+    my $accept = $env->{HTTP_ACCEPT};
+
+    # These two parameters are entirely academic, as no integration with any kind of analytics is implemented.
+    #my $no_track = $env->{HTTP_DNT};
+    #my $no_sell_info = $env->{HTTP_SEC_GPC};
+
+    # We generally prefer this to be handled at the reverse proxy level.
+    #my $prefer_ssl = $env->{HTTP_UPGRADE_INSECURE_REQUESTS};
 
     my $last_fetch = 0;
     if ( $env->{HTTP_IF_MODIFIED_SINCE} ) {
@@ -242,6 +258,8 @@ sub app {
     $query->{primary_post} = {};
     $query->{has_query}    = $has_query;
     $query->{port}         = $port;
+    $query->{lang}         = $lang;
+    $query->{accept}       = $accept;
     # Redirecting somewhere naughty not allow
     $query->{to}           = URI->new($query->{to} // '')->path() || $query->{to} if $query->{to};
 
