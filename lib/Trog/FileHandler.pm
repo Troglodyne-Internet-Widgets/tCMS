@@ -55,7 +55,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
     push( @headers, 'Vary'          => 'Accept-Encoding' );
 
     if ( open( my $fh, '<', $path ) ) {
-        return _range( $fh, $ranges, $sz, @headers ) if @$ranges && $streaming;
+        return _range( $fullpath, $fh, $ranges, $sz, @headers ) if @$ranges && $streaming;
 
         # Transfer-encoding: chunked
         return sub {
@@ -101,7 +101,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
     return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 
-sub _range ( $fh, $ranges, $sz, %headers ) {
+sub _range ( $fullpath, $fh, $ranges, $sz, %headers ) {
 
     # Set mode
     my $primary_ct   = "Content-Type: $headers{'Content-type'}";
@@ -116,6 +116,7 @@ sub _range ( $fh, $ranges, $sz, %headers ) {
     # Calculate the content-length up-front.  We have to fix unspecified lengths first, and reject bad requests.
     foreach my $range (@$ranges) {
         $range->[1] //= $sz - 1;
+        INFO("GET 416 $fullpath");
         return [ 416, [%headers], ["Requested range not satisfiable"] ] if $range->[0] > $sz || $range->[0] < 0 || $range->[1] < 0 || $range->[0] > $range->[1];
     }
     $headers{'Content-Length'} = List::Util::sum( map { my $arr = $_; $arr->[1] + 1, -$arr->[0] } @$ranges );
