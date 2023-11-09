@@ -84,9 +84,12 @@ nginx:
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
 	sudo mkdir -p '/etc/letsencrypt/live/$(SERVER_NAME)'
+	[ -e "/etc/nginx/sites-enabled/$$SERVER_NAME.conf" ] && sudo rm "/etc/nginx/sites-enabled/$$SERVER_NAME.conf"
 	sudo ln -sr nginx/tcms.conf '/etc/nginx/sites-enabled/$(SERVER_NAME).conf'
 	# Make a self-signed cert FIRST, because certbot has a chicken/egg problem
-	openssl req -x509 -nodes -newkey rsa:4096 -subj '/CN=$(SERVER_NAME)' -addext 'subjectAltName=DNS:www.$(SERVER_NAME),DNS:mail.$(SERVER_NAME)' -keyout '/etc/letsencrypt/live/$(SERVER_NAME)/privkey.pem' -out '/etc/letsencrypt/live/$(SERVER_NAME)/fullchain.pem' -days 365
-	# Now run certbot and get that http dcv
-	certbot certonly --webroot -w '/var/www/$(SERVER_NAME)/' -d '$(SERVER_NAME)' -d 'www.$(SERVER_NAME)' -w '/var/www/mail.$(SERVER_NAME)' -d 'mail.$(SERVER_NAME)'
-	systemctl restart nginx
+	sudo openssl req -x509 -config etc/openssl.conf -nodes -newkey rsa:4096 -subj '/CN=$(SERVER_NAME)' -addext 'subjectAltName=DNS:www.$(SERVER_NAME),DNS:mail.$(SERVER_NAME)' -keyout '/etc/letsencrypt/live/$(SERVER_NAME)/privkey.pem' -out '/etc/letsencrypt/live/$(SERVER_NAME)/fullchain.pem' -days 365
+	sudo systemctl reload nginx
+	# Now run certbot and get that http dcv. We have to do a "gamer move" so that certbot doesn't complain about live dir existing.
+	sudo rm -rf '/etc/letsencrypt/live/$(SERVER_NAME)'
+	sudo certbot certonly --webroot -w '/var/www/$(SERVER_NAME)/' -d '$(SERVER_NAME)' -d 'www.$(SERVER_NAME)' -w '/var/www/mail.$(SERVER_NAME)' -d 'mail.$(SERVER_NAME)'
+	sudo systemctl reload nginx
