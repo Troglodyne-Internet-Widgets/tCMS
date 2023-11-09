@@ -82,10 +82,12 @@ nginx:
 	sed 's/\%SERVER_PORT\%/$(SERVER_PORT)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
 	mkdir -p '/var/www/$(SERVER_NAME)'
-	mkdir -p '/var/www/$(SERVER_NAME)'
+	mkdir -p '/var/www/mail.$(SERVER_NAME)'
+	mkdir -p '/etc/letsencrypt/live/$(SERVER_NAME)'
 	ln -sr nginx/tcms.conf '/etc/nginx/sites-enabled/$(SERVER_NAME).conf'
-	openssl req -x509 -nodes -newkey -in '$(SERVER_NAME)' rsa:4096 -keyout key.pem -out cert.pem -days 365
-	openssl req -x509 -nodes -newkey -in '$(SERVER_NAME)' rsa:4096 -keyout key.pem -out cert.pem -days 365
+	# Make a self-signed cert FIRST, because certbot has a chicken/egg problem
+	openssl req -x509 -nodes -newkey -subj '/CN=$(SERVER_NAME)' -addext 'subjectAltName=DNS:www.$(SERVER_NAME),DNS:mail.$(SERVER_NAME)' rsa:4096 -keyout '/etc/letsencrypt/live/$(SERVER_NAME)/privkey.pem' -out '/etc/letsencrypt/live/$(SERVER_NAME)/fullchain.pem' -days 365
+	# Now run certbot and get that http dcv
 	certbot certonly --webroot -w '/var/www/$(SERVER_NAME)/' -d '$(SERVER_NAME)' -d 'www.$(SERVER_NAME)' -w '/var/www/mail.$(SERVER_NAME)' -d 'mail.$(SERVER_NAME)'
 	systemctl restart nginx
 	systemctl restart dovecot
