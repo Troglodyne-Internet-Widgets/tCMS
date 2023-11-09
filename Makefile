@@ -68,3 +68,8 @@ reset-remove:
 	rm config/main.cfg; /bin/true
 	rm config/has_users; /bin/true
 	rm config/setup; /bin/true
+
+.PHONY: fail2ban
+fail2ban:
+	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/tcms.conf
+	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/tcms.conf
