@@ -34,7 +34,7 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
 prereq-debs:
 	sudo apt-get update
 	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl         \
-		uwsgi uwsgi-plugin-psgi fail2ban nginx certbot\
+		uwsgi uwsgi-plugin-psgi fail2ban nginx certbot postfix dovecot-imapd dovecot-pop3d postgrey spamassassin amavis clamav\
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl                             \
@@ -73,6 +73,7 @@ reset-remove:
 fail2ban:
 	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/tcms.conf
 	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/tcms.conf
+	sudo systemctl fail2ban reload
 
 .PHONY: nginx
 nginx:
@@ -93,3 +94,20 @@ nginx:
 	sudo rm -rf '/etc/letsencrypt/live/$(SERVER_NAME)'
 	sudo certbot certonly --webroot -w '/var/www/$(SERVER_NAME)/' -d '$(SERVER_NAME)' -d 'www.$(SERVER_NAME)' -w '/var/www/mail.$(SERVER_NAME)' -d 'mail.$(SERVER_NAME)'
 	sudo systemctl reload nginx
+
+.PHONY: mail
+mail: nginx
+	# Dovecot
+	sudo cp /etc/dovecot/conf.d/10-ssl.conf /etc/dovecot/conf.d/10-ssl.conf.orig
+	sudo sed -i 's/^\(ssl_cert\s*=\).*/\1<\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/fullchain.pem/g' /etc/dovecot/conf.d/10-ssl.conf
+	sudo sed -i 's/^\(ssl_key\s*=\).*/\1\<\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/privkey.pem/g' /etc/dovecot/conf.d/10-ssl.conf
+	# Postfix
+	sudo cp /etc/postfix/main.cf /etc/postfix/main.cf.orig
+	sudo sed -i 's/^\(smtpd_tls_cert_file\s*=\).*/\1\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/fullchain.pem/g' /etc/postfix/main.cf
+	sudo sed -i 's/^\(smtpd_tls_key_file\s*=\).*/\1\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/privkey.pem/g' /etc/postfix/main.cf
+	sudo sed -i 's/^\(myhostname\s*=\).*/\1$(SERVER_NAME)/g' /etc/postfix/main.cf
+	sudo echo '$(SERVER_NAME)' > /etc/mailname
+	# TODO everything else
+
+.PHONY: all
+all: prereq-debian install fail2ban mail
