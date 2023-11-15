@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
+use Clone qw{clone};
 use Date::Format qw{strftime};
 
 use Sys::Hostname();
@@ -53,6 +54,7 @@ $routes{'/robots.txt'} = {
     method   => 'GET',
     callback => \&robots,
 };
+my $routes_immutable = clone(\%routes);
 
 my %aliases = $data->aliases();
 
@@ -74,6 +76,9 @@ sub app {
 
     # Start the server timing clock
     my $start = [gettimeofday];
+
+    # Don't allow any captured routes to persist past a request in the routing table
+    %routes = %$routes_immutable;
 
     my $env = shift;
 
@@ -247,7 +252,7 @@ sub app {
     $query->{user}     = $active_user;
 
     return _forbidden($query)  if exists $routes{$path}{auth} && !$active_user;
-    return _notfound($query)   unless $routes{$path} && ref $routes{$path} eq 'HASH' && keys(%{$routes{$path}});
+    return _notfound($query)   unless exists $routes{$path} && ref $routes{$path} eq 'HASH' && keys(%{$routes{$path}});
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ( $routes{$path}{method} || '', 'HEAD' );
 
     @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
