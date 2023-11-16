@@ -33,6 +33,12 @@
       </div>
       <br />
 : } else {
+      Display Name:<br />
+      <div class="input-group">
+        <label for="display_name">📛</label>
+        <input required name="display_name" id="contact_email" placeholder="Mr. President" value="" type="text"></input>
+      </div>
+      <br />
       Contact Email:<br />
       <div class="input-group">
         <label for="contact_email">📧</label>

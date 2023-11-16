@@ -122,6 +122,14 @@ sub totp ( $user, $domain ) {
     }
     $failure = -1 if $secret;
 
+    # Generate a new secret if needed
+    my $secret_is_generated = 0;
+    if (!$secret) {
+        $secret_is_generated = 1;
+        $totp->valid_secret();
+        $secret = $totp->secret();
+    }
+
     my $uri = $totp->generate_otp(
         user   => "$user\@$domain",
         issuer => $domain,
@@ -129,18 +137,14 @@ sub totp ( $user, $domain ) {
         #XXX verifier apps will only do 30s :(
         period => 30,
         digits => 6,
-        $secret ? ( secret => $secret ) : (),
+        secret => $secret,
     );
 
     my $qr = "$user\@$domain.bmp";
-    if ( !$secret ) {
+    if ( $secret_is_generated ) {
         # Liquidate the QR code if it's already there
         unlink "totp/$qr" if -f "totp/$qr";
 
-        # Generate a new secret
-        $totp->valid_secret();
-
-        $secret = $totp->secret();
         $dbh->do( "UPDATE user SET totp_secret=? WHERE name=?", undef, $secret, $user ) or return ( undef, undef, 1, "Failed to store TOTP secret." );
     }
 
@@ -164,10 +168,7 @@ sub totp ( $user, $domain ) {
 sub _totp {
     state $totp;
     if ( !$totp ) {
-        my $cfg           = Trog::Config->get();
-        my $global_secret = $cfg->param('totp.secret');
-        die "Global secret must be set in tCMS configuration totp section!" unless $global_secret;
-        $totp = Authen::TOTP->new( secret => $global_secret );
+        $totp = Authen::TOTP->new();
         die "Cannot instantiate TOTP client!" unless $totp;
         $totp->{DEBUG} = 1 if is_debug();
     }
@@ -277,8 +278,10 @@ Returns True or False (likely false when user already exists).
 
 =cut
 
-sub useradd ( $user, $pass, $acls, $contactemail ) {
+sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
 	die "No username set!" unless $user;
+    die "No display name set!" unless $displayname;
+    die "Username and display name cannot be the same" if $user eq $displayname;
 	die "No password set for user!" unless $pass;
 	die "ACLs must be array" unless is_arrayref($acls);
 	die "No contact email set for user!" unless $contactemail;
@@ -286,7 +289,7 @@ sub useradd ( $user, $pass, $acls, $contactemail ) {
     my $dbh  = _dbh();
     my $salt = create_uuid();
     my $hash = sha256( $pass . $salt );
-    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name,salt,hash,contact_email) VALUES (?,?,?,?)", undef, $user, $salt, $hash, $contactemail );
+    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt,hash,contact_email) VALUES (?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail );
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
@@ -304,10 +307,11 @@ sub add_change_request ( %args ) {
 
 sub process_change_request ( $token ) {
     my $dbh  = _dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT username, type, secret, contact_email FROM change_request_full WHERE processed=0 AND token=?", { Slice => {} }, $token );
+    my $rows = $dbh->selectall_arrayref( "SELECT username, display_name, type, secret, contact_email FROM change_request_full WHERE processed=0 AND token=?", { Slice => {} }, $token );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
     my $user = $rows->[0]{username};
+    my $display = $rows->[0]{display_name};
     my $type = $rows->[0]{type};
     my $secret = $rows->[0]{secret};
     my $contactemail = $rows->[0]{contact_email};
@@ -318,8 +322,8 @@ sub process_change_request ( $token ) {
 			#XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
 			# This is also why we have to snag the user's ACLs or they will be wiped.
 			my @acls = acls4user($user);
-            useradd( $user, $pass, \@acls, $contactemail ) or do {
-               return ''; 
+            useradd( $user, $display, $pass, \@acls, $contactemail ) or do {
+               return '';
             };
             killsession($user);
             return "Password set to $pass for $user";

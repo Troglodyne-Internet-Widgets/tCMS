@@ -25,6 +25,7 @@
     <form class="Submissions" action="/profile" method="POST" enctype="multipart/form-data">
         Username *<br /><input required class="cooltext" type="text" name="username" placeholder="AzureDiamond" value="<: $post.user :>" />
         Password *<br /><input <: $post.user ? '' : 'required' :> class="cooltext" type="password" name="password" placeholder="hunter2" />
+        Display Name *<br /><input  <: $post.user ? '' : 'required' :> class="cooltext" type="text" name="display_name" placeholder="Mr. President" />
         Contact Email *<br /><input <: $post.user ? '' : 'required' :> class="cooltext" type="text" name="contact_email" placeholder="test@test.test" />
         Avatar *<br /><input class="cooltext" type="file" name="preview_file" />
         : if ( $post.preview ) {

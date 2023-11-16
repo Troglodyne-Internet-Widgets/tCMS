@@ -398,6 +398,10 @@ sub toolong (@args) {
     return _generic_route( 'toolong', 419, "URI too long", @args );
 }
 
+sub error (@args) {
+    return _generic_route( 'error', 500, "Internal Server Error", @args);
+}
+
 =head2 redirect, redirect_permanent, see_also
 
 Redirects to the provided page.
@@ -500,7 +504,7 @@ sub login ($query) {
     if ( $query->{username} && $query->{password} ) {
         if ( !$hasusers ) {
             # Make the first user
-            Trog::Auth::useradd( $query->{username}, $query->{password}, ['admin'], $query->{contact_email} );
+            Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
 
             # Add a stub user page and the initial series.
             my $dat = Trog::Data->new($conf);
@@ -873,7 +877,7 @@ sub profile ($query) {
 	#TODO allow username changes
     if ( $query->{password} || $query->{contact_email} ) {
 		my @acls = Trog::Auth::acls4user($query->{username}) || qw{admin};
-        Trog::Auth::useradd( $query->{username}, $query->{password}, \@acls, $query->{contact_email} );
+        Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, \@acls, $query->{contact_email} );
     }
 
     #Make sure it is "self-authored", redact pw

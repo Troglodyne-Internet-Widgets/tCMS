@@ -23,10 +23,6 @@ If for example, you use mysql it will have to rely on either a local server, val
     </select>
     </div>
     <div>
-    Global TOTP Secret:
-    <input class="cooltext" type="text" name="totp_secret" value="<: $totp_secret :>" />
-    </div>
-    <div>
     Allow Embeds from:
     <input class="cooltext" type="textarea" name="embeds" value="<: $embeds :>" />
     </div>

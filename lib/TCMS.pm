@@ -62,6 +62,21 @@ my %aliases = $data->aliases();
 # This should eventually be pre-filled from DB.
 my %etags;
 
+# Wrap app to return *our* error handler instead of Plack::Util::run_app's
+my $cur_query = {};
+sub app {
+    return eval { _app(@_) } || do {
+		my $env = shift;
+        $env->{'psgi.errors'}->print($@);
+
+		# Redact the stack trace past line 1, it usually has things which should not be shown
+		$cur_query->{message} = $@;
+		$cur_query->{message} =~ s/\n.*//g if $cur_query->{message};
+
+		return _error($cur_query);
+    };
+}
+
 =head2 app()
 
 Dispatches requests based on %routes built above.
@@ -72,7 +87,7 @@ If a path passed is not a defined route (or regex route), but exists as a file u
 
 =cut
 
-sub app {
+sub _app {
 
     # Start the server timing clock
     my $start = [gettimeofday];
@@ -94,9 +109,13 @@ sub app {
     my $port   = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
     my $pport  = defined $port ? ":$port" : "";
     my $scheme = $env->{'psgi.url_scheme'} // 'http';
+    my $method = $env->{REQUEST_METHOD};
 
     # It's important that we log what the user ACTUALLY requested rather than the rewritten path later on.
     my $fullpath = "$scheme://$domain$pport$path";
+
+    # sigdie can now "do the right thing"
+    $cur_query = { route => $path, fullpath => $path, method => $method };
 
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
@@ -191,7 +210,7 @@ sub app {
     @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
 
     # Ensure any short-circuit routes can log the request
-    $query->{method} = $env->{REQUEST_METHOD};
+    $query->{method} = $method;
     $query->{route}  = $path;
 
     # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
@@ -323,6 +342,7 @@ sub _generic ( $type, $query ) {
         forbidden  => \&Trog::Routes::HTML::forbidden,
         badrequest => \&Trog::Routes::HTML::badrequest,
         toolong    => \&Trog::Routes::HTML::toolong,
+        error      => \&Trog::Routes::HTML::error,
     );
     return $lookup{$type}->($query);
 }
@@ -345,6 +365,11 @@ sub _badrequest ($query) {
 sub _toolong($query) {
     INFO("$query->{method} 419 $query->{fullpath}");
     return _generic( 'toolong', {} );
+}
+
+sub _error($query) {
+    INFO("$query->{method} 500 $query->{fullpath}");
+    return _generic( 'error', $query );
 }
 
 sub _static ( $fullpath, $path, $start, $streaming, $last_fetch = 0 ) {

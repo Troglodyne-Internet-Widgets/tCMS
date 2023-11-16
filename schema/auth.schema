@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS user (
     name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL UNIQUE,
     salt TEXT NOT NULL,
     hash TEXT NOT NULL,
     totp_secret TEXT DEFAULT NULL,
