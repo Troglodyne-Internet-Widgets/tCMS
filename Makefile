@@ -73,7 +73,7 @@ reset-remove:
 fail2ban:
 	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/tcms.conf
 	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/tcms.conf
-	sudo systemctl fail2ban reload
+	sudo systemctl reload fail2ban
 
 .PHONY: nginx
 nginx:
