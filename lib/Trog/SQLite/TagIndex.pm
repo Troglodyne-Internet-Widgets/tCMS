@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
+use URI::Escape;
 use List::Util qw{uniq};
 use Trog::SQLite;
 
@@ -33,7 +34,8 @@ sub routes {
     my $rows = $dbh->selectall_arrayref( "SELECT id, route, method, callback FROM all_routes", { Slice => {} } );
     return () unless ref $rows eq 'ARRAY' && @$rows;
 
-    my %routes = map { $_->{route} => $_ } @$rows;
+    #XXX not sure how this gets escaped going in.
+    my %routes = map { URI::Escape::uri_unescape($_->{route}) => $_ } @$rows;
     return %routes;
 }
 

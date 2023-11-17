@@ -18,6 +18,7 @@ use IO::Compress::Gzip;
 use Path::Tiny();
 use File::Basename qw{dirname};
 use URI();
+use URI::Escape();
 
 use FindBin::libs;
 
@@ -48,6 +49,7 @@ our $categorybar  = 'categories.tx';
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
+		noindex  => 1,
     },
     '/index' => {
         method   => 'GET',
@@ -508,7 +510,7 @@ sub login ($query) {
 
             # Add a stub user page and the initial series.
             my $dat = Trog::Data->new($conf);
-            _setup_initial_db( $dat, $query->{username} );
+            _setup_initial_db( $dat, $query->{username}, $query->{display_name}, $query->{contact_email} );
 
             # Ensure we stop registering new users
             File::Touch::touch("config/has_users");
@@ -548,7 +550,7 @@ sub login ($query) {
     );
 }
 
-sub _setup_initial_db ( $dat, $user ) {
+sub _setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
     $dat->add(
         {
             "aclname"    => "series",
@@ -601,14 +603,16 @@ sub _setup_initial_db ( $dat, $user ) {
             aliases        => [],
         },
         {
-            title      => $user,
+            title      => $display_name,
             data       => 'Default user',
             preview    => '/img/avatar/humm.gif',
             wallpaper  => '/img/sys/testpattern.jpg',
             tags       => ['about'],
             visibility => 'public',
             acls       => ['admin'],
-            local_href => "/users/$user",
+            local_href => "/users/$display_name",
+			display_name => $display_name,
+			contact_email => $contact_email,
             callback   => "Trog::Routes::HTML::users",
             method     => 'GET',
             user       => $user,
@@ -977,7 +981,11 @@ Implements direct user profile view.
 sub users ($query) {
 
     # Capture the username
-    my ( undef, undef, $username ) = split( /\//, $query->{route} );
+    my ( undef, undef, $display_name ) = split( /\//, $query->{route} );
+	$display_name = URI::Escape::uri_unescape($display_name);
+
+	my $username = Trog::Auth::display2username($display_name);
+	return notfound($query) unless $username;
 
     $query->{username} //= $username;
     push( @{ $query->{user_acls} }, 'public' );

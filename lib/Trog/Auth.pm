@@ -83,6 +83,21 @@ sub email4user ($user) {
     return $rows->[0]{contact_email};
 }
 
+sub display2username ($display_name) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE display_name=?", { Slice => {} }, $display_name );
+    return '' unless ref $rows eq 'ARRAY' && @$rows;
+    return $rows->[0]{name};
+}
+
+sub username2display ($name) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT display_name FROM user WHERE name=?", { Slice => {} }, $name );
+    return '' unless ref $rows eq 'ARRAY' && @$rows;
+    return $rows->[0]{display_name};
+}
+
+
 =head2 acls4user(STRING username) = ARRAYREF
 
 Return the list of ACLs belonging to the user.
