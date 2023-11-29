@@ -640,11 +640,18 @@ Renders the configuration page, or redirects you back to the login page.
 
 =cut
 
-sub config ($query) {
+sub config ($query={}) {
     return see_also('/login')                    unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
+
+    #XXX ACHTUNG config::simple has this brain damaged behavior of returning a multiple element array when you access something that does not exist.
+    #XXX straight up dying would be preferrable.
+    #XXX anyways, this means you can NEVER NEVER NEVER access a param from within a hash directly.  YOU HAVE BEEN WARNED!
+    my $theme  = $conf->param('general.theme') // '';
+    my $dm     = $conf->param('general.data_model') // 'DUMMY';
+    my $embeds = $conf->param('security.allow_embeds_from') // '';
 
     return Trog::Routes::HTML::index(
         {
@@ -654,14 +661,13 @@ sub config ($query) {
             scripts            => [qw{post.js}],
             themes             => _get_themes() || [],
             data_models        => _get_data_models(),
-            current_theme      => $conf->param('general.theme')      // '',
-            current_data_model => $conf->param('general.data_model') // 'DUMMY',
-            totp_secret        => $conf->param('totp.secret'),
+            current_theme      => $theme,
+            current_data_model => $dm,
             message            => $query->{message},
             failure            => $query->{failure},
             to                 => '/config',
             scheme             => $query->{scheme},
-            embeds             => $conf->param('security.allow_embeds_from') // '',
+            embeds             => $embeds,
             is_admin           => 1,
             template           => 'config.tx',
             %$query,
@@ -799,8 +805,7 @@ sub config_save ($query) {
     }
 
     #Get the PID of the parent port using lsof, send HUP
-    my $parent = getppid;
-    kill 'HUP', $parent;
+    Trog::Utils::restart_parent();
 
     return config($query);
 }

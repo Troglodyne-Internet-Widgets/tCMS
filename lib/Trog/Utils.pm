@@ -25,8 +25,10 @@ sub strip_and_trunc ($s) {
 }
 
 # Instruct the parent to restart.  Normally this is HUP, but nginx-unit decides to be special.
-sub restart_parent ( $env ) {
-    if ($env->{PSGI_ENGINE} && $env->{PSGI_ENGINE} eq 'nginx-unit') {
+# Don't do anything if running NOHUP=1, which is useful when doing bulk operations
+sub restart_parent {
+    return if $ENV{NOHUP};
+    if ($ENV{PSGI_ENGINE} && $ENV{PSGI_ENGINE} eq 'nginx-unit') {
         my $conf = Trog::Config->get();
         my $nginx_socket = $conf->param('nginx-unit.socket');
         my $client = HTTP::Tiny::UNIX->new();

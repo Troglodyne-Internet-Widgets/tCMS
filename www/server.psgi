@@ -7,4 +7,6 @@ use warnings;
 use lib 'lib';
 use TCMS;
 
+$ENV{PSGI_ENGINE} //= 'starman';
+
 our $app = \&TCMS::app;
