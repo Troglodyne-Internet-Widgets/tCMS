@@ -39,9 +39,6 @@ use Trog::FileHandler;
 
 # Troglodyne philosophy - simple as possible
 
-# What PSGI server are we running as?  We set this in each runner.
-my $engine = $ENV{PSGI_ENGINE};
-
 # Import the routes
 my $conf  = Trog::Config::get();
 my $data  = Trog::Data->new($conf);
