@@ -26,8 +26,13 @@ If for example, you use mysql it will have to rely on either a local server, val
     Allow Embeds from:
     <input class="cooltext" type="textarea" name="embeds" value="<: $embeds :>" />
     </div>
+    <div>
+    Hostname:
+    <input class="cooltext" type="textarea" name="hostname" value="<: $hostname :>" />
+    </div>
     <br />
     <input type="submit" class="coolbutton" value="Commit Changes" />
+
 </form>
 <hr />
 <p class="title">

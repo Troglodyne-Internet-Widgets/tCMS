@@ -652,9 +652,10 @@ sub config ( $query = {} ) {
     #XXX ACHTUNG config::simple has this brain damaged behavior of returning a multiple element array when you access something that does not exist.
     #XXX straight up dying would be preferrable.
     #XXX anyways, this means you can NEVER NEVER NEVER access a param from within a hash directly.  YOU HAVE BEEN WARNED!
-    my $theme  = $conf->param('general.theme')              // '';
-    my $dm     = $conf->param('general.data_model')         // 'DUMMY';
-    my $embeds = $conf->param('security.allow_embeds_from') // '';
+    state $theme  = $conf->param('general.theme')              // '';
+    state $dm     = $conf->param('general.data_model')         // 'DUMMY';
+    state $embeds = $conf->param('security.allow_embeds_from') // '';
+    state $hostname = $conf->param('general.hostname') // '';
 
     return Trog::Routes::HTML::index(
         {
@@ -674,6 +675,7 @@ sub config ( $query = {} ) {
             is_admin           => 1,
             template           => 'config.tx',
             %$query,
+            hostname           => $hostname,
         },
         undef,
         [qw{config.css}],
@@ -803,6 +805,7 @@ sub config_save ($query) {
     $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model',         $query->{data_model} ) if $query->{data_model};
     $conf->param( 'security.allow_embeds_from', $query->{embeds} )     if $query->{embeds};
+    $conf->param( 'general.hostname',           $query->{hostname} )   if $query->{hostname};
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";

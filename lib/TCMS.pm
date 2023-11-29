@@ -105,7 +105,7 @@ sub _app {
     Trog::Log::uuid($requestid);
 
     # Various stuff important for logging requests
-    state $domain = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
+    state $domain = $conf->param('general.hostname') || $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST} || eval { Sys::Hostname::hostname() };
     my $path   = $env->{PATH_INFO};
     my $port   = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
     my $pport  = defined $port ? ":$port" : "";
