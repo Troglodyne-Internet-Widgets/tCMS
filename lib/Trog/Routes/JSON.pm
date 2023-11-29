@@ -40,7 +40,7 @@ our %routes = (
         callback   => \&process_auth_change_request,
         captures   => ['token'],
         noindex    => 1,
-		robot_name => '/api/auth_change_request/*',
+        robot_name => '/api/auth_change_request/*',
     },
 );
 
@@ -64,42 +64,43 @@ sub version ($query) {
 }
 
 sub catalog ($query) {
-	return _render(200, { ETag => 'catalog-' . _version() }, %$cloned);
+    return _render( 200, { ETag => 'catalog-' . _version() }, %$cloned );
 }
 
 sub webmanifest ($query) {
     state $headers  = { ETag => 'manifest-' . _version() };
     state %manifest = (
         "icons" => [
-			{ "src" => "$theme_dir/img/icon/favicon-32.png", "type" => "image/png", "sizes" => "32x32" },
-			{ "src" => "$theme_dir/img/icon/favicon-48.png", "type" => "image/png", "sizes" => "48x48" },
-			{ "src" => "$theme_dir/img/icon/favicon-167.png", "type" => "image/png", "sizes" => "167x167" },
-			{ "src" => "$theme_dir/img/icon/favicon-180.png", "type" => "image/png", "sizes" => "180x180" },
+            { "src" => "$theme_dir/img/icon/favicon-32.png",  "type" => "image/png", "sizes" => "32x32" },
+            { "src" => "$theme_dir/img/icon/favicon-48.png",  "type" => "image/png", "sizes" => "48x48" },
+            { "src" => "$theme_dir/img/icon/favicon-167.png", "type" => "image/png", "sizes" => "167x167" },
+            { "src" => "$theme_dir/img/icon/favicon-180.png", "type" => "image/png", "sizes" => "180x180" },
             { "src" => "$theme_dir/img/icon/favicon-192.png", "type" => "image/png", "sizes" => "192x192" },
             { "src" => "$theme_dir/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
         ],
     );
-	return _render(200, $headers, %manifest );
+    return _render( 200, $headers, %manifest );
 }
 
-sub process_auth_change_request($query) {
+sub process_auth_change_request ($query) {
     my $token = $query->{token};
 
     my $msg = Trog::Auth::process_change_request($token);
     return Trog::Routes::HTML::forbidden($query) unless $msg;
-    return _render(200, undef,
-        	message => $msg,
-        	result  => 'success',
+    return _render(
+        200, undef,
+        message => $msg,
+        result  => 'success',
     );
 }
 
-sub _render ($code, $headers, %data) {
+sub _render ( $code, $headers, %data ) {
     return Trog::Renderer->render(
-        code => 200,
-		data => \%data,
-		template => 'bogus.tx',
-		contenttype => 'application/json',
-		headers     => $headers,
+        code        => 200,
+        data        => \%data,
+        template    => 'bogus.tx',
+        contenttype => 'application/json',
+        headers     => $headers,
     );
 }
 

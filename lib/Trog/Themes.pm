@@ -15,15 +15,15 @@ Utility functions for getting themed paths.
 
 =cut
 
-my $conf         = Trog::Config::get();
+my $conf = Trog::Config::get();
 our $template_dir = 'www/templates';
 our $theme_dir    = '';
 $theme_dir = "www/themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
 our $td = $theme_dir ? "/$theme_dir" : '';
 
-sub template_dir ($template, $content_type, $is_component=0, $is_dir=0) {
+sub template_dir ( $template, $content_type, $is_component = 0, $is_dir = 0 ) {
     my $ct = $Trog::Vars::byct{$content_type};
-    my ($mtd, $mtemp) = ("$theme_dir/templates/$ct", "$template_dir/$ct");
+    my ( $mtd, $mtemp ) = ( "$theme_dir/templates/$ct", "$template_dir/$ct" );
     if ($is_component) {
         $mtd   .= "/components";
         $mtemp .= "/components";
@@ -55,8 +55,8 @@ sub themed_template ($resource) {
     return _dir_for_resource("templates/$resource") . "/templates/$resource";
 }
 
-sub templates_in_dir ($path, $ct, $is_component=0) {
-    $path = template_dir($path, $ct, $is_component, 1)."/$path";
+sub templates_in_dir ( $path, $ct, $is_component = 0 ) {
+    $path = template_dir( $path, $ct, $is_component, 1 ) . "/$path";
     my $forms = [];
     return $forms unless -d $path;
     opendir( my $dh, $path );
@@ -66,6 +66,5 @@ sub templates_in_dir ($path, $ct, $is_component=0) {
     close($dh);
     return $forms;
 }
-
 
 1;

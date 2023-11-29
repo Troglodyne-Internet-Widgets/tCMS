@@ -9,10 +9,10 @@ use File::Which    ();
 use File::Copy     ();
 
 die "Usage:\n    favicon_mongler.pl /path/to/favicon.svg" unless $ARGV[0];
-my $icon = Cwd::abs_path($ARGV[0]);
-my $bin = File::Which::which('inkscape');
+my $icon = Cwd::abs_path( $ARGV[0] );
+my $bin  = File::Which::which('inkscape');
 die "Please install inkscape" if !$bin;
-my $dir  = File::Basename::dirname($icon) || die "Can't figure out dir from $icon";
+my $dir = File::Basename::dirname($icon) || die "Can't figure out dir from $icon";
 
 my %files = (
     32  => 'ico',
@@ -29,6 +29,6 @@ foreach my $size ( sort { $b <=> $a } keys(%files) ) {
     print "*** Wrote $dir/favicon-$size.$files{$size} ***\n\n";
 }
 
-File::Copy::copy("$dir/favicon-32.ico", "$dir/favicon.ico");
+File::Copy::copy( "$dir/favicon-32.ico", "$dir/favicon.ico" );
 
 0;

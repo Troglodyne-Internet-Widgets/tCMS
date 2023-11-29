@@ -7,9 +7,9 @@ use FindBin::libs;
 
 use Trog::Auth;
 
-my ($user, $display_name, $pass, $contactemail) = @ARGV;
+my ( $user, $display_name, $pass, $contactemail ) = @ARGV;
 
 # TODO better arg handling, etc
 
 Trog::Auth::killsession($user);
-Trog::Auth::useradd($user, $display_name, $pass, ['admin'], $contactemail);
+Trog::Auth::useradd( $user, $display_name, $pass, ['admin'], $contactemail );

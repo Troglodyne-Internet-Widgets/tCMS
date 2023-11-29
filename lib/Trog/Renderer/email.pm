@@ -20,9 +20,9 @@ Render emails with both HTML and email parts, and inline all CSS/JS/Images.
 
 # TODO inlining
 sub render (%options) {
-    my $text = Trog::Renderer::Base::render(%options, contenttype => 'text/plain');
-	my $html = Trog::Renderer::html::render(%options, contenttype => 'text/html');
-	return { text => $text, html => $html };
+    my $text = Trog::Renderer::Base::render( %options, contenttype => 'text/plain' );
+    my $html = Trog::Renderer::html::render( %options, contenttype => 'text/html' );
+    return { text => $text, html => $html };
 }
 
 1;

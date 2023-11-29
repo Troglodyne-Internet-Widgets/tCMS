@@ -97,7 +97,6 @@ sub username2display ($name) {
     return $rows->[0]{display_name};
 }
 
-
 =head2 acls4user(STRING username) = ARRAYREF
 
 Return the list of ACLs belonging to the user.
@@ -139,7 +138,7 @@ sub totp ( $user, $domain ) {
 
     # Generate a new secret if needed
     my $secret_is_generated = 0;
-    if (!$secret) {
+    if ( !$secret ) {
         $secret_is_generated = 1;
         $totp->valid_secret();
         $secret = $totp->secret();
@@ -156,7 +155,8 @@ sub totp ( $user, $domain ) {
     );
 
     my $qr = "$user\@$domain.bmp";
-    if ( $secret_is_generated ) {
+    if ($secret_is_generated) {
+
         # Liquidate the QR code if it's already there
         unlink "totp/$qr" if -f "totp/$qr";
 
@@ -200,8 +200,8 @@ Return the expected totp code at a given time with a given secret.
 sub expected_totp_code {
     my ( $self, $secret, $when, $digits ) = @_;
     $self //= _totp();
-    $when   //= time;
-    my $period  = 30;
+    $when //= time;
+    my $period = 30;
     $digits //= 6;
     $self->{secret} = $secret;
 
@@ -225,9 +225,9 @@ Clear the totp codes for provided user
 
 =cut
 
-sub clear_totp($user) {
+sub clear_totp ($user) {
     my $dbh = _dbh();
-    my $res = $dbh->do("UPDATE user SET totp_secret=null WHERE name=?", undef, $user) or die "Could not clear user TOTP secrets";
+    my $res = $dbh->do( "UPDATE user SET totp_secret=null WHERE name=?", undef, $user ) or die "Could not clear user TOTP secrets";
     return !!$res;
 }
 
@@ -249,7 +249,7 @@ sub mksession ( $user, $pass, $token ) {
     my $salt   = $records->[0]->{salt};
     my $hash   = sha256( $pass . $salt );
     my $worked = $dbh->selectall_arrayref( "SELECT name, totp_secret FROM user WHERE hash=? AND name = ?", { Slice => {} }, $hash, $user );
-    if (!(ref $worked eq 'ARRAY' && @$worked)) {
+    if ( !( ref $worked eq 'ARRAY' && @$worked ) ) {
         INFO("Failed login for user $user");
         return '';
     }
@@ -259,12 +259,13 @@ sub mksession ( $user, $pass, $token ) {
     # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
     if ($secret) {
         return '' unless $token;
-        DEBUG("TOTP Auth: Sent code $token, expect ".expected_totp_code($totp, $secret));
+        DEBUG( "TOTP Auth: Sent code $token, expect " . expected_totp_code( $totp, $secret ) );
+
         #XXX we have to force the secret into compliance, otherwise it generates one on the fly, oof
         $totp->{secret} = $secret;
         my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
         INFO("TOTP Auth failed for user $user") unless $rc;
-        return '' unless $rc;
+        return ''                               unless $rc;
     }
 
     # Issue cookie
@@ -294,12 +295,12 @@ Returns True or False (likely false when user already exists).
 =cut
 
 sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
-	die "No username set!" unless $user;
+    die "No username set!"     unless $user;
     die "No display name set!" unless $displayname;
     die "Username and display name cannot be the same" if $user eq $displayname;
-	die "No password set for user!" unless $pass;
-	die "ACLs must be array" unless is_arrayref($acls);
-	die "No contact email set for user!" unless $contactemail;
+    die "No password set for user!"      unless $pass;
+    die "ACLs must be array"             unless is_arrayref($acls);
+    die "No contact email set for user!" unless $contactemail;
 
     my $dbh  = _dbh();
     my $salt = create_uuid();
@@ -314,31 +315,32 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     return 1;
 }
 
-sub add_change_request ( %args ) {
-    my $dbh  = _dbh();
-    my $res  = $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
+sub add_change_request (%args) {
+    my $dbh = _dbh();
+    my $res = $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
     return !!$res;
 }
 
-sub process_change_request ( $token ) {
+sub process_change_request ($token) {
     my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT username, display_name, type, secret, contact_email FROM change_request_full WHERE processed=0 AND token=?", { Slice => {} }, $token );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
-    my $user = $rows->[0]{username};
-    my $display = $rows->[0]{display_name};
-    my $type = $rows->[0]{type};
-    my $secret = $rows->[0]{secret};
+    my $user         = $rows->[0]{username};
+    my $display      = $rows->[0]{display_name};
+    my $type         = $rows->[0]{type};
+    my $secret       = $rows->[0]{secret};
     my $contactemail = $rows->[0]{contact_email};
 
     state %dispatch = (
         reset_pass => sub {
-            my ($user, $pass) = @_;
-			#XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
-			# This is also why we have to snag the user's ACLs or they will be wiped.
-			my @acls = acls4user($user);
+            my ( $user, $pass ) = @_;
+
+            #XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
+            # This is also why we have to snag the user's ACLs or they will be wiped.
+            my @acls = acls4user($user);
             useradd( $user, $display, $pass, \@acls, $contactemail ) or do {
-               return '';
+                return '';
             };
             killsession($user);
             return "Password set to $pass for $user";
@@ -352,8 +354,8 @@ sub process_change_request ( $token ) {
             return "TOTP auth turned off for $user";
         },
     );
-    my $res = $dispatch{$type}->($user, $secret);
-    $dbh->do("UPDATE change_request SET processed=1 WHERE token=?", undef, $token) or do {
+    my $res = $dispatch{$type}->( $user, $secret );
+    $dbh->do( "UPDATE change_request SET processed=1 WHERE token=?", undef, $token ) or do {
         FATAL("Could not set job with token $token to completed!");
     };
     return $res;

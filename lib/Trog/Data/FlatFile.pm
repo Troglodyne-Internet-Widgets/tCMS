@@ -73,7 +73,9 @@ sub read ( $self, $query = {} ) {
             next;
         }
         my $parsed;
-        capture_merged { $parsed = eval { $parser->decode($slurped) } };
+        capture_merged {
+            $parsed = eval { $parser->decode($slurped) }
+        };
         if ( !$parsed ) {
 
             # Try and read it in binary in case it was encoded incorrectly the first time

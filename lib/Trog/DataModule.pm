@@ -98,6 +98,7 @@ sub _fixup ( $self, @filtered ) {
         my $subj = $_;
         foreach my $param (qw{href preview video_href audio_href local_href wallpaper}) {
             next unless exists $subj->{$param};
+
             #XXX I don't remember what this fixes, but it also breaks things.  URI::Escape usage instead is indicated.
             $subj->{$param} =~ s/ /%20/g;
         }
@@ -106,9 +107,10 @@ sub _fixup ( $self, @filtered ) {
         my $is_user_page = List::Util::any { $_ eq 'about' } @{ $subj->{tags} };
         if ( !exists $subj->{local_href} ) {
             $subj->{local_href} = "/posts/$subj->{id}";
+
             #XXX this needs to be correctly populated in the form?
             if ($is_user_page) {
-                my $display_name = $subj->{display_name} || Trog::Auth::username2display($subj->{user});
+                my $display_name = $subj->{display_name} || Trog::Auth::username2display( $subj->{user} );
                 die "No display name for user!" unless $display_name;
                 $subj->{local_href} = "/users/$display_name";
             }
@@ -149,11 +151,11 @@ sub filter ( $self, $query, @filtered ) {
 
     #Filter out posts which are too old
     #Coerce older into numeric
-    if ($query->{older}) {
+    if ( $query->{older} ) {
         $query->{older} =~ s/[^0-9]//g;
         @filtered = grep { $_->{created} < $query->{older} } @filtered;
     }
-    if ($query->{newer}) {
+    if ( $query->{newer} ) {
         $query->{newer} =~ s/[^0-9]//g;
         @filtered = grep { $_->{created} > $query->{newer} } @filtered;
     }

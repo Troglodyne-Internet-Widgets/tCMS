@@ -35,7 +35,7 @@ sub routes {
     return () unless ref $rows eq 'ARRAY' && @$rows;
 
     #XXX not sure how this gets escaped going in.
-    my %routes = map { URI::Escape::uri_unescape($_->{route}) => $_ } @$rows;
+    my %routes = map { URI::Escape::uri_unescape( $_->{route} ) => $_ } @$rows;
     return %routes;
 }
 

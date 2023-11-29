@@ -7,10 +7,10 @@ use FindBin::libs;
 
 use Trog::Auth;
 
-my $user = shift @ARGV;
+my $user   = shift @ARGV;
 my $domain = shift @ARGV;
 
-die "Must provide a user" unless $user;
+die "Must provide a user"   unless $user;
 die "Must provide a domain" unless $domain;
 
 my $dbh = Trog::Auth::_dbh();
@@ -19,4 +19,4 @@ my $rows = $dbh->selectall_arrayref( "SELECT name, totp_secret FROM user WHERE n
 die "no such user" unless @$rows;
 my $secret = $rows->[0]->{totp_secret};
 
-print Trog::Auth::expected_totp_code(undef, $secret)."\n";
+print Trog::Auth::expected_totp_code( undef, $secret ) . "\n";

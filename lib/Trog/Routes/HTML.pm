@@ -49,7 +49,7 @@ our $categorybar  = 'categories.tx';
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
-		noindex  => 1,
+        noindex  => 1,
     },
     '/index' => {
         method   => 'GET',
@@ -132,25 +132,26 @@ our %routes = (
         callback => \&Trog::Routes::HTML::manual,
     },
     '/password_reset' => {
-        method => 'GET',
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::resetpass,
         noindex  => 1,
     },
     '/request_password_reset' => {
-        method => 'POST',
+        method   => 'POST',
         callback => \&Trog::Routes::HTML::do_resetpass,
         noindex  => 1,
     },
     '/request_totp_clear' => {
-        method => 'POST',
+        method   => 'POST',
         callback => \&Trog::Routes::HTML::do_totp_clear,
         noindex  => 1,
     },
     '/processed' => {
-        method => 'GET',
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::processed,
         noindex  => 1,
     },
+
     # END FAIL2BAN ROUTES
 
     #TODO transform into posts?
@@ -208,7 +209,7 @@ our %routes = (
         callback => \&Trog::Routes::HTML::icon,
     },
     '/styles/rss-style.xsl' => {
-        method => 'GET',
+        method   => 'GET',
         callback => \&Trog::Routes::HTML::rss_style,
     },
 );
@@ -222,7 +223,8 @@ if ($Trog::Themes::theme_dir) {
         require $theme_mod;
         @routes{ keys(%Theme::routes) } = values(%Theme::routes);
         $themed = 1;
-    } else {
+    }
+    else {
         # Use the special "default" theme
         require Theme;
     }
@@ -247,8 +249,8 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     return $content if ref $content eq "ARRAY";
 
     my @styles;
-    unshift( @styles, qw{embed.css}) if $query->{embed};
-    unshift( @styles, qw{screen.css structure.css});
+    unshift( @styles, qw{embed.css} ) if $query->{embed};
+    unshift( @styles, qw{screen.css structure.css} );
     push( @styles, @$i_styles );
     my @p_styles = qw{print.css};
 
@@ -267,17 +269,17 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     # TO support theming we have to do things like this rather than with an include directive in the templates.
     my $htmltitle = Trog::Renderer->render( template => $htmltitle, data => $query, component => 1, contenttype => 'text/html' );
     return $htmltitle if ref $htmltitle eq 'ARRAY';
-    my $midtitle  = Trog::Renderer->render( template => $midtitle,  data => $query, component => 1, contenttype => 'text/html' );
+    my $midtitle = Trog::Renderer->render( template => $midtitle, data => $query, component => 1, contenttype => 'text/html' );
     return $midtitle if ref $midtitle eq 'ARRAY';
-    my $rightbar  = Trog::Renderer->render( template => $rightbar,  data => $query, component => 1, contenttype => 'text/html' );
+    my $rightbar = Trog::Renderer->render( template => $rightbar, data => $query, component => 1, contenttype => 'text/html' );
     return $rightbar if ref $rightbar eq 'ARRAY';
-    my $leftbar   = Trog::Renderer->render( template => $leftbar,   data => $query, component => 1, contenttype => 'text/html' );
+    my $leftbar = Trog::Renderer->render( template => $leftbar, data => $query, component => 1, contenttype => 'text/html' );
     return $leftbar if ref $leftbar eq 'ARRAY';
-    my $topbar    = Trog::Renderer->render( template => $topbar,    data => $query, component => 1, contenttype => 'text/html' );
+    my $topbar = Trog::Renderer->render( template => $topbar, data => $query, component => 1, contenttype => 'text/html' );
     return $topbar if ref $topbar eq 'ARRAY';
-    my $footbar   = Trog::Renderer->render( template => $footbar,   data => $query, component => 1, contenttype => 'text/html' );
+    my $footbar = Trog::Renderer->render( template => $footbar, data => $query, component => 1, contenttype => 'text/html' );
     return $footbar if ref $footbar eq 'ARRAY';
-    my $categorybar   = Trog::Renderer->render( template => $categorybar,   data => { %$query, categories => \@series}, component => 1, contenttype => 'text/html' );
+    my $categorybar = Trog::Renderer->render( template => $categorybar, data => { %$query, categories => \@series }, component => 1, contenttype => 'text/html' );
     return $categorybar if ref $categorybar eq 'ARRAY';
 
     return finish_render(
@@ -379,9 +381,9 @@ Implements the 4XX status codes.  Override templates named the same for theming 
 sub _generic_route ( $rname, $code, $title, $query ) {
     $query->{code} = $code;
     $query->{route} //= $rname;
-    $query->{title} = $title;
+    $query->{title}    = $title;
     $query->{template} = "$rname.tx";
-    return Trog::Routes::HTML::index( $query );
+    return Trog::Routes::HTML::index($query);
 }
 
 sub notfound (@args) {
@@ -401,7 +403,7 @@ sub toolong (@args) {
 }
 
 sub error (@args) {
-    return _generic_route( 'error', 500, "Internal Server Error", @args);
+    return _generic_route( 'error', 500, "Internal Server Error", @args );
 }
 
 =head2 redirect, redirect_permanent, see_also
@@ -439,13 +441,13 @@ sub setup ($query) {
     File::Touch::touch("config/setup");
     Trog::Renderer->render(
         template => 'notconfigured.tx',
-        data => {
+        data     => {
             title       => 'tCMS Requires Setup to Continue...',
-            stylesheets => _build_themed_styles(['notconfigured.css']),
+            stylesheets => _build_themed_styles( ['notconfigured.css'] ),
             %$query,
         },
         contenttype => 'text/html',
-        code => 200,
+        code        => 200,
     );
 }
 
@@ -464,14 +466,14 @@ sub totp ($query) {
 
     return Trog::Routes::HTML::index(
         {
-            title       => 'Enable TOTP 2-Factor Auth',
-            theme_dir   => $Trog::Themes::td,
-            uri         => $uri,
-            qr          => $qr,
-            failure     => $failure,
-            message     => $message,
-            template    => 'totp.tx',
-            is_admin    => 1,
+            title     => 'Enable TOTP 2-Factor Auth',
+            theme_dir => $Trog::Themes::td,
+            uri       => $uri,
+            qr        => $qr,
+            failure   => $failure,
+            message   => $message,
+            template  => 'totp.tx',
+            is_admin  => 1,
             %$query,
         },
         undef,
@@ -505,6 +507,7 @@ sub login ($query) {
     my $has_totp = 0;
     if ( $query->{username} && $query->{password} ) {
         if ( !$hasusers ) {
+
             # Make the first user
             Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
 
@@ -533,20 +536,20 @@ sub login ($query) {
     $query->{failed} //= -1;
     return Trog::Renderer->render(
         template => 'login.tx',
-        data => {
+        data     => {
             title       => 'tCMS 2 ~ Login',
             to          => $query->{to},
             failure     => int( $query->{failed} ),
             message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
             btnmsg      => $btnmsg,
-            stylesheets => _build_themed_styles([qw{login.css}]),
+            stylesheets => _build_themed_styles( [qw{login.css}] ),
             theme_dir   => $Trog::Themes::td,
             has_users   => $hasusers,
             %$query,
         },
         headers     => $headers,
         contenttype => 'text/html',
-        code => 200,
+        code        => 200,
     );
 }
 
@@ -603,21 +606,21 @@ sub _setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
             aliases        => [],
         },
         {
-            title      => $display_name,
-            data       => 'Default user',
-            preview    => '/img/avatar/humm.gif',
-            wallpaper  => '/img/sys/testpattern.jpg',
-            tags       => ['about'],
-            visibility => 'public',
-            acls       => ['admin'],
-            local_href => "/users/$display_name",
-			display_name => $display_name,
-			contact_email => $contact_email,
-            callback   => "Trog::Routes::HTML::users",
-            method     => 'GET',
-            user       => $user,
-            form       => 'profile.tx',
-            aliases    => [],
+            title         => $display_name,
+            data          => 'Default user',
+            preview       => '/img/avatar/humm.gif',
+            wallpaper     => '/img/sys/testpattern.jpg',
+            tags          => ['about'],
+            visibility    => 'public',
+            acls          => ['admin'],
+            local_href    => "/users/$display_name",
+            display_name  => $display_name,
+            contact_email => $contact_email,
+            callback      => "Trog::Routes::HTML::users",
+            method        => 'GET',
+            user          => $user,
+            form          => 'profile.tx',
+            aliases       => [],
         },
     );
 }
@@ -640,7 +643,7 @@ Renders the configuration page, or redirects you back to the login page.
 
 =cut
 
-sub config ($query={}) {
+sub config ( $query = {} ) {
     return see_also('/login')                    unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
@@ -649,8 +652,8 @@ sub config ($query={}) {
     #XXX ACHTUNG config::simple has this brain damaged behavior of returning a multiple element array when you access something that does not exist.
     #XXX straight up dying would be preferrable.
     #XXX anyways, this means you can NEVER NEVER NEVER access a param from within a hash directly.  YOU HAVE BEEN WARNED!
-    my $theme  = $conf->param('general.theme') // '';
-    my $dm     = $conf->param('general.data_model') // 'DUMMY';
+    my $theme  = $conf->param('general.theme')              // '';
+    my $dm     = $conf->param('general.data_model')         // 'DUMMY';
     my $embeds = $conf->param('security.allow_embeds_from') // '';
 
     return Trog::Routes::HTML::index(
@@ -687,19 +690,19 @@ Routes for user service of their authentication details.
 
 =cut
 
-sub resetpass($query) {
+sub resetpass ($query) {
     $query->{failure} //= -1;
 
     return Trog::Routes::HTML::index(
         {
-            title              => 'Request Authentication Resets',
-            theme_dir          => $Trog::Themes::td,
-            stylesheets        => [qw{config.css}],
-            scripts            => [qw{post.js}],
-            message            => $query->{message},
-            failure            => $query->{failure},
-            scheme             => $query->{scheme},
-            template           => 'resetpass.tx',
+            title       => 'Request Authentication Resets',
+            theme_dir   => $Trog::Themes::td,
+            stylesheets => [qw{config.css}],
+            scripts     => [qw{post.js}],
+            message     => $query->{message},
+            failure     => $query->{failure},
+            scheme      => $query->{scheme},
+            template    => 'resetpass.tx',
             %$query,
         },
         undef,
@@ -707,52 +710,56 @@ sub resetpass($query) {
     );
 }
 
-sub do_resetpass($query) {
+sub do_resetpass ($query) {
     my $user = $query->{username};
+
     # User Does not exist
     return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::user_exists($user);
+
     # User exists, but is not logged in this session
     return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
-    my $token = Trog::Utils::uuid();
+    my $token   = Trog::Utils::uuid();
     my $newpass = $query->{password} // Trog::Utils::uuid();
-    my $res = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
-	die "Could not add auth change request!" unless $res;
+    my $res     = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
+    die "Could not add auth change request!" unless $res;
 
     # If the user is logged in, just do the deed, otherwise send them the token in an email
-    if ($query->{user}) {
+    if ( $query->{user} ) {
         return see_also("/api/auth_change_request/$token");
     }
     Trog::Email::contact(
-		$user,
-		"root\@$query->{domain}",
-		"$query->{domain}: Password reset URL for $user",
-		{ uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'password_reset.tx' }
-	);
+        $user,
+        "root\@$query->{domain}",
+        "$query->{domain}: Password reset URL for $user",
+        { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'password_reset.tx' }
+    );
     return see_also("/processed");
 }
 
-sub do_totp_clear($query) {
+sub do_totp_clear ($query) {
     my $user = $query->{username};
+
     # User Does not exist
     return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::user_exists($user);
+
     # User exists, but is not logged in this session
     return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
     my $token = Trog::Utils::uuid();
     my $res   = Trog::Auth::add_change_request( type => 'clear_totp', user => $user, token => $token );
-	die "Could not add auth change request!" unless $res;
+    die "Could not add auth change request!" unless $res;
 
     # If the user is logged in, just do the deed, otherwise send them the token in an email
-    if ($query->{user}) {
+    if ( $query->{user} ) {
         return see_also("/api/auth_change_request/$token");
     }
     Trog::Email::contact(
-		$user,
-		"root\@$query->{domain}",
-		"$query->{domain}: Password reset URL for $user",
-		{ uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'totp_reset.tx' }
-	);
+        $user,
+        "root\@$query->{domain}",
+        "$query->{domain}: Password reset URL for $user",
+        { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'totp_reset.tx' }
+    );
     return see_also("/processed");
 }
 
@@ -793,9 +800,9 @@ sub config_save ($query) {
     return see_also('/login')                    unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
-    $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
-    $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
-    $conf->param( 'security.allow_embeds_from', $query->{embeds} ) if $query->{embeds};
+    $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
+    $conf->param( 'general.data_model',         $query->{data_model} ) if $query->{data_model};
+    $conf->param( 'security.allow_embeds_from', $query->{embeds} )     if $query->{embeds};
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
@@ -878,16 +885,16 @@ sub profile ($query) {
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     #TODO allow new users to do something OTHER than be admins
-	#TODO allow username changes
+    #TODO allow username changes
     if ( $query->{password} || $query->{contact_email} ) {
-		my @acls = Trog::Auth::acls4user($query->{username}) || qw{admin};
+        my @acls = Trog::Auth::acls4user( $query->{username} ) || qw{admin};
         Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, \@acls, $query->{contact_email} );
     }
 
     #Make sure it is "self-authored", redact pw
     $query->{user} = delete $query->{username};
     delete $query->{password};
-	delete $query->{contact_email};
+    delete $query->{contact_email};
 
     return post_save($query);
 }
@@ -957,13 +964,14 @@ sub avatars ($query) {
 
     my @posts = _post_helper( $query, $tags, $query->{user_acls} );
     if (@posts) {
+
         # Set the eTag so that we don't get a re-fetch
         $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
     }
 
     return Trog::Renderer->render(
         template => 'avatars.tx',
-        data => {
+        data     => {
             users => \@posts,
             %$query,
         },
@@ -982,10 +990,10 @@ sub users ($query) {
 
     # Capture the username
     my ( undef, undef, $display_name ) = split( /\//, $query->{route} );
-	$display_name = URI::Escape::uri_unescape($display_name);
+    $display_name = URI::Escape::uri_unescape($display_name);
 
-	my $username = Trog::Auth::display2username($display_name);
-	return notfound($query) unless $username;
+    my $username = Trog::Auth::display2username($display_name);
+    return notfound($query) unless $username;
 
     $query->{username} //= $username;
     push( @{ $query->{user_acls} }, 'public' );
@@ -1137,7 +1145,7 @@ sub posts ( $query, $direct = 0 ) {
         $_
     } _post_helper( {}, ['series'], $query->{user_acls} );
 
-    my $forms = Trog::Themes::templates_in_dir("forms", 'text/html', 1);
+    my $forms = Trog::Themes::templates_in_dir( "forms", 'text/html', 1 );
 
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form}          : $query->{form};
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
@@ -1172,7 +1180,7 @@ sub posts ( $query, $direct = 0 ) {
     #XXX is this even used?
     my $content = Trog::Renderer->render(
         template => 'posts.tx',
-        data => {
+        data     => {
             acls              => \@acls,
             can_edit          => $is_admin,
             forms             => $forms,
@@ -1210,6 +1218,7 @@ sub posts ( $query, $direct = 0 ) {
         contenttype => 'text/html',
         component   => 1,
     );
+
     # Something exploded
     return $content if ref $content eq "ARRAY";
 
@@ -1380,12 +1389,12 @@ sub sitemap ($query) {
     @to_map = sort @to_map unless $is_index;
     my $styles = ['sitemap.css'];
 
-    $query->{title} = "$query->{domain} : Sitemap";
+    $query->{title}    = "$query->{domain} : Sitemap";
     $query->{template} = 'sitemap.tx',
-    $query->{to_map} = \@to_map,
-    $query->{is_index} = $is_index,
-    $query->{route_type} = $route_type,
-    $query->{etag} = $etag;
+      $query->{to_map}     = \@to_map,
+      $query->{is_index}   = $is_index,
+      $query->{route_type} = $route_type,
+      $query->{etag}       = $etag;
 
     return Trog::Routes::HTML::index( $query, undef, $styles );
 }
@@ -1393,14 +1402,14 @@ sub sitemap ($query) {
 sub _rss ( $query, $subtitle, $posts ) {
 
     require XML::RSS;
-    my $rss = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
-    my $now = DateTime->from_epoch( epoch => time() );
+    my $rss  = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
+    my $now  = DateTime->from_epoch( epoch => time() );
     my $port = $query->{port} ? ":$query->{port}" : '';
     $rss->channel(
         title         => "$query->{domain}",
         subtitle      => $subtitle,
         link          => "http://$query->{domain}$port/$query->{route}?format=xml",
-        language      => 'en',                                                   #TODO localization
+        language      => 'en',                                                        #TODO localization
         description   => "$query->{domain} : $query->{route}",
         pubDate       => $now,
         lastBuildDate => $now,
@@ -1427,12 +1436,13 @@ sub _rss ( $query, $subtitle, $posts ) {
 
     return Trog::Renderer->render(
         template => 'raw.tx',
-        data => {
+        data     => {
             etag   => $query->{etag},
             body   => encode_utf8( $rss->as_string ),
             scheme => $query->{scheme},
         },
-        headers     => { 'Content-Disposition' => 'inline; filename="rss.xml"' },
+        headers => { 'Content-Disposition' => 'inline; filename="rss.xml"' },
+
         #XXX if you do the "proper" content-type of application/rss+xml, browsers download rather than display.
         contenttype => "text/xml",
         code        => 200,
@@ -1476,11 +1486,11 @@ sub manual ($query) {
 
     return Trog::Routes::HTML::index(
         {
-            title       => 'tCMS Manual',
-            theme_dir   => $Trog::Themes::td,
-            content     => $content,
-            template    => 'manual.tx',
-            is_admin    => 1,
+            title     => 'tCMS Manual',
+            theme_dir => $Trog::Themes::td,
+            content   => $content,
+            template  => 'manual.tx',
+            is_admin  => 1,
             %$query,
         },
         undef,
@@ -1489,24 +1499,26 @@ sub manual ($query) {
 }
 
 sub processed ($query) {
-    return Trog::Routes::HTML::index({
-        title => "Your request has been processed",
-        theme_dir => $Trog::Themes::td,
-    },
-	"Your request has been processed.<br /><br />You will recieve subsequent communications about this matter via means you have provided earlier.",
-	['post.css']);
+    return Trog::Routes::HTML::index(
+        {
+            title     => "Your request has been processed",
+            theme_dir => $Trog::Themes::td,
+        },
+        "Your request has been processed.<br /><br />You will recieve subsequent communications about this matter via means you have provided earlier.",
+        ['post.css']
+    );
 }
 
 # basically a file rewrite rule for themes
 sub icon ($query) {
     my $path = $query->{route};
-    return Trog::FileHandler::serve(Trog::Themes::themed("img/icon/$path"));
+    return Trog::FileHandler::serve( Trog::Themes::themed("img/icon/$path") );
 }
 
 # TODO make statics, abstract gzipped outputting & header handling
 sub rss_style ($query) {
-    $query->{port} = ":$query->{port}" if $query->{port};
-    $query->{title} = qq{<xsl:value-of select="rss/channel/title"/>};
+    $query->{port}       = ":$query->{port}" if $query->{port};
+    $query->{title}      = qq{<xsl:value-of select="rss/channel/title"/>};
     $query->{no_doctype} = 1;
 
     # Due to this being html rather than XML, we can't use an include directive.
@@ -1523,12 +1535,12 @@ sub rss_style ($query) {
 }
 
 sub _build_themed_styles ($styles) {
-    my @styles = map { Trog::Themes::themed_style("$_") } @{Trog::Utils::coerce_array($styles)};
+    my @styles = map { Trog::Themes::themed_style("$_") } @{ Trog::Utils::coerce_array($styles) };
     return \@styles;
 }
 
 sub _build_themed_scripts ($scripts) {
-    my @scripts = map { Trog::Themes::themed_script("$_") } @{Trog::Utils::coerce_array($scripts)};
+    my @scripts = map { Trog::Themes::themed_script("$_") } @{ Trog::Utils::coerce_array($scripts) };
     return \@scripts;
 }
 
@@ -1541,12 +1553,12 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{scripts}     //= [];
 
     # Theme-ize the paths
-    $vars->{stylesheets}  = [map { s/^www\///; $_ } grep { -f $_ } @{_build_themed_styles($vars->{stylesheets})}];
-    $vars->{print_styles} = [map { s/^www\///; $_ } grep { -f $_ } @{_build_themed_styles($vars->{p_styles})}];
-    $vars->{scripts}      = [map { s/^www\///; $_ } grep { -f $_ } @{_build_themed_scripts($vars->{scripts})}];
+    $vars->{stylesheets}  = [ map { s/^www\///; $_ } grep { -f $_ } @{ _build_themed_styles( $vars->{stylesheets} ) } ];
+    $vars->{print_styles} = [ map { s/^www\///; $_ } grep { -f $_ } @{ _build_themed_styles( $vars->{p_styles} ) } ];
+    $vars->{scripts}      = [ map { s/^www\///; $_ } grep { -f $_ } @{ _build_themed_scripts( $vars->{scripts} ) } ];
 
     # Add in avatars.css, it's special
-    push(@{$vars->{stylesheets}},"/styles/avatars.css");
+    push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );
 
     # Absolute-ize the paths for scripts & stylesheets
     @{ $vars->{stylesheets} }  = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{stylesheets} };

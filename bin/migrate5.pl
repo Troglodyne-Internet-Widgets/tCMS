@@ -10,10 +10,11 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 use Trog::SQLite;
+
 sub _dbh {
     my $file   = 'schema/auth.schema';
     my $dbname = "config/auth.db";
-    return Trog::SQLite::dbh($file,$dbname);
+    return Trog::SQLite::dbh( $file, $dbname );
 }
 
 my $dbh = _dbh();

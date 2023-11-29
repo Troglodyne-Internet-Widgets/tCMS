@@ -21,26 +21,26 @@ use Trog::SQLite::TagIndex;
 unlink "$FindBin::Bin/../data/posts.db";
 $ENV{NOHUP} = 1;
 
-sub uuid { return UUID::Tiny::create_uuid_as_string(UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS); }
+sub uuid { return UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ); }
 
 # Modify these variables to suit your installation.
-my $user = 'george';
-my @extra_series = (
-);
+my $user         = 'george';
+my @extra_series = ();
 
-my $conf = Trog::Config::get();
+my $conf        = Trog::Config::get();
 my $search_info = Trog::Data->new($conf);
 
 my @all = $search_info->get( raw => 1, limit => 0 );
 foreach my $post (@all) {
     if ( defined $post->{form} && $post->{form} eq 'series.tx' ) {
-        $post->{tiled} = scalar(grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about});
+        $post->{tiled} = scalar( grep { $_ eq $post->{local_href} } qw{/files /audio /video /image /series /about} );
     }
-    if (!defined $post->{visibility}) {
-        $post->{visibility} = 'public' if grep { $_ eq 'public' } @{$post->{tags}};
-        $post->{visibility} = 'private' if grep { $_ eq 'private' } @{$post->{tags}};
-        $post->{visibility} = 'unlisted' if grep { $_ eq 'unlisted' } @{$post->{tags}};
+    if ( !defined $post->{visibility} ) {
+        $post->{visibility} = 'public'   if grep { $_ eq 'public' } @{ $post->{tags} };
+        $post->{visibility} = 'private'  if grep { $_ eq 'private' } @{ $post->{tags} };
+        $post->{visibility} = 'unlisted' if grep { $_ eq 'unlisted' } @{ $post->{tags} };
     }
+
     # Otherwise re-save the posts with is_video etc
     $search_info->add($post);
 }
@@ -51,23 +51,23 @@ Trog::SQLite::TagIndex::build_routes($search_info);
 
 # Add in the series
 my $series = [
-        {
-            "acls"       => [],
-            aliases      => [],
-            "callback"   => "Trog::Routes::HTML::posts",
-            method       => 'GET',
-            "data"       => "All Posts",
-            "href"       => "/posts",
-            "local_href" => "/posts",
-            "preview"    => "/img/sys/testpattern.jpg",
-            "tags"       => [qw{series}],
-            visibility   => 'unlisted',
-            "title"      => "All Posts",
-            user         => $user,
-            form         => 'series.tx',
-            child_form   => 'series.tx',
-            aclname      => 'posts',
-        },
+    {
+        "acls"       => [],
+        aliases      => [],
+        "callback"   => "Trog::Routes::HTML::posts",
+        method       => 'GET',
+        "data"       => "All Posts",
+        "href"       => "/posts",
+        "local_href" => "/posts",
+        "preview"    => "/img/sys/testpattern.jpg",
+        "tags"       => [qw{series}],
+        visibility   => 'unlisted',
+        "title"      => "All Posts",
+        user         => $user,
+        form         => 'series.tx',
+        child_form   => 'series.tx',
+        aclname      => 'posts',
+    },
 ];
 
 #$search_info->add(@$series,@extra_series);

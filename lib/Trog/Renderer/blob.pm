@@ -17,7 +17,7 @@ sub render (%options) {
     my $code    = delete $options{code};
     my $headers = delete $options{headers};
     my $body    = $options{body};
-    return [$code, [$headers], [$body]];
+    return [ $code, [$headers], [$body] ];
 }
 
 1;

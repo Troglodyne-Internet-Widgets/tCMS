@@ -45,34 +45,34 @@ The idea is that components will be concatenated to other rendered templates unt
 
 =cut
 
-sub render ($class, %options) {
+sub render ( $class, %options ) {
     local $@;
     my $renderer;
-    return _yeet($renderer, "Renderer requires a valid content type to be passed", %options) unless $options{contenttype};
-    my $rendertype = $Trog::Vars::byct{$options{contenttype}};
-    return _yeet($renderer, "Renderer requires a known content type (used $options{contenttype}) to be passed", %options) unless $rendertype;
+    return _yeet( $renderer, "Renderer requires a valid content type to be passed", %options ) unless $options{contenttype};
+    my $rendertype = $Trog::Vars::byct{ $options{contenttype} };
+    return _yeet( $renderer, "Renderer requires a known content type (used $options{contenttype}) to be passed", %options ) unless $rendertype;
     $renderer = $renderers{$rendertype};
-    return _yeet($renderer, "Renderer for $rendertype is not defined!", %options) unless $renderer;
-    return _yeet($renderer, "Status code not provided", %options) if !$options{code} && !$options{component};
-    return _yeet($renderer, "Template data not provided", %options) unless $options{data};
-    return _yeet($renderer, "Template not provided", %options) unless $options{template};
+    return _yeet( $renderer, "Renderer for $rendertype is not defined!", %options ) unless $renderer;
+    return _yeet( $renderer, "Status code not provided",                 %options ) if !$options{code} && !$options{component};
+    return _yeet( $renderer, "Template data not provided",               %options ) unless $options{data};
+    return _yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
 
     #TODO future - save the components too and then compose them?
-    my $skip_save = !$options{component} || !$options{data}{route} || $options{data}{has_query} || $options{data}{user} || ($options{code} // 0) != 200 || Trog::Log::is_debug();
+    my $skip_save = !$options{component} || !$options{data}{route} || $options{data}{has_query} || $options{data}{user} || ( $options{code} // 0 ) != 200 || Trog::Log::is_debug();
 
     my $ret;
     local $@;
     eval {
         $ret = $renderer->(%options);
-        save_render( $options{data}, $ret->[2], %{$ret->[1]}) unless $skip_save;
+        save_render( $options{data}, $ret->[2], %{ $ret->[1] } ) unless $skip_save;
         1;
     } or do {
-        return _yeet($renderer, $@, %options);
+        return _yeet( $renderer, $@, %options );
     };
     return $ret;
 }
 
-sub _yeet ($renderer, $error, %options) {
+sub _yeet ( $renderer, $error, %options ) {
     WARN($error);
 
     # All-else fails error page
@@ -80,10 +80,10 @@ sub _yeet ($renderer, $error, %options) {
     local $@;
     eval {
         $ret = $renderer->(
-            code => 500,
-            template => '500.tx',
+            code        => 500,
+            template    => '500.tx',
             contenttype => 'text/html',
-            data => { %options, content => "<h1>500 Internal Server Error</h1>$error" },
+            data        => { %options, content => "<h1>500 Internal Server Error</h1>$error" },
         );
         1;
     } or do {

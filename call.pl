@@ -16,8 +16,8 @@ my %env = (
 
 my $limit = $ARGV[3] || 1;
 our $app = \&TCMS::app;
-for (0..$limit) {
-    my $out = $app->(\%env);
+for ( 0 .. $limit ) {
+    my $out = $app->( \%env );
     print $out->[2][0];
 }
 

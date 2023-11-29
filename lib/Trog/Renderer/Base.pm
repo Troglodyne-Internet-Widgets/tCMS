@@ -26,8 +26,8 @@ our %renderers;
 sub render (%options) {
     die "Templated renders require a template to be passed" unless $options{template};
 
-    my $template_dir = Trog::Themes::template_dir($options{template}, $options{contenttype}, $options{component});
-    my $t = "$template_dir/$options{template}";
+    my $template_dir = Trog::Themes::template_dir( $options{template}, $options{contenttype}, $options{component} );
+    my $t            = "$template_dir/$options{template}";
     die "Templated renders require an existing template to be passed, got $template_dir/$options{template}" unless -f $t || -s $t;
 
     #TODO make this work with posts all the time
@@ -49,16 +49,16 @@ sub render (%options) {
     );
 
     my $code = $options{code};
-    my $body = encode_utf8($renderers{$template_dir}->render($options{template}, $options{data}));
+    my $body = encode_utf8( $renderers{$template_dir}->render( $options{template}, $options{data} ) );
 
     # Users can supply a post_processor to futz with the output (such as with minifiers) if they wish.
     $body = $options{post_processor}->($body) if $options{post_processor} && ref $options{post_processor} eq 'CODE';
 
     # Users can supply custom headers as part of the data in options.
-    my %headers = headers(\%options, $body);
+    my %headers = headers( \%options, $body );
 
     return $body if $options{component};
-    return [$code, [%headers], [$body]] unless $options{deflate};
+    return [ $code, [%headers], [$body] ] unless $options{deflate};
 
     $headers{"Content-Encoding"} = "gzip";
     my $dfh;
@@ -69,16 +69,16 @@ sub render (%options) {
     return [ $code, [%headers], [$dfh] ];
 }
 
-sub headers ($options,$body) {
-    my $query = $options->{data};
-    my $uh = ref $options->{headers} eq 'HASH' ? $options->{headers} : {};
-    my $ct = $options->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$options->{contenttype};";
+sub headers ( $options, $body ) {
+    my $query   = $options->{data};
+    my $uh      = ref $options->{headers} eq 'HASH'      ? $options->{headers}        : {};
+    my $ct      = $options->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$options->{contenttype};";
     my %headers = (
-        'Content-Type'   => $ct,
-        'Content-Length' => length($body),
-        'Cache-Control'  => $query->{cachecontrol} // $Trog::Vars::cache_control{revalidate},
+        'Content-Type'           => $ct,
+        'Content-Length'         => length($body),
+        'Cache-Control'          => $query->{cachecontrol} // $Trog::Vars::cache_control{revalidate},
         'X-Content-Type-Options' => 'nosniff',
-        'Vary'           => 'Accept-Encoding',
+        'Vary'                   => 'Accept-Encoding',
         %$uh,
     );
 
@@ -92,13 +92,13 @@ sub headers ($options,$body) {
     #CSP. Yet another layer of 'no mixed content' plus whitelisted execution of remote resources.
     my $scheme = $query->{scheme} ? "$query->{scheme}:" : '';
 
-    my $conf = Trog::Config::get();
+    my $conf  = Trog::Config::get();
     my $sites = $conf->param('security.allow_embeds_from') // '';
     $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' 'unsafe-eval' 'unsafe-inline' $sites";
     $headers{'Content-Security-Policy'} .= ";object-src 'none'";
 
     # Force https if we are https
-    $headers{'Strict-Transport-Security'} = 'max-age=63072000' if ($query->{scheme} // '') eq 'https';
+    $headers{'Strict-Transport-Security'} = 'max-age=63072000' if ( $query->{scheme} // '' ) eq 'https';
 
     # We only set etags when users are logged in, cause we don't use statics
     $headers{'ETag'} = $query->{etag} if $query->{etag} && $query->{user};

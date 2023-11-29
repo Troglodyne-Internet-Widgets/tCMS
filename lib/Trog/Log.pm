@@ -65,7 +65,7 @@ sub _log {
     my ( $msg, $level ) = @_;
 
     $msg //= "No message passed.  This is almost certainly a bug. ";
-    
+
     #XXX Log lines must start as an ISO8601 date, anything else breaks fail2ban's beautiful mind
     my $tstamp = strftime "%Y-%m-%dT%H:%M:%SZ", gmtime;
     my $uuid   = uuid();

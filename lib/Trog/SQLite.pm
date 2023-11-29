@@ -46,7 +46,7 @@ sub dbh {
     my $qq = File::Slurper::read_text($schema);
     my $db = DBI->connect( "dbi:SQLite:dbname=$dbname", "", "" );
     $db->{sqlite_allow_multiple_statements} = 1;
-    $db->do($qq) or die "Could not ensure database consistency: ".$db->errstr;
+    $db->do($qq) or die "Could not ensure database consistency: " . $db->errstr;
     $db->{sqlite_allow_multiple_statements} = 0;
     $dbh->{$schema} = $db;
 

@@ -19,7 +19,7 @@ use DateTime::Format::HTTP();
 use CGI::Cookie ();
 use File::Basename();
 use IO::Compress::Gzip();
-use Time::HiRes      qw{gettimeofday tv_interval};
+use Time::HiRes qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
 use URI();
@@ -54,7 +54,7 @@ $routes{'/robots.txt'} = {
     method   => 'GET',
     callback => \&robots,
 };
-my $routes_immutable = clone(\%routes);
+my $routes_immutable = clone( \%routes );
 
 my %aliases = $data->aliases();
 
@@ -64,16 +64,17 @@ my %etags;
 
 # Wrap app to return *our* error handler instead of Plack::Util::run_app's
 my $cur_query = {};
+
 sub app {
     return eval { _app(@_) } || do {
-		my $env = shift;
+        my $env = shift;
         $env->{'psgi.errors'}->print($@);
 
-		# Redact the stack trace past line 1, it usually has things which should not be shown
-		$cur_query->{message} = $@;
-		$cur_query->{message} =~ s/\n.*//g if $cur_query->{message};
+        # Redact the stack trace past line 1, it usually has things which should not be shown
+        $cur_query->{message} = $@;
+        $cur_query->{message} =~ s/\n.*//g if $cur_query->{message};
 
-		return _error($cur_query);
+        return _error($cur_query);
     };
 }
 
@@ -98,14 +99,14 @@ sub _app {
     my $env = shift;
 
     # Discard the path used in the log, it's too long and enough 4xx error code = ban
-    return _toolong({ method => $env->{REQUEST_METHOD}, fullpath => '...' }) if length( $env->{REQUEST_URI} ) > 2048;
+    return _toolong( { method => $env->{REQUEST_METHOD}, fullpath => '...' } ) if length( $env->{REQUEST_URI} ) > 2048;
 
     my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
 
     # Various stuff important for logging requests
     state $domain = eval { Sys::Hostname::hostname() } // $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST};
-    my $path = $env->{PATH_INFO};
+    my $path   = $env->{PATH_INFO};
     my $port   = $env->{HTTP_X_FORWARDED_PORT} // $env->{HTTP_PORT};
     my $pport  = defined $port ? ":$port" : "";
     my $scheme = $env->{'psgi.url_scheme'} // 'http';
@@ -169,6 +170,7 @@ sub _app {
 
     # It's mod_rewrite!
     $path = '/index' if $path eq '/';
+
     #XXX this is hardcoded in browsers, so just rewrite the path
     $path = '/img/icon/favicon.ico' if $path eq '/favicon.ico';
 
@@ -199,7 +201,7 @@ sub _app {
     my $active_user = '';
     $Trog::Log::user = 'nobody';
     if ( exists $cookies->{tcmslogin} ) {
-        $active_user = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
+        $active_user     = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
         $Trog::Log::user = $active_user if $active_user;
     }
     $query->{user_acls} = [];
@@ -252,6 +254,7 @@ sub _app {
     #Handle regex/capture routes
     if ( !exists $routes{$path} ) {
         my @captures;
+
         # TODO can optimize by having separate hashes for capture/non-capture routes
         foreach my $pattern ( keys(%routes) ) {
             @captures = $path =~ m/^$pattern$/;
@@ -270,8 +273,8 @@ sub _app {
     $query->{deflate}  = $deflate;
     $query->{user}     = $active_user;
 
-    return _forbidden($query)  if exists $routes{$path}{auth} && !$active_user;
-    return _notfound($query)   unless exists $routes{$path} && ref $routes{$path} eq 'HASH' && keys(%{$routes{$path}});
+    return _forbidden($query) if exists $routes{$path}{auth} && !$active_user;
+    return _notfound($query) unless exists $routes{$path} && ref $routes{$path} eq 'HASH' && keys( %{ $routes{$path} } );
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ( $routes{$path}{method} || '', 'HEAD' );
 
     @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
@@ -289,8 +292,9 @@ sub _app {
     $query->{port}         = $port;
     $query->{lang}         = $lang;
     $query->{accept}       = $accept;
+
     # Redirecting somewhere naughty not allow
-    $query->{to}           = URI->new($query->{to} // '')->path() || $query->{to} if $query->{to};
+    $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
 
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {
@@ -318,21 +322,21 @@ This is a "special" route as it needs to know about all the routes in order to d
 
 sub robots ($query) {
     state $etag = "robots-" . time();
+
     # If there's a 'capture' route, we need to format it correctly.
-	state @banned = map { exists $routes{$_}{robot_name} ? $routes{$_}{robot_name} : $_ } grep { $routes{$_}{noindex} } sort keys(%routes);
+    state @banned = map { exists $routes{$_}{robot_name} ? $routes{$_}{robot_name} : $_ } grep { $routes{$_}{noindex} } sort keys(%routes);
 
     return Trog::Renderer->render(
         contenttype => 'text/plain',
-        template => 'robots.tx',
-        data => {
+        template    => 'robots.tx',
+        data        => {
             etag   => $etag,
-			banned => \@banned,
+            banned => \@banned,
             %$query,
         },
         code => 200,
     );
 }
-
 
 sub _generic ( $type, $query ) {
     return _static( "$type.z", $query->{start}, $query->{streaming} ) if -f "www/statics/$type.z";
@@ -362,12 +366,12 @@ sub _badrequest ($query) {
     return _generic( 'badrequest', $query );
 }
 
-sub _toolong($query) {
+sub _toolong ($query) {
     INFO("$query->{method} 419 $query->{fullpath}");
     return _generic( 'toolong', {} );
 }
 
-sub _error($query) {
+sub _error ($query) {
     INFO("$query->{method} 500 $query->{fullpath}");
     return _generic( 'error', $query );
 }
@@ -375,6 +379,7 @@ sub _error($query) {
 sub _static ( $fullpath, $path, $start, $streaming, $last_fetch = 0 ) {
 
     DEBUG("Rendering static for $path");
+
     # XXX because of psgi I can't just vomit the file directly
     if ( open( my $fh, '<', "www/statics/$path" ) ) {
         my $headers = '';
