@@ -789,12 +789,7 @@ sub config_save ($query) {
 
     $conf->param( 'general.theme',      $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model', $query->{data_model} ) if $query->{data_model};
-
-    # Erase all TOTP secrets in the event we change the global secret
-    if ( $query->{totp_secret} ) {
-        $conf->param( 'totp.secret', $query->{totp_secret} );
-        Trog::Auth::clear_totp();
-    }
+    $conf->param( 'security.allow_embeds_from', $query->{embeds} ) if $query->{embeds};
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
