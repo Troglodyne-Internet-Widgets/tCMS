@@ -49,7 +49,7 @@ our $categorybar  = 'categories.tx';
 our %routes = (
     default => {
         callback => \&Trog::Routes::HTML::setup,
-        noindex  => 1,
+        nomap    => 1,
     },
     '/index' => {
         method   => 'GET',
@@ -1275,7 +1275,7 @@ sub sitemap ($query) {
 
         # Return the map of static routes
         $route_type = 'Static Routes';
-        @to_map     = grep { !defined $routes{$_}->{captures} && !$routes{$_}->{auth} && !$routes{$_}->{noindex} } keys(%routes);
+        @to_map     = grep { !defined $routes{$_}->{captures} && !$routes{$_}->{auth} && !$routes{$_}->{noindex} && !$routes{$_}->{nomap} } keys(%routes);
     }
     elsif ( !$query->{map} ) {
 
