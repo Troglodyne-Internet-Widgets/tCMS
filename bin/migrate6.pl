@@ -19,7 +19,7 @@ sub _dbh {
 
 my $dbh = _dbh();
 
-#$dbh->do("ALTER TABLE user ADD COLUMN display_name TEXT DEFAULT NULL;");
+$dbh->do("ALTER TABLE user ADD COLUMN display_name TEXT DEFAULT NULL;");
 
 # Update all the profile type posts to have correct display names
 use Trog::Auth;

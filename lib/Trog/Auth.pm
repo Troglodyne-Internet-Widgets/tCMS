@@ -70,6 +70,19 @@ sub user_exists ($user) {
     return 1;
 }
 
+=head2 hash4user
+
+Return the hash/salt for a user.
+
+=cut
+
+sub hash4user ($user) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT hash,salt FROM user WHERE name=?", { Slice => {} }, $user );
+    return (undef,undef) unless ref $rows eq 'ARRAY' && @$rows;
+    return ($rows->[0]{hash}, $rows->[0]{salt});
+}
+
 =head2 email4user(STRING username) = STRING
 
 Return the associated contact email for the user.
@@ -286,25 +299,33 @@ sub killsession ($user) {
     return 1;
 }
 
-=head2 useradd(user, pass) = BOOL
+=head2 useradd(user, displayname, pass, acls, contactemail) = BOOL
 
 Adds a user identified by the provided password into the auth DB.
+Also used to alter users.
 
 Returns True or False (likely false when user already exists).
 
 =cut
 
 sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
+
+    # See if the user exists already, keep pw if nothing's passed
+    my ($hash, $salt);
+    ($hash,$salt) = hash4user($user) unless $pass;
+
     die "No username set!"     unless $user;
     die "No display name set!" unless $displayname;
     die "Username and display name cannot be the same" if $user eq $displayname;
-    die "No password set for user!"      unless $pass;
+    die "No password set for user!"      if !$pass && !$hash;
     die "ACLs must be array"             unless is_arrayref($acls);
     die "No contact email set for user!" unless $contactemail;
 
     my $dbh  = _dbh();
-    my $salt = create_uuid();
-    my $hash = sha256( $pass . $salt );
+    if ($pass) {
+        $salt = create_uuid();
+        $hash = sha256( $pass . $salt );
+    }
     my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt,hash,contact_email) VALUES (?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail );
     return unless $res && ref $acls eq 'ARRAY';
 
