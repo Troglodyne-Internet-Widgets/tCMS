@@ -1008,7 +1008,8 @@ sub users ($query) {
 
     my @posts = _post_helper( { author => $query->{username} }, ['about'], $query->{user_acls} );
     $query->{id}           = $posts[0]->{id};
-    $query->{title}        = $posts[0]->{title};
+    $query->{title}        = $posts[0]->{display_name};
+    $posts[0]->{title}     = $posts[0]->{display_name};
     $query->{user_obj}     = $posts[0];
     $query->{primary_post} = $posts[0];
     $query->{in_series}    = 1;
