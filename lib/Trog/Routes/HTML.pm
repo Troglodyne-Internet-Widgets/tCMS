@@ -897,7 +897,6 @@ sub profile ($query) {
     #Make sure it is "self-authored", redact pw
     $query->{user} = delete $query->{username};
     delete $query->{password};
-    delete $query->{contact_email};
 
     return post_save($query);
 }
