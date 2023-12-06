@@ -1,15 +1,80 @@
 #!/usr/bin/env perl
 
+package tcms::useradd;
+
 use strict;
 use warnings;
 
 use FindBin::libs;
+use Getopt::Long;
+use Pod::Usage;
 
 use Trog::Auth;
 
-my ( $user, $display_name, $pass, $contactemail ) = @ARGV;
+=head1 SYNOPSIS
 
-# TODO better arg handling, etc
+Add or edit a tCMS user.  In the event of a user edit, every option save for user is optional.
 
-Trog::Auth::killsession($user);
-Trog::Auth::useradd( $user, $display_name, $pass, ['admin'], $contactemail );
+does not update user pages.  Use this to reset user passwords or fix broken users.
+
+=head2 USAGE
+
+tcms-useradd --user foo --password bar --display_name baz --contact_email foo@bar.baz --acl fred --acl wilma
+
+=head2 OPTIONS
+
+=over 4
+
+=item --user
+
+Specify the user to add, or edit if the user already exists.
+
+=item --password
+
+Set a password for the user.  Leave blank if you want to keep the password for an existing user.
+
+=item --display_name
+
+Set the display name for the user.
+
+=item --contact_email
+
+Set the contact email for the user.
+
+=item --acl
+
+Set an acl for this user.  May be passed multiple times.
+Defaults to 'admin' acl.
+
+=item --help, --man
+
+Display this output.
+
+=back
+
+=cut
+
+sub main {
+    my %options;
+    Getopt::Long::GetOptionsFromArray(\@_,
+        'user=s'            => \$options{user},
+        'display_name=s'    => \$options{display_name},
+        'help|?'            => \$options{help},
+        'password=s'        => \$options{password},
+        'contact_email=s'   => \$options{contact_email},
+        'acl=s@'           => \$options{acl},
+    );
+    pod2usage(-exitval => 0, -verbose => 1) if $options{help};
+
+    $options{acl} //= [];
+    $options{acl} = [$options{acl}] if $options{acl} && ref $options{acl} ne 'ARRAY';
+    $options{acl} = ['admin'] unless @{$options{acl}};
+
+    Trog::Auth::killsession($options{user});
+    Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contactemail} );
+    return 0;
+}
+
+exit main(@ARGV) unless caller;
+
+1;

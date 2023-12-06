@@ -313,6 +313,8 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     # See if the user exists already, keep pw if nothing's passed
     my ($hash, $salt);
     ($hash,$salt) = hash4user($user) unless $pass;
+    $displayname  = username2display($user) unless $displayname;
+    $contactemail = email4user($user) unless $contactemail;
 
     die "No username set!"     unless $user;
     die "No display name set!" unless $displayname;
