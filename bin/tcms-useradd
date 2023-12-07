@@ -88,6 +88,7 @@ sub main {
     my %merged = (
         %$user_obj,
         %options,
+        $options{display_name} ? ( local_href => "/users/$options{display_name}" ) : ( local_href => $user_obj->{local_href} ),
     );
     # We don't want the password in plain text
     delete $merged{password};
