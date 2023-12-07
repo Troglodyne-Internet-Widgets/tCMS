@@ -96,6 +96,8 @@ sub get ( $self, %request ) {
 
 sub _fixup ( $self, @filtered ) {
 
+    my %user2display;
+
     # urlencode spaces in filenames
     @filtered = map {
         my $subj = $_;
@@ -114,6 +116,7 @@ sub _fixup ( $self, @filtered ) {
             #XXX this needs to be correctly populated in the form?
             if ($is_user_page) {
                 my $display_name = $subj->{display_name} || Trog::Auth::username2display( $subj->{user} ) || $subj->{title};
+                $user2display{$subj->{user}} //= $display_name;
                 die "No display name for user!" unless $display_name;
                 $subj->{local_href} = "/users/$display_name";
             }
@@ -124,6 +127,12 @@ sub _fixup ( $self, @filtered ) {
         }
 
         $subj->{method} = 'GET' unless exists( $subj->{method} );
+
+        # Grab the display name for the author if it exists
+        if ($subj->{user} && !$is_user_page) {
+            $user2display{$subj->{user}} //= Trog::Auth::username2display( $subj->{user} );
+            $subj->{display_name} = $user2display{$subj->{user}};
+        }
 
         $subj
     } @filtered;

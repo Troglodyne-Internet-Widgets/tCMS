@@ -14,6 +14,6 @@
         </form>
         : }
         <span id="<: $post.id :>-<: $post.version :>-time" class="responsive-hide" style="float:right;"><: $post.created :></span>
-        <a href="/users/<: $post.user :>" class='postericon <: $post.user :>' title='Posted by <: $post.user :>'>&nbsp;</a>
+        <a href="/users/<: $post.display_name :>" class='postericon <: $post.user :>' title='Posted by <: $post.display_name :>'>&nbsp;</a>
     : }
 </h3>
