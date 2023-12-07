@@ -10,6 +10,9 @@ use Mojo::File;
 use Plack::MIME;
 use Path::Tiny();
 
+use Trog::Utils;
+use Trog::Auth();
+
 no warnings 'experimental';
 use feature qw{signatures};
 
@@ -110,7 +113,7 @@ sub _fixup ( $self, @filtered ) {
 
             #XXX this needs to be correctly populated in the form?
             if ($is_user_page) {
-                my $display_name = $subj->{display_name} || Trog::Auth::username2display( $subj->{user} );
+                my $display_name = $subj->{display_name} || Trog::Auth::username2display( $subj->{user} ) || $subj->{title};
                 die "No display name for user!" unless $display_name;
                 $subj->{local_href} = "/users/$display_name";
             }

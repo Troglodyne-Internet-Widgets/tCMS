@@ -8,8 +8,11 @@ use warnings;
 use FindBin::libs;
 use Getopt::Long;
 use Pod::Usage;
+use List::Util qw{first};
 
 use Trog::Auth;
+use Trog::Data;
+use Trog::Config;
 
 =head1 SYNOPSIS
 
@@ -70,8 +73,25 @@ sub main {
     $options{acl} = [$options{acl}] if $options{acl} && ref $options{acl} ne 'ARRAY';
     $options{acl} = ['admin'] unless @{$options{acl}};
 
-    Trog::Auth::killsession($options{user});
-    Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contactemail} );
+    #Trog::Auth::killsession($options{user});
+    #Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} );
+
+    # Find the user's post and edit it
+    my $conf = Trog::Config::get();
+    my $data = Trog::Data->new($conf);
+
+    my @userposts = $data->get( tags => ['about'], acls => [qw{admin}]);
+    my $user_obj = first { ($_->{user} || '') eq $options{user} } @userposts;
+    my %merged = (
+        %$user_obj,
+        %options,
+    );
+    # We don't want the password in plain text
+    delete $merged{password};
+    # The ACLs a user posesses is not necessarily what ACLs you need to view a user's profile.
+    delete $merged{acl};
+
+    $data->add(\%merged);
     return 0;
 }
 
