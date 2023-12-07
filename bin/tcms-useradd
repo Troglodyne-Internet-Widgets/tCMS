@@ -76,8 +76,8 @@ sub main {
     $options{acl} = [$options{acl}] if $options{acl} && ref $options{acl} ne 'ARRAY';
     $options{acl} = ['admin'] unless @{$options{acl}};
 
-    #Trog::Auth::killsession($options{user});
-    #Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} );
+    Trog::Auth::killsession($options{user});
+    Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} );
 
     # Find the user's post and edit it
     my $conf = Trog::Config::get();
