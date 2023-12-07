@@ -108,6 +108,9 @@ sub _fixup ( $self, @filtered ) {
             $subj->{$param} =~ s/ /%20/g;
         }
 
+        $user2display{$subj->{user}} //= Trog::Auth::username2display( $subj->{user} );
+        $subj->{display_name} = $user2display{$subj->{user}};
+
         #XXX Add dynamic routing data for posts which don't have them (/posts/$id) and (/users/$user)
         my $is_user_page = List::Util::any { $_ eq 'about' } @{ $subj->{tags} };
         if ( !exists $subj->{local_href} ) {
@@ -115,8 +118,7 @@ sub _fixup ( $self, @filtered ) {
 
             #XXX this needs to be correctly populated in the form?
             if ($is_user_page) {
-                my $display_name = $subj->{display_name} || Trog::Auth::username2display( $subj->{user} ) || $subj->{title};
-                $user2display{$subj->{user}} //= $display_name;
+                my $display_name = $user2display{$subj->{user}};
                 die "No display name for user!" unless $display_name;
                 $subj->{local_href} = "/users/$display_name";
             }
@@ -128,11 +130,8 @@ sub _fixup ( $self, @filtered ) {
 
         $subj->{method} = 'GET' unless exists( $subj->{method} );
 
-        # Grab the display name for the author if it exists
-        if ($subj->{user} && !$is_user_page) {
-            $user2display{$subj->{user}} //= Trog::Auth::username2display( $subj->{user} );
-            $subj->{display_name} = $user2display{$subj->{user}};
-        }
+        $subj->{user_class}   = $user2display{$subj->{user}};
+        $subj->{user_class}   =~ tr/ /_/;
 
         $subj
     } @filtered;
