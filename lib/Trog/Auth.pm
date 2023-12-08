@@ -299,7 +299,7 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
         $salt = Trog::Utils::uuid();
         $hash = sha256( $pass . $salt );
     }
-    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt,hash,contact_email, totp_secret) VALUES (?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
+    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users

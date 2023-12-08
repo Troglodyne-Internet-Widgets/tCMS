@@ -10,6 +10,7 @@ use Plack::MIME;
 use Path::Tiny();
 use Ref::Util();
 
+use Trog::Log qw{:all};
 use Trog::Utils;
 use Trog::Auth();
 
@@ -297,7 +298,7 @@ our %schema = (
 	'data' => $not_ref,
 	'version' => $not_ref,
 	'visibility' => $not_ref,
-	'aliases' => \&Ref::Util::Is_arrayref,
+	'aliases' => \&Ref::Util::is_arrayref,
 );
 
 sub add ( $self, @posts ) {

@@ -77,7 +77,11 @@ sub main {
     $options{acl} = ['admin'] unless @{$options{acl}};
 
     Trog::Auth::killsession($options{user});
-    Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} );
+    eval {
+        Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} )
+    } or do {
+        return 1;
+    };
 
     # Find the user's post and edit it
     my $conf = Trog::Config::get();
