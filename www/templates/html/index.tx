@@ -24,7 +24,7 @@
         </span>
     </div>
     : if ($user) {
-    <a href="/config" title="Preferences" class="topbar topbarimg usericon <: $user :>"></a>
+    <a href="/config" title="Preferences" class="topbar topbarimg usericon <: $user_class :>"></a>
     : } else {
     <a href="/login?to=<: $route :>" title="Login" class="topbar usericon" style="font-size: 1.5rem;">🔑</a>
     : }

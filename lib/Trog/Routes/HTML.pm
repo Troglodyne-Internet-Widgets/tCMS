@@ -282,6 +282,12 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     my $categorybar = Trog::Renderer->render( template => $categorybar, data => { %$query, categories => \@series }, component => 1, contenttype => 'text/html' );
     return $categorybar if ref $categorybar eq 'ARRAY';
 
+	# Grab the avatar class for the logged in user
+	if ($query->{user}) {
+		$query->{user_class} = Trog::Auth::username2display($query->{user});
+		$query->{user_class} =~ tr/ /_/;
+	}
+
     return finish_render(
         $tmpl,
         {
