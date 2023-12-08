@@ -9,6 +9,7 @@ use File::Copy;
 use Mojo::File;
 use Plack::MIME;
 use Path::Tiny();
+use Ref::Util();
 
 use Trog::Utils;
 use Trog::Auth();
@@ -257,14 +258,59 @@ If any post already exists with the same id, a new post with a version higher th
 
 Passes an array of new posts to add to the data store module's write() function.
 
+These will have their parameters filtered to those present in the %schema hash.
+
 You probably won't want to override this.
 
 =cut
+
+my $not_ref = sub {
+	return !Ref::Util::is_ref(shift);
+};
+
+my $valid_cb = sub {
+	my $subname = shift;
+	my ($modname) = $subname =~ m/^([\w|:]+)::\w+$/;
+	eval {
+		require $modname;
+	} or do {
+		WARN("Post uses a callback whos module cannot be found!");	
+		return 0;
+	};
+
+	no strict 'refs';
+	my $ref = eval '\&'.$subname;
+	use strict;
+	return is_coderef($ref);
+};
+
+# TODO more strict validation of strings?
+our %schema = (
+	'title' => $not_ref,
+	'callback' => $valid_cb,
+	'user_acls' => \&Ref::Util::is_arrayref,
+	'id' => $not_ref,
+	'user' => $not_ref,
+	'created' => $not_ref,
+	'tags' => \&Ref::Util::is_arrayref,
+	'form' => $not_ref,
+	'local_href' => $not_ref,
+	'data' => $not_ref,
+	'version' => $not_ref,
+	'visibility' => $not_ref,
+	'aliases' => \&Ref::Util::Is_arrayref,
+);
 
 sub add ( $self, @posts ) {
     my @to_write;
 
     foreach my $post (@posts) {
+		# Filter all the irrelevant data
+		foreach my $key (keys(%$post)) {
+			# We need to have the key in the schema, and it validate.
+			delete $post->{$key} unless List::Util::any { ($_ eq $key) && ($schema{$key}->($post->{$key})) } keys(%schema);
+		}
+
         $post->{id}      //= UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS );
         $post->{aliases} //= [];
         $post->{aliases} = [ $post->{aliases} ] unless ref $post->{aliases} eq 'ARRAY';
