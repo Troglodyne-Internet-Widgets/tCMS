@@ -13,10 +13,7 @@ my $domain = shift @ARGV;
 die "Must provide a user"   unless $user;
 die "Must provide a domain" unless $domain;
 
-my $dbh = Trog::Auth::_dbh();
-
-my $rows = $dbh->selectall_arrayref( "SELECT name, totp_secret FROM user WHERE name = ?", { Slice => {} }, $user );
-die "no such user" unless @$rows;
-my $secret = $rows->[0]->{totp_secret};
-
-print Trog::Auth::expected_totp_code( undef, $secret ) . "\n";
+my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp($user,$domain);
+print "TOTP URI: $uri\n";
+print "Secret: ".$totp->base32secret()."\n";
+print "Current Auth code: ".$totp->expected_totp_code( time ) . "\n";

@@ -9,11 +9,11 @@ use feature qw{signatures state};
 use FindBin::libs;
 
 use Ref::Util qw{is_arrayref};
-use UUID::Tiny ':std';
 use Digest::SHA 'sha256';
-use Authen::TOTP;
+use Trog::TOTP;
 use Imager::QRCode;
 
+use Trog::Utils;
 use Trog::Log qw{:all};
 use Trog::Config;
 use Trog::SQLite;
@@ -153,7 +153,7 @@ sub totp ( $user, $domain ) {
     my $secret_is_generated = 0;
     if ( !$secret ) {
         $secret_is_generated = 1;
-        $totp->valid_secret();
+        $totp->_valid_secret();
         $secret = $totp->secret();
     }
 
@@ -190,46 +190,18 @@ sub totp ( $user, $domain ) {
         my $img = $qrcode->plot($uri);
         $img->write( file => "totp/$qr", type => "bmp" ) or return ( undef, undef, 1, "Could not write totp/$qr: " . $img->errstr );
     }
-    return ( $uri, $qr, $failure, $message );
+    return ( $uri, $qr, $failure, $message, $totp );
 }
+
 
 sub _totp {
     state $totp;
     if ( !$totp ) {
-        $totp = Authen::TOTP->new();
+        $totp = Trog::TOTP->new();
         die "Cannot instantiate TOTP client!" unless $totp;
         $totp->{DEBUG} = 1 if is_debug();
     }
     return $totp;
-}
-
-=head2 expected_totp_code(totp, secret, when, digits)
-
-Return the expected totp code at a given time with a given secret.
-
-=cut
-
-#XXX authen::totp does not expose this, sigh
-sub expected_totp_code {
-    my ( $self, $secret, $when, $digits ) = @_;
-    $self //= _totp();
-    $when //= time;
-    my $period = 30;
-    $digits //= 6;
-    $self->{secret} = $secret;
-
-    my $T  = sprintf( "%016x", int( $when / $period ) );
-    my $Td = pack( 'H*', $T );
-
-    my $hmac = $self->hmac($Td);
-
-    # take the 4 least significant bits (1 hex char) from the encrypted string as an offset
-    my $offset = hex( substr( $hmac, -1 ) );
-
-    # take the 4 bytes (8 hex chars) at the offset (* 2 for hex), and drop the high bit
-    my $encrypted = hex( substr( $hmac, $offset * 2, 8 ) ) & 0x7fffffff;
-
-    return sprintf( "%0" . $digits . "d", ( $encrypted % ( 10**$digits ) ) );
 }
 
 =head2 clear_totp
@@ -272,7 +244,7 @@ sub mksession ( $user, $pass, $token ) {
     # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
     if ($secret) {
         return '' unless $token;
-        DEBUG( "TOTP Auth: Sent code $token, expect " . expected_totp_code( $totp, $secret ) );
+        DEBUG( "TOTP Auth: Sent code $token, expect " . $totp->expected_totp_code(time) );
 
         #XXX we have to force the secret into compliance, otherwise it generates one on the fly, oof
         $totp->{secret} = $secret;
@@ -282,7 +254,7 @@ sub mksession ( $user, $pass, $token ) {
     }
 
     # Issue cookie
-    my $uuid = create_uuid_as_string( UUID_V1, UUID_NS_DNS );
+    my $uuid = Trog::Utils::uuid();
     $dbh->do( "INSERT OR REPLACE INTO session (id,username) VALUES (?,?)", undef, $uuid, $uid ) or return '';
     return $uuid;
 }
@@ -325,7 +297,7 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
 
     my $dbh  = _dbh();
     if ($pass) {
-        $salt = create_uuid();
+        $salt = Trog::Utils::uuid();
         $hash = sha256( $pass . $salt );
     }
     my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt,hash,contact_email) VALUES (?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail );

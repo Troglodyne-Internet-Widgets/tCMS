@@ -3,7 +3,6 @@ package Trog::DataModule;
 use strict;
 use warnings;
 
-use UUID::Tiny;
 use List::Util;
 use File::Copy;
 use Mojo::File;
@@ -311,7 +310,7 @@ sub add ( $self, @posts ) {
 			delete $post->{$key} unless List::Util::any { ($_ eq $key) && ($schema{$key}->($post->{$key})) } keys(%schema);
 		}
 
-        $post->{id}      //= UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS );
+        $post->{id}      //= Trog::Utils::uuid();
         $post->{aliases} //= [];
         $post->{aliases} = [ $post->{aliases} ] unless ref $post->{aliases} eq 'ARRAY';
 

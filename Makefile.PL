@@ -16,7 +16,7 @@ WriteMakefile(
     },
   },
   PREREQ_PM => {
-    'Authen::TOTP'           => '0',
+    'Trog::TOTP'           => '0',
     'CGI::Cookie'            => '0',
     'Capture::Tiny'          => '0',
     'Carp'                   => '0',
@@ -43,7 +43,7 @@ WriteMakefile(
     'Starman'                => '0',
     'Text::Xslate'           => '0',
     'URL::Encode'            => '0',
-    'UUID::Tiny'             => '0',
+    'UUID'                   => '0',
     'WWW::Sitemap::XML'      => '0',
     'WWW::SitemapIndex::XML' => '0',
     'CSS::Minifier::XS'      => '0',

@@ -372,6 +372,8 @@ sub _toolong ($query) {
 }
 
 sub _error ($query) {
+    $query->{method} //= "UNKNOWN";
+    $query->{fullpath} //= $query->{route} // '/?';
     INFO("$query->{method} 500 $query->{fullpath}");
     return _generic( 'error', $query );
 }
