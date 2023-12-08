@@ -70,17 +70,17 @@ sub user_exists ($user) {
     return 1;
 }
 
-=head2 hash4user
+=head2 get_existing_user_data
 
-Return the hash/salt for a user.
+Fetch existing settings for a user.
 
 =cut
 
-sub hash4user ($user) {
+sub get_existing_user_data ($user) {
     my $dbh  = _dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT hash,salt FROM user WHERE name=?", { Slice => {} }, $user );
-    return (undef,undef) unless ref $rows eq 'ARRAY' && @$rows;
-    return ($rows->[0]{hash}, $rows->[0]{salt});
+    my $rows = $dbh->selectall_arrayref( "SELECT hash, salt, totp_secret, display_name, contact_email FROM user WHERE name=?", { Slice => {} }, $user );
+    return (undef,undef, undef) unless ref $rows eq 'ARRAY' && @$rows;
+    return ($rows->[0]{hash}, $rows->[0]{salt}, $rows->[0]{totp_secret}, $rows->[0]{display_name}, $rows->[0]{contact_email});
 }
 
 =head2 email4user(STRING username) = STRING
@@ -283,10 +283,9 @@ Returns True or False (likely false when user already exists).
 sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
 
     # See if the user exists already, keep pw if nothing's passed
-    my ($hash, $salt);
-    ($hash,$salt) = hash4user($user) unless $pass;
-    $displayname  = username2display($user) unless $displayname;
-    $contactemail = email4user($user) unless $contactemail;
+    my ($hash, $salt, $t_secret, $dn, $ce) = get_existing_user_data($user);
+    $displayname  //= $dn;
+    $contactemail //= $ce;
 
     die "No username set!"     unless $user;
     die "No display name set!" unless $displayname;
@@ -300,7 +299,7 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
         $salt = Trog::Utils::uuid();
         $hash = sha256( $pass . $salt );
     }
-    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt,hash,contact_email) VALUES (?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail );
+    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt,hash,contact_email, totp_secret) VALUES (?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
