@@ -43,8 +43,13 @@ sub themed ($resource) {
     return _dir_for_resource("$resource") . "/$resource";
 }
 
+# For style we want to load *both* style files and have the override come later.
 sub themed_style ($resource) {
-    return _dir_for_resource("styles/$resource") . "/styles/$resource";
+    my @styles = ("/styles/$resource");
+    my $styled = _dir_for_resource("styles/$resource");
+    $styled =~ s/^www\///;
+    push(@styles, "/$styled/styles/$resource") if $styled;
+    return @styles;
 }
 
 sub themed_script ($resource) {

@@ -1544,7 +1544,7 @@ sub rss_style ($query) {
 }
 
 sub _build_themed_styles ($styles) {
-    my @styles = map { Trog::Themes::themed_style("$_") } @{ Trog::Utils::coerce_array($styles) };
+    my @styles = map { (Trog::Themes::themed_style("$_")) } @{ Trog::Utils::coerce_array($styles) };
     return \@styles;
 }
 
@@ -1562,9 +1562,9 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{scripts}     //= [];
 
     # Theme-ize the paths
-    $vars->{stylesheets}  = [ map { s/^www\///; $_ } grep { -f $_ } @{ _build_themed_styles( $vars->{stylesheets} ) } ];
-    $vars->{print_styles} = [ map { s/^www\///; $_ } grep { -f $_ } @{ _build_themed_styles( $vars->{p_styles} ) } ];
-    $vars->{scripts}      = [ map { s/^www\///; $_ } grep { -f $_ } @{ _build_themed_scripts( $vars->{scripts} ) } ];
+    $vars->{stylesheets}  = [ @{ _build_themed_styles( $vars->{stylesheets} ) } ];
+    $vars->{print_styles} = [ @{ _build_themed_styles( $vars->{p_styles} ) } ];
+    $vars->{scripts}      = [ map { s/^www\///; $_ } @{ _build_themed_scripts( $vars->{scripts} ) } ];
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );
