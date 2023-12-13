@@ -286,19 +286,43 @@ my $valid_cb = sub {
 
 # TODO more strict validation of strings?
 our %schema = (
+    ## Parameters which must be in every single post
 	'title' => $not_ref,
 	'callback' => $valid_cb,
-	'user_acls' => \&Ref::Util::is_arrayref,
-	'id' => $not_ref,
-	'user' => $not_ref,
-	'created' => $not_ref,
 	'tags' => \&Ref::Util::is_arrayref,
-	'form' => $not_ref,
-	'local_href' => $not_ref,
-	'data' => $not_ref,
 	'version' => $not_ref,
 	'visibility' => $not_ref,
 	'aliases' => \&Ref::Util::is_arrayref,
+    'tiled'   => $not_ref,
+    # title links here
+    'href' => $not_ref,
+    # Link to post locally
+	'local_href' => $not_ref,
+    # Post body
+	'data' => $not_ref,
+    # How do I edit this post?
+	'form' => $not_ref,
+    # Post is restricted to visibility to these ACLs if not public/unlisted
+    'acls' => \&Ref::Util::is_arrayref,
+	'id' => $not_ref,
+    # Author of the post
+	'user' => $not_ref,
+	'created' => $not_ref,
+    ## Series specific parameters
+    'child_form' => $not_ref,
+    'aclname'    => $not_ref,
+    ## User specific parameters
+	'user_acls' => \&Ref::Util::is_arrayref,
+    'username'  => $not_ref,
+    'display_name' => $not_ref,
+    'contact_email' => $not_ref,
+    'wallpaper_file' => $not_ref,
+    # user avatar, but does double duty in content posts as preview images on videos, etc
+    'preview_file' => $not_ref,
+    ## Content specific parameters
+    'audio_href' => $not_ref,
+    'video_href' => $not_ref,
+    'file' => $not_ref,
 );
 
 sub add ( $self, @posts ) {
