@@ -252,9 +252,9 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     unshift( @styles, qw{embed.css} ) if $query->{embed};
     unshift( @styles, qw{screen.css structure.css} );
     push( @styles, @$i_styles );
-    my @p_styles = qw{print.css};
+    my @p_styles = qw{structure.css print.css};
+    unshift( @p_styles, qw{embed.css} ) if $query->{embed};
 
-    #TODO allow theming of print css
     my @series = _get_series(0);
 
     my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
@@ -1563,7 +1563,7 @@ sub finish_render ( $template, $vars, %headers ) {
 
     # Theme-ize the paths
     $vars->{stylesheets}  = [ @{ _build_themed_styles( $vars->{stylesheets} ) } ];
-    $vars->{print_styles} = [ @{ _build_themed_styles( $vars->{p_styles} ) } ];
+    $vars->{print_styles} = [ @{ _build_themed_styles( $vars->{print_styles} ) } ];
     $vars->{scripts}      = [ map { s/^www\///; $_ } @{ _build_themed_scripts( $vars->{scripts} ) } ];
 
     # Add in avatars.css, it's special

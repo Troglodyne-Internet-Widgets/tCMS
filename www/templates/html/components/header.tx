@@ -29,24 +29,24 @@
         : }
 
         <meta name="viewport" content="width=device-width" />
-        <link rel="preload" type="text/css" href="/styles/structure.css" as="style" />
-        <link rel="stylesheet" type="text/css" href="/styles/structure.css" />
-        <link rel="stylesheet" type="text/css" href="/styles/screen.css" media="screen" />
-        <link rel="stylesheet" type="text/css" href="/styles/print.css" media="print" />
-        <!-- For highlight.js !-->
-        <link rel="preload" type="text/css" href="/styles/obsidian.min.css" as="style" />
-        <link rel="stylesheet" type="text/css" href="/styles/obsidian.min.css" />
         : if ($embed) {
         <base target="_blank" />
         <link rel="stylesheet" type="text/css" href="/styles/embed.css" media="screen" />
         : }
         <!-- Stylesheets !-->
         : for $stylesheets -> $stylesheet {
+        <link rel="preload" type="text/css" href="<: $stylesheet :>" as="style" />
         <link rel="stylesheet" type="text/css" href="<: $stylesheet :>" media="screen" />
         : }
+        <!-- Print Styles !-->
         : for $print_styles -> $print_style {
+        <link rel="preload" type="text/css" href="<: $print_style :>" as="style" />
         <link rel="stylesheet" type="text/css" href="<: $print_style :>" media="print" />
         : }
+        <!-- For highlight.js !-->
+        <link rel="preload" type="text/css" href="/styles/obsidian.min.css" as="style" />
+        <link rel="stylesheet" type="text/css" href="/styles/obsidian.min.css" />
+        <!-- Javascript !-->
         : for $scripts -> $script {
         <script type="text/javascript" src="<: $script :>"></script>
         : }
