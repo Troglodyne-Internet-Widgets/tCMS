@@ -50,12 +50,12 @@ sub new ( $class, $config ) {
 }
 
 #It is required that subclasses implement this
-sub lang  ($self)                { ... }
-sub help  ($self)                { ... }
-sub read  ( $self, $query = {} ) { ... }
-sub write ($self)                { ... }
-sub count ($self)                { ... }
-sub tags  ($self)                { ... }
+sub lang ($self)                { ... }
+sub help ($self)                { ... }
+sub read ( $self, $query = {} ) { ... }
+sub write ($self)               { ... }
+sub count ($self)               { ... }
+sub tags ($self)                { ... }
 
 =head1 METHODS
 
@@ -109,8 +109,8 @@ sub _fixup ( $self, @filtered ) {
             $subj->{$param} =~ s/ /%20/g;
         }
 
-        $user2display{$subj->{user}} //= Trog::Auth::username2display( $subj->{user} );
-        $subj->{display_name} = $user2display{$subj->{user}};
+        $user2display{ $subj->{user} } //= Trog::Auth::username2display( $subj->{user} );
+        $subj->{display_name} = $user2display{ $subj->{user} };
 
         #XXX Add dynamic routing data for posts which don't have them (/posts/$id) and (/users/$user)
         my $is_user_page = List::Util::any { $_ eq 'about' } @{ $subj->{tags} };
@@ -119,7 +119,7 @@ sub _fixup ( $self, @filtered ) {
 
             #XXX this needs to be correctly populated in the form?
             if ($is_user_page) {
-                my $display_name = $user2display{$subj->{user}};
+                my $display_name = $user2display{ $subj->{user} };
                 die "No display name for user!" unless $display_name;
                 $subj->{local_href} = "/users/$display_name";
             }
@@ -131,8 +131,8 @@ sub _fixup ( $self, @filtered ) {
 
         $subj->{method} = 'GET' unless exists( $subj->{method} );
 
-        $subj->{user_class}   = $user2display{$subj->{user}};
-        $subj->{user_class}   =~ tr/ /_/ if $subj->{user_class};
+        $subj->{user_class} = $user2display{ $subj->{user} };
+        $subj->{user_class} =~ tr/ /_/ if $subj->{user_class};
 
         $subj
     } @filtered;
@@ -178,7 +178,7 @@ sub filter ( $self, $query, @filtered ) {
         grep {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{tags} }
-        } @$tags
+          } @$tags
     } @filtered if @{ $query->{tags} };
 
     # Filter posts *matching* the passed exclude_tag(s), if any
@@ -187,7 +187,7 @@ sub filter ( $self, $query, @filtered ) {
         !grep {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{exclude_tags} }
-        } @$tags
+          } @$tags
     } @filtered if @{ $query->{exclude_tags} };
 
     # Filter posts without the proper ACLs
@@ -196,7 +196,7 @@ sub filter ( $self, $query, @filtered ) {
         grep {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{acls} }
-        } @$tags
+          } @$tags
     } @filtered unless grep { $_ eq 'admin' } @{ $query->{acls} };
 
     @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
@@ -265,75 +265,82 @@ You probably won't want to override this.
 =cut
 
 my $not_ref = sub {
-	return !Ref::Util::is_ref(shift);
+    return !Ref::Util::is_ref(shift);
 };
 
 my $valid_cb = sub {
-	my $subname = shift;
-	my ($modname) = $subname =~ m/^([\w|:]+)::\w+$/;
-	eval {
-		require $modname;
-	} or do {
-		WARN("Post uses a callback whos module cannot be found!");	
-		return 0;
-	};
+    my $subname = shift;
+    my ($modname) = $subname =~ m/^([\w|:]+)::\w+$/;
+    eval { require $modname; } or do {
+        WARN("Post uses a callback whos module cannot be found!");
+        return 0;
+    };
 
-	no strict 'refs';
-	my $ref = eval '\&'.$subname;
-	use strict;
-	return is_coderef($ref);
+    no strict 'refs';
+    my $ref = eval '\&' . $subname;
+    use strict;
+    return is_coderef($ref);
 };
 
 # TODO more strict validation of strings?
 our %schema = (
     ## Parameters which must be in every single post
-	'title' => $not_ref,
-	'callback' => $valid_cb,
-	'tags' => \&Ref::Util::is_arrayref,
-	'version' => $not_ref,
-	'visibility' => $not_ref,
-	'aliases' => \&Ref::Util::is_arrayref,
-    'tiled'   => $not_ref,
+    'title'      => $not_ref,
+    'callback'   => $valid_cb,
+    'tags'       => \&Ref::Util::is_arrayref,
+    'version'    => $not_ref,
+    'visibility' => $not_ref,
+    'aliases'    => \&Ref::Util::is_arrayref,
+    'tiled'      => $not_ref,
+
     # title links here
     'href' => $not_ref,
+
     # Link to post locally
-	'local_href' => $not_ref,
+    'local_href' => $not_ref,
+
     # Post body
-	'data' => $not_ref,
+    'data' => $not_ref,
+
     # How do I edit this post?
-	'form' => $not_ref,
+    'form' => $not_ref,
+
     # Post is restricted to visibility to these ACLs if not public/unlisted
     'acls' => \&Ref::Util::is_arrayref,
-	'id' => $not_ref,
+    'id'   => $not_ref,
+
     # Author of the post
-	'user' => $not_ref,
-	'created' => $not_ref,
+    'user'    => $not_ref,
+    'created' => $not_ref,
     ## Series specific parameters
     'child_form' => $not_ref,
     'aclname'    => $not_ref,
     ## User specific parameters
-	'user_acls' => \&Ref::Util::is_arrayref,
-    'username'  => $not_ref,
-    'display_name' => $not_ref,
-    'contact_email' => $not_ref,
+    'user_acls'      => \&Ref::Util::is_arrayref,
+    'username'       => $not_ref,
+    'display_name'   => $not_ref,
+    'contact_email'  => $not_ref,
     'wallpaper_file' => $not_ref,
+
     # user avatar, but does double duty in content posts as preview images on videos, etc
     'preview_file' => $not_ref,
     ## Content specific parameters
     'audio_href' => $not_ref,
     'video_href' => $not_ref,
-    'file' => $not_ref,
+    'file'       => $not_ref,
 );
 
 sub add ( $self, @posts ) {
     my @to_write;
 
     foreach my $post (@posts) {
-		# Filter all the irrelevant data
-		foreach my $key (keys(%$post)) {
-			# We need to have the key in the schema, and it validate.
-			delete $post->{$key} unless List::Util::any { ($_ eq $key) && ($schema{$key}->($post->{$key})) } keys(%schema);
-		}
+
+        # Filter all the irrelevant data
+        foreach my $key ( keys(%$post) ) {
+
+            # We need to have the key in the schema, and it validate.
+            delete $post->{$key} unless List::Util::any { ( $_ eq $key ) && ( $schema{$key}->( $post->{$key} ) ) } keys(%schema);
+        }
 
         $post->{id}      //= Trog::Utils::uuid();
         $post->{aliases} //= [];
@@ -387,7 +394,7 @@ sub _process ($post) {
     $post->{href}      = _handle_upload( $post->{file},           $post->{id} ) if $post->{file};
     $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id} ) if $post->{preview_file};
     $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id} ) if $post->{wallpaper_file};
-    $post->{preview}   = $post->{href} if $post->{app} && $post->{app} eq 'image';
+    $post->{preview} = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};
@@ -436,9 +443,9 @@ sub _process ($post) {
     }
     $post->{content_type} ||= 'text/html';
 
-    $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
-    $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
-    $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
+    $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;
+    $post->{is_audio} = 1 if $post->{content_type} =~ m/^audio\//;
+    $post->{is_image} = 1 if $post->{content_type} =~ m/^image\//;
     $post->{is_profile} = 1 if grep { $_ eq 'about' } @{ $post->{tags} };
 
     return $post;

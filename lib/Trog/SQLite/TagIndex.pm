@@ -56,7 +56,7 @@ sub tags {
 
 sub add_post ( $post, $data_obj ) {
     my $dbh = _dbh();
-    build_index( $data_obj, [$post] );
+    build_index( $data_obj,  [$post] );
     build_routes( $data_obj, [$post] );
     return 1;
 }

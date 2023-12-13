@@ -62,24 +62,23 @@ Display this output.
 
 sub main {
     my %options;
-    Getopt::Long::GetOptionsFromArray(\@_,
-        'user=s'            => \$options{user},
-        'display_name=s'    => \$options{display_name},
-        'help|?'            => \$options{help},
-        'password=s'        => \$options{password},
-        'contact_email=s'   => \$options{contact_email},
-        'acl=s@'           => \$options{acl},
+    Getopt::Long::GetOptionsFromArray(
+        \@_,
+        'user=s'          => \$options{user},
+        'display_name=s'  => \$options{display_name},
+        'help|?'          => \$options{help},
+        'password=s'      => \$options{password},
+        'contact_email=s' => \$options{contact_email},
+        'acl=s@'          => \$options{acl},
     );
-    pod2usage(-exitval => 0, -verbose => 1) if $options{help};
+    pod2usage( -exitval => 0, -verbose => 1 ) if $options{help};
 
     $options{acl} //= [];
-    $options{acl} = [$options{acl}] if $options{acl} && ref $options{acl} ne 'ARRAY';
-    $options{acl} = ['admin'] unless @{$options{acl}};
+    $options{acl} = [ $options{acl} ] if $options{acl} && ref $options{acl} ne 'ARRAY';
+    $options{acl} = ['admin'] unless @{ $options{acl} };
 
-    Trog::Auth::killsession($options{user});
-    eval {
-        Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} )
-    } or do {
+    Trog::Auth::killsession( $options{user} );
+    eval { Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} ) } or do {
         return 1;
     };
 
@@ -87,19 +86,21 @@ sub main {
     my $conf = Trog::Config::get();
     my $data = Trog::Data->new($conf);
 
-    my @userposts = $data->get( tags => ['about'], acls => [qw{admin}]);
-    my $user_obj = first { ($_->{user} || '') eq $options{user} } @userposts;
-    my %merged = (
+    my @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
+    my $user_obj  = first { ( $_->{user} || '' ) eq $options{user} } @userposts;
+    my %merged    = (
         %$user_obj,
         %options,
         $options{display_name} ? ( local_href => "/users/$options{display_name}" ) : ( local_href => $user_obj->{local_href} ),
     );
+
     # We don't want the password in plain text
     delete $merged{password};
+
     # The ACLs a user posesses is not necessarily what ACLs you need to view a user's profile.
     delete $merged{acl};
 
-    $data->add(\%merged);
+    $data->add( \%merged );
     return 0;
 }
 

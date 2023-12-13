@@ -11,10 +11,10 @@ use Trog::Config;
 my $user   = shift @ARGV;
 my $domain = Trog::Config->get()->param('general.hostname');
 
-die "Must provide a user"   unless $user;
+die "Must provide a user"                   unless $user;
 die "Must Set domain in configuration file" unless $domain;
 
-my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp($user,$domain);
+my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( $user, $domain );
 print "TOTP URI: $uri\n";
-print "Secret: ".$totp->base32secret()."\n";
-print "Current Auth code: ".$totp->expected_totp_code( time ) . "\n";
+print "Secret: " . $totp->base32secret() . "\n";
+print "Current Auth code: " . $totp->expected_totp_code(time) . "\n";

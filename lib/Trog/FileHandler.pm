@@ -33,7 +33,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
     my $ft;
     if ($ext) {
         $ft = Plack::MIME->mime_type($ext) if $ext;
-        $ft ||= $extra_types{$ext}         if exists $extra_types{$ext};
+        $ft ||= $extra_types{$ext} if exists $extra_types{$ext};
     }
     $ft ||= $Trog::Vars::content_types{text};
 

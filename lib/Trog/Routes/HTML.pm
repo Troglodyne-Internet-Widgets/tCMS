@@ -282,11 +282,11 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     my $categorybar = Trog::Renderer->render( template => $categorybar, data => { %$query, categories => \@series }, component => 1, contenttype => 'text/html' );
     return $categorybar if ref $categorybar eq 'ARRAY';
 
-	# Grab the avatar class for the logged in user
-	if ($query->{user}) {
-		$query->{user_class} = Trog::Auth::username2display($query->{user});
-		$query->{user_class} =~ tr/ /_/;
-	}
+    # Grab the avatar class for the logged in user
+    if ( $query->{user} ) {
+        $query->{user_class} = Trog::Auth::username2display( $query->{user} );
+        $query->{user_class} =~ tr/ /_/;
+    }
 
     return finish_render(
         $tmpl,
@@ -308,7 +308,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             stylesheets  => \@styles,
             print_styles => \@p_styles,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
-            embed        => $query->{embed}     ? 1 : 0,
+            embed        => $query->{embed} ? 1 : 0,
             embed_video  => $query->{primary_post}{is_video},
             default_tags => $default_tags,
             meta_desc    => $meta_desc,
@@ -368,7 +368,7 @@ sub _build_social_meta ( $query, $title ) {
     my $social = HTML::SocialMeta->new(%sopts);
     $meta_tags = eval { $social->create($card_type) };
     $meta_tags =~ s/content="video"/content="video:other"/mg if $meta_tags;
-    $meta_tags .= $extra_tags                                if $extra_tags;
+    $meta_tags .= $extra_tags if $extra_tags;
 
     print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $Trog::Themes::theme_dir && !$meta_tags;
     return ( $default_tags, $meta_desc, $meta_tags );
@@ -650,7 +650,7 @@ Renders the configuration page, or redirects you back to the login page.
 =cut
 
 sub config ( $query = {} ) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
@@ -658,10 +658,10 @@ sub config ( $query = {} ) {
     #XXX ACHTUNG config::simple has this brain damaged behavior of returning a multiple element array when you access something that does not exist.
     #XXX straight up dying would be preferrable.
     #XXX anyways, this means you can NEVER NEVER NEVER access a param from within a hash directly.  YOU HAVE BEEN WARNED!
-    state $theme  = $conf->param('general.theme')              // '';
-    state $dm     = $conf->param('general.data_model')         // 'DUMMY';
-    state $embeds = $conf->param('security.allow_embeds_from') // '';
-    state $hostname = $conf->param('general.hostname') // '';
+    state $theme    = $conf->param('general.theme')              // '';
+    state $dm       = $conf->param('general.data_model')         // 'DUMMY';
+    state $embeds   = $conf->param('security.allow_embeds_from') // '';
+    state $hostname = $conf->param('general.hostname')           // '';
 
     return Trog::Routes::HTML::index(
         {
@@ -681,7 +681,7 @@ sub config ( $query = {} ) {
             is_admin           => 1,
             template           => 'config.tx',
             %$query,
-            hostname           => $hostname,
+            hostname => $hostname,
         },
         undef,
         [qw{config.css}],
@@ -805,7 +805,7 @@ Implements /config/save route.  Saves what little configuration we actually use 
 =cut
 
 sub config_save ($query) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
@@ -833,7 +833,7 @@ Clone a theme by copying a directory.
 =cut
 
 sub themeclone ($query) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my ( $theme, $newtheme ) = ( $query->{theme}, $query->{newtheme} );
@@ -857,7 +857,7 @@ Saves posts submitted via the /post pages
 =cut
 
 sub post_save ($query) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $to = delete $query->{to};
@@ -890,7 +890,7 @@ Saves / updates new users.
 =cut
 
 sub profile ($query) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     #TODO allow new users to do something OTHER than be admins
@@ -914,7 +914,7 @@ deletes posts.
 =cut
 
 sub post_delete ($query) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $data->delete($query) and die "Could not delete post";
@@ -1042,7 +1042,7 @@ sub posts ( $query, $direct = 0 ) {
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
     push( @{ $query->{user_acls} }, 'public' );
     push( @{ $query->{user_acls} }, 'unlisted' ) if $query->{id};
-    push( @{ $query->{user_acls} }, 'private' )  if $is_admin;
+    push( @{ $query->{user_acls} }, 'private' ) if $is_admin;
     my @posts;
 
     # Discover this user's visibility, so we can make them post in this category by default
@@ -1244,7 +1244,7 @@ sub _post_helper ( $query, $tags, $acls ) {
     return $data->get(
         older        => $query->{older},
         newer        => $query->{newer},
-        page         => int( $query->{page}  || 1 ),
+        page         => int( $query->{page} || 1 ),
         limit        => int( $query->{limit} || 25 ),
         tags         => $tags,
         exclude_tags => $query->{exclude_tags},
@@ -1398,8 +1398,8 @@ sub sitemap ($query) {
     @to_map = sort @to_map unless $is_index;
     my $styles = ['sitemap.css'];
 
-    $query->{title}    = "$query->{domain} : Sitemap";
-    $query->{template} = 'sitemap.tx',
+    $query->{title}        = "$query->{domain} : Sitemap";
+    $query->{template}     = 'sitemap.tx',
       $query->{to_map}     = \@to_map,
       $query->{is_index}   = $is_index,
       $query->{route_type} = $route_type,
@@ -1479,7 +1479,7 @@ Basically a thin wrapper around Pod::Html.
 =cut
 
 sub manual ($query) {
-    return see_also('/login')                    unless $query->{user};
+    return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     require Pod::Html;
@@ -1544,7 +1544,7 @@ sub rss_style ($query) {
 }
 
 sub _build_themed_styles ($styles) {
-    my @styles = map { (Trog::Themes::themed_style("$_")) } @{ Trog::Utils::coerce_array($styles) };
+    my @styles = map { ( Trog::Themes::themed_style("$_") ) } @{ Trog::Utils::coerce_array($styles) };
     return \@styles;
 }
 

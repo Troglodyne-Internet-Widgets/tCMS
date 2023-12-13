@@ -68,7 +68,7 @@ sub catalog ($query) {
 }
 
 sub webmanifest ($query) {
-    state $headers  = { ETag => 'manifest-' . _version() };
+    state $headers = { ETag => 'manifest-' . _version() };
     state %manifest = (
         "icons" => [
             { "src" => "$theme_dir/img/icon/favicon-32.png",  "type" => "image/png", "sizes" => "32x32" },

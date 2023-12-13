@@ -48,7 +48,7 @@ sub themed_style ($resource) {
     my @styles = ("/styles/$resource");
     my $styled = _dir_for_resource("styles/$resource");
     $styled =~ s/^www\///;
-    push(@styles, "/$styled/styles/$resource") if $styled;
+    push( @styles, "/$styled/styles/$resource" ) if $styled;
     return @styles;
 }
 

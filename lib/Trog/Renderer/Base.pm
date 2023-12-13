@@ -71,7 +71,7 @@ sub render (%options) {
 
 sub headers ( $options, $body ) {
     my $query   = $options->{data};
-    my $uh      = ref $options->{headers} eq 'HASH'      ? $options->{headers}        : {};
+    my $uh      = ref $options->{headers} eq 'HASH' ? $options->{headers} : {};
     my $ct      = $options->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$options->{contenttype};";
     my %headers = (
         'Content-Type'           => $ct,

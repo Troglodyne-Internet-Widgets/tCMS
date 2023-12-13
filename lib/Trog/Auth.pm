@@ -79,8 +79,8 @@ Fetch existing settings for a user.
 sub get_existing_user_data ($user) {
     my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT hash, salt, totp_secret, display_name, contact_email FROM user WHERE name=?", { Slice => {} }, $user );
-    return (undef,undef, undef) unless ref $rows eq 'ARRAY' && @$rows;
-    return ($rows->[0]{hash}, $rows->[0]{salt}, $rows->[0]{totp_secret}, $rows->[0]{display_name}, $rows->[0]{contact_email});
+    return ( undef, undef, undef ) unless ref $rows eq 'ARRAY' && @$rows;
+    return ( $rows->[0]{hash}, $rows->[0]{salt}, $rows->[0]{totp_secret}, $rows->[0]{display_name}, $rows->[0]{contact_email} );
 }
 
 =head2 email4user(STRING username) = STRING
@@ -184,7 +184,7 @@ sub totp ( $user, $domain ) {
             level         => 'L',
             casesensitive => 1,
             lightcolor    => Imager::Color->new( 255, 255, 255 ),
-            darkcolor     => Imager::Color->new( 0,   0,   0 ),
+            darkcolor     => Imager::Color->new( 0, 0, 0 ),
         );
 
         my $img = $qrcode->plot($uri);
@@ -192,7 +192,6 @@ sub totp ( $user, $domain ) {
     }
     return ( $uri, $qr, $failure, $message, $totp );
 }
-
 
 sub _totp {
     state $totp;
@@ -250,7 +249,7 @@ sub mksession ( $user, $pass, $token ) {
         $totp->{secret} = $secret;
         my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
         INFO("TOTP Auth failed for user $user") unless $rc;
-        return ''                               unless $rc;
+        return '' unless $rc;
     }
 
     # Issue cookie
@@ -283,23 +282,23 @@ Returns True or False (likely false when user already exists).
 sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
 
     # See if the user exists already, keep pw if nothing's passed
-    my ($hash, $salt, $t_secret, $dn, $ce) = get_existing_user_data($user);
+    my ( $hash, $salt, $t_secret, $dn, $ce ) = get_existing_user_data($user);
     $displayname  //= $dn;
     $contactemail //= $ce;
 
     die "No username set!"     unless $user;
     die "No display name set!" unless $displayname;
     die "Username and display name cannot be the same" if $user eq $displayname;
-    die "No password set for user!"      if !$pass && !$hash;
-    die "ACLs must be array"             unless is_arrayref($acls);
+    die "No password set for user!"                    if !$pass && !$hash;
+    die "ACLs must be array" unless is_arrayref($acls);
     die "No contact email set for user!" unless $contactemail;
 
-    my $dbh  = _dbh();
+    my $dbh = _dbh();
     if ($pass) {
         $salt = Trog::Utils::uuid();
         $hash = sha256( $pass . $salt );
     }
-    my $res  = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
+    my $res = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
     return unless $res && ref $acls eq 'ARRAY';
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
