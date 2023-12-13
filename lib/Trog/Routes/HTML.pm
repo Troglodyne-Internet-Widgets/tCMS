@@ -548,7 +548,7 @@ sub login ($query) {
             failure     => int( $query->{failed} ),
             message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
             btnmsg      => $btnmsg,
-            stylesheets => _build_themed_styles( [qw{login.css}] ),
+            stylesheets => _build_themed_styles( [qw{structure.css screen.css login.css}] ),
             theme_dir   => $Trog::Themes::td,
             has_users   => $hasusers,
             %$query,
