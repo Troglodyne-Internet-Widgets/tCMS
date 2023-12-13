@@ -132,7 +132,7 @@ sub _fixup ( $self, @filtered ) {
         $subj->{method} = 'GET' unless exists( $subj->{method} );
 
         $subj->{user_class}   = $user2display{$subj->{user}};
-        $subj->{user_class}   =~ tr/ /_/;
+        $subj->{user_class}   =~ tr/ /_/ if $subj->{user_class};
 
         $subj
     } @filtered;
