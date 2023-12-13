@@ -43,7 +43,6 @@ There are 3 routing modules you will need to know about:
 =back
 
 From there the routes are generally going to call out to the data model, which is configured via the /config route.
-There are only two relevant things to configure, which is what Theme and Data model to use.
 
 The configuration module is L<Trog::Config>.
 The Data model modules are all subclasses of L<Trog::Data>.
