@@ -43,6 +43,7 @@ sub dbh {
     my ( $schema, $dbname ) = @_;
     return $dbh->{$schema} if $dbh->{$schema};
     File::Touch::touch($dbname) unless -f $dbname;
+    die "No such schema file '$schema' !" unless -f $schema;
     my $qq = File::Slurper::read_text($schema);
     my $db = DBI->connect( "dbi:SQLite:dbname=$dbname", "", "" );
     $db->{sqlite_allow_multiple_statements} = 1;

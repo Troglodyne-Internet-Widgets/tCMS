@@ -5,8 +5,12 @@ use warnings;
 
 use POSIX qw{strftime};
 use Log::Dispatch;
+use Log::Dispatch::DBI;
 use Log::Dispatch::Screen;
 use Log::Dispatch::FileRotate;
+
+use Trog::SQLite;
+use Trog::Log::DBI;
 
 use Exporter 'import';
 our @EXPORT_OK   = qw{is_debug INFO DEBUG WARN FATAL};
@@ -33,9 +37,18 @@ my $screen = Log::Dispatch::Screen->new(
     name      => 'screen',
     min_level => 'error',
 );
+
+# Send things like requests in to the stats log
+my $dblog = Trog::Log::DBI->new(
+    name => 'dbi',
+    min_level => $LEVEL,
+    dbh  => _dbh(),
+);
+
 our $log = Log::Dispatch->new();
 $log->add($rotate);
 $log->add($screen);
+$log->add($dblog);
 
 uuid("INIT");
 DEBUG("If you see this message, you are running in DEBUG mode.  Turn off WWW_VERBOSE env var if you are running in production.");
@@ -43,6 +56,10 @@ uuid("BEGIN");
 
 #memoize
 my $rq;
+
+sub _dbh {
+	return Trog::SQLite::dbh( 'schema/log.schema', "data/log.db" );
+}
 
 sub is_debug {
     return $LEVEL eq 'debug';

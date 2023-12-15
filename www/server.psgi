@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 #Grab our custom routes
-use lib 'lib';
+use FindBin::libs;
 use TCMS;
 
 $ENV{PSGI_ENGINE} //= 'starman';

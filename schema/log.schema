@@ -1,0 +1,75 @@
+CREATE TABLE IF NOT EXISTS seen_hosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS seen_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS seen_routes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    route TEXT NOT NULL,
+    method TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS response_code (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS requests (
+    uuid TEXT PRIMARY KEY,
+    date TEXT NOT NULL,
+    host_id INTEGER NOT NULL REFERENCES seen_hosts(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES seen_users(id) ON DELETE CASCADE,
+    route_id INTEGER NOT NULL REFERENCES seen_routes(id) ON DELETE CASCADE,
+    response_code_id INTEGER NOT NULL REFERENCES response_code(id) ON DELETE RESTRICT
+);
+
+CREATE VIEW IF NOT EXISTS all_requests AS
+    SELECT
+        q.uuid,
+        q.date,
+        h.ip_address,
+        u.user,
+        r.method,
+        r.route,
+        c.code
+    FROM
+        requests AS q
+    JOIN
+        seen_hosts AS h ON q.host_id = h.id
+    JOIN
+        seen_users AS u ON q.user_id = u.id
+    JOIN
+        seen_routes AS r ON q.route_id = r.id
+    JOIN
+        response_code AS c on q.response_code_id = c.id;
+
+/* Make all_requests a writable view via triggers.  We will always stomp the main row, as the last update will be what we want. */
+CREATE TRIGGER IF NOT EXISTS insert_all_requests INSTEAD OF INSERT ON all_requests BEGIN
+    INSERT OR IGNORE  INTO response_code (code)         VALUES (NEW.code);
+    INSERT OR IGNORE  INTO seen_routes   (route,method) VALUES (NEW.route, NEW.method);
+    INSERT OR IGNORE  INTO seen_users    (user)         VALUES (NEW.user);
+    INSERT OR IGNORE  INTO seen_hosts    (ip_address)   VALUES (NEW.ip_address);
+    INSERT OR REPLACE INTO requests SELECT
+        NEW.uuid,
+        NEW.date,
+        h.id AS host_id,
+        u.id AS user_id,
+        r.id AS route_id,
+        c.id AS response_code_id
+    FROM seen_hosts AS h
+    JOIN seen_users AS u ON u.user = NEW.user
+    JOIN seen_routes AS r ON r.route = NEW.route AND r.method = NEW.method
+    JOIN response_code AS c ON c.code = NEW.code
+    WHERE h.ip_address = NEW.ip_address;
+END;
+
+/* This is just to store various messages associated with requests, which are usually errors. */
+CREATE TABLE IF NOT EXISTS messages (
+    uuid TEXT NOT NULL REFERENCES requests ON DELETE NO ACTION,
+    message TEXT NOT NULL
+);
