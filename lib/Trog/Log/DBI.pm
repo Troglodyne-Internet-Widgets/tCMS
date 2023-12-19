@@ -39,6 +39,7 @@ sub log_message {
 
     my $res = $self->{sth}->execute($uuid, $date, $ip, $user, $method, $route, $code);
     $self->{sth2}->execute($uuid, $message) if $message;
+
     return $res;
 }
 
