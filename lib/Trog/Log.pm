@@ -13,52 +13,62 @@ use Trog::SQLite;
 use Trog::Log::DBI;
 
 use Exporter 'import';
-our @EXPORT_OK   = qw{is_debug INFO DEBUG WARN FATAL};
+our @EXPORT_OK   = qw{log_init is_debug INFO DEBUG WARN FATAL};
 our %EXPORT_TAGS = ( 'all' => \@EXPORT_OK );
 
-my $LOGNAME = -d '/var/log' ? '/var/log/www/tcms.log' : '~/.tcms/tcms.log';
+my $LOGNAME = 'logs/tcms.log';
 $LOGNAME = $ENV{CUSTOM_LOG} if $ENV{CUSTOM_LOG};
 
 my $LEVEL = $ENV{WWW_VERBOSE} ? 'debug' : 'info';
 
-# By default only log requests & warnings.
-# Otherwise emit debug messages.
-my $rotate = Log::Dispatch::FileRotate->new(
-    name      => 'tcms',
-    filename  => $LOGNAME,
-    min_level => $LEVEL,
-    'mode'    => 'append',
-    size      => 10 * 1024 * 1024,
-    max       => 6,
-);
+our $log;
+our $user;
+$Trog::Log::user = 'nobody';
+$Trog::Log::ip   = '0.0.0.0';
 
-# Only send fatal events/errors to prod-web.log
-my $screen = Log::Dispatch::Screen->new(
-    name      => 'screen',
-    min_level => 'error',
-);
+sub log_init {
+    # By default only log requests & warnings.
+    # Otherwise emit debug messages.
+    my $rotate = Log::Dispatch::FileRotate->new(
+        name      => 'tcms',
+        filename  => $LOGNAME,
+        min_level => $LEVEL,
+        'mode'    => 'append',
+        size      => 10 * 1024 * 1024,
+        max       => 6,
+    );
 
-# Send things like requests in to the stats log
-my $dblog = Trog::Log::DBI->new(
-    name => 'dbi',
-    min_level => $LEVEL,
-    dbh  => _dbh(),
-);
+    # Only send fatal events/errors to prod-web.log
+    my $screen = Log::Dispatch::Screen->new(
+        name      => 'screen',
+        min_level => 'error',
+    );
 
-our $log = Log::Dispatch->new();
-$log->add($rotate);
-$log->add($screen);
-$log->add($dblog);
+    # Send things like requests in to the stats log
+    my $dblog = Trog::Log::DBI->new(
+        name => 'dbi',
+        min_level => $LEVEL,
+        dbh  => _dbh(),
+    );
 
-uuid("INIT");
-DEBUG("If you see this message, you are running in DEBUG mode.  Turn off WWW_VERBOSE env var if you are running in production.");
-uuid("BEGIN");
+    $log = Log::Dispatch->new();
+    $log->add($rotate);
+    $log->add($screen);
+    $log->add($dblog);
+
+    uuid("INIT");
+    DEBUG("If you see this message, you are running in DEBUG mode.  Turn off WWW_VERBOSE env var if you are running in production.");
+    uuid("BEGIN");
+
+    return 1;
+}
 
 #memoize
 my $rq;
 
 sub _dbh {
-	return Trog::SQLite::dbh( 'schema/log.schema', "data/log.db" );
+    # Too many writers = lock sadness, so just give each fork it's own DBH.
+	return Trog::SQLite::dbh( 'schema/log.schema', "logs/db/$$.db" );
 }
 
 sub is_debug {
@@ -69,13 +79,6 @@ sub uuid {
     my $requestid = shift;
     $rq = $requestid if $requestid;
     $requestid //= return $rq;
-}
-
-#XXX make perl -c quit whining
-BEGIN {
-    our $user;
-    $Trog::Log::user = 'nobody';
-    $Trog::Log::ip   = '0.0.0.0';
 }
 
 sub _log {
@@ -91,19 +94,27 @@ sub _log {
 }
 
 sub DEBUG {
+    _check_init();
     $log->debug( _log( shift, 'DEBUG' ) );
 }
 
 sub INFO {
+    _check_init();
     $log->info( _log( shift, 'INFO' ) );
 }
 
 sub WARN {
+    _check_init();
     $log->warning( _log( shift, 'WARN' ) );
 }
 
 sub FATAL {
+    _check_init();
     $log->log_and_die( level => 'error', message => _log( shift, 'FATAL' ) );
+}
+
+sub _check_init {
+    die "You must run log_init() before using other Trog::Log methods" unless $log;
 }
 
 1;

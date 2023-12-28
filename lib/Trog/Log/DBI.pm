@@ -5,6 +5,9 @@ use warnings;
 
 use parent qw{Log::Dispatch::DBI};
 
+use Ref::Util qw{is_arrayref};
+use Capture::Tiny qw{capture_merged};
+
 sub create_statement {
     my $self = shift;
 
@@ -17,6 +20,8 @@ sub create_statement {
     return $self->{dbh}->prepare($sql);
 }
 
+my %buffer;
+
 sub log_message {
     my ($self, %params) = @_;
 
@@ -25,20 +30,26 @@ sub log_message {
     my $message;
     my ($date, $uuid, $ip, $user, $method, $code, $route) = $msg =~ m!^([\w|\-|:]+) \[INFO\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (\w+) (\d+) (.+)!;
 
-    # Otherwise, let's mark it down in the "messages" table.
+    # Otherwise, let's mark it down in the "messages" table.  This will be deferred until the final write.
     if (!$date) {
         ($date, $uuid, $ip, $user, $message) = $msg =~ m!^([\w|\-|:]+) \[\w+\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (.+)!;
-        # Dummy up the method, code and route, as otherwise we summon complexity demon due to lack of FULL OUTER JOIN.
-        $method = "UNKNOWN";
-        $code   = 100;
-        $route  = "bogus";
+
+        $buffer{$uuid} //= [];
+        push(@{$buffer{$uuid}}, $message);
+        return 1;
     }
 
     # If this is a mangled log, forget it.
-    return unless $date;
+    return unless $date && $uuid;
 
-    my $res = $self->{sth}->execute($uuid, $date, $ip, $user, $method, $route, $code);
-    $self->{sth2}->execute($uuid, $message) if $message;
+    my $res = $self->{sth}->execute($uuid, $date, $ip, $user, $method, $route, $code );
+
+    if (is_arrayref($buffer{$uuid}) && @{$buffer{$uuid}}) {
+        $self->{sth2}->bind_param_array(1, $uuid);
+        $self->{sth2}->bind_param_array(2, $buffer{$uuid});
+        $self->{sth2}->execute_array({});
+        delete $buffer{$uuid};
+    }
 
     return $res;
 }

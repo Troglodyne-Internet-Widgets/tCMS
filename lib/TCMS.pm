@@ -39,29 +39,6 @@ use Trog::FileHandler;
 
 # Troglodyne philosophy - simple as possible
 
-# Import the routes
-my $conf  = Trog::Config::get();
-my $data  = Trog::Data->new($conf);
-my %roots = $data->routes();
-
-my %routes = %Trog::Routes::HTML::routes;
-@routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
-@routes{ keys(%roots) }                      = values(%roots);
-
-# Add in global routes, here because they *must* know about all other routes
-# Also, nobody should ever override these.
-$routes{'/robots.txt'} = {
-    method   => 'GET',
-    callback => \&robots,
-};
-my $routes_immutable = clone( \%routes );
-
-my %aliases = $data->aliases();
-
-# XXX this is built progressively across the forks, leading to inconsistent behavior.
-# This should eventually be pre-filled from DB.
-my %etags;
-
 # Wrap app to return *our* error handler instead of Plack::Util::run_app's
 my $cur_query = {};
 
@@ -93,16 +70,28 @@ sub _app {
     # Start the server timing clock
     my $start = [gettimeofday];
 
-    # Don't allow any captured routes to persist past a request in the routing table
-    %routes = %$routes_immutable;
+    # Build the routing table
+    state ($conf, $data, %aliases);
+    
+    $conf  //= Trog::Config::get();
+    $data  //= Trog::Data->new($conf);
+    my %routes = %{_routes($data)};
+    %aliases = $data->aliases() unless %aliases;
 
+    # XXX this is built progressively across the forks, leading to inconsistent behavior.
+    # This should eventually be pre-filled from DB.
+    my %etags;
+
+    # Setup logging
+    log_init();
+    my $requestid = Trog::Utils::uuid();
+    Trog::Log::uuid($requestid);
+
+    # Actually start processing the request
     my $env = shift;
 
     # Discard the path used in the log, it's too long and enough 4xx error code = ban
     return _toolong( { method => $env->{REQUEST_METHOD}, fullpath => '...' } ) if length( $env->{REQUEST_URI} ) > 2048;
-
-    my $requestid = Trog::Utils::uuid();
-    Trog::Log::uuid($requestid);
 
     # Various stuff important for logging requests
     state $domain = $conf->param('general.hostname') || $env->{HTTP_X_FORWARDED_HOST} || $env->{HTTP_HOST} || eval { Sys::Hostname::hostname() };
@@ -312,6 +301,30 @@ sub _app {
     }
 }
 
+#XXX Return a clone of the routing table ref, because code modifies it later
+sub _routes ($data) {
+    state %routes;
+    return clone(\%routes) if %routes;
+
+    if (!$data) {
+        my $conf = Trog::Config::get();
+        $data    = Trog::Data->new($conf);
+    }
+    my %roots = $data->routes();
+    %routes = %Trog::Routes::HTML::routes;
+    @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
+    @routes{ keys(%roots) }                      = values(%roots);
+
+    # Add in global routes, here because they *must* know about all other routes
+    # Also, nobody should ever override these.
+    $routes{'/robots.txt'} = {
+        method   => 'GET',
+        callback => \&robots,
+    };
+
+    return clone(\%routes);
+}
+
 =head2 robots
 
 Return an appropriate robots.txt
@@ -322,9 +335,10 @@ This is a "special" route as it needs to know about all the routes in order to d
 
 sub robots ($query) {
     state $etag = "robots-" . time();
+    my $routes = _routes();
 
     # If there's a 'capture' route, we need to format it correctly.
-    state @banned = map { exists $routes{$_}{robot_name} ? $routes{$_}{robot_name} : $_ } grep { $routes{$_}{noindex} } sort keys(%routes);
+    state @banned = map { exists $routes->{$_}{robot_name} ? $routes->{$_}{robot_name} : $_ } grep { $routes->{$_}{noindex} } sort keys(%$routes);
 
     return Trog::Renderer->render(
         contenttype => 'text/plain',

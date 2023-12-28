@@ -230,8 +230,6 @@ if ($Trog::Themes::theme_dir) {
     }
 }
 
-my $data = Trog::Data->new($conf);
-
 =head1 PRIMARY ROUTE
 
 =head2 index
@@ -287,6 +285,9 @@ sub index ( $query, $content = '', $i_styles = [] ) {
         $query->{user_class} = Trog::Auth::username2display( $query->{user} );
         $query->{user_class} =~ tr/ /_/;
     }
+
+    state $data;
+    $data //= Trog::Data->new($conf);
 
     return finish_render(
         $tmpl,
@@ -772,6 +773,9 @@ sub do_totp_clear ($query) {
 }
 
 sub _get_series ( $edit = 0 ) {
+    state $data;
+    $data //= Trog::Data->new($conf);
+
     my @series = $data->get(
         acls  => [qw{public}],
         tags  => [qw{topbar}],
@@ -879,6 +883,9 @@ sub post_save ($query) {
     # Posts will always be GET
     $query->{method} = 'GET';
 
+    state $data;
+    $data //= Trog::Data->new($conf);
+
     $data->add($query) and die "Could not add post";
     return see_also($to);
 }
@@ -916,6 +923,9 @@ deletes posts.
 sub post_delete ($query) {
     return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    state $data;
+    $data //= Trog::Data->new($conf);
 
     $data->delete($query) and die "Could not delete post";
     return see_also( $query->{to} );
@@ -1159,6 +1169,9 @@ sub posts ( $query, $direct = 0 ) {
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form}          : $query->{form};
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
 
+    state $data;
+    $data //= Trog::Data->new($conf);
+
     # Grab the rest of the tags to dump into the edit form
     my @tags_all = $data->tags();
 
@@ -1241,6 +1254,9 @@ sub _themed_title ($path) {
 }
 
 sub _post_helper ( $query, $tags, $acls ) {
+    state $data;
+    $data //= Trog::Data->new($conf);
+
     return $data->get(
         older        => $query->{older},
         newer        => $query->{newer},
@@ -1272,6 +1288,9 @@ Passing compressed=1 will gzip the output.
 =cut
 
 sub sitemap ($query) {
+
+    state $data;
+    $data //= Trog::Data->new($conf);
 
     state $etag = "sitemap-" . time();
     my ( @to_map, $is_index, $route_type );

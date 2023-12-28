@@ -25,3 +25,4 @@ node_modules/
 www/statics/
 totp/
 nginx/tcms.conf
+logs/

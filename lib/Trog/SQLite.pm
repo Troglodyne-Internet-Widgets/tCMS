@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 no warnings 'experimental';
-use feature qw{signatures};
+use feature qw{signatures state};
 
 use POSIX qw{floor};
 
@@ -36,12 +36,16 @@ Be careful when first calling, the standard fork-safety concerns with sqlite app
 
 =cut
 
+# We need to make sure this is different across forks, AND consistent within them.
 my $dbh = {};
 
 # Ensure the db schema is OK, and give us a handle
+# WARNING: do not ever call during BEGIN or outside a sub.
+# Otherwise, we can't preload_app.
 sub dbh {
     my ( $schema, $dbname ) = @_;
-    return $dbh->{$schema} if $dbh->{$schema};
+    $dbh //= {};
+    return $dbh->{$dbname} if $dbh->{$dbname};
     File::Touch::touch($dbname) unless -f $dbname;
     die "No such schema file '$schema' !" unless -f $schema;
     my $qq = File::Slurper::read_text($schema);
@@ -49,12 +53,13 @@ sub dbh {
     $db->{sqlite_allow_multiple_statements} = 1;
     $db->do($qq) or die "Could not ensure database consistency: " . $db->errstr;
     $db->{sqlite_allow_multiple_statements} = 0;
-    $dbh->{$schema} = $db;
+    $dbh->{$dbname} = $db;
 
     # Turn on fkeys
     $db->do("PRAGMA foreign_keys = ON")  or die "Could not enable foreign keys";
     # Turn on WALmode
     $db->do("PRAGMA journal_mode = WAL") or die "Could not enable WAL mode";
+
     return $db;
 }
 
