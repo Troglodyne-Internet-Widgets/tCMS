@@ -33,7 +33,7 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
 .PHONY: prereq-debs
 prereq-debs:
 	sudo apt-get update
-	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl         \
+	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl cmake \
 		uwsgi uwsgi-plugin-psgi fail2ban nginx certbot postfix dovecot-imapd dovecot-pop3d postgrey spamassassin amavis clamav\
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
