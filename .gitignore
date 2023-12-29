@@ -19,6 +19,7 @@ config/auth.db
 config/has_users
 config/main.cfg
 config/setup
+Makefile
 MYMETA.yml
 MYMETA.json
 node_modules/

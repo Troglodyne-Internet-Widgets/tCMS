@@ -2,8 +2,8 @@ SHELL := /bin/bash
 
 .PHONY: depend
 depend:
-	[ -f "/etc/debian_version" ] && make prereq-debs; /bin/true;
-	make prereq-perl prereq-frontend
+	[ -f "/etc/debian_version" ] && make -f Installer.mk prereq-debs; /bin/true;
+	make -f Installer.mk prereq-perl prereq-frontend
 
 .PHONY: install
 install:
