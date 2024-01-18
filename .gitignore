@@ -27,3 +27,5 @@ www/statics/
 totp/
 nginx/tcms.conf
 logs/
+*-shm
+*-wal
