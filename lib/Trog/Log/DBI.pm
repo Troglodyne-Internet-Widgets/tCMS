@@ -8,13 +8,13 @@ use parent qw{Log::Dispatch::DBI};
 use Ref::Util qw{is_arrayref};
 use Capture::Tiny qw{capture_merged};
 
-our $referer;
+our ($referer, $ua);
 
 sub create_statement {
     my $self = shift;
 
     # This is a writable view.  Consult schema for its behavior.
-    my $sql = "INSERT INTO all_requests (uuid, date, ip_address, user, method, route, code, referer) VALUES (?,?,?,?,?,?,?,?)";
+    my $sql = "INSERT INTO all_requests (uuid, date, ip_address, user, method, route, referer, ua, code) VALUES (?,?,?,?,?,?,?,?,?)";
 
     my $sql2 = "INSERT INTO messages (uuid, message) VALUES (?,?)";
     $self->{sth2} = $self->{dbh}->prepare($sql2);
@@ -47,8 +47,9 @@ sub log_message {
     # Allow callers to set referer.
     # We only care about this in DB context, as it's only for metrics, which are irrelevant in text logs/debugging.
     $referer //= 'none';
+    $ua      //= 'none';
 
-    my $res = $self->{sth}->execute($uuid, $date, $ip, $user, $method, $route, $code, $referer );
+    my $res = $self->{sth}->execute($uuid, $date, $ip, $user, $method, $route, $referer, $ua, $code );
 
     if (is_arrayref($buffer{$uuid}) && @{$buffer{$uuid}}) {
         $self->{sth2}->bind_param_array(1, $uuid);

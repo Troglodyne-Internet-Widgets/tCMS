@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS referer (
     referer TEXT NOT NULL UNIQUE
 );
 
+CREATE TABLE IF NOT EXISTS ua (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ua TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS requests (
     uuid TEXT PRIMARY KEY,
     date TEXT NOT NULL,
@@ -32,6 +37,7 @@ CREATE TABLE IF NOT EXISTS requests (
     user_id INTEGER NOT NULL REFERENCES seen_users(id) ON DELETE CASCADE,
     route_id INTEGER NOT NULL REFERENCES seen_routes(id) ON DELETE CASCADE,
     referer_id INTEGER NOT NULL REFERENCES referer(id) ON DELETE CASCADE,
+    ua_id INTEGER NOT NULL REFERENCES ua(id) ON DELETE CASCADE,
     response_code_id INTEGER NOT NULL REFERENCES response_code(id) ON DELETE RESTRICT
 );
 
@@ -44,6 +50,7 @@ CREATE VIEW IF NOT EXISTS all_requests AS
         r.method,
         r.route,
         f.referer,
+        ua.ua,
         c.code
     FROM
         requests AS q
@@ -56,6 +63,8 @@ CREATE VIEW IF NOT EXISTS all_requests AS
     JOIN
         referer AS f ON q.referer_id = f.id
     JOIN
+        ua ON q.ua_id = ua.id
+    JOIN
         response_code AS c on q.response_code_id = c.id;
 
 /* Make all_requests a writable view via triggers.  We will always stomp the main row, as the last update will be what we want. */
@@ -65,6 +74,7 @@ CREATE TRIGGER IF NOT EXISTS insert_all_requests INSTEAD OF INSERT ON all_reques
     INSERT OR IGNORE INTO seen_users    (user)         VALUES (NEW.user);
     INSERT OR IGNORE INTO seen_hosts    (ip_address)   VALUES (NEW.ip_address);
     INSERT OR IGNORE INTO referer       (referer)      VALUES (NEW.referer);
+    INSERT OR IGNORE INTO ua            (ua)           VALUES (NEW.ua);
     INSERT OR REPLACE INTO requests SELECT
         NEW.uuid,
         NEW.date,
@@ -72,11 +82,13 @@ CREATE TRIGGER IF NOT EXISTS insert_all_requests INSTEAD OF INSERT ON all_reques
         u.id AS user_id,
         r.id AS route_id,
         f.id AS referer_id,
+        ua.id AS ua_id,
         c.id AS response_code_id
     FROM seen_hosts AS h
     JOIN seen_users AS u ON u.user = NEW.user
     JOIN seen_routes AS r ON r.route = NEW.route AND r.method = NEW.method
     JOIN referer AS f ON f.referer = NEW.referer
+    JOIN ua ON ua.ua = NEW.ua
     JOIN response_code AS c ON c.code = NEW.code
     WHERE h.ip_address = NEW.ip_address;
 END;

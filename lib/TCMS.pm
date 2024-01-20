@@ -127,8 +127,9 @@ sub _app {
     #my $no_track = $env->{HTTP_DNT};
     #my $no_sell_info = $env->{HTTP_SEC_GPC};
 
-    # Set the referer to go into DB logs, but not logs in general.
+    # Set the referer & ua to go into DB logs, but not logs in general.
     $Trog::Log::DBI::referer = $env->{HTTP_REFERER};
+    $Trog::Log::DBI::ua      = $env->{HTTP_UA};
 
     # We generally prefer this to be handled at the reverse proxy level.
     #my $prefer_ssl = $env->{HTTP_UPGRADE_INSECURE_REQUESTS};
