@@ -66,7 +66,6 @@ sub log_init {
 my $rq;
 
 sub _dbh {
-    # Too many writers = lock sadness, so just give each fork it's own DBH.
 	return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
 }
 

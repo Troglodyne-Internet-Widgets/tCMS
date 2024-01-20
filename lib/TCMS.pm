@@ -123,11 +123,14 @@ sub _app {
     #TODO: Actually do something with the acceptable output formats in the renderer
     my $accept = $env->{HTTP_ACCEPT};
 
-    # These two parameters are entirely academic, as no integration with any kind of analytics is implemented.
+    # NOTE These two parameters are entirely academic, as we don't use ad tracking cookies, but the UTM parameters.
+    # UTMs are actually fully sufficient to get you what you want -- e.g. keywords, audience groups, a/b testing, etc.
+    # and you need to put up cookie consent banners if you bother using tracking cookies, which are horrific UX.
     #my $no_track = $env->{HTTP_DNT};
     #my $no_sell_info = $env->{HTTP_SEC_GPC};
 
     # Set the referer & ua to go into DB logs, but not logs in general.
+    # The referer/ua largely has no importance beyond being a proto bug report for log messages.
     $Trog::Log::DBI::referer = $env->{HTTP_REFERER};
     $Trog::Log::DBI::ua      = $env->{HTTP_UA};
 
@@ -208,6 +211,9 @@ sub _app {
     # Ensure any short-circuit routes can log the request
     $query->{method} = $method;
     $query->{route}  = $path;
+
+    # Set the urchin parameters if necessary.
+    %$Trog::Log::DBI::urchin = map { $_ => $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
 
     # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
     if ( index( $path, '/templates' ) == 0 || index( $path, '/statics' ) == 0 || $path =~ m/.*(\.psgi|\.pm)$/i ) {

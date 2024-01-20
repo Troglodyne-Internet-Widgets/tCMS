@@ -31,8 +31,9 @@ CREATE TABLE IF NOT EXISTS ua (
 );
 
 CREATE TABLE IF NOT EXISTS requests (
-    uuid TEXT PRIMARY KEY,
-    date TEXT NOT NULL,
+    id INTEGER PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    date INTEGER NOT NULL,
     host_id INTEGER NOT NULL REFERENCES seen_hosts(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES seen_users(id) ON DELETE CASCADE,
     route_id INTEGER NOT NULL REFERENCES seen_routes(id) ON DELETE CASCADE,
@@ -41,8 +42,89 @@ CREATE TABLE IF NOT EXISTS requests (
     response_code_id INTEGER NOT NULL REFERENCES response_code(id) ON DELETE RESTRICT
 );
 
+/* Urchin stuff - it's powerful to be able to do things in backend based on campaign, even if you use a JS frontend. */
+CREATE TABLE IF NOT EXISTS urchin_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    value TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS urchin_medium (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    value TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS urchin_campaign (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    value TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS urchin_term (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    value TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS urchin_content (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    value TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS urchin (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
+    source_id INTEGER NOT NULL REFERENCES urchin_source(id) ON DELETE CASCADE,
+    medium_id INTEGER REFERENCES urchin_medium(id) ON DELETE CASCADE,
+    campaign_id INTEGER REFERENCES urchin_campaign(id) ON DELETE CASCADE,
+    term_id INTEGER REFERENCES urchin_term(id) ON DELETE CASCADE,
+    content_id INTEGER REFERENCES urchin_content(id) ON DELETE CASCADE
+);
+
+CREATE VIEW IF NOT EXISTS urchin_requests AS 
+    SELECT
+        u.id,
+        r.uuid   AS request_uuid,
+        us.value AS utm_source,
+        um.value AS utm_medium,
+        uc.value AS utm_campaign,
+        ut.value AS utm_term,
+        uo.value AS utm_content
+    FROM
+        urchin AS u
+    JOIN
+        requests AS r ON u.request_id = r.id
+    JOIN
+        urchin_source AS us ON us.id = u.source_id
+    LEFT JOIN
+        urchin_medium AS um ON um.id = u.medium_id
+    LEFT JOIN
+        urchin_campaign AS uc ON uc.id = u.campaign_id
+    LEFT JOIN
+        urchin_term AS ut ON ut.id = u.term_id
+    LEFT JOIN
+        urchin_content AS uo ON uo.id = u.content_id;
+
+/* Make urchin_requests a writable view via triggers.  We will always stomp the main row, as the last update will be what we want. */
+CREATE TRIGGER IF NOT EXISTS insert_urchin_requests INSTEAD OF INSERT ON urchin_requests BEGIN
+    INSERT OR IGNORE INTO urchin_source   (value) VALUES (NEW.utm_source);
+    INSERT OR IGNORE INTO urchin_medium   (value) VALUES (NEW.utm_medium);
+    INSERT OR IGNORE INTO urchin_campaign (value) VALUES (NEW.utm_campaign);
+    INSERT OR IGNORE INTO urchin_term     (value) VALUES (NEW.utm_term);
+    INSERT OR IGNORE INTO urchin_content  (value) VALUES (NEW.utm_content);
+    INSERT OR REPLACE INTO urchin SELECT
+        NEW.id,
+        r.id  AS request_id,
+        us.id AS source_id,
+        um.id AS medium_id,
+        uc.id AS campaign_id,
+        ut.id AS term_id,
+        uo.id AS content_id
+    FROM requests AS r
+    JOIN      urchin_source   AS us ON us.value = NEW.utm_source
+    LEFT JOIN urchin_medium   AS um ON um.value = NEW.utm_medium
+    LEFT JOIN urchin_campaign AS uc ON uc.value = NEW.utm_campaign
+    LEFT JOIN urchin_term     AS ut ON ut.value = NEW.utm_term
+    LEFT JOIN urchin_content  AS uo ON uo.value = NEW.utm_content
+    WHERE r.uuid = NEW.request_uuid;
+END;
+
 CREATE VIEW IF NOT EXISTS all_requests AS
     SELECT
+        q.id,
         q.uuid,
         q.date,
         h.ip_address,
@@ -76,6 +158,7 @@ CREATE TRIGGER IF NOT EXISTS insert_all_requests INSTEAD OF INSERT ON all_reques
     INSERT OR IGNORE INTO referer       (referer)      VALUES (NEW.referer);
     INSERT OR IGNORE INTO ua            (ua)           VALUES (NEW.ua);
     INSERT OR REPLACE INTO requests SELECT
+        NEW.id,
         NEW.uuid,
         NEW.date,
         h.id AS host_id,
