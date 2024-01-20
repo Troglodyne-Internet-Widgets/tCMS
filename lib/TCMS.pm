@@ -30,6 +30,8 @@ use Trog::Routes::HTML;
 use Trog::Routes::JSON;
 
 use Trog::Log qw{:all};
+use Trog::Log::DBI;
+
 use Trog::Auth;
 use Trog::Utils;
 use Trog::Config;
@@ -124,7 +126,9 @@ sub _app {
     # These two parameters are entirely academic, as no integration with any kind of analytics is implemented.
     #my $no_track = $env->{HTTP_DNT};
     #my $no_sell_info = $env->{HTTP_SEC_GPC};
-    #my $referrer     = $env->{HTTP_REFERER};
+
+    # Set the referer to go into DB logs, but not logs in general.
+    $Trog::Log::DBI::referer = $env->{HTTP_REFERER};
 
     # We generally prefer this to be handled at the reverse proxy level.
     #my $prefer_ssl = $env->{HTTP_UPGRADE_INSECURE_REQUESTS};

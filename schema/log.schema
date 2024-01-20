@@ -20,12 +20,18 @@ CREATE TABLE IF NOT EXISTS response_code (
     code INTEGER NOT NULL UNIQUE
 );
 
+CREATE TABLE IF NOT EXISTS referer (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    referer TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS requests (
     uuid TEXT PRIMARY KEY,
     date TEXT NOT NULL,
     host_id INTEGER NOT NULL REFERENCES seen_hosts(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES seen_users(id) ON DELETE CASCADE,
     route_id INTEGER NOT NULL REFERENCES seen_routes(id) ON DELETE CASCADE,
+    referer_id INTEGER NOT NULL REFERENCES referer(id) ON DELETE CASCADE,
     response_code_id INTEGER NOT NULL REFERENCES response_code(id) ON DELETE RESTRICT
 );
 
@@ -37,6 +43,7 @@ CREATE VIEW IF NOT EXISTS all_requests AS
         u.user,
         r.method,
         r.route,
+        f.referer,
         c.code
     FROM
         requests AS q
@@ -47,24 +54,29 @@ CREATE VIEW IF NOT EXISTS all_requests AS
     JOIN
         seen_routes AS r ON q.route_id = r.id
     JOIN
+        referer AS f ON q.referer_id = f.id
+    JOIN
         response_code AS c on q.response_code_id = c.id;
 
 /* Make all_requests a writable view via triggers.  We will always stomp the main row, as the last update will be what we want. */
 CREATE TRIGGER IF NOT EXISTS insert_all_requests INSTEAD OF INSERT ON all_requests BEGIN
-    INSERT OR IGNORE  INTO response_code (code)         VALUES (NEW.code);
-    INSERT OR IGNORE  INTO seen_routes   (route,method) VALUES (NEW.route, NEW.method);
-    INSERT OR IGNORE  INTO seen_users    (user)         VALUES (NEW.user);
-    INSERT OR IGNORE  INTO seen_hosts    (ip_address)   VALUES (NEW.ip_address);
+    INSERT OR IGNORE INTO response_code (code)         VALUES (NEW.code);
+    INSERT OR IGNORE INTO seen_routes   (route,method) VALUES (NEW.route, NEW.method);
+    INSERT OR IGNORE INTO seen_users    (user)         VALUES (NEW.user);
+    INSERT OR IGNORE INTO seen_hosts    (ip_address)   VALUES (NEW.ip_address);
+    INSERT OR IGNORE INTO referer       (referer)      VALUES (NEW.referer);
     INSERT OR REPLACE INTO requests SELECT
         NEW.uuid,
         NEW.date,
         h.id AS host_id,
         u.id AS user_id,
         r.id AS route_id,
+        f.id AS referer_id,
         c.id AS response_code_id
     FROM seen_hosts AS h
     JOIN seen_users AS u ON u.user = NEW.user
     JOIN seen_routes AS r ON r.route = NEW.route AND r.method = NEW.method
+    JOIN referer AS f ON f.referer = NEW.referer
     JOIN response_code AS c ON c.code = NEW.code
     WHERE h.ip_address = NEW.ip_address;
 END;

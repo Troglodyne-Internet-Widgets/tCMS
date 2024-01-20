@@ -21,8 +21,7 @@ $LOGNAME = $ENV{CUSTOM_LOG} if $ENV{CUSTOM_LOG};
 
 my $LEVEL = $ENV{WWW_VERBOSE} ? 'debug' : 'info';
 
-our $log;
-our $user;
+our ($log, $user);
 $Trog::Log::user = 'nobody';
 $Trog::Log::ip   = '0.0.0.0';
 
