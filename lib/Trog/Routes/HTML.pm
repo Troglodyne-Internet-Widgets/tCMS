@@ -1262,8 +1262,8 @@ sub _post_helper ( $query, $tags, $acls ) {
     return $data->get(
         older        => $query->{older},
         newer        => $query->{newer},
-        page         => int( $query->{page} || 1 ),
-        limit        => int( $query->{limit} || 25 ),
+        page         => int( $query->{page} ) || 1,
+        limit        => int( $query->{limit} ) || 25,
         tags         => $tags,
         exclude_tags => $query->{exclude_tags},
         acls         => $acls,
