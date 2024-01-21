@@ -203,6 +203,10 @@ sub _app {
         }
     }
 
+	# Set the 'data' in the query that the route specifically overrides, which we are also using for the catpured data
+	# This also means you have to validate both of them via parameters if you set that up.
+    @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
+
     # Ensure any short-circuit routes can log the request, and return the server-timing headers properly
     $query->{method}   = $method;
     $query->{route}    = $path;
@@ -305,9 +309,6 @@ sub _app {
 
     $query->{deflate}  = $deflate;
     $query->{user}     = $active_user;
-
-	# Set the 'data' in the query that the route specifically overrides
-    @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
 
     #Set various things we don't want overridden
     $query->{body}         = '';

@@ -44,6 +44,9 @@ our %routes = (
         method     => 'GET',
         callback   => \&process_auth_change_request,
         captures   => ['token'],
+        parameters => {
+            token => sub { my $tok = shift; $tok =~ m/[a-f|0-9|-]+/; },
+        },
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
     },
@@ -111,9 +114,6 @@ sub process_auth_change_request ($query) {
 }
 
 sub requests_per($query) {
-    use Data::Dumper;
-    print Dumper($query);
-
     my $code = Trog::Utils::coerce_array($query->{code});
     return _render(
         200, undef, 
