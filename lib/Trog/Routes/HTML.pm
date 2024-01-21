@@ -73,8 +73,6 @@ our %routes = (
     #        callback => \&Trog::Routes::HTML::setup,
     #    },
 
-    # IMPORTANT: YOU MUST setup fail2ban rules for the following routes.
-    # TODO: Put a rule in fail2ban/ subdir, make say a generator for it based on the routes having fail2ban=1
     '/login' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::login,
@@ -151,8 +149,11 @@ our %routes = (
         callback => \&Trog::Routes::HTML::processed,
         noindex  => 1,
     },
-
-    # END FAIL2BAN ROUTES
+	'/metrics' => {
+		method => 'GET',
+		auth   => 1,
+		callback => \&Trog::Routes::HTML::metrics,
+	},
 
     #TODO transform into posts?
     '/sitemap',
@@ -239,7 +240,7 @@ Most subsequent functions simply pass content to this function.
 
 =cut
 
-sub index ( $query, $content = '', $i_styles = [] ) {
+sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     $query->{theme_dir} = $Trog::Themes::td;
 
     my $to_render = $query->{template} // $landing_page;
@@ -308,6 +309,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             categories   => \@series,
             stylesheets  => \@styles,
             print_styles => \@p_styles,
+			scripts      => $i_scripts,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
             embed        => $query->{embed} ? 1 : 0,
             embed_video  => $query->{primary_post}{is_video},
@@ -1537,6 +1539,26 @@ sub processed ($query) {
     );
 }
 
+sub metrics ($query) {
+    return see_also('/login') unless $query->{user};
+    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    $query->{failure} //= -1;
+
+    return Trog::Routes::HTML::index(
+        {
+            title     => 'tCMS Metrics',
+            theme_dir => $Trog::Themes::td,
+            template  => 'metrics.tx',
+            is_admin  => 1,
+            %$query,
+        },
+        undef,
+        ['post.css'],
+		['chart.js'],
+    );
+}
+
 # basically a file rewrite rule for themes
 sub icon ($query) {
     my $path = $query->{route};
@@ -1559,7 +1581,6 @@ sub rss_style ($query) {
         data        => $query,
         code        => 200,
     );
-
 }
 
 sub _build_themed_styles ($styles) {

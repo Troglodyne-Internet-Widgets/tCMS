@@ -9,9 +9,12 @@ use feature qw{signatures state};
 use Clone qw{clone};
 use JSON::MaybeXS();
 
+use Trog::Utils();
 use Trog::Config();
 use Trog::Auth();
 use Trog::Routes::HTML();
+
+use Trog::Log::Metrics();
 
 my $conf = Trog::Config::get();
 
@@ -41,6 +44,12 @@ our %routes = (
         captures   => ['token'],
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
+    },
+    '/api/requests_per' => {
+        method => 'GET',
+        auth   => 1,
+        parameters => [qw{period num_periods before code}],
+        callback => \&requests_per,
     },
 );
 
@@ -91,6 +100,14 @@ sub process_auth_change_request ($query) {
         200, undef,
         message => $msg,
         result  => 'success',
+    );
+}
+
+sub requests_per($query) {
+    my $code = Trog::Utils::coerce_array($query->{code});
+    return _render(
+        200, undef, 
+        %{Trog::Log::Metrics::requests_per($query->{period}, $query->{num_periods}, $query->{before}, @$code )}
     );
 }
 

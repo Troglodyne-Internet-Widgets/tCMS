@@ -50,9 +50,10 @@ prereq-node:
 
 .PHONY: prereq-frontend
 prereq-frontend:
-	mkdir -p www/scripts; pushd www/scripts && curl -L --remote-name-all                                 \
-		"https://raw.githubusercontent.com/chalda-pnuzig/emojis.json/master/dist/list.min.json"     \
-		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js"; popd
+	mkdir -p www/scripts; pushd www/scripts && curl -L --remote-name-all                        \
+		"https://raw.githubusercontent.com/chalda-pnuzig/emojis.json/master/dist/list.min.json" \
+		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js" \
+		"https://cdn.jsdelivr.net/npm/chart.js"; popd
 	mkdir -p www/styles; cd www/styles && curl -L --remote-name-all \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css"
 

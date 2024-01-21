@@ -1,0 +1,69 @@
+<div id="backoffice">
+    <script>
+        var params = { period: 'hour', num_periods: 5 };
+        addEventListener("DOMContentLoaded", (event => {
+            // Fire off the XHR to fetch the JSON payload
+            doChartXHR(params);
+        }));
+
+        addEventListener("chartXHRFinished", (event => {
+            buildChart(event.payload);
+        }));
+
+        function doChartXHR(params) {
+            const req = new XMLHttpRequest();
+            req.addEventListener("load", respondToChartXHR);
+            req.open("GET", location.protocol+'//'+location.host+"/api/requests_per"+location.search);
+            req.send();
+        };
+
+        function respondToChartXHR() {
+            var payload = this.responseText;
+            console.log(payload);
+            const ev = new Event("chartXHRFinished");
+            ev.payload = JSON.parse(payload);
+            dispatchEvent(ev);
+        };
+
+        function buildChart(payload) {
+            const ctx = document.getElementById('request_chart');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: payload.labels,
+                    datasets: [{
+                        label: '# Requests',
+                        data: payload.data,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        };
+    </script>
+    <form>
+        Period:
+        <select name=period class="cooltext" >
+            <option value="second">second</option>
+            <option value="minute">minute</option>
+            <option value="hour" selected>hour</option>
+            <option value="day">day</option>
+            <option value="week">week</option>
+            <option value="month">month</option>
+            <option value="year">year</option>
+        </select>
+        Num Periods:
+        <input name="num_periods" class="cooltext" value=5 />
+        <input type="submit" value="Go" />
+    </form>
+    <div>
+      <canvas id="request_chart"></canvas>
+    </div>
+
+</div>
