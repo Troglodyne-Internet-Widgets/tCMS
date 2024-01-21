@@ -178,6 +178,6 @@ END;
 
 /* This is just to store various messages associated with requests, which are usually errors. */
 CREATE TABLE IF NOT EXISTS messages (
-    uuid TEXT NOT NULL REFERENCES requests ON DELETE NO ACTION,
+    uuid TEXT NOT NULL REFERENCES requests(uuid) ON DELETE NO ACTION,
     message TEXT NOT NULL
 );

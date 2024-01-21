@@ -1132,7 +1132,8 @@ sub posts ( $query, $direct = 0 ) {
     $query->{title} ||= @$tags && $query->{domain} ? "$query->{domain} : @$tags" : undef;
 
     #Handle paginator vars
-    my $limit       = int( $query->{limit} ) || 25;
+	$query->{limit} ||= 25;
+    my $limit       = int( $query->{limit} );
     my $now_year    = ( localtime(time) )[5] + 1900;
     my $oldest_year = $now_year - 20;                  #XXX actually find oldest post year
 
@@ -1259,11 +1260,14 @@ sub _post_helper ( $query, $tags, $acls ) {
     state $data;
     $data //= Trog::Data->new($conf);
 
+	$query->{page} ||= 1;
+	$query->{limit} ||= 25;
+
     return $data->get(
         older        => $query->{older},
         newer        => $query->{newer},
-        page         => int( $query->{page} ) || 1,
-        limit        => int( $query->{limit} ) || 25,
+        page         => int( $query->{page} ),
+        limit        => int( $query->{limit} ),
         tags         => $tags,
         exclude_tags => $query->{exclude_tags},
         acls         => $acls,

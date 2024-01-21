@@ -9,6 +9,8 @@ use feature qw{signatures state};
 use Clone qw{clone};
 use JSON::MaybeXS();
 
+use Scalar::Util();
+
 use Trog::Utils();
 use Trog::Config();
 use Trog::Auth();
@@ -48,7 +50,12 @@ our %routes = (
     '/api/requests_per' => {
         method => 'GET',
         auth   => 1,
-        parameters => [qw{period num_periods before code}],
+        parameters => {
+            period      => sub { grep { my $valid=$_; List::Util::any { $_ eq $valid } @_ } qw{second minute hour day week month year} },
+            num_periods => \&Scalar::Util::looks_like_number,
+            before      => \&Scalar::Util::looks_like_number,
+            code        => \&Scalar::Util::looks_like_number,
+        },
         callback => \&requests_per,
     },
 );
@@ -104,6 +111,9 @@ sub process_auth_change_request ($query) {
 }
 
 sub requests_per($query) {
+    use Data::Dumper;
+    print Dumper($query);
+
     my $code = Trog::Utils::coerce_array($query->{code});
     return _render(
         200, undef, 

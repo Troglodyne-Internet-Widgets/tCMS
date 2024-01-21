@@ -72,6 +72,7 @@ sub log_message {
         $self->{sth2}->bind_param_array(2, $buffer{$uuid});
         $self->{sth2}->execute_array({});
         delete $buffer{$uuid};
+
     }
 
     # Record urchin data if there is any.

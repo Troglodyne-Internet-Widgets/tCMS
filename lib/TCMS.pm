@@ -23,6 +23,7 @@ use Time::HiRes qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
 use URI();
+use Ref::Util qw{is_coderef is_hashref is_arrayref}; 
 
 #Grab our custom routes
 use FindBin::libs;
@@ -109,6 +110,14 @@ sub _app {
     # sigdie can now "do the right thing"
     $cur_query = { route => $path, fullpath => $path, method => $method };
 
+    # Set the IP of the request so we can fail2ban
+    $Trog::Log::ip = $env->{HTTP_X_FORWARDED_FOR} || $env->{REMOTE_ADDR};
+
+    # Set the referer & ua to go into DB logs, but not logs in general.
+    # The referer/ua largely has no importance beyond being a proto bug report for log messages.
+    $Trog::Log::DBI::referer = $env->{HTTP_REFERER};
+    $Trog::Log::DBI::ua      = $env->{HTTP_UA};
+
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
     if ( $env->{HTTP_IF_NONE_MATCH} ) {
@@ -123,16 +132,18 @@ sub _app {
     #TODO: Actually do something with the acceptable output formats in the renderer
     my $accept = $env->{HTTP_ACCEPT};
 
+    # Figure out if we want compression or not
+    my $alist = $env->{HTTP_ACCEPT_ENCODING} || '';
+    $alist =~ s/\s//g;
+    my @accept_encodings;
+    @accept_encodings = split( /,/, $alist );
+    my $deflate = grep { 'gzip' eq $_ } @accept_encodings;
+
     # NOTE These two parameters are entirely academic, as we don't use ad tracking cookies, but the UTM parameters.
     # UTMs are actually fully sufficient to get you what you want -- e.g. keywords, audience groups, a/b testing, etc.
     # and you need to put up cookie consent banners if you bother using tracking cookies, which are horrific UX.
     #my $no_track = $env->{HTTP_DNT};
     #my $no_sell_info = $env->{HTTP_SEC_GPC};
-
-    # Set the referer & ua to go into DB logs, but not logs in general.
-    # The referer/ua largely has no importance beyond being a proto bug report for log messages.
-    $Trog::Log::DBI::referer = $env->{HTTP_REFERER};
-    $Trog::Log::DBI::ua      = $env->{HTTP_UA};
 
     # We generally prefer this to be handled at the reverse proxy level.
     #my $prefer_ssl = $env->{HTTP_UPGRADE_INSECURE_REQUESTS};
@@ -162,9 +173,6 @@ sub _app {
         @$query{ keys( %{ $body->upload } ) } = values( %{ $body->upload } );
     }
 
-    # Grab the list of ACLs we want to add to a post, if any.
-    $query->{acls} = [ $query->{acls} ] if ( $query->{acls} && ref $query->{acls} ne 'ARRAY' );
-
     # It's mod_rewrite!
     $path = '/index' if $path eq '/';
 
@@ -174,82 +182,8 @@ sub _app {
     # Translate alias paths into their actual path
     $path = $aliases{$path} if exists $aliases{$path};
 
-    # Figure out if we want compression or not
-    my $alist = $env->{HTTP_ACCEPT_ENCODING} || '';
-    $alist =~ s/\s//g;
-    my @accept_encodings;
-    @accept_encodings = split( /,/, $alist );
-    my $deflate = grep { 'gzip' eq $_ } @accept_encodings;
-
     # Collapse multiple slashes in the path
     $path =~ s/[\/]+/\//g;
-
-    # Let's open up our default route before we bother to see if users even exist
-    return $routes{default}{callback}->($query) unless -f "config/setup";
-
-    my $cookies = {};
-    if ( $env->{HTTP_COOKIE} ) {
-        $cookies = CGI::Cookie->parse( $env->{HTTP_COOKIE} );
-    }
-
-    # Set the IP of the request so we can fail2ban
-    $Trog::Log::ip = $env->{HTTP_X_FORWARDED_FOR} || $env->{REMOTE_ADDR};
-
-    my $active_user = '';
-    $Trog::Log::user = 'nobody';
-    if ( exists $cookies->{tcmslogin} ) {
-        $active_user     = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
-        $Trog::Log::user = $active_user if $active_user;
-    }
-    $query->{user_acls} = [];
-    $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
-
-    # Filter out passed ACLs which are naughty
-    my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
-    @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
-
-    # Ensure any short-circuit routes can log the request
-    $query->{method} = $method;
-    $query->{route}  = $path;
-
-    # Set the urchin parameters if necessary.
-    %$Trog::Log::DBI::urchin = map { $_ => $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
-
-    # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
-    if ( index( $path, '/templates' ) == 0 || index( $path, '/statics' ) == 0 || $path =~ m/.*(\.psgi|\.pm)$/i ) {
-        return _forbidden($query);
-    }
-
-    my $streaming = $env->{'psgi.streaming'};
-    $query->{streaming} = $streaming;
-
-    # If we have a static render, just use it instead (These will ALWAYS be correct, data saves invalidate this)
-    # TODO: make this key on admin INSTEAD of active user when we add non-admin users.
-    $query->{start} = $start;
-    if ( !$active_user && !$has_query ) {
-        return _static( $fullpath, "$path.z", $start, $streaming ) if -f "www/statics/$path.z" && $deflate;
-        return _static( $fullpath, $path,     $start, $streaming ) if -f "www/statics/$path";
-    }
-
-    # Handle HTTP range/streaming requests
-    my $range = $env->{HTTP_RANGE} || "bytes=0-" if $env->{HTTP_RANGE} || $env->{HTTP_IF_RANGE};
-
-    my @ranges;
-    if ($range) {
-        $range =~ s/bytes=//g;
-        push(
-            @ranges,
-            map {
-                [ split( /-/, $_ ) ];
-
-                #$tuples[1] //= $tuples[0] + $Trog::Vars::CHUNK_SIZE;
-                #\@tuples
-            } split( /,/, $range )
-        );
-    }
-
-    return Trog::FileHandler::serve( $fullpath, "www/$path",  $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "www/$path";
-    return Trog::FileHandler::serve( $fullpath, "totp/$path", $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "totp/$path" && $active_user;
 
     #Handle regex/capture routes
     if ( !exists $routes{$path} ) {
@@ -269,14 +203,110 @@ sub _app {
         }
     }
 
+    # Ensure any short-circuit routes can log the request, and return the server-timing headers properly
+    $query->{method}   = $method;
+    $query->{route}    = $path;
     $query->{fullpath} = $fullpath;
-    $query->{deflate}  = $deflate;
-    $query->{user}     = $active_user;
+    $query->{start}    = $start;
 
+    # Handle HTTP range/streaming requests
+    my $range = $env->{HTTP_RANGE} || "bytes=0-" if $env->{HTTP_RANGE} || $env->{HTTP_IF_RANGE};
+
+    my $streaming = $env->{'psgi.streaming'};
+    $query->{streaming} = $streaming;
+
+    my @ranges;
+    if ($range) {
+        $range =~ s/bytes=//g;
+        push(
+            @ranges,
+            map {
+                [ split( /-/, $_ ) ];
+
+                #$tuples[1] //= $tuples[0] + $Trog::Vars::CHUNK_SIZE;
+                #\@tuples
+            } split( /,/, $range )
+        );
+    }
+
+	# If it's a file, just serve it
+    return Trog::FileHandler::serve( $fullpath, "www/$path",  $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "www/$path";
+
+	# Figure out if we have a logged in user, so we can serve them user-specific files
+    my $cookies = {};
+    if ( $env->{HTTP_COOKIE} ) {
+        $cookies = CGI::Cookie->parse( $env->{HTTP_COOKIE} );
+    }
+
+    my $active_user = '';
+    $Trog::Log::user = 'nobody';
+    if ( exists $cookies->{tcmslogin} ) {
+        $active_user     = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
+        $Trog::Log::user = $active_user if $active_user;
+    }
+
+    return Trog::FileHandler::serve( $fullpath, "totp/$path", $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "totp/$path" && $active_user;
+
+	# Now that we have firmed up the actual routing, let's validate.
     return _forbidden($query) if exists $routes{$path}{auth} && !$active_user;
     return _notfound($query) unless exists $routes{$path} && ref $routes{$path} eq 'HASH' && keys( %{ $routes{$path} } );
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ( $routes{$path}{method} || '', 'HEAD' );
 
+    # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
+    if ( index( $path, '/templates' ) == 0 || index( $path, '/statics' ) == 0 || $path =~ m/.*(\.psgi|\.pm)$/i ) {
+        return _forbidden($query);
+    }
+
+    # Set the urchin parameters if necessary.
+    %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
+
+	# Now that we've parsed the query and know where we want to go, we should murder everything the route does not explicitly want, and validate what it does
+	my $parameters = $routes{$path}{parameters};
+	if ($parameters) {
+		die "invalid route definition for $path: bad parameters" unless is_hashref($parameters);
+		my @known_params = keys(%$parameters);
+		for my $param (@known_params) {
+			die "Invalid route definition for $path: parameter $param must correspond to a validation CODEREF." unless is_coderef($parameters->{$param});
+			# A missing parameter is not necessarily a problem.
+			next unless $query->{$param};
+			# But if we have it, and it's bad, nack it, so that scanners get fail2banned.
+			DEBUG("Rejected $fullpath for bad query param $param");
+			return _badrequest($query) unless $parameters->{$param}->($query->{$param});
+		}
+
+		# Smack down passing of unnecessary fields
+		foreach my $field (keys(%$query)) {
+			next if List::Util::any { $field eq $_ } @known_params;
+			next if List::Util::any { $field eq $_ } qw{start route streaming method fullpath};
+			DEBUG("Rejected $fullpath for query param $field");
+			return _badrequest($query);
+		}
+	}
+
+    # Let's open up our default route before we bother thinking about routing any harder
+    return $routes{default}{callback}->($query) unless -f "config/setup";
+
+    $query->{user_acls} = [];
+    $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
+
+    # Grab the list of ACLs we want to add to a post, if any.
+    $query->{acls} = [ $query->{acls} ] if ( $query->{acls} && ref $query->{acls} ne 'ARRAY' );
+
+    # Filter out passed ACLs which are naughty
+    my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
+
+    # If we have a static render, just use it instead (These will ALWAYS be correct, data saves invalidate this)
+    # TODO: make this key on admin INSTEAD of active user when we add non-admin users.
+    if ( !$active_user && !$has_query ) {
+        return _static( $fullpath, "$path.z", $start, $streaming ) if -f "www/statics/$path.z" && $deflate;
+        return _static( $fullpath, $path,     $start, $streaming ) if -f "www/statics/$path";
+    }
+
+    $query->{deflate}  = $deflate;
+    $query->{user}     = $active_user;
+
+	# Set the 'data' in the query that the route specifically overrides
     @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
 
     #Set various things we don't want overridden
