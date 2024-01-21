@@ -189,6 +189,7 @@ sub _app {
     if ( !exists $routes{$path} ) {
         my @captures;
 
+		# XXX maybe this should all just go into $query?
         # TODO can optimize by having separate hashes for capture/non-capture routes
         foreach my $pattern ( keys(%routes) ) {
             @captures = $path =~ m/^$pattern$/;

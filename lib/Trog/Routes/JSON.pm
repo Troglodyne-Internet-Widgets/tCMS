@@ -28,17 +28,17 @@ our %routes = (
     '/api/catalog' => {
         method     => 'GET',
         callback   => \&catalog,
-        parameters => [],
+        parameters => {},
     },
     '/api/webmanifest' => {
         method     => 'GET',
         callback   => \&webmanifest,
-        parameters => [],
+        parameters => {},
     },
     '/api/version' => {
         method     => 'GET',
         callback   => \&version,
-        parameters => [],
+        parameters => {},
     },
     '/api/auth_change_request/(.*)' => {
         method     => 'GET',
