@@ -27,6 +27,7 @@ node_modules/
 www/statics/
 totp/
 nginx/tcms.conf
+fail2ban/tcms-jail.conf
 logs/
 *-shm
 *-wal

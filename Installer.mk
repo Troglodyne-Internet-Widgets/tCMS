@@ -72,8 +72,12 @@ reset-remove:
 
 .PHONY: fail2ban
 fail2ban:
-	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/tcms.conf
-	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/tcms.conf
+	cp fail2ban/tcms-jail.tmpl fail2ban/tcms-jail.conf
+	sed -i 's#__LOGDIR__#$(shell pwd)#g' fail2ban/tcms-jail.conf
+	sudo rm /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf; /bin/true
+	sudo rm /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf; /bin/true
+	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf
+	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf
 	sudo systemctl reload fail2ban
 
 .PHONY: nginx

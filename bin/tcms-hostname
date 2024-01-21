@@ -1,0 +1,13 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use FindBin::libs;
+
+use Trog::Config();
+
+my $domain = Trog::Config->get()->param('general.hostname');
+die "Hostname not set in tCMS configuration.  Please set this first." unless $domain;
+
+print "$domain\n";
