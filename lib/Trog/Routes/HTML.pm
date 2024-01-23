@@ -30,6 +30,7 @@ use Trog::Data;
 use Trog::FileHandler;
 use Trog::Themes;
 use Trog::Renderer;
+use Trog::Email;
 
 use Trog::Component::EmojiPicker;
 
