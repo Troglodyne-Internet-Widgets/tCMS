@@ -66,6 +66,8 @@ WriteMakefile(
     'Email::Sender::Simple'     => '0',
     'POSIX::strptime'           => '0',
     'Log::Dispatch::DBI'        => '0',
+    'Email::MIME'               => '0',
+    'Email::Sender::Simple'     => '0',
   },
   test => {TESTS => 't/*.t'}
 );

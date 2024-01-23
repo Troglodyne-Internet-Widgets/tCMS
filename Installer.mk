@@ -13,7 +13,7 @@ install:
 	test -d www/statics || mkdir -p www/statics
 	test -d totp/ || mkdir -p totp
 	test -d ~/.tcms || mkdir ~/.tcms
-	test -d logs/db/ && mkdir -p logs/db/; /bin/true
+	test -d logs/ && mkdir -p logs/; /bin/true
 	$(RM) pod2htmd.tmp;
 
 .PHONY: install-service

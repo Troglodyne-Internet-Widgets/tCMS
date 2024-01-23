@@ -52,7 +52,7 @@ If the user has an active session, things like password reset requests should fa
 
 sub user_has_session ($user) {
     my $dbh  = _dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT session FROM sess_user WHERE user=?", { Slice => {} }, $user );
+    my $rows = $dbh->selectall_arrayref( "SELECT session FROM sess_user WHERE name=?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return 1;
 }

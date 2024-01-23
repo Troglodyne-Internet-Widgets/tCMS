@@ -285,7 +285,8 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     # Grab the avatar class for the logged in user
     if ( $query->{user} ) {
         $query->{user_class} = Trog::Auth::username2display( $query->{user} );
-        $query->{user_class} =~ tr/ /_/;
+        # For "wizi" users with no user page, suppress warnings here
+        $query->{user_class} =~ tr/ /_/ if $query->{user_class};
     }
 
     state $data;
