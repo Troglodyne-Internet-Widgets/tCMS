@@ -345,7 +345,7 @@ sub _app {
 }
 
 #XXX Return a clone of the routing table ref, because code modifies it later
-sub _routes ($data) {
+sub _routes ($data={}) {
     state %routes;
     return clone(\%routes) if %routes;
 
