@@ -29,4 +29,4 @@ CREATE TABLE IF NOT EXISTS change_request (
     processed NUMERIC DEFAULT 0
 );
 
-CREATE VIEW IF NOT EXISTS change_request_full AS SELECT cr.username, cr.type, cr.token, cr.secret, cr.processed, u.contact_email from change_request AS cr JOIN user AS u ON u.name=cr.username;
+CREATE VIEW IF NOT EXISTS change_request_full AS SELECT cr.username, u.display_name, cr.type, cr.token, cr.secret, cr.processed, u.contact_email from change_request AS cr JOIN user AS u ON u.name=cr.username;
