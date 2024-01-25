@@ -52,6 +52,7 @@
         <input type="hidden" name="href" value="<: $post.href :>" />
         : }
         : include "preview.tx";
+        : include "visibility.tx";
         : include "acls.tx";
         : include "tags.tx";
         : include "form_common.tx";

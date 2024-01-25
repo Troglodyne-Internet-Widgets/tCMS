@@ -3,6 +3,8 @@ package Trog::DataModule;
 use strict;
 use warnings;
 
+use FindBin::libs;
+
 use List::Util;
 use File::Copy;
 use Mojo::File;
@@ -282,6 +284,11 @@ my $valid_cb = sub {
     return is_coderef($ref);
 };
 
+my $hashref_or_string = sub {
+    my $subj = shift;
+    return Ref::Util::is_hashref($subj) || $not_ref->($subj);
+};
+
 # TODO more strict validation of strings?
 our %schema = (
     ## Parameters which must be in every single post
@@ -320,14 +327,16 @@ our %schema = (
     'username'       => $not_ref,
     'display_name'   => $not_ref,
     'contact_email'  => $not_ref,
-    'wallpaper_file' => $not_ref,
+    'wallpaper_file' => $hashref_or_string,
+    'wallpaper'      => $not_ref,
 
     # user avatar, but does double duty in content posts as preview images on videos, etc
-    'preview_file' => $not_ref,
+    'preview_file' => $hashref_or_string,
+    'preview'      => $not_ref,
     ## Content specific parameters
     'audio_href' => $not_ref,
     'video_href' => $not_ref,
-    'file'       => $not_ref,
+    'file'       => $hashref_or_string,
 );
 
 sub add ( $self, @posts ) {

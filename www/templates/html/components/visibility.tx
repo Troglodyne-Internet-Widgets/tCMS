@@ -1,0 +1,6 @@
+Visibility<br />
+<select id="<: $post.id :>-visibility" class="cooltext" name="visibility">
+    : for $post_visibilities -> $visibility {
+        <option <: $post.visibility == $visibility ? 'selected' : '' :> value="<: $visibility :>"><: $visibility :></option>
+    : }
+</select>

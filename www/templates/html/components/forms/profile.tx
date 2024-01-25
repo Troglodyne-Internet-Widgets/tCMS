@@ -35,10 +35,8 @@
         : if ( $post.wallpaper ) {
         <input type="hidden" name="wallpaper" value="<: $post.wallpaper :>" />
         : }
-        Title  <br /><input class="cooltext" type="text" name="title" value="<: $post.title :>" />
         <input type="hidden" name="callback" value="Trog::Routes::HTML::users" />
-        : include "acls.tx";
-        : include "tags.tx";
+        : include "visibility.tx";
         : include "form_common.tx";
     </form>
     : include "edit_foot.tx";

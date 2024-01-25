@@ -35,6 +35,7 @@
             : include "preview.tx";
             Audio<br /><input class="cooltext" type="url" name="audio_href" placeholder="https://soundclod.com/static.mp3" value="<: $post.audio_href :>" />
             Video<br /><input class="cooltext" type="url" name="video_href" placeholder="https://youvimeo.tv/infomercial.mp4" value="<: $post.video_href :>" />
+            : include "visibility.tx";
             : include "acls.tx";
             : include "tags.tx";
             : include "form_common.tx";

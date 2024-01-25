@@ -904,10 +904,19 @@ sub profile ($query) {
     return see_also('/login') unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
-    #TODO allow new users to do something OTHER than be admins
-    #TODO allow username changes
-    if ( $query->{password} || $query->{contact_email} ) {
-        my @acls = Trog::Auth::acls4user( $query->{username} ) || qw{admin};
+    # Find the user's post and edit it
+    state $data;
+    $data //= Trog::Data->new($conf);
+
+    my @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
+    # Users are always self-authored, you see
+
+    my $user_obj  = List::Util::first { ( $_->{user} || '' ) eq $query->{username} } @userposts;
+
+    if ( $query->{username} ne $user_obj->{user} || $query->{password} || $query->{contact_email} ne $user_obj->{contact_email} || $query->{display_name} ne $user_obj->{display_name} ) {
+        my $for_user = Trog::Auth::acls4user( $query->{username} );
+        #TODO support non-admin users
+        my @acls = @$for_user ? @$for_user : qw{admin};
         Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, \@acls, $query->{contact_email} );
     }
 
@@ -915,7 +924,16 @@ sub profile ($query) {
     $query->{user} = delete $query->{username};
     delete $query->{password};
 
-    return post_save($query);
+    # Use the display name as the title
+    $query->{title} = $query->{display_name};
+
+    my %merged    = (
+        %$user_obj,
+        %$query,
+        $query->{display_name} ? ( local_href => "/users/$query->{display_name}" ) : ( local_href => $user_obj->{local_href} ),
+    );
+
+    return post_save(\%merged);
 }
 
 =head2 post_delete

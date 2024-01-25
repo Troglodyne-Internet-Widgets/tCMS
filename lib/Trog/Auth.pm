@@ -122,6 +122,7 @@ The 'admin' ACL is the only special one, as it allows for authoring posts, confi
 sub acls4user ($username) {
     my $dbh     = _dbh();
     my $records = $dbh->selectall_arrayref( "SELECT acl FROM user_acl WHERE username = ?", { Slice => {} }, $username );
+
     return () unless ref $records eq 'ARRAY' && @$records;
     my @acls = map { $_->{acl} } @$records;
     return \@acls;

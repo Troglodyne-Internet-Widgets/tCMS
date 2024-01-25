@@ -13,6 +13,7 @@ use List::Util qw{first};
 use Trog::Auth;
 use Trog::Data;
 use Trog::Config;
+use Trog::Log;
 
 # Don't murder our terminal when done
 $ENV{NOHUP} = 1;
@@ -61,6 +62,8 @@ Display this output.
 =cut
 
 sub main {
+    Trog::Log::log_init();
+
     my %options;
     Getopt::Long::GetOptionsFromArray(
         \@_,
@@ -97,7 +100,7 @@ sub main {
     # We don't want the password in plain text
     delete $merged{password};
 
-    # The ACLs a user posesses is not necessarily what ACLs you need to view a user's profile.
+    # The ACLs a user posesses is not necessarily what ACLs you need to view or edit a user's profile.
     delete $merged{acl};
 
     $data->add( \%merged );

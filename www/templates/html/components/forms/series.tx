@@ -57,6 +57,7 @@
         </select>
         <input type="hidden" name="callback" value="Trog::Routes::HTML::series" />
         : include "preview.tx";
+        : include "visibility.tx";
         : include "acls.tx";
         : include "tags.tx";
         : include "form_common.tx";
