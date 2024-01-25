@@ -17,6 +17,7 @@ use Trog::Utils;
 use Trog::Log qw{:all};
 use Trog::Config;
 use Trog::SQLite;
+use Trog::Data;
 
 =head1 Trog::Auth
 
@@ -110,6 +111,21 @@ sub username2display ($name) {
     return $rows->[0]{display_name};
 }
 
+sub username2classname ($name) {
+    # Just return the user's post UUID.
+    state $data;
+    state $conf;
+    $conf //= Trog::Config::get();
+    $data //= Trog::Data->new($conf);
+
+    state @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
+    # Users are always self-authored, you see
+
+    my $user_obj  = List::Util::first { ( $_->{user} || '' ) eq $name } @userposts;
+    my $NNname = $user_obj->{id} || '';
+    $NNname =~ tr/-/_/;
+    return "a_$NNname";
+}
 =head2 acls4user(STRING username) = ARRAYREF
 
 Return the list of ACLs belonging to the user.

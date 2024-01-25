@@ -284,9 +284,7 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
 
     # Grab the avatar class for the logged in user
     if ( $query->{user} ) {
-        $query->{user_class} = Trog::Auth::username2display( $query->{user} );
-        # For "wizi" users with no user page, suppress warnings here
-        $query->{user_class} =~ tr/ /_/ if $query->{user_class};
+        $query->{user_class} = Trog::Auth::username2classname( $query->{user} );
     }
 
     state $data;
@@ -1008,6 +1006,8 @@ sub avatars ($query) {
         # Set the eTag so that we don't get a re-fetch
         $query->{etag} = "$posts[0]{id}-$posts[0]{version}";
     }
+
+    @posts = map { $_->{id} =~ tr/-/_/; $_->{id} = "a_$_->{id}"; $_ } @posts;
 
     return Trog::Renderer->render(
         template => 'avatars.tx',
