@@ -271,15 +271,17 @@ my $not_ref = sub {
 my $valid_cb = sub {
     my $subname = shift;
     my ($modname) = $subname =~ m/^([\w|:]+)::\w+$/;
-    eval { require $modname; } or do {
-        WARN("Post uses a callback whos module cannot be found!");
+
+    # Modules always return 0 if they succeed!
+    eval { require $modname; } and do {
+        WARN("Post uses a callback whos module ($modname) cannot be found!");
         return 0;
     };
 
     no strict 'refs';
     my $ref = eval '\&' . $subname;
     use strict;
-    return is_coderef($ref);
+    return Ref::Util::is_coderef($ref);
 };
 
 my $hashref_or_string = sub {

@@ -328,6 +328,7 @@ sub _app {
     # Redirecting somewhere naughty not allow
     $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
 
+    DEBUG("DISPATCH $path to $routes{$path}{callback}");
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {
         no strict 'refs';

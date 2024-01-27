@@ -56,9 +56,6 @@ sub log_init {
     $log->add($dblog);
 
     uuid("INIT");
-    DEBUG("If you see this message, you are running in DEBUG mode.  Turn off WWW_VERBOSE env var if you are running in production.");
-    uuid("BEGIN");
-
     return 1;
 }
 
