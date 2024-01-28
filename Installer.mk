@@ -74,6 +74,7 @@ reset-remove:
 fail2ban:
 	cp fail2ban/tcms-jail.tmpl fail2ban/tcms-jail.conf
 	sed -i 's#__LOGDIR__#$(shell pwd)#g' fail2ban/tcms-jail.conf
+	sed -i 's#__DOMAIN__#$(shell bin/tcms-hostname)#g' fail2ban/tcms-jail.conf
 	sudo rm /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf; /bin/true
 	sudo rm /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf; /bin/true
 	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf
