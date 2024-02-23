@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use List::Util qw{uniq};
+use Config::Simple;
+use File::Copy;
+
+my @domains2add = @ARGV;
+
+my $dmarc_config_file = "/etc/opendmarc.conf";
+
+my $cfg = Config::Simple->new($dmarc_config_file);
+die "Can't open opendmarc config file" unless $cfg;
+
+$cfg->param('IgnoreAuthenticatedClients', 'true');
+$cfg->param('RequiredHeaders',            'true');
+$cfg->param('SPFSelfValidate',            'true');
+
+my @authserv = $cfg->param('TrustedAuthservIDs');
+push(@authserv, @domains2add);
+@authserv = uniq @authserv;
+
+$cfg->param('TrustedAuthservIDs', \@authserv);
+
+File::Copy::copy($dmarc_config_file, "$dmarc_config_file.bak") or die "Could not back up old dmarc config";
+$cfg->save();
+
+print "OpenDMARC config file ($dmarc_config_file) changed.\n";

@@ -87,11 +87,12 @@ nginx:
 	[ -n "$$SERVER_PORT" ] || ( echo "Please set the SERVER_PORT environment variable before running (e.g. 5000)" && /bin/false )
 	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
 	sed 's/\%SERVER_PORT\%/$(SERVER_PORT)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
+	sudo apt-get install nginx certbot
 	rm nginx/tcms.conf.intermediate
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
 	sudo mkdir -p '/etc/letsencrypt/live/$(SERVER_NAME)'
-	[ -e "/etc/nginx/sites-enabled/$$SERVER_NAME.conf" ] && sudo rm "/etc/nginx/sites-enabled/$$SERVER_NAME.conf"
+	[ -e "/etc/nginx/sites-enabled/$$SERVER_NAME.conf" ] && sudo rm "/etc/nginx/sites-enabled/$$SERVER_NAME.conf"; /bin/true
 	sudo ln -sr nginx/tcms.conf '/etc/nginx/sites-enabled/$(SERVER_NAME).conf'
 	# Make a self-signed cert FIRST, because certbot has a chicken/egg problem
 	sudo openssl req -x509 -config etc/openssl.conf -nodes -newkey rsa:4096 -subj '/CN=$(SERVER_NAME)' -addext 'subjectAltName=DNS:www.$(SERVER_NAME),DNS:mail.$(SERVER_NAME)' -keyout '/etc/letsencrypt/live/$(SERVER_NAME)/privkey.pem' -out '/etc/letsencrypt/live/$(SERVER_NAME)/fullchain.pem' -days 365
@@ -113,7 +114,25 @@ mail: nginx
 	sudo sed -i 's/^\(smtpd_tls_key_file\s*=\).*/\1\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/privkey.pem/g' /etc/postfix/main.cf
 	sudo sed -i 's/^\(myhostname\s*=\).*/\1$(SERVER_NAME)/g' /etc/postfix/main.cf
 	sudo echo '$(SERVER_NAME)' > /etc/mailname
-	# TODO everything else
+	# Do NOT bother with mysql crap on opendkim
+	sudo apt-get install opendmarc opendkim opendkim-tools libunbound-dev
+	# OpenDKIM keys & configuration
+	sudo mkdir -p /etc/opendkim/keys
+	sudo opendkim-genkey --directory /etc/opendkim/keys -s mail -d $(SERVER_NAME)
+	sudo openssl rsa -in /etc/opendkim/keys/$(SERVER_NAME)/mail.private -pubout > /etc/opendkim/keys/$(SERVER_NAME)/mail.public
+	sudo chown -R opendkim:opendkim /etc/opendkim
+	# Find the signing table and inject the key in there for our domain
+	sudo mail/mongle_dkim_config $(SERVER_NAME)
+	sudo mail/mongle_dmarc_config $(SERVER_NAME) mail.$(SERVER_NAME)
+	sudo service opendkim enable
+	sudo service opendmarc enable
+	sudo service opendkim start
+	sudo service opendmarc start
+	# Configure postfix to put on its socks and shoes
+	postconf milter_default_action=accept
+	postconf milter_protocol=2
+	postconf smtpd_milters=local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
+	postconf non_smtpd_milters=\$smtpd_milters
 
 .PHONY: all
 all: prereq-debian install fail2ban mail

@@ -1,0 +1,99 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+no warnings qw{experimental};
+use feature qw{state signatures};
+
+use List::Util qw{uniq};
+use Config::Simple;
+use File::Copy;
+use File::Touch;
+use DNS::Unbound;
+use Net::DNS::Packet;
+
+my @domains2add = @ARGV;
+
+my $dkim_config_file   = "/etc/opendkim.conf";
+my $trusted_hosts_file = '/etc/opendkim/TrustedHosts';
+my $keytable_file      = '/etc/opendkim/KeyTable';
+my $signing_table_file = '/etc/opendkim/SigningTable';
+
+DKIM_CONFIG: {
+    my $cfg = Config::Simple->new($dkim_config_file);
+    die "Can't open opendkim config file" unless $cfg;
+
+    $cfg->param('KeyTable',           $keytable_file );
+    $cfg->param('SigningTable',       $signing_table_file);
+    $cfg->param('ExternalIgnoreList', $trusted_hosts_file);
+    $cfg->param('InternalHosts',      $trusted_hosts_file);
+
+    # This way we support signing more than one domain
+    $cfg->delete('Domain');
+    $cfg->delete('KeyFile');
+    $cfg->delete('Selector');
+
+    File::Copy::copy($dkim_config_file, "$dkim_config_file.bak") or die "Could not back up old dkim config";
+    $cfg->save();
+
+    print "OpenDKIM config file ($dkim_config_file) changed.\n";
+}
+
+TRUSTED_HOSTS: {
+    my @hosts = read_lines( $trusted_hosts_file );
+
+    my @ips2add = grep { defined $_ } map {
+        ( domain2ips( $_, "A" ),
+        domain2ips( $_, "AAAA" ) )
+    } @domains2add;
+
+    push(@hosts, "127.0.0.1", "localhost", "::1", @domains2add, @ips2add);
+    @hosts = uniq @hosts;
+
+    backup_and_emit( $trusted_hosts_file, @hosts);
+}
+
+KEY_TABLE: {
+    my @lines = read_lines( $keytable_file );
+
+    push(@lines, (map { "mail._domainkey.$_ $_:mail:/etc/opendkim/keys/$_/mail.private" } @domains2add ) );
+    @lines = uniq @lines;
+
+    backup_and_emit($keytable_file, @lines);
+}
+
+SIGNING_TABLE: {
+    my @lines = read_lines( $signing_table_file );
+
+    push(@lines, (map { "$_ mail._domainkey.$_" } @domains2add ) );
+    @lines = uniq @lines;
+
+    backup_and_emit($signing_table_file, @lines);
+}
+
+sub read_lines( $file ) {
+    File::Touch::touch($file);
+    open(my $fh, '<', $file);
+    my @lines = map { chomp $_; $_ } readline $fh;
+    close $fh;
+    return @lines;
+}
+
+sub backup_and_emit($file, @lines) {
+    File::Copy::copy($file, "$file.bak") or die "Could not back up $file";
+    open(my $wh, '>', $file);
+    foreach my $line (@lines) {
+        print $wh "$line\n";
+    }
+    close $wh;
+    print "$file changed.\n";
+}
+
+sub domain2ips( $domain, $type ) {
+    state $resolver = DNS::Unbound->new();
+
+    my $p = $resolver->resolve( $domain, $type )->answer_packet();
+    my @rrs = Net::DNS::Packet->new( \$p )->answer;
+    return map { $_->address } @rrs;
+}
