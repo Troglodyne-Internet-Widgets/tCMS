@@ -35,6 +35,7 @@ prereq-debs:
 	sudo apt-get update
 	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl cmake \
 		uwsgi uwsgi-plugin-psgi fail2ban nginx certbot postfix dovecot-imapd dovecot-pop3d postgrey spamassassin amavis clamav\
+		opendmarc opendkim opendkim-tools libunbound-dev \
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl uuid-dev                    \
@@ -87,7 +88,6 @@ nginx:
 	[ -n "$$SERVER_PORT" ] || ( echo "Please set the SERVER_PORT environment variable before running (e.g. 5000)" && /bin/false )
 	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
 	sed 's/\%SERVER_PORT\%/$(SERVER_PORT)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
-	sudo apt-get install nginx certbot
 	rm nginx/tcms.conf.intermediate
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
@@ -103,7 +103,7 @@ nginx:
 	sudo systemctl reload nginx
 
 .PHONY: mail
-mail: nginx
+mail: dkim dmarc
 	# Dovecot
 	sudo cp /etc/dovecot/conf.d/10-ssl.conf /etc/dovecot/conf.d/10-ssl.conf.orig
 	sudo sed -i 's/^\(ssl_cert\s*=\).*/\1<\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/fullchain.pem/g' /etc/dovecot/conf.d/10-ssl.conf
@@ -112,27 +112,31 @@ mail: nginx
 	sudo cp /etc/postfix/main.cf /etc/postfix/main.cf.orig
 	sudo sed -i 's/^\(smtpd_tls_cert_file\s*=\).*/\1\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/fullchain.pem/g' /etc/postfix/main.cf
 	sudo sed -i 's/^\(smtpd_tls_key_file\s*=\).*/\1\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/privkey.pem/g' /etc/postfix/main.cf
+	# XXX we should not do these two.
 	sudo sed -i 's/^\(myhostname\s*=\).*/\1$(SERVER_NAME)/g' /etc/postfix/main.cf
 	sudo echo '$(SERVER_NAME)' > /etc/mailname
-	# Do NOT bother with mysql crap on opendkim
-	sudo apt-get install opendmarc opendkim opendkim-tools libunbound-dev
-	# OpenDKIM keys & configuration
-	sudo mkdir -p /etc/opendkim/keys
-	sudo opendkim-genkey --directory /etc/opendkim/keys -s mail -d $(SERVER_NAME)
+	# Configure postfix to put on its socks and shoes
+	sudo postconf milter_default_action=accept
+	sudo postconf milter_protocol=2
+	sudo postconf smtpd_milters=local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
+	sudo postconf non_smtpd_milters=\$smtpd_milters
+	sudo service postfix reload
+
+.PHONY: dkim
+dkim:
+	sudo mkdir -p /etc/opendkim/keys/$(SERVER_NAME)
+	sudo opendkim-genkey --directory /etc/opendkim/keys/$(SERVER_NAME) -s mail -d $(SERVER_NAME)
 	sudo openssl rsa -in /etc/opendkim/keys/$(SERVER_NAME)/mail.private -pubout > /etc/opendkim/keys/$(SERVER_NAME)/mail.public
 	sudo chown -R opendkim:opendkim /etc/opendkim
-	# Find the signing table and inject the key in there for our domain
 	sudo mail/mongle_dkim_config $(SERVER_NAME)
-	sudo mail/mongle_dmarc_config $(SERVER_NAME) mail.$(SERVER_NAME)
 	sudo service opendkim enable
-	sudo service opendmarc enable
 	sudo service opendkim start
+
+.PHONY: dmarc
+dmarc:
+	sudo mail/mongle_dmarc_config $(SERVER_NAME) mail.$(SERVER_NAME)
+	sudo service opendmarc enable
 	sudo service opendmarc start
-	# Configure postfix to put on its socks and shoes
-	postconf milter_default_action=accept
-	postconf milter_protocol=2
-	postconf smtpd_milters=local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
-	postconf non_smtpd_milters=\$smtpd_milters
 
 .PHONY: all
-all: prereq-debian install fail2ban mail
+all: prereq-debian install fail2ban nginx mail
