@@ -115,11 +115,11 @@ mail: dkim dmarc
 	# XXX we should not do these two.
 	sudo sed -i 's/^\(myhostname\s*=\).*/\1$(SERVER_NAME)/g' /etc/postfix/main.cf
 	sudo echo '$(SERVER_NAME)' > /etc/mailname
-	# Configure postfix to put on its socks and shoes
-	sudo postconf milter_default_action=accept
-	sudo postconf milter_protocol=2
-	sudo postconf smtpd_milters=local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
-	sudo postconf non_smtpd_milters=\$smtpd_milters
+	# Configure postfix to put on its socks and shoes.  This all implicitly relies on good defaults in the opendkim/opendmarc packages.
+	sudo postconf -e milter_default_action=accept
+	sudo postconf -e milter_protocol=2
+	sudo postconf -e smtpd_milters=local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
+	sudo postconf -e non_smtpd_milters=\$smtpd_milters
 	sudo service postfix reload
 
 .PHONY: dkim
