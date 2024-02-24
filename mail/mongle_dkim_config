@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 no warnings qw{experimental};
-use feature qw{state signatures};
+use feature qw{signatures};
 
 use List::Util qw{uniq};
 use Config::Simple;
@@ -91,7 +91,7 @@ sub backup_and_emit($file, @lines) {
 }
 
 sub domain2ips( $domain, $type ) {
-    state $resolver = DNS::Unbound->new();
+    my $resolver = DNS::Unbound->new();
 
     my $p = $resolver->resolve( $domain, $type )->answer_packet();
     my @rrs = Net::DNS::Packet->new( \$p )->answer;

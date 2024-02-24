@@ -121,12 +121,14 @@ mail: dkim dmarc
 	sudo postconf -e smtpd_milters=local:opendkim/opendkim.sock,local:opendmarc/opendmarc.sock
 	sudo postconf -e non_smtpd_milters=\$smtpd_milters
 	sudo service postfix reload
+	# TODO setup various mail aliases and so forth, e.g. postmaster@, soa@, the various lists etc
 
 .PHONY: dkim
 dkim:
 	sudo mkdir -p /etc/opendkim/keys/$(SERVER_NAME)
 	sudo opendkim-genkey --directory /etc/opendkim/keys/$(SERVER_NAME) -s mail -d $(SERVER_NAME)
-	sudo openssl rsa -in /etc/opendkim/keys/$(SERVER_NAME)/mail.private -pubout > /etc/opendkim/keys/$(SERVER_NAME)/mail.public
+	sudo openssl rsa -in /etc/opendkim/keys/$(SERVER_NAME)/mail.private -pubout > /tmp/mail.public
+	sudo mv /tmp/mail.public /etc/opendkim/keys/$(SERVER_NAME)/mail.public
 	sudo chown -R opendkim:opendkim /etc/opendkim
 	sudo mail/mongle_dkim_config $(SERVER_NAME)
 	sudo service opendkim enable

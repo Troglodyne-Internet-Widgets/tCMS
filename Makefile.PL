@@ -69,6 +69,7 @@ WriteMakefile(
     'Email::MIME'               => '0',
     'Email::Sender::Simple'     => '0',
     'DNS::Unbound'              => '0',
+    'Net::IP'                   => '0',
   },
   test => {TESTS => 't/*.t'}
 );
