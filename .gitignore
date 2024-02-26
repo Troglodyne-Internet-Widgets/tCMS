@@ -29,5 +29,6 @@ totp/
 nginx/tcms.conf
 fail2ban/tcms-jail.conf
 logs/
+run/
 *-shm
 *-wal

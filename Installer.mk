@@ -21,7 +21,6 @@ install-service:
 	mkdir -p ~/.config/systemd/user
 	cp service-files/systemd.unit ~/.config/systemd/user/tCMS.service
 	sed -ie 's#__REPLACEME__#$(shell pwd)#g' ~/.config/systemd/user/tCMS.service
-	sed -ie 's#__PORT__#$(PORT)#g' ~/.config/systemd/user/tCMS.service
 	systemctl --user daemon-reload
 	systemctl --user enable tCMS
 	systemctl --user start tCMS
@@ -85,10 +84,13 @@ fail2ban:
 .PHONY: nginx
 nginx:
 	[ -n "$$SERVER_NAME" ] || ( echo "Please set the SERVER_NAME environment variable before running (e.g. test.test)" && /bin/false )
-	[ -n "$$SERVER_PORT" ] || ( echo "Please set the SERVER_PORT environment variable before running (e.g. 5000)" && /bin/false )
 	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
-	sed 's/\%SERVER_PORT\%/$(SERVER_PORT)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
+	sed 's/\%SERVER_SOCK\%/$(shell pwd)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
+	mkdir run
+	chown $(USER):www-data run
+	touch run/tcms.sock
+	chown $(USER):www-data run/tcms.sock
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
 	sudo mkdir -p '/etc/letsencrypt/live/$(SERVER_NAME)'

@@ -5,5 +5,9 @@ Description=tCMS
 WantedBy=default.target
 
 [Service]
-ExecStart=starman -p __PORT__ __REPLACEME__/www/server.psgi
+User=__DOMAIN__
+ExecStart=starman --listen __REPLACEME__/run/tcms.sock __REPLACEME__/www/server.psgi
 WorkingDirectory= __REPLACEME__/
+Restart=always
+OOMPolicy=stop
+ExecReload=kill -HUP $MAINPID

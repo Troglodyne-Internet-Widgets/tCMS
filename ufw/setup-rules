@@ -1,0 +1,41 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+
+my $DRY_RUN = $ARGV[0] ? 1 : 0;
+
+# Build rules, apply rules.
+
+# Enable every available service.
+# Don't use tCMS on hosts that do anything else with.
+my $list = qx{ufw app list};
+my @apps = split(/\n/, $list);
+shift @apps;
+@apps = map { s/^\s+//; $_ } @apps;
+
+# Sane defaults
+my @rules = (
+    [qw{enable}],
+    [qw{default deny outgoing}],
+    [qw{default deny incoming}],
+);
+
+# Allow, but rate limit
+foreach my $app (@apps) {
+    push(@rules,
+        ["allow", $app],
+        ["limit", $app],
+    );
+}
+
+@rules = map { unshift(@{$_}, '--dry-run'); $_ } @rules if $DRY_RUN;
+@rules = map { unshift(@{$_}, 'ufw'); $_ } @rules;
+
+print Dumper(\@rules);
+
+foreach my $rule (@rules) {
+    system(@$rule);
+}
