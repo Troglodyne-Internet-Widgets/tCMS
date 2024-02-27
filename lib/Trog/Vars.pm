@@ -67,7 +67,6 @@ our %schema = (
     'version'    => $not_ref,
     'visibility' => $not_ref,
     'aliases'    => \&Ref::Util::is_arrayref,
-    'tiled'      => $not_ref,
 
     # title links here
     'href' => $not_ref,
@@ -108,6 +107,14 @@ sub filter ($data, $user_schema={}) {
     foreach my $key ( keys(%$data) ) {
         # We need to have the key in the schema, and it validate.
         delete $data->{$key} unless List::Util::any { ( $_ eq $key ) && ( $user_schema->{$key}->( $data->{$key} ) ) } keys(%$user_schema);
+
+        #use Data::Dumper;
+        #print Dumper($data);
+
+        # All parameters in the schema are MANDATORY.
+        foreach my $param (keys(%$user_schema)) {
+            die "Missing mandatory parameter $param" unless exists $data->{$param};
+        }
     }
     return %$data;
 }

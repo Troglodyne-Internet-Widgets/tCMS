@@ -48,11 +48,11 @@ my $valid_ip = sub {
 };
 
 my $valid_rev_ip = sub {
-    return shift =~ m/\.in-addr\.arpa$/;
+    return shift =~ m/\.in-addr\.arpa\.$/;
 };
 
 my $valid_rev_ip6 = sub {
-    return shift =~ m/\.ip6\.arpa$/;
+    return shift =~ m/\.ip6\.arpa\.$/;
 };
 
 my $spec = {
@@ -60,7 +60,6 @@ my $spec = {
     ip6            => $valid_ip,
     ip_reversed    => $valid_rev_ip,
     ip6_reversed   => $valid_rev_ip6,
-    domain         => $Trog::Vars::not_ref,
     nameservers    => \&Ref::Util::is_arrayref,
     subdomains     => \&Ref::Util::is_arrayref,
     cnames         => \&Ref::Util::is_arrayref,

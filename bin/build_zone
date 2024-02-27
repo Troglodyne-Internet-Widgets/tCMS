@@ -38,6 +38,7 @@ use feature qw{signatures state};
 use FindBin::libs;
 use Trog::Config();
 use Trog::Zone();
+use Trog::Auth;
 
 use DNS::Unbound;
 use Net::DNS::Packet;
@@ -47,7 +48,7 @@ use Net::IP;
 
 use Getopt::Long qw{GetOptionsFromArray};
 
-exit main(@ARGV) unless caller;
+main(@ARGV) unless caller;
 
 sub main(@args) {
 
@@ -64,6 +65,9 @@ sub main(@args) {
 
     my $domain = Trog::Config->get()->param('general.hostname');
     die "Hostname not set in tCMS configuration.  Please set this first." unless $domain;
+
+    my $user = Trog::Auth::primary_user;
+    die "Primary tCMS user not yet set up" unless $user;
 
     # Get a flesh start
     Trog::Zone::delzone($domain);
@@ -84,12 +88,23 @@ sub main(@args) {
         version    => 0,
         dkim_pkey => extract_pkey($domain),
         acme_challenge => get_dns_dcv_string( $domain ),
+        visibility => 'private',
+        acls       => [qw{admin}],
+        aliases    => [],
+        tags       => ['zone'],
+        form       => 'dns.tx',
+        callback   => "Trog::Routes::TXT::zone",
+        id         => undef,
+        created    => undef,
+        local_href => "/text/zone/$domain",
+        href       => "/text/zone/$domain",
+        user       => $user,
     };
 
-    my $zone = Trog::Zone::addzone($data);
-
     my $processor = Text::Xslate->new( path => 'www/templates/text' );
-    print $processor->render('zone.tx', $zone);
+    $data->{data} = $processor->render('zone.tx', $data);
+
+    my $zone = Trog::Zone::addzone($data);
 
     return 0;
 }

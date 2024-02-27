@@ -296,7 +296,6 @@ our %schema = (
     'version'    => $not_ref,
     'visibility' => $not_ref,
     'aliases'    => \&Ref::Util::is_arrayref,
-    'tiled'      => $not_ref,
 
     # title links here
     'href' => $not_ref,
@@ -323,6 +322,8 @@ our %schema = (
     ## Series specific parameters
     'child_form' => $not_ref,
     'aclname'    => $not_ref,
+    'tiled'      => $not_ref,
+
     ## User specific parameters
     'user_acls'      => \&Ref::Util::is_arrayref,
     'username'       => $not_ref,
