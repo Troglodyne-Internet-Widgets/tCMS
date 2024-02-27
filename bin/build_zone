@@ -1,0 +1,142 @@
+#!/usr/bin/env perl
+
+=head1 build_zone
+
+Build the basic zone for a tCMS site and import it into powerdns.
+Otherwise, make it a post so you can edit it in the config backend.
+
+In general this should not be called outside of Installer.mk.
+
+=head2 OPTIONS
+
+=head3 subdomain
+
+Specify a subdomain, such as 'foo' to add to the domain.
+
+May be passed multiple times.
+
+=head3 gsv
+
+Google site verification string goes into TXT record
+
+=head3 cname
+
+Specify a cname, such as 'bar' to add to the domain.
+
+By default, the cnames 'www', 'mail' and 'chat' are set up, as these are essential tCMS services setup by the makefile before this.
+
+May be passed multiple times.
+
+=cut
+
+use strict;
+use warnings;
+
+no warnings qw{experimental};
+use feature qw{signatures state};
+
+use FindBin::libs;
+use Trog::Config();
+use Trog::Zone();
+
+use DNS::Unbound;
+use Net::DNS::Packet;
+
+use Text::Xslate;
+use Net::IP;
+
+use Getopt::Long qw{GetOptionsFromArray};
+
+exit main(@ARGV) unless caller;
+
+sub main(@args) {
+
+    my %options;
+    GetOptionsFromArray(\@args,
+        'subdomain=s@' => \$options{subdomains},
+        'gsv=s'        => \$options{gsv},
+        'cname=s@'     => \$options{cnames},
+    );
+
+    # Paranoia, some versions of getopt don't do this
+    $options{cnames}     //= [];
+    $options{subdomains} //=[];
+
+    my $domain = Trog::Config->get()->param('general.hostname');
+    die "Hostname not set in tCMS configuration.  Please set this first." unless $domain;
+
+    # Get a flesh start
+    Trog::Zone::delzone($domain);
+
+    my ($ip)  = domain2ips($domain, 'A');
+    my ($ip6) = domain2ips($domain, 'AAAA');
+
+    my $data = {
+        ip  => $ip,
+        ip6 => $ip6,
+        ip_reversed  => Net::IP->new($ip)->reverse_ip(),
+        ip6_reversed => Net::IP->new($ip6)->reverse_ip(),
+        title => $domain,
+        nameservers => ["ns1.$domain"],
+        subdomains  => [map { { name => $_, ip => domain2ips("$_.$domain", "A"), "ip6" => domain2ips("$_.$domain", "AAAA"), nameservers => ["ns1.$_.$domain"] } } @{$options{subdomains}}],
+        cnames      => [(qw{www mail chat},@{$options{cnames}})],
+        gsv_string  => $options{gsv},
+        version    => 0,
+        dkim_pkey => extract_pkey($domain),
+        acme_challenge => get_dns_dcv_string( $domain ),
+    };
+
+    my $zone = Trog::Zone::addzone($data);
+
+    my $processor = Text::Xslate->new( path => 'www/templates/text' );
+    print $processor->render('zone.tx', $zone);
+
+    return 0;
+}
+
+sub extract_pkey ( $domain ) {
+    open(my $fh, '<', "/etc/opendkim/keys/$domain/mail.public");
+    my @lines = map { chomp $_; $_ } readline $fh;
+    close $fh;
+    shift @lines;
+    pop @lines;
+    return join('', @lines);
+}
+
+sub get_dns_dcv_string( $domain ) {
+    return "TODO";
+}
+
+sub domain2ips( $domain, $type ) {
+    # XXX would be great to use state here, but felipe
+    my $resolver = DNS::Unbound->new();
+
+    my $p = $resolver->resolve( $domain, $type )->answer_packet();
+    my @rrs = Net::DNS::Packet->new( \$p )->answer;
+
+    my @addr = map { $_->address } @rrs;
+    @addr=(get_local_ip($type)) unless @addr;
+    return @addr;
+}
+
+my $addrout='';
+sub get_local_ip( $type ) {
+    $addrout //=qx{ip addr};
+    return $type eq 'A' ? _ipv4() : _ipv6();
+}
+
+sub _ipv4 {
+    state $ip;
+    return $ip if $ip;
+    ($ip) = $addrout =~ m{inet\s+([\d|\.|/]+)\s+scope\s+global}gmx;
+    return $ip;
+}
+
+sub _ipv6 {
+    state $ip6;
+    return $ip6 if $ip6;
+    ($ip6) = $addrout =~ m{inet6\s+([a-f|\d|:|/]+)\s+scope\s+global\s+dynamic\s+mngtmpaddr}gmx;
+    # We have to strip the CIDR off of it, or it breaks Net::IP's brain.
+    $ip6 =~ s|/\d+$||;
+    return $ip6;
+}

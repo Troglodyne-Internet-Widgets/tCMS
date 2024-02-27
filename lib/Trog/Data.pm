@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 no warnings 'experimental';
-use feature qw{signatures};
+use feature qw{signatures state};
 
 #It's just a factory
 
@@ -19,11 +19,15 @@ Returns a new Trog::Data::* class appropriate to what is configured in the Trog:
 =cut
 
 sub new ( $class, $config ) {
+    state $datamodule;
+    return $datamodule if $datamodule;
+
     my $module = "Trog::Data::" . $config->param('general.data_model');
     my $req    = $module;
     $req =~ s/::/\//g;
     require "$req.pm";
-    return $module->new($config);
+    $datamodule = $module->new($config);
+    return $datamodule;
 }
 
 1;

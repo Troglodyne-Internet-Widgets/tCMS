@@ -140,23 +140,21 @@ sub _fixup ( $self, @filtered ) {
     return @filtered;
 }
 
+sub _filter_param ( $query, $param, @filtered ) {
+    @filtered = grep { ( $_->{$param} || '') eq $query->{$param} } @filtered;
+    @filtered = _dedup_versions( $query->{version}, @filtered );
+    return @filtered;
+}
+
 sub filter ( $self, $query, @filtered ) {
     $query->{acls}         //= [];
     $query->{tags}         //= [];
     $query->{exclude_tags} //= [];
 
-    # If an ID is passed, just get that (and all it's prior versions)
-    if ( $query->{id} ) {
-        @filtered = grep { $_->{id} eq $query->{id} } @filtered;
-        @filtered = _dedup_versions( $query->{version}, @filtered );
-        return @filtered;
-    }
-
-    # XXX aclname and id are essentially serving the same purpose, should unify
-    if ( $query->{aclname} ) {
-        @filtered = grep { ( $_->{aclname} || '' ) eq $query->{aclname} } @filtered;
-        @filtered = _dedup_versions( $query->{version}, @filtered );
-        return @filtered;
+    # If an ID or title or acl is passed, just get that (and all it's prior versions)
+    foreach my $key (qw{id title aclname}) {
+        next unless exists $query->{$key};
+        return _filter_param( $query, $key, @filtered);
     }
 
     @filtered = _dedup_versions( undef, @filtered );
@@ -319,6 +317,9 @@ our %schema = (
     # Author of the post
     'user'    => $not_ref,
     'created' => $not_ref,
+
+    # Specific to various posts below.
+
     ## Series specific parameters
     'child_form' => $not_ref,
     'aclname'    => $not_ref,
@@ -333,6 +334,7 @@ our %schema = (
     # user avatar, but does double duty in content posts as preview images on videos, etc
     'preview_file' => $hashref_or_string,
     'preview'      => $not_ref,
+
     ## Content specific parameters
     'audio_href' => $not_ref,
     'video_href' => $not_ref,

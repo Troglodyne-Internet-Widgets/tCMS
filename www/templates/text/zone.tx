@@ -1,7 +1,7 @@
 $TTL    300
 
-@       IN      SOA     <: $domain :>. soa.<: $domain :>. (
-                        <: $post.version :> ; Serial
+@       IN      SOA     <: $title :>. soa.<: $title :>. (
+                        <: $version :> ; Serial
                         10800   ; Refresh
                         3600    ; Retry
                         604800  ; Expire
@@ -10,46 +10,46 @@ $TTL    300
 ; NS Records.
 ; These are actually academic, as the registrar is where any of this matters.
 ; You'll have to also set up A / AAAA records with the IP of these NS subdos of yours.
-: for $post.nameservers -> $ns {
-<: $domain :>. IN NS <: $ns :>.
+: for $nameservers -> $ns {
+<: $title :>. IN NS <: $ns :>.
 : }
 
 ; A Records
-<: $domain :>. IN A <: $ip :>
-<: $domain :>. IN AAAA <: $ip6 :>
+<: $title :>. IN A <: $ip :>
+<: $title :>. IN AAAA <: $ip6 :>
 
 ; PTR - also academic.  Must be set not with your registrar, but your ISP/colo etc.
-<: $ip_reversed :> IN PTR <: $domain :>
-<: $ip6_reversed :>    IN PTR <: $domain :>
+<: $ip_reversed :> IN PTR <: $title :>
+<: $ip6_reversed :>    IN PTR <: $title :>
 
-; Subdomains. Look ma, it's a glue record!
-: for $post.subdomains -> $sub {
-<: $sub.name :>.<: $domain :>. IN A    <: $sub.ip :>
-<: $sub.name :>.<: $domain :>. IN AAAA <: $sub.ip6 :>
+; Subtitles. Look ma, it's a glue record!
+: for $subdomains -> $sub {
+<: $sub.name :>.<: $title :>. IN A    <: $sub.ip :>
+<: $sub.name :>.<: $title :>. IN AAAA <: $sub.ip6 :>
 :     for $sub.nameservers -> $ns {
-<: $sub.name :>.<: $domain :>. IN NS   <: $ns :>
+<: $sub.name :>.<: $title :>. IN NS   <: $ns :>
 :     }
 : }
 
 ; CNAME records
-: for $post.cnames -> $cname {
-<: $cname :>.<: $domain :>. IN CNAME <: $domain :>.
+: for $cnames -> $cname {
+<: $cname :>.<: $title :>. IN CNAME <: $title :>.
 : }
 
 ; MX & SRV records
-<: $domain :>.    IN MX  0 mail.<: $domain :>.
+<: $title :>.    IN MX  0 mail.<: $title :>.
 _smtps._tcp.mail. IN SRV 10 5 587 .
 _imaps._tcp.mail. IN SRV 10 5 993 .
 _pop3s._tcp.mail. IN SRV 10 5 995 .
 
 ; SPF, DKIM, DMARC
-_dmarc.<: $domain :>.          IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@<: $domain :>; ruf=mailto:postmaster@<: $domain :>"
-mail._domainkey.<: $domain :>. IN TXT "v=DKIM1; h=sha256; k=rsa; t=y; p=<: $dkim_pkey :>"
-<: $domain :>.                 IN TXT "v=spf1 +mx +a +ip4:<: $ip :> +ip6:<: $ip :> ~all"
+_dmarc.<: $title :>.          IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@<: $title :>; ruf=mailto:postmaster@<: $title :>"
+mail._domainkey.<: $title :>. IN TXT "v=DKIM1; h=sha256; k=rsa; t=y; p=<: $dkim_pkey :>"
+<: $title :>.                 IN TXT "v=spf1 +mx +a +ip4:<: $ip :> +ip6:<: $ip :> ~all"
 
 ; Indexer verification
-<: $domain :>.                 IN TXT "google-site-verification=<: $post.gsv_string :>"
+<: $title :>.                 IN TXT "google-site-verification=<: $gsv_string :>"
 
 ; LetsEncyst
-_acme-challenge.<: $domain :>. IN TXT  "<: $acme_challenge :>"
-<: $domain :>                  IN CAA 0 issue letsencrypt.org
+_acme-challenge.<: $title :>. IN TXT  "<: $acme_challenge :>"
+<: $title :>                  IN CAA 0 issue letsencrypt.org
