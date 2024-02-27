@@ -48,7 +48,9 @@ use Net::IP;
 
 use Getopt::Long qw{GetOptionsFromArray};
 
-main(@ARGV) unless caller;
+$ENV{NOHUP} = 1;
+
+exit main(@ARGV) unless caller;
 
 sub main(@args) {
 

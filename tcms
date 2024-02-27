@@ -1,3 +1,5 @@
 #!/bin/bash
-export PSGI_ENGINE='uwsgi'
-uwsgi --ini config/tcms.ini
+pkill -F run/tcms.pid
+sudo WWW_VERBOSE=1 www/server.psgi --listen run/tcms.sock --group www-data --user $USER --daemonize --pid run/tcms.pid
+#XXX Net::Server does not expect to run as a user other than that of the webserver
+sudo chmod 0775 run/tcms.sock

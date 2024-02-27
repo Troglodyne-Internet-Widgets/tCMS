@@ -1,0 +1,3 @@
+#!/bin/bash
+export PSGI_ENGINE='uwsgi'
+uwsgi --ini config/tcms.ini
