@@ -3,6 +3,8 @@ tCMS
 
 A flexible perl CMS which supports multiple data models and content types
 
+tCMS is built fully around ubuntu hosts at the moment.
+
 Deployment is currently:
 * make -f Installer.mk depend
 * make -f Installer.mk install
@@ -15,7 +17,9 @@ OR (if you want tCMS as a systemd service for the current user):
 
 This sets up nginx, reverse proxy and SSL certs for you.
 You must set up the user which runs tCMS to have the primary group www-data if you want to be able to run without sudo or run as a usermode service.
-It is strongly suggested that you chmod everything but the run/ directory to be 0700.
+It is strongly suggested that you chmod everything but the run/ directory to be 0700, particularly in a shared environment.
+
+It also sets up the mailserver and DNS for you.
 
 A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
 ```
@@ -26,9 +30,12 @@ A Dockerfile and deployment scripts are provided for your convenience in buildin
 # Extract configuration & local data, then spin down the server
 ./docker-exfil.sh
 ```
+There is also podman container code; see images/README.md
+
 The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
 
 Rate-Limiting is expected to be handled at the level of the webserver proxying requests to this application.
+See ufw/setup-rules as an example of the easy way to setup rules/limiting for all the services you need to run tCMS.
 
 Migration of tCMS1 sites
 =========================
@@ -85,8 +92,8 @@ Supported PSGI servers
 
 Starman and uWSGI
 
-In production, I would expect you to run under uWSGI, and the `tcms` command in the TLD runs this.
-Otherwise, you can run `www/server.psgi` to start starman normally.
+In production, I would expect you to run under uWSGI, and the `tcms-uwsgi` command in the TLD runs this.
+Otherwise, you can run `tcms` to start starman normally.
 
 Ideas to come:
 =============

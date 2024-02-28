@@ -1,3 +1,7 @@
 #!/bin/bash
+[[ -e run/tcms.pid ]] && pkill -F run/tcms.pid;
 export PSGI_ENGINE='uwsgi'
 uwsgi --ini config/tcms.ini
+sudo chown $USER:www-data run/tcms.sock
+sudo chmod 0770 run/tcms.sock
+echo "tCMS running as PID "`cat run/tcms.pid`
