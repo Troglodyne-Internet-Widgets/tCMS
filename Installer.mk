@@ -38,7 +38,8 @@ prereq-debs:
 	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl uuid-dev                    \
-	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl
+	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl \
+		selinux-utils setools policycoreutils-python-utils policycoreutils selinux-basics auditd
 
 .PHONY: prereq-perl
 prereq-perl:
@@ -89,8 +90,7 @@ nginx:
 	rm nginx/tcms.conf.intermediate
 	mkdir run
 	chown $(USER):www-data run
-	touch run/tcms.sock
-	chown $(USER):www-data run/tcms.sock
+	chmod 0770 run
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
 	sudo mkdir -p '/etc/letsencrypt/live/$(SERVER_NAME)'
