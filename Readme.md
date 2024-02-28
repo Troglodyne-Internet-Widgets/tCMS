@@ -8,13 +8,14 @@ Deployment is currently:
 * make -f Installer.mk install
 
 Then:
-* Set up proxy rule in your webserver
 * open tmux or screen
-* `starman -p $PORT www/server.psgi`
+* `sudo ./tcms`
 OR (if you want tCMS as a systemd service for the current user):
-* PORT=$PORT make install-service
+* `make install-service`
 
-$PORT being whatever port you want it to sit on.
+This sets up nginx, reverse proxy and SSL certs for you.
+You must set up the user which runs tCMS to have the primary group www-data if you want to be able to run without sudo or run as a usermode service.
+It is strongly suggested that you chmod everything but the run/ directory to be 0700.
 
 A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
 ```
