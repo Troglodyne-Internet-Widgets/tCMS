@@ -107,6 +107,7 @@ sub main(@args) {
     $data->{data} = $processor->render('zone.tx', $data);
 
     my $zone = Trog::Zone::addzone($data);
+    print $data->{data};
 
     return 0;
 }

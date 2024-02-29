@@ -7,7 +7,15 @@ use FindBin::libs;
 
 use Trog::Config();
 
-my $domain = Trog::Config->get()->param('general.hostname');
-die "Hostname not set in tCMS configuration.  Please set this first." unless $domain;
+my $hostname = $ARGV[0];
+
+my $conf = Trog::Config->get();
+if ($hostname) {
+    $conf->param('general.hostname', $hostname);
+    $conf->save();
+}
+
+my $domain = $conf->param('general.hostname');
+die "Hostname not set in tCMS configuration.  Please set this first by passing the hostname to bin/tcms-hostname." unless $domain;
 
 print "$domain\n";

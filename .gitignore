@@ -30,5 +30,10 @@ nginx/tcms.conf
 fail2ban/tcms-jail.conf
 logs/
 run/
+dns/tcms.conf
+dns/zones.db
+dns/zone.sql
+dns/default.zone
+dns/default.zone.sql
 *-shm
 *-wal

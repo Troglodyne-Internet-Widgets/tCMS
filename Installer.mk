@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+SERVER_NAME := $(shell bin/tcms-hostname)
 
 .PHONY: depend
 depend:
@@ -39,7 +40,8 @@ prereq-debs:
 	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl uuid-dev                    \
 	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl \
-		selinux-utils setools policycoreutils-python-utils policycoreutils selinux-basics auditd
+		selinux-utils setools policycoreutils-python-utils policycoreutils selinux-basics auditd \
+		pdns-tools pdns-server pdns-backend-sqlite3
 
 .PHONY: prereq-perl
 prereq-perl:
@@ -141,6 +143,40 @@ dmarc:
 	sudo mail/mongle_dmarc_config $(SERVER_NAME) mail.$(SERVER_NAME)
 	sudo service opendmarc enable
 	sudo service opendmarc start
+
+.PHONY: dns
+dns:
+	cp dns/tcms.tmpl dns/tcms.conf
+	sed -i 's#__DIR__#$(shell pwd)#g' dns/tcms.conf
+	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' dns/tcms.conf
+	[[ -e /etc/powerdns/pdns.d/$(SERVER_NAME).conf ]] && sudo rm /etc/powerdns/pdns.d/$(SERVER_NAME).conf
+	sudo cp dns/tcms.conf /etc/powerdns/pdns.d/$(SERVER_NAME).conf
+	sudo mkdir /etc/systemd/resolved.conf.d/; /bin/true
+	sudo cp dns/10-disable-stub-resolver.conf /etc/systemd/resolved.conf.d/
+	sudo chown -R systemd-resolve:systemd-resolve /etc/systemd/resolved.conf.d/
+	sudo chmod 0660 /etc/systemd/resolved.conf.d/10-disable-stub-resolver.conf
+	sudo systemctl restart systemd-resolved
+	# Build the zone database and initialize the zone for our domain
+	rm dns/zones.db; /bin/true
+	sqlite3 dns/zones.db < /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql
+	bin/build_zone > dns/default.zone
+	zone2sql --gsqlite --zone=dns/default.zone > dns/default.zone.sql
+	sqlite3 dns/zones.db < dns/default.zone.sql
+	# Bind mount our dns/ folder so that pdns can see it in chroot
+	sudo mkdir /var/spool/powerdns/$(SERVER_NAME); /bin/true
+	sudo chown pdns:pdns /var/spool/powerdns/$(SERVER_NAME); /bin/true
+	sudo cp /etc/fstab /tmp/fstab.new
+	sudo chown $(USER) /tmp/fstab.new
+	echo "$(shell pwd)/dns /var/spool/powerdns/$(SERVER_NAME) none defaults,bind 0 0" >> /tmp/fstab.new
+	sort < /tmp/fstab.new | uniq | grep -o '^[^#]*' > /tmp/fstab.new
+	sudo chown root:root /tmp/fstab.new
+	sudo mv /etc/fstab /etc/fstab.bak
+	sudo mv /tmp/fstab.new /etc/fstab
+	sudo mount /var/spool/powerdns/$(SERVER_NAME)
+	# Don't need no bind
+	[[ -e /etc/powerdns/pdns.d/bind.conf ]] && sudo rm /etc/powerdns/pdns.d/bind.conf
+	sudo service pdns enable
+	sudo service pdns start
 
 .PHONY: all
 all: prereq-debian install fail2ban nginx mail
