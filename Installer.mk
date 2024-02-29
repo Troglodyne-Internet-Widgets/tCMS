@@ -160,7 +160,7 @@ dns:
 	rm dns/zones.db; /bin/true
 	sqlite3 dns/zones.db < /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql
 	bin/build_zone > dns/default.zone
-	zone2sql --gsqlite --zone=dns/default.zone > dns/default.zone.sql
+	zone2sql --gsqlite --zone=dns/default.zone --zone-name=$(SERVER_NAME) > dns/default.zone.sql
 	sqlite3 dns/zones.db < dns/default.zone.sql
 	# Bind mount our dns/ folder so that pdns can see it in chroot
 	sudo mkdir /var/spool/powerdns/$(SERVER_NAME); /bin/true
