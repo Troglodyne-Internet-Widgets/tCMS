@@ -175,6 +175,11 @@ dns:
 	sudo mount /var/spool/powerdns/$(SERVER_NAME)
 	# Don't need no bind
 	[[ -e /etc/powerdns/pdns.d/bind.conf ]] && sudo rm /etc/powerdns/pdns.d/bind.conf
+	# Fix broken service configuration
+	sudo bin/configure_pdns
+	sudo cp dns/10-powerdns.conf /etc/rsyslog.d/10-powerdns.conf 
+	sudo systemctl daemon-reload
+	sudo service rsyslog restart
 	sudo service pdns enable
 	sudo service pdns start
 
