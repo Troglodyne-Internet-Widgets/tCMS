@@ -153,7 +153,7 @@ sub filter ( $self, $query, @filtered ) {
 
     # If an ID or title or acl is passed, just get that (and all it's prior versions)
     foreach my $key (qw{id title aclname}) {
-        next unless exists $query->{$key};
+        next unless $query->{$key};
         return _filter_param( $query, $key, @filtered);
     }
 
