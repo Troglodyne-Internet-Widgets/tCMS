@@ -38,18 +38,18 @@ $TTL    300
 
 ; MX & SRV records
 <: $title :>.    IN MX  0 mail.<: $title :>.
-_smtps._tcp.mail. IN SRV 10 5 587 .
-_imaps._tcp.mail. IN SRV 10 5 993 .
-_pop3s._tcp.mail. IN SRV 10 5 995 .
+_smtps._tcp.mail.<: $title :>. IN SRV 10 5 587 .
+_imaps._tcp.mail.<: $title :>. IN SRV 10 5 993 .
+_pop3s._tcp.mail.<: $title :>. IN SRV 10 5 995 .
 
 ; SPF, DKIM, DMARC
 _dmarc.<: $title :>.          IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@<: $title :>; ruf=mailto:postmaster@<: $title :>"
 mail._domainkey.<: $title :>. IN TXT "v=DKIM1; h=sha256; k=rsa; t=y; p=<: $dkim_pkey :>"
-<: $title :>.                 IN TXT "v=spf1 +mx +a +ip4:<: $ip :> +ip6:<: $ip :> ~all"
+<: $title :>.                 IN TXT "v=spf1 +mx +a +ip4:<: $ip :> +ip6:<: $ip6 :> ~all"
 
 ; Indexer verification
 <: $title :>.                 IN TXT "google-site-verification=<: $gsv_string :>"
 
 ; LetsEncyst
 _acme-challenge.<: $title :>. IN TXT  "<: $acme_challenge :>"
-<: $title :>                  IN CAA 0 issue letsencrypt.org
+<: $title :>.                 IN CAA 0 issue "letsencrypt.org"

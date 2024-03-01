@@ -86,7 +86,7 @@ sub main(@args) {
         nameservers => ["ns1.$domain"],
         subdomains  => [map { { name => $_, ip => domain2ips("$_.$domain", "A"), "ip6" => domain2ips("$_.$domain", "AAAA"), nameservers => ["ns1.$_.$domain"] } } @{$options{subdomains}}],
         cnames      => [(qw{www mail chat},@{$options{cnames}})],
-        gsv_string  => $options{gsv},
+        gsv_string  => $options{gsv} // '',
         version    => 0,
         dkim_pkey => extract_pkey($domain),
         acme_challenge => get_dns_dcv_string( $domain ),
@@ -102,9 +102,6 @@ sub main(@args) {
         href       => "/text/zone/$domain",
         user       => $user,
     };
-
-    my $processor = Text::Xslate->new( path => 'www/templates/text' );
-    $data->{data} = $processor->render('zone.tx', $data);
 
     my $zone = Trog::Zone::addzone($data);
     print $data->{data};

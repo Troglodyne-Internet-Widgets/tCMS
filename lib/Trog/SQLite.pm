@@ -47,12 +47,16 @@ sub dbh {
     $dbh //= {};
     return $dbh->{$dbname} if $dbh->{$dbname};
     File::Touch::touch($dbname) unless -f $dbname;
-    die "No such schema file '$schema' !" unless -f $schema;
-    my $qq = File::Slurper::read_text($schema);
     my $db = DBI->connect( "dbi:SQLite:dbname=$dbname", "", "" );
-    $db->{sqlite_allow_multiple_statements} = 1;
-    $db->do($qq) or die "Could not ensure database consistency: " . $db->errstr;
-    $db->{sqlite_allow_multiple_statements} = 0;
+
+    if ($schema) {
+        die "No such schema file '$schema' !" unless -f $schema;
+        my $qq = File::Slurper::read_text($schema);
+        $db->{sqlite_allow_multiple_statements} = 1;
+        $db->do($qq) or die "Could not ensure database consistency: " . $db->errstr;
+        $db->{sqlite_allow_multiple_statements} = 0;
+    }
+
     $dbh->{$dbname} = $db;
 
     # Turn on fkeys

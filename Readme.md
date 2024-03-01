@@ -1,7 +1,8 @@
 tCMS
 =====
 
-A flexible perl CMS which supports multiple data models and content types
+A flexible perl CMS which supports multiple data models and content types.
+Should be readily portable/hostable between any other system that runs tCMS due to being largely self-contained.
 
 tCMS is built fully around ubuntu hosts at the moment.
 
@@ -20,6 +21,8 @@ You must set up the user which runs tCMS to have the primary group www-data if y
 It is strongly suggested that you chmod everything but the run/ directory to be 0700, particularly in a shared environment.
 
 It also sets up the mailserver and DNS for you.
+
+You should add the pdns group to the user you use to run tCMS, so that the zone management features will work.
 
 A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
 ```
