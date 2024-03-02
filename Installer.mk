@@ -183,5 +183,9 @@ dns:
 	sudo service pdns enable
 	sudo service pdns start
 
+.PHONY: githook
+githook:
+	cp git-hooks/pre-commit .git/hooks
+
 .PHONY: all
-all: prereq-debian install fail2ban nginx mail
+all: prereq-debian install fail2ban nginx mail dns githook
