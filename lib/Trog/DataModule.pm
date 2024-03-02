@@ -7,8 +7,6 @@ use FindBin::libs;
 
 use List::Util;
 use File::Copy;
-use Mojo::File;
-use Plack::MIME;
 use Path::Tiny();
 use Ref::Util();
 
@@ -438,21 +436,9 @@ sub _process ($post) {
     @{ $post->{aliases} } = List::Util::uniq( @{ $post->{aliases} } );
 
     # Handle multimedia content types
-    if ( $post->{href} ) {
-        my $mf  = Mojo::File->new("www/$post->{href}");
-        my $ext = '.' . $mf->extname();
-        $post->{content_type} = Plack::MIME->mime_type($ext) if $ext;
-    }
-    if ( $post->{video_href} ) {
-        my $mf  = Mojo::File->new("www/$post->{video_href}");
-        my $ext = '.' . $mf->extname();
-        $post->{video_content_type} = Plack::MIME->mime_type($ext) if $ext;
-    }
-    if ( $post->{audio_href} ) {
-        my $mf  = Mojo::File->new("www/$post->{audio_href}");
-        my $ext = '.' . $mf->extname();
-        $post->{audio_content_type} = Plack::MIME->mime_type($ext) if $ext;
-    }
+    $post->{content_type}       = Trog::Utils::mime_type("www/$post->{href}")       if $post->{href};
+    $post->{video_content_type} = Trog::Utils::mime_type("www/$post->{video_href}") if $post->{video_href};
+    $post->{audio_content_type} = Trog::Utils::mime_type("www/$post->{audio_href}") if $post->{audio_href};
     $post->{content_type} ||= 'text/html';
 
     $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;

@@ -70,6 +70,7 @@ WriteMakefile(
     'Email::Sender::Simple'     => '0',
     'DNS::Unbound'              => '0',
     'Net::IP'                   => '0',
+    'File::LibMagic'            => '0',
   },
   test => {TESTS => 't/*.t'}
 );

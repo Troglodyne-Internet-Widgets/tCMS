@@ -13,8 +13,6 @@ use Sys::Hostname();
 use HTTP::Body   ();
 use URL::Encode  ();
 use Text::Xslate ();
-use Plack::MIME  ();
-use Mojo::File   ();
 use DateTime::Format::HTTP();
 use CGI::Cookie ();
 use File::Basename();

@@ -41,7 +41,7 @@ prereq-debs:
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl uuid-dev                    \
 	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl \
 		selinux-utils setools policycoreutils-python-utils policycoreutils selinux-basics auditd \
-		pdns-tools pdns-server pdns-backend-sqlite3
+		pdns-tools pdns-server pdns-backend-sqlite3 libmagic-dev
 
 .PHONY: prereq-perl
 prereq-perl:
