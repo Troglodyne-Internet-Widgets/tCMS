@@ -75,7 +75,7 @@ sub _app {
 
     # Build the routing table
     state ($conf, $data, %aliases);
-    
+
     $conf  //= Trog::Config::get();
     $data  //= Trog::Data->new($conf);
     my %routes = %{_routes($data)};
@@ -338,9 +338,9 @@ sub _app {
         my $pport = defined $query->{port} ? ":$query->{port}" : "";
         INFO("$env->{REQUEST_METHOD} $output->[0] $fullpath");
 
-        # Append server-timing headers
+        # Append server-timing headers if they aren't present
         my $tot = tv_interval($start) * 1000;
-        push( @{ $output->[1] }, 'Server-Timing' => "app;dur=$tot" );
+        push( @{ $output->[1] }, 'Server-Timing' => "app;dur=$tot" ) unless List::Util::any { $_ eq 'Server-Timing' } @{ $output->[1] };
         return $output;
     }
 }
