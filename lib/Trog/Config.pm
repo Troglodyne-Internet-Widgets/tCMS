@@ -21,9 +21,9 @@ our $home_cfg = "config/main.cfg";
 
 sub get {
     state $cf;
-    return $cf if $cf;
+    return $cf                           if $cf;
     $cf = Config::Simple->new($home_cfg) if -f $home_cfg;
-    return $cf if $cf;
+    return $cf                           if $cf;
     $cf = Config::Simple->new('config/default.cfg');
     return $cf;
 }

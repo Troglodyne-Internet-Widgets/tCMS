@@ -21,11 +21,12 @@ $LOGNAME = $ENV{CUSTOM_LOG} if $ENV{CUSTOM_LOG};
 
 my $LEVEL = $ENV{WWW_VERBOSE} ? 'debug' : 'info';
 
-our ($log, $user);
+our ( $log, $user );
 $Trog::Log::user = 'nobody';
 $Trog::Log::ip   = '0.0.0.0';
 
 sub log_init {
+
     # By default only log requests & warnings.
     # Otherwise emit debug messages.
     my $rotate = Log::Dispatch::FileRotate->new(
@@ -45,9 +46,9 @@ sub log_init {
 
     # Send things like requests in to the stats log
     my $dblog = Trog::Log::DBI->new(
-        name => 'dbi',
+        name      => 'dbi',
         min_level => $LEVEL,
-        dbh  => _dbh(),
+        dbh       => _dbh(),
     );
 
     $log = Log::Dispatch->new();
@@ -63,7 +64,7 @@ sub log_init {
 my $rq;
 
 sub _dbh {
-	return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
+    return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
 }
 
 sub is_debug {

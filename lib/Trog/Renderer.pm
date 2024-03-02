@@ -54,8 +54,8 @@ sub render ( $class, %options ) {
     $renderer = $renderers{$rendertype};
     return _yeet( $renderer, "Renderer for $rendertype is not defined!", %options ) unless $renderer;
     return _yeet( $renderer, "Status code not provided",                 %options ) if !$options{code} && !$options{component};
-    return _yeet( $renderer, "Template data not provided", %options ) unless $options{data};
-    return _yeet( $renderer, "Template not provided",      %options ) unless $options{template};
+    return _yeet( $renderer, "Template data not provided",               %options ) unless $options{data};
+    return _yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
 
     #TODO future - save the components too and then compose them?
     my $skip_save = !$options{component} || !$options{data}{route} || $options{data}{has_query} || $options{data}{user} || ( $options{code} // 0 ) != 200 || Trog::Log::is_debug();

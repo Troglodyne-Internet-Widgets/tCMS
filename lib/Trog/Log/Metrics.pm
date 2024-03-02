@@ -16,7 +16,7 @@ and for reasoning about the various things that it's Urchin-compatible data can 
 =cut
 
 sub _dbh {
-	return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
+    return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
 }
 
 =head2 requests_per(ENUM period{second,minute,hour,day,month,year}, INTEGER num_periods, [TIME_T before], INTEGER[] @codes)
@@ -36,42 +36,42 @@ Optionally filter by response code(s).
 
 =cut
 
-sub requests_per ($period, $num_periods, $before, @codes) {
+sub requests_per ( $period, $num_periods, $before, @codes ) {
     $before ||= time;
 
-	# Build our periods in seconds.
-	state %period2time = (
-		second => 1,
-		minute => 60,
-		hour   => 3600,
-		day    => 86400,
-		week   => 604800,
-		month  => 2592000,
-		year   => 31356000,
-	);
+    # Build our periods in seconds.
+    state %period2time = (
+        second => 1,
+        minute => 60,
+        hour   => 3600,
+        day    => 86400,
+        week   => 604800,
+        month  => 2592000,
+        year   => 31356000,
+    );
 
-	my $interval = $period2time{$period};
-	die "Invalid time interval passed." unless $interval;
+    my $interval = $period2time{$period};
+    die "Invalid time interval passed." unless $interval;
 
-	my @input;
-	my $whereclause = '';
-	if (@codes) {
-		my $bind = join(',', (map { '?' } @codes));
-		$whereclause = "WHERE code IN ($bind)";
-		push(@input, @codes);
-	}
-	push(@input, $interval, $before, $num_periods);
+    my @input;
+    my $whereclause = '';
+    if (@codes) {
+        my $bind = join( ',', ( map { '?' } @codes ) );
+        $whereclause = "WHERE code IN ($bind)";
+        push( @input, @codes );
+    }
+    push( @input, $interval, $before, $num_periods );
 
     my $query = "SELECT count(*) FROM all_requests $whereclause GROUP BY date / ? HAVING date < ? LIMIT ?";
 
-    my @results = map { $_->[0] } @{ _dbh()->selectall_arrayref($query, undef, @input) };
-	my $np = @results < $num_periods ? @results : $num_periods;
-	my @labels = reverse map { "$_ $period(s) ago" } (1..$np);
+    my @results = map { $_->[0] } @{ _dbh()->selectall_arrayref( $query, undef, @input ) };
+    my $np      = @results < $num_periods ? @results : $num_periods;
+    my @labels  = reverse map { "$_ $period(s) ago" } ( 1 .. $np );
 
-	return {
-		labels => \@labels,
-		data   => \@results,
-	};
+    return {
+        labels => \@labels,
+        data   => \@results,
+    };
 }
 
 1;

@@ -55,18 +55,19 @@ my %extra_types = (
 );
 
 sub mime_type ($file) {
+
     # Use libmagic and if that doesn't work try guessing based on extension.
     my $mt;
     my $mf  = Mojo::File->new($file);
     my $ext = '.' . $mf->extname();
     $mt = Plack::MIME->mime_type($ext) if $ext;
     $mt ||= $extra_types{$ext} if exists $extra_types{$ext};
-    return $mt if $mt;
+    return $mt                 if $mt;
 
     # If all else fails, time for libmagic
     state $magic = File::LibMagic->new;
     my $maybe_ct = $magic->info_from_filename($file);
-    $mt = $maybe_ct->{mime_type} if (is_hashref( $maybe_ct ) && $maybe_ct->{mime_type});
+    $mt = $maybe_ct->{mime_type} if ( is_hashref($maybe_ct) && $maybe_ct->{mime_type} );
 
     return $mt;
 }

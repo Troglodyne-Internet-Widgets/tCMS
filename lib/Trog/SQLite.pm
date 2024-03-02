@@ -60,7 +60,8 @@ sub dbh {
     $dbh->{$dbname} = $db;
 
     # Turn on fkeys
-    $db->do("PRAGMA foreign_keys = ON")  or die "Could not enable foreign keys";
+    $db->do("PRAGMA foreign_keys = ON") or die "Could not enable foreign keys";
+
     # Turn on WALmode
     $db->do("PRAGMA journal_mode = WAL") or die "Could not enable WAL mode";
 

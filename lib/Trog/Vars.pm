@@ -97,7 +97,7 @@ Remove unwanted params to keep data slim & secure.
 
 =cut
 
-sub filter ($data, $user_schema={}) {
+sub filter ( $data, $user_schema = {} ) {
     %$user_schema = (
         %schema,
         %$user_schema,
@@ -105,6 +105,7 @@ sub filter ($data, $user_schema={}) {
 
     # Filter all the irrelevant data
     foreach my $key ( keys(%$data) ) {
+
         # We need to have the key in the schema, and it validate.
         delete $data->{$key} unless List::Util::any { ( $_ eq $key ) && ( $user_schema->{$key}->( $data->{$key} ) ) } keys(%$user_schema);
 
@@ -112,7 +113,7 @@ sub filter ($data, $user_schema={}) {
         #print Dumper($data);
 
         # All parameters in the schema are MANDATORY.
-        foreach my $param (keys(%$user_schema)) {
+        foreach my $param ( keys(%$user_schema) ) {
             die "Missing mandatory parameter $param" unless exists $data->{$param};
         }
     }

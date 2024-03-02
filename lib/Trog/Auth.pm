@@ -79,11 +79,10 @@ Returns the oldest user with the admin ACL.
 
 sub primary_user {
     my $dbh  = _dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT username FROM user_acl WHERE acl='admin' LIMIT 1", { Slice => {} });
+    my $rows = $dbh->selectall_arrayref( "SELECT username FROM user_acl WHERE acl='admin' LIMIT 1", { Slice => {} } );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{username};
 }
-
 
 =head2 get_existing_user_data
 
@@ -126,6 +125,7 @@ sub username2display ($name) {
 }
 
 sub username2classname ($name) {
+
     # Just return the user's post UUID.
     state $data;
     state $conf;
@@ -133,13 +133,15 @@ sub username2classname ($name) {
     $data //= Trog::Data->new($conf);
 
     state @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
+
     # Users are always self-authored, you see
 
-    my $user_obj  = List::Util::first { ( $_->{user} || '' ) eq $name } @userposts;
-    my $NNname = $user_obj->{id} || '';
+    my $user_obj = List::Util::first { ( $_->{user} || '' ) eq $name } @userposts;
+    my $NNname   = $user_obj->{id} || '';
     $NNname =~ tr/-/_/;
     return "a_$NNname";
 }
+
 =head2 acls4user(STRING username) = ARRAYREF
 
 Return the list of ACLs belonging to the user.
@@ -215,7 +217,7 @@ sub totp ( $user, $domain ) {
             level         => 'L',
             casesensitive => 1,
             lightcolor    => Imager::Color->new( 255, 255, 255 ),
-            darkcolor     => Imager::Color->new( 0, 0, 0 ),
+            darkcolor     => Imager::Color->new( 0,   0,   0 ),
         );
 
         my $img = $qrcode->plot($uri);
@@ -280,7 +282,7 @@ sub mksession ( $user, $pass, $token ) {
         $totp->{secret} = $secret;
         my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
         INFO("TOTP Auth failed for user $user") unless $rc;
-        return '' unless $rc;
+        return ''                               unless $rc;
     }
 
     # Issue cookie
@@ -321,7 +323,7 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     die "No display name set!" unless $displayname;
     die "Username and display name cannot be the same" if $user eq $displayname;
     die "No password set for user!"                    if !$pass && !$hash;
-    die "ACLs must be array" unless is_arrayref($acls);
+    die "ACLs must be array"             unless is_arrayref($acls);
     die "No contact email set for user!" unless $contactemail;
 
     my $dbh = _dbh();

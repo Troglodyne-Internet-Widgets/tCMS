@@ -6,7 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
-use Clone qw{clone};
+use Clone        qw{clone};
 use Date::Format qw{strftime};
 
 use Sys::Hostname();
@@ -17,11 +17,11 @@ use DateTime::Format::HTTP();
 use CGI::Cookie ();
 use File::Basename();
 use IO::Compress::Gzip();
-use Time::HiRes qw{gettimeofday tv_interval};
+use Time::HiRes      qw{gettimeofday tv_interval};
 use HTTP::Parser::XS qw{HEADERS_AS_HASHREF};
 use List::Util;
 use URI();
-use Ref::Util qw{is_coderef is_hashref is_arrayref}; 
+use Ref::Util qw{is_coderef is_hashref is_arrayref};
 
 #Grab our custom routes
 use FindBin::libs;
@@ -72,11 +72,11 @@ sub _app {
     my $start = [gettimeofday];
 
     # Build the routing table
-    state ($conf, $data, %aliases);
+    state( $conf, $data, %aliases );
 
-    $conf  //= Trog::Config::get();
-    $data  //= Trog::Data->new($conf);
-    my %routes = %{_routes($data)};
+    $conf //= Trog::Config::get();
+    $data //= Trog::Data->new($conf);
+    my %routes = %{ _routes($data) };
     %aliases = $data->aliases() unless %aliases;
 
     # XXX this is built progressively across the forks, leading to inconsistent behavior.
@@ -187,7 +187,7 @@ sub _app {
     if ( !exists $routes{$path} ) {
         my @captures;
 
-		# XXX maybe this should all just go into $query?
+        # XXX maybe this should all just go into $query?
         # TODO can optimize by having separate hashes for capture/non-capture routes
         foreach my $pattern ( keys(%routes) ) {
             @captures = $path =~ m/^$pattern$/;
@@ -202,8 +202,8 @@ sub _app {
         }
     }
 
-	# Set the 'data' in the query that the route specifically overrides, which we are also using for the catpured data
-	# This also means you have to validate both of them via parameters if you set that up.
+    # Set the 'data' in the query that the route specifically overrides, which we are also using for the catpured data
+    # This also means you have to validate both of them via parameters if you set that up.
     @{$query}{ keys( %{ $routes{$path}{'data'} } ) } = values( %{ $routes{$path}{'data'} } ) if ref $routes{$path}{'data'} eq 'HASH' && %{ $routes{$path}{'data'} };
 
     # Ensure any short-circuit routes can log the request, and return the server-timing headers properly
@@ -232,10 +232,10 @@ sub _app {
         );
     }
 
-	# If it's a file, just serve it
-    return Trog::FileHandler::serve( $fullpath, "www/$path",  $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "www/$path";
+    # If it's a file, just serve it
+    return Trog::FileHandler::serve( $fullpath, "www/$path", $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "www/$path";
 
-	# Figure out if we have a logged in user, so we can serve them user-specific files
+    # Figure out if we have a logged in user, so we can serve them user-specific files
     my $cookies = {};
     if ( $env->{HTTP_COOKIE} ) {
         $cookies = CGI::Cookie->parse( $env->{HTTP_COOKIE} );
@@ -250,7 +250,7 @@ sub _app {
 
     return Trog::FileHandler::serve( $fullpath, "totp/$path", $start, $streaming, \@ranges, $last_fetch, $deflate ) if -f "totp/$path" && $active_user;
 
-	# Now that we have firmed up the actual routing, let's validate.
+    # Now that we have firmed up the actual routing, let's validate.
     return _forbidden($query) if exists $routes{$path}{auth} && !$active_user;
     return _notfound($query) unless exists $routes{$path} && ref $routes{$path} eq 'HASH' && keys( %{ $routes{$path} } );
     return _badrequest($query) unless grep { $env->{REQUEST_METHOD} eq $_ } ( $routes{$path}{method} || '', 'HEAD' );
@@ -263,28 +263,30 @@ sub _app {
     # Set the urchin parameters if necessary.
     %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
 
-	# Now that we've parsed the query and know where we want to go, we should murder everything the route does not explicitly want, and validate what it does
-	my $parameters = $routes{$path}{parameters};
-	if ($parameters) {
-		die "invalid route definition for $path: bad parameters" unless is_hashref($parameters);
-		my @known_params = keys(%$parameters);
-		for my $param (@known_params) {
-			die "Invalid route definition for $path: parameter $param must correspond to a validation CODEREF." unless is_coderef($parameters->{$param});
-			# A missing parameter is not necessarily a problem.
-			next unless $query->{$param};
-			# But if we have it, and it's bad, nack it, so that scanners get fail2banned.
-			DEBUG("Rejected $fullpath for bad query param $param");
-			return _badrequest($query) unless $parameters->{$param}->($query->{$param});
-		}
+    # Now that we've parsed the query and know where we want to go, we should murder everything the route does not explicitly want, and validate what it does
+    my $parameters = $routes{$path}{parameters};
+    if ($parameters) {
+        die "invalid route definition for $path: bad parameters" unless is_hashref($parameters);
+        my @known_params = keys(%$parameters);
+        for my $param (@known_params) {
+            die "Invalid route definition for $path: parameter $param must correspond to a validation CODEREF." unless is_coderef( $parameters->{$param} );
 
-		# Smack down passing of unnecessary fields
-		foreach my $field (keys(%$query)) {
-			next if List::Util::any { $field eq $_ } @known_params;
-			next if List::Util::any { $field eq $_ } qw{start route streaming method fullpath};
-			DEBUG("Rejected $fullpath for query param $field");
-			return _badrequest($query);
-		}
-	}
+            # A missing parameter is not necessarily a problem.
+            next unless $query->{$param};
+
+            # But if we have it, and it's bad, nack it, so that scanners get fail2banned.
+            DEBUG("Rejected $fullpath for bad query param $param");
+            return _badrequest($query) unless $parameters->{$param}->( $query->{$param} );
+        }
+
+        # Smack down passing of unnecessary fields
+        foreach my $field ( keys(%$query) ) {
+            next if List::Util::any { $field eq $_ } @known_params;
+            next if List::Util::any { $field eq $_ } qw{start route streaming method fullpath};
+            DEBUG("Rejected $fullpath for query param $field");
+            return _badrequest($query);
+        }
+    }
 
     # Let's open up our default route before we bother thinking about routing any harder
     return $routes{default}{callback}->($query) unless -f "config/setup";
@@ -306,8 +308,8 @@ sub _app {
         return _static( $fullpath, $path,     $start, $streaming ) if -f "www/statics/$path";
     }
 
-    $query->{deflate}  = $deflate;
-    $query->{user}     = $active_user;
+    $query->{deflate} = $deflate;
+    $query->{user}    = $active_user;
 
     #Set various things we don't want overridden
     $query->{body}         = '';
@@ -327,6 +329,7 @@ sub _app {
     $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
 
     DEBUG("DISPATCH $path to $routes{$path}{callback}");
+
     #XXX there is a trick to now use strict refs, but I don't remember it right at the moment
     {
         no strict 'refs';
@@ -344,16 +347,16 @@ sub _app {
 }
 
 #XXX Return a clone of the routing table ref, because code modifies it later
-sub _routes ($data={}) {
+sub _routes ( $data = {} ) {
     state %routes;
-    return clone(\%routes) if %routes;
+    return clone( \%routes ) if %routes;
 
-    if (!$data) {
+    if ( !$data ) {
         my $conf = Trog::Config::get();
-        $data    = Trog::Data->new($conf);
+        $data = Trog::Data->new($conf);
     }
     my %roots = $data->routes();
-    %routes = %Trog::Routes::HTML::routes;
+    %routes                                      = %Trog::Routes::HTML::routes;
     @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
     @routes{ keys(%roots) }                      = values(%roots);
 
@@ -364,7 +367,7 @@ sub _routes ($data={}) {
         callback => \&robots,
     };
 
-    return clone(\%routes);
+    return clone( \%routes );
 }
 
 =head2 robots
