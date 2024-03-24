@@ -22,6 +22,7 @@ install:
 service-user:
 	sudo useradd -MU -s /sbin/nologin -d "$(shell pwd)" $(USER_NAME); /bin/true
 	sudo chown -R $(USER_NAME):$(USER_NAME) .
+	# Can be 760 if you aren't using git features as a developer user that is not the system user.
 	sudo chmod -R 0770 .
 	# For some reason, nginx needs world readability to see the socket, despite having group permissions.
 	# Seems pretty dumb to me, but whatever.  We are locking every single other file away from it & other users.

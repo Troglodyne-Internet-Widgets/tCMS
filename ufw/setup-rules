@@ -31,6 +31,11 @@ foreach my $app (@apps) {
     );
 }
 
+# Allow outgoing DNS queries and SSH connections.
+# This allows for management of the box via git.
+push(@rules, qw{allow out 22/tcp});
+push(@rules, qw{allow out 53/udp});
+
 @rules = map { unshift(@{$_}, '--dry-run'); $_ } @rules if $DRY_RUN;
 @rules = map { unshift(@{$_}, 'ufw'); $_ } @rules;
 
