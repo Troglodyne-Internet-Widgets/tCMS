@@ -17,15 +17,23 @@ install:
 	test -d logs/ && mkdir -p logs/; /bin/true
 	$(RM) pod2htmd.tmp;
 
+.PHONY: service-user
+service-user:
+	sudo useradd -MU -s /sbin/nologin -d "$(shell pwd)" $(SERVER_NAME); /bin/true
+	sudo chown -R $(SERVER_NAME):$(SERVER_NAME) .
+	sudo chmod -R 0770 .
+	sudo chown -R $(SERVER_NAME):www-data run
+	#sudo chmod -R 0770 bin/ run/ tcms www/server.psgi
+
 .PHONY: install-service
-install-service:
-	mkdir -p ~/.config/systemd/user
-	cp service-files/systemd.unit ~/.config/systemd/user/tCMS.service
-	sed -ie 's#__REPLACEME__#$(shell pwd)#g' ~/.config/systemd/user/tCMS.service
-	systemctl --user daemon-reload
-	systemctl --user enable tCMS
-	systemctl --user start tCMS
-	loginctl enable-linger $(USER)
+install-service: service-user
+	cp service-files/systemd.unit service-files/$(SERVER_NAME).service
+	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' service-files/$(SERVER_NAME).service
+	sed -i 's#__REPLACEME__#$(shell pwd)#g' service-files/$(SERVER_NAME).service
+	sudo ln -sr service-files/$(SERVER_NAME).service /usr/lib/systemd/system/$(SERVER_NAME).service
+	sudo systemctl daemon-reload
+	sudo systemctl enable $(SERVER_NAME)
+	sudo systemctl start $(SERVER_NAME)
 
 .PHONY: prereq-debian
 prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
@@ -81,11 +89,11 @@ reset-remove:
 fail2ban:
 	cp fail2ban/tcms-jail.tmpl fail2ban/tcms-jail.conf
 	sed -i 's#__LOGDIR__#$(shell pwd)#g' fail2ban/tcms-jail.conf
-	sed -i 's#__DOMAIN__#$(shell bin/tcms-hostname)#g' fail2ban/tcms-jail.conf
-	sudo rm /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf; /bin/true
-	sudo rm /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf; /bin/true
-	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf
-	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf
+	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' fail2ban/tcms-jail.conf
+	sudo rm /etc/fail2ban/jail.d/$(SERVER_NAME).conf; /bin/true
+	sudo rm /etc/fail2ban/filter.d/$(SERVER_NAME).conf; /bin/true
+	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/$(SERVER_NAME).conf
+	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/$(SERVER_NAME).conf
 	sudo systemctl reload fail2ban
 
 .PHONY: nginx
