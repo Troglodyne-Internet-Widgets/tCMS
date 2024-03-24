@@ -1,5 +1,8 @@
 #!/bin/bash
+USERNAME=$(bin/tcms-hostname --user)
+echo "tCMS running as user $USERNAME"
 [[ -e run/tcms.pid ]] && pkill -F run/tcms.pid
-sudo www/server.psgi --listen run/tcms.sock --workers 20 --group www-data --user "$USER" --daemonize --pid run/tcms.pid --chroot $(pwd)
+sudo www/server.psgi --listen run/tcms.sock --workers 20 --group www-data --user "$USERNAME" --daemonize --pid run/tcms.pid --chroot $(pwd)
+#sudo chown $USERNAME:www-data run/tcms.sock
 sudo chmod 0770 run/tcms.sock
 echo "tCMS running as PID "`cat run/tcms.pid`
