@@ -37,3 +37,4 @@ dns/default.zone
 dns/default.zone.sql
 *-shm
 *-wal
+service-files/*.service
