@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 SERVER_NAME := $(shell bin/tcms-hostname)
+USER_NAME   := $(shell bin/tcms-hostname --user)
 
 .PHONY: depend
 depend:
@@ -19,16 +20,21 @@ install:
 
 .PHONY: service-user
 service-user:
-	sudo useradd -MU -s /sbin/nologin -d "$(shell pwd)" $(SERVER_NAME); /bin/true
-	sudo chown -R $(SERVER_NAME):$(SERVER_NAME) .
+	sudo useradd -MU -s /sbin/nologin -d "$(shell pwd)" $(USER_NAME); /bin/true
+	sudo chown -R $(USER_NAME):$(USER_NAME) .
 	sudo chmod -R 0770 .
-	sudo chown -R $(SERVER_NAME):www-data run
-	#sudo chmod -R 0770 bin/ run/ tcms www/server.psgi
+	# For some reason, nginx needs world readability to see the socket, despite having group permissions.
+	# Seems pretty dumb to me, but whatever.  We are locking every single other file away from it & other users.
+	sudo chmod 0755 .
+	sudo chmod 0775 run
+	sudo chown -R $(USER_NAME):www-data run
+	sudo chmod -R 0770 bin/ tcms www/server.psgi
 
 .PHONY: install-service
 install-service: service-user
 	cp service-files/systemd.unit service-files/$(SERVER_NAME).service
 	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' service-files/$(SERVER_NAME).service
+	sed -i 's#__USER__#$(USER_NAME)#g' service-files/$(SERVER_NAME).service
 	sed -i 's#__REPLACEME__#$(shell pwd)#g' service-files/$(SERVER_NAME).service
 	sudo ln -sr service-files/$(SERVER_NAME).service /usr/lib/systemd/system/$(SERVER_NAME).service
 	sudo systemctl daemon-reload
