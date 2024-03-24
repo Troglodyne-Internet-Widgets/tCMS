@@ -198,5 +198,12 @@ dns:
 	sudo service pdns enable
 	sudo service pdns start
 
+.PHONY: firewall
+firewall:
+	# Remove dopey unauthenticated port for git from /etc/services
+	sudo sed -i '/^git\s/d' /etc/services
+	sudo cp ufw/git ufw/pdns_server /etc/ufw/applications.d
+	sudo ufw/setup-rules
+
 .PHONY: all
-all: prereq-debian install fail2ban nginx mail
+all: prereq-debian install fail2ban nginx mail firewall

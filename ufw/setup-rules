@@ -10,7 +10,7 @@ my $DRY_RUN = $ARGV[0] ? 1 : 0;
 # Build rules, apply rules.
 
 # Enable every available service.
-# Don't use tCMS on hosts that do anything else with.
+# Don't use tCMS on hosts that do anything else.
 my $list = qx{ufw app list};
 my @apps = split(/\n/, $list);
 shift @apps;
@@ -18,6 +18,7 @@ shift @apps;
 
 # Sane defaults
 my @rules = (
+    [qw{reset}],
     [qw{enable}],
     [qw{default deny outgoing}],
     [qw{default deny incoming}],
@@ -26,20 +27,13 @@ my @rules = (
 # Allow, but rate limit
 foreach my $app (@apps) {
     push(@rules,
-        ["allow", $app],
-        ["limit", $app],
+        ["limit", "in", $app],
+        ["allow", "out", $app],
     );
 }
 
-# Allow outgoing DNS queries and SSH connections.
-# This allows for management of the box via git.
-push(@rules, qw{allow out 22/tcp});
-push(@rules, qw{allow out 53/udp});
-
 @rules = map { unshift(@{$_}, '--dry-run'); $_ } @rules if $DRY_RUN;
 @rules = map { unshift(@{$_}, 'ufw'); $_ } @rules;
-
-print Dumper(\@rules);
 
 foreach my $rule (@rules) {
     system(@$rule);
