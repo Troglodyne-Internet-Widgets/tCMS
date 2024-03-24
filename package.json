@@ -2,6 +2,9 @@
     "name": "tCMS",
     "version": "1.0.0",
     "dependencies": {
-        "juice": "^8.0.0"
+        "juice": "^8.0.0",
+        "uglify": "^0.1.5",
+        "uglify-js": "^3.18.0",
+        "uglifyjs": "^2.4.11"
     }
 }

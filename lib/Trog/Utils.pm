@@ -13,6 +13,7 @@ use Mojo::File;
 use File::LibMagic;
 use Ref::Util qw{is_hashref};
 
+use Trog::Autoreload;
 use Trog::Log qw{WARN};
 use Trog::Config();
 
@@ -31,8 +32,9 @@ sub strip_and_trunc ($s) {
 
 # Instruct the parent to restart.  Normally this is HUP, but nginx-unit decides to be special.
 # Don't do anything if running NOHUP=1, which is useful when doing bulk operations
-sub restart_parent {
+sub restart_parent ( $parent=undef ) {
     return if $ENV{NOHUP};
+
     if ( $ENV{PSGI_ENGINE} && $ENV{PSGI_ENGINE} eq 'nginx-unit' ) {
         my $conf         = Trog::Config->get();
         my $nginx_socket = $conf->param('nginx-unit.socket');
@@ -41,8 +43,14 @@ sub restart_parent {
         WARN("could not reload application (got $res->{status} from nginx-unit)!") unless $res->{status} == 200;
         return 1;
     }
-    my $parent = getppid;
+    $parent //= getppid;
     kill 'HUP', $parent;
+
+    # Restart the monitor if it is lurking
+    my $monitor_pid = Trog::Autoreload::monitor_pid();
+    if ($monitor_pid) {
+        kill 'HUP', $monitor_pid;
+    }
 }
 
 sub uuid {

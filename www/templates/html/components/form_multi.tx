@@ -1,0 +1,22 @@
+Pages:<br />
+<select class="cooltext" multiple name="data" id="<: $post.id :>-pages" style="display:none;" >
+    : for $post.data -> $page {
+        <option value="<: $page :>" selected id="<: $post.id :>-<: $~page :>-page-option">Page <: $~page :></option>
+    : }
+</select>
+<div id="content-pages-<: $post.id :>">
+: for $post.data -> $data {
+Page <: $~data :><button type="button" class="coolbutton emojiPicker">😎</button>:
+<br /><textarea class="cooltext data-page" id="<: $post.id :>-<: $~data :>-page" placeholder="Potzrebie"><: $data :></textarea>
+: }
+</div>
+<button style="float:right;" onclick="addPage('<: $post.id :>'); return false;" class="coolbutton" >New Page</button>
+
+<input type="hidden" name="app" value="<: $app :>" />
+<input type="hidden" name="to"  value="<: $route :>" />
+: if ( $post.id ) {
+<input type="hidden" name="id" value="<: $post.id :>" />
+: }
+<input type="hidden" name="form" value="<: $post.form :>"></input>
+<input type="hidden" name="data_is_array" value="1"></input>
+<input class="coolbutton" type="submit" onclick="addAllPages('<: $post.id :>') && addAllAttachments('<: $post.id :>')" value="Publish" text="Publish" />

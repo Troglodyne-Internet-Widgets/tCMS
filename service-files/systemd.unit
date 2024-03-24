@@ -1,13 +1,16 @@
 [Unit]
-Description=tCMS
+Description=tCMS for __DOMAIN__
+Wants=multi-user.target
+After=multi-user.target
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 
 [Service]
-User=__DOMAIN__
-ExecStart=starman --listen __REPLACEME__/run/tcms.sock __REPLACEME__/www/server.psgi
-WorkingDirectory= __REPLACEME__/
+Type=forking
+PIDFile=__REPLACEME__/run/tcms.pid
+ExecStart=__REPLACEME__/tcms
+WorkingDirectory=__REPLACEME__/
 Restart=always
 OOMPolicy=stop
 ExecReload=kill -HUP $MAINPID

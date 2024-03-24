@@ -1,0 +1,9 @@
+Post Alias URLs:<br />
+<select class="cooltext" multiple name="aliases" id="<: $post.id :>-alias" >
+    : for $post.aliases -> $alias {
+        <option value="<: $alias :>" selected><: $alias :></option>
+    : }
+</select>
+Add Post Alias:<br />
+<input class="cooltext" type="text" id="<: $post.id :>-customalias" placeholder="/tickle" />
+<button style="float:right;" onclick="add2aliases('<: $post.id :>'); return false;" class="coolbutton" >Add</button>

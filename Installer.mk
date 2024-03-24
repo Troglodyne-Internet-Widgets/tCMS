@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 SERVER_NAME := $(shell bin/tcms-hostname)
+USER_NAME   := $(shell bin/tcms-hostname --user)
 
 .PHONY: depend
 depend:
@@ -17,15 +18,33 @@ install:
 	test -d logs/ && mkdir -p logs/; /bin/true
 	$(RM) pod2htmd.tmp;
 
+.PHONY: service-user
+service-user:
+	sudo useradd -MU -s /sbin/nologin -d "$(shell pwd)" $(USER_NAME); /bin/true
+	sudo chown -R $(USER_NAME):$(USER_NAME) .
+	# Can be 760 if you aren't using git features as a developer user that is not the system user.
+	sudo chmod -R 0770 .
+	# For some reason, nginx needs world readability to see the socket, despite having group permissions.
+	# Seems pretty dumb to me, but whatever.  We are locking every single other file away from it & other users.
+	sudo chmod 0755 .
+	sudo chmod 0775 run
+	sudo chown -R $(USER_NAME):www-data run
+	sudo chmod -R 0770 bin/ tcms www/server.psgi
+	sudo -u $(USER_NAME) mkdir 0700 .ssh
+	sudo -u $(USER_NAME) touch .ssh/authorized_keys
+	sudo -u $(USER_NAME) chmod 0600 .ssh/authorized_keys
+
 .PHONY: install-service
-install-service:
-	mkdir -p ~/.config/systemd/user
-	cp service-files/systemd.unit ~/.config/systemd/user/tCMS.service
-	sed -ie 's#__REPLACEME__#$(shell pwd)#g' ~/.config/systemd/user/tCMS.service
-	systemctl --user daemon-reload
-	systemctl --user enable tCMS
-	systemctl --user start tCMS
-	loginctl enable-linger $(USER)
+install-service: #service-user
+	sudo systemctl disable $(SERVER_NAME); /bin/true
+	cp service-files/systemd.unit service-files/$(SERVER_NAME).service
+	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' service-files/$(SERVER_NAME).service
+	sed -i 's#__USER__#$(USER_NAME)#g' service-files/$(SERVER_NAME).service
+	sed -i 's#__REPLACEME__#$(shell pwd)#g' service-files/$(SERVER_NAME).service
+	sudo ln -sr service-files/$(SERVER_NAME).service /usr/lib/systemd/system/$(SERVER_NAME).service; /bin/true
+	sudo systemctl daemon-reload
+	sudo systemctl enable $(SERVER_NAME)
+	sudo systemctl start $(SERVER_NAME)
 
 .PHONY: prereq-debian
 prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
@@ -57,12 +76,13 @@ prereq-frontend:
 		"https://raw.githubusercontent.com/chalda-pnuzig/emojis.json/master/dist/list.min.json" \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js" \
 		"https://cdn.jsdelivr.net/npm/chart.js" \
-		"https://github.com/hakimel/reveal.js/blob/master/dist/reveal.js"; popd
+		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.js"; popd
 	mkdir -p www/styles; pushd www/styles && curl -L --remote-name-all \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css" \
 	    "https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.css" \
 		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/theme/white.css"; popd
 	mv www/styles/white.css www/styles/reveal-white.css
+	sed -i 's/Source Sans Pro,//g' www/styles/reveal-white.css
 
 .PHONY: reset
 reset: reset-remove install
@@ -81,11 +101,11 @@ reset-remove:
 fail2ban:
 	cp fail2ban/tcms-jail.tmpl fail2ban/tcms-jail.conf
 	sed -i 's#__LOGDIR__#$(shell pwd)#g' fail2ban/tcms-jail.conf
-	sed -i 's#__DOMAIN__#$(shell bin/tcms-hostname)#g' fail2ban/tcms-jail.conf
-	sudo rm /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf; /bin/true
-	sudo rm /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf; /bin/true
-	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/$(shell bin/tcms-hostname).conf
-	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/$(shell bin/tcms-hostname).conf
+	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' fail2ban/tcms-jail.conf
+	sudo rm /etc/fail2ban/jail.d/$(SERVER_NAME).conf; /bin/true
+	sudo rm /etc/fail2ban/filter.d/$(SERVER_NAME).conf; /bin/true
+	sudo ln -sr fail2ban/tcms-jail.conf   /etc/fail2ban/jail.d/$(SERVER_NAME).conf
+	sudo ln -sr fail2ban/tcms-filter.conf /etc/fail2ban/filter.d/$(SERVER_NAME).conf
 	sudo systemctl reload fail2ban
 
 .PHONY: nginx
@@ -95,7 +115,7 @@ nginx:
 	sed 's/\%SERVER_SOCK\%/$(shell pwd)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
 	mkdir run
-	chown $(USER):www-data run
+	chown $(USER_NAME):www-data run
 	chmod 0770 run
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
@@ -180,8 +200,10 @@ dns:
 	# Don't need no bind
 	[[ -e /etc/powerdns/pdns.d/bind.conf ]] && sudo rm /etc/powerdns/pdns.d/bind.conf
 	# Fix broken service configuration
-	sudo bin/configure_pdns
-	sudo cp dns/10-powerdns.conf /etc/rsyslog.d/10-powerdns.conf 
+	sudo dns/configure_pdns
+	sudo chown $(USER_NAME):pdns dns/
+	sudo chown $(USER_NAME):pdns dns/zones.db
+	sudo cp dns/10-powerdns.conf /etc/rsyslog.d/10-powerdns.conf
 	sudo systemctl daemon-reload
 	sudo service rsyslog restart
 	sudo service pdns enable
@@ -191,5 +213,12 @@ dns:
 githook:
 	cp git-hooks/pre-commit .git/hooks
 
+.PHONY: firewall
+firewall:
+	# Remove dopey unauthenticated port for git from /etc/services
+	sudo sed -i '/^git\s/d' /etc/services
+	sudo cp ufw/git ufw/pdns_server /etc/ufw/applications.d
+	sudo ufw/setup-rules
+
 .PHONY: all
-all: prereq-debian install fail2ban nginx mail dns githook
+all: prereq-debian install fail2ban nginx mail dns firewall githook

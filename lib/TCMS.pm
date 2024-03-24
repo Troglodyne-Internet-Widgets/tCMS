@@ -71,7 +71,6 @@ sub _app {
     # Make sure all writes are with the proper permissions, none need know of our love
     umask 0077;
 
-    INFO("TCMS starting up on PID $MASTER_PID, Worker PID $$");
     # Start the server timing clock
     my $start = [gettimeofday];
 
@@ -89,6 +88,8 @@ sub _app {
 
     # Setup logging
     log_init();
+    INFO("tCMS worker starting on pid $$");
+
     my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
 
@@ -123,7 +124,7 @@ sub _app {
     # Check eTags.  If we don't know about it, just assume it's good and lazily fill the cache
     # XXX yes, this allows cache poisoning...but only for logged in users!
     if ( $env->{HTTP_IF_NONE_MATCH} ) {
-        INFO("$env->{REQUEST_METHOD} 304 $fullpath");
+        INFO("$env->{REQUEST_METHOD} 304 0 $fullpath");
         return [ 304, [], [''] ] if $env->{HTTP_IF_NONE_MATCH} eq ( $etags{ $env->{REQUEST_URI} } || '' );
         $etags{ $env->{REQUEST_URI} } = $env->{HTTP_IF_NONE_MATCH} unless exists $etags{ $env->{REQUEST_URI} };
     }
@@ -341,7 +342,9 @@ sub _app {
         die "$path returned no data!" unless ref $output eq 'ARRAY' && @$output == 3;
 
         my $pport = defined $query->{port} ? ":$query->{port}" : "";
-        INFO("$env->{REQUEST_METHOD} $output->[0] $fullpath");
+        my %headers = @{$output->[1]};
+        my $bytes = $headers{'Content-Length'};
+        INFO("$env->{REQUEST_METHOD} $output->[0] $bytes $fullpath");
 
         # Append server-timing headers if they aren't present
         my $tot = tv_interval($start) * 1000;
@@ -414,30 +417,31 @@ sub _generic ( $type, $query ) {
     return $lookup{$type}->($query);
 }
 
+# TODO: we need a better linkage between bytes and the message actually sent
 sub _notfound ($query) {
-    INFO("$query->{method} 404 $query->{fullpath}");
+    INFO("$query->{method} 404 33 $query->{fullpath}");
     return _generic( 'notfound', $query );
 }
 
 sub _forbidden ($query) {
-    INFO("$query->{method} 403 $query->{fullpath}");
+    INFO("$query->{method} 403 23 $query->{fullpath}");
     return _generic( 'forbidden', $query );
 }
 
 sub _badrequest ($query) {
-    INFO("$query->{method} 400 $query->{fullpath}");
+    INFO("$query->{method} 400 11 $query->{fullpath}");
     return _generic( 'badrequest', $query );
 }
 
 sub _toolong ($query) {
-    INFO("$query->{method} 419 $query->{fullpath}");
+    INFO("$query->{method} 419 12 $query->{fullpath}");
     return _generic( 'toolong', {} );
 }
 
 sub _error ($query) {
     $query->{method}   //= "UNKNOWN";
     $query->{fullpath} //= $query->{route} // '/?';
-    INFO("$query->{method} 500 $query->{fullpath}");
+    INFO("$query->{method} 500 21 $query->{fullpath}");
     return _generic( 'error', $query );
 }
 
@@ -471,7 +475,7 @@ sub _static ( $fullpath, $path, $start, $streaming, $last_fetch = 0 ) {
         # starman by comparison doesn't violate the principle of least astonishment here.
         # This is probably a performance optimization, but makes the kind of micromanagement I need to do inconvenient.
         # As such, we will just return a stream.
-        INFO("GET 200 $fullpath");
+        INFO("GET 200 $headers_parsed->{'Content-Length'} $fullpath");
 
         return sub {
             my $responder = shift;
@@ -488,7 +492,7 @@ sub _static ( $fullpath, $path, $start, $streaming, $last_fetch = 0 ) {
 
         return [ $code, [%$headers_parsed], $fh ];
     }
-    INFO("GET 403 $fullpath");
+    INFO("GET 403 23 $fullpath");
     return [ 403, [ 'Content-Type' => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 

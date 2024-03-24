@@ -40,3 +40,16 @@ dns/default.zone
 dns/default.zone.sql
 *-shm
 *-wal
+service-files/*.service
+.ssh/*
+.bash_profile
+.bash_history
+.bashrc
+.cache/
+.gitconfig
+.viminfo
+.vimrc
+.tmux.conf
+.tig_history
+.sqlite_history
+.xslate_cache

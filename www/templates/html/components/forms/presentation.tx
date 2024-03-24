@@ -3,36 +3,59 @@
         : include "post_title.tx";
         : include "post_tags.tx";
 
+        : if ( !$nochrome ) {
         : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
             <img src="<: $post.preview :>" class="responsive-img" />
         : }
+        : }
 
-
+        :if ($nochrome) {
+        <style>
+            .postData {
+                margin-top:0px;
+            }
+            .responsive-text {
+                max-width:100vw !important;
+            }
+            .post {
+                height:100vh;
+            }
+        </style>
     	<div class="reveal postData responsive-text" id="postData-<: $post.id :>">
       		<div class="slides">
-      			<: for $post.data -> slide { :>
+      			<: for $post.data -> $slide { :>
       				<section>
                         <: render_it($slide) | mark_raw  :>
                     </section>
       			<: } :>
       		</div>
     	</div>
-    	<script src="scripts/reveal.js"></script>
+    	<script src="/scripts/reveal.js"></script>
     	<script>
-      		Reveal.initialize();
+      		Reveal.initialize({
+                hash:true,
+                embed:true
+            });
     	</script>
+        : } else {
+            <br />
+            <a href="/posts/<: $post.id :>?embed=1&nochrome=1">Click Here to view</a>
+        : }
     : }
 
-    : if ( $can_edit ) {
+    : if ( $can_edit && !$nochrome ) {
         <div class="postedit">
         : include "edit_head.tx";
         <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
             Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
             : include "preview.tx";
+            Video<br /><input class="cooltext" type="url" name="video_href" placeholder="https://youvimeo.tv/infomercial.mp4" value="<: $post.video_href :>" />
+            : include "attachments.tx";
             : include "visibility.tx";
             : include "acls.tx";
             : include "tags.tx";
-            : include "form_common.tx";
+            : include "aliases.tx"
+            : include "form_multi.tx";
         </form>
         : include "edit_foot.tx";
         </div>

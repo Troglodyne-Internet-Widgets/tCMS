@@ -1,7 +1,7 @@
 <: $header | mark_raw :>
-:if ($embed_video) {
+:if ($embed_video || $nochrome) {
 <style>
-.divider, .blogtitles, #postData {
+.divider, .blogtitles, #postData, .post-tags {
     display:none;
 }
 video {
@@ -11,11 +11,11 @@ video {
 </style>
 : }
 
-: if (!$embed_video) {
+: if (!$embed_video && !$nochrome) {
 <div id="kontent" class="kontained">
 : }
     <: $content | mark_raw :>
-: if (!$embed_video) {
+: if (!$embed_video && !$nochrome) {
 </div>
 : }
 <: $footer | mark_raw :>

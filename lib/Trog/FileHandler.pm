@@ -26,7 +26,6 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
 
     my $ct      = 'Content-type';
     my @headers = ( $ct => $ft );
-    DEBUG("$ct : $ft");
 
     #TODO use static Cache-Control for everything but JS/CSS?
     push( @headers, 'Cache-control' => $Trog::Vars::cache_control{revalidate} );
@@ -61,6 +60,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
         #Return data in the event the caller does not support deflate
         if ( !$deflate ) {
             push( @headers, "Content-Length" => $sz );
+            INFO("GET 200 $sz $fullpath");
 
             # Append server-timing headers
             my $tot = tv_interval($start) * 1000;
@@ -76,7 +76,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
         print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
         push( @headers, "Content-Length" => length($dfh) );
 
-        INFO("GET 200 $fullpath");
+        INFO("GET 200 ".length($dfh)." $fullpath");
 
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
@@ -85,7 +85,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
         return [ $code, \@headers, [$dfh] ];
     }
 
-    INFO("GET 403 $fullpath");
+    INFO("GET 403 23 $fullpath");
     return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 
@@ -104,7 +104,7 @@ sub _range ( $fullpath, $fh, $ranges, $sz, %headers ) {
     # Calculate the content-length up-front.  We have to fix unspecified lengths first, and reject bad requests.
     foreach my $range (@$ranges) {
         $range->[1] //= $sz - 1;
-        INFO("GET 416 $fullpath");
+        INFO("GET 416 31 $fullpath");
         return [ 416, [%headers], ["Requested range not satisfiable"] ] if $range->[0] > $sz || $range->[0] < 0 || $range->[1] < 0 || $range->[0] > $range->[1];
     }
     $headers{'Content-Length'} = List::Util::sum( map { my $arr = $_; $arr->[1] + 1, -$arr->[0] } @$ranges );
@@ -119,6 +119,7 @@ sub _range ( $fullpath, $fh, $ranges, $sz, %headers ) {
         $fc = '';
     }
 
+    #TODO log these requests with their length correctly
     return sub {
         my $responder = shift;
         my $writer;

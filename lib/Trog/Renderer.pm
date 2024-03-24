@@ -89,7 +89,8 @@ sub _yeet ( $renderer, $error, %options ) {
     } or do {
         my $msg = $error;
         $msg .= " and subsequently during render of error template, $@" if $renderer;
-        INFO("$options{data}{method} 500 $options{data}{route}");
+        #XXX bytes is probably not correct here
+        INFO("$options{data}{method} 500 ".length($msg)." $options{data}{route}");
         FATAL($msg);
     };
     return $ret;

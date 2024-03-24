@@ -13,16 +13,28 @@ Deployment is currently:
 Then:
 * open tmux or screen
 * `sudo ./tcms`
-OR (if you want tCMS as a systemd service for the current user):
-* `make install-service`
+OR (if you want tCMS as a systemd service for production/preproduction contexts):
+* `make -f Installer.mk all`
 
 This sets up nginx, reverse proxy and SSL certs for you.
-You must set up the user which runs tCMS to have the primary group www-data if you want to be able to run without sudo or run as a usermode service.
+It also sets up the mailserver and DNS for you via pdns.
+
 It is strongly suggested that you chmod everything but the run/ directory to be 0700, particularly in a shared environment.
 
-It also sets up the mailserver and DNS for you.
+## Administration/Development
 
-You should add the pdns group to the user you use to run tCMS, so that the zone management features will work.
+Administrating the server should in general be done via the system user we setup which will be the domain setup with `tcms-hostname` with dots replaced with dashes.
+Slap in the authorized public key to .ssh/authorized\_keys, as this is the system user's homedir.
+From there you'll need to `sudo chsh -s /bin/bash $system_user_name` to allow logging in remotely.
+In production you should probably leave things nologin, and instead sudo into the user for shells from an administrator account.
+
+The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
+
+Rate-Limiting is expected to be handled at the level of the webserver proxying requests to this application.
+See ufw/setup-rules as an example of the easy way to setup rules/limiting for all the services you need to run tCMS.
+
+Containerization
+====================
 
 A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
 ```
@@ -34,11 +46,6 @@ A Dockerfile and deployment scripts are provided for your convenience in buildin
 ./docker-exfil.sh
 ```
 There is also podman container code; see images/README.md
-
-The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
-
-Rate-Limiting is expected to be handled at the level of the webserver proxying requests to this application.
-See ufw/setup-rules as an example of the easy way to setup rules/limiting for all the services you need to run tCMS.
 
 Migration of tCMS1 sites
 =========================
@@ -90,14 +97,6 @@ Data Models
 Planned Development:
 * Elasticsearch - Documents are ideally indexed in a search engine, should be nice and fast too.
 * Git - More for the APE crossover
-
-Supported PSGI servers
-======================
-
-Starman and uWSGI
-
-In production, I would expect you to run under uWSGI, and the `tcms-uwsgi` command in the TLD runs this.
-Otherwise, you can run `tcms` to start starman normally.
 
 Ideas to come:
 =============
