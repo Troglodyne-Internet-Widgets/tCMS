@@ -32,12 +32,13 @@ service-user:
 	sudo chmod -R 0770 bin/ tcms www/server.psgi
 
 .PHONY: install-service
-install-service: service-user
+install-service: #service-user
+	sudo systemctl disable $(SERVER_NAME); /bin/true
 	cp service-files/systemd.unit service-files/$(SERVER_NAME).service
 	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' service-files/$(SERVER_NAME).service
 	sed -i 's#__USER__#$(USER_NAME)#g' service-files/$(SERVER_NAME).service
 	sed -i 's#__REPLACEME__#$(shell pwd)#g' service-files/$(SERVER_NAME).service
-	sudo ln -sr service-files/$(SERVER_NAME).service /usr/lib/systemd/system/$(SERVER_NAME).service
+	sudo ln -sr service-files/$(SERVER_NAME).service /usr/lib/systemd/system/$(SERVER_NAME).service; /bin/true
 	sudo systemctl daemon-reload
 	sudo systemctl enable $(SERVER_NAME)
 	sudo systemctl start $(SERVER_NAME)
