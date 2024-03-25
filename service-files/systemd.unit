@@ -8,9 +8,8 @@ WantedBy=multi-user.target
 
 [Service]
 Type=forking
-PIDFile="__REPLACEME/run/tcms.pid"
-ExecStart=__REPLACEME__/www/server.psgi --workers 20 --group www-data --user "__USER__" --daemonize --pid "__REPLACEME__/run/tcms.pid" --chroot "__REPLACEME__"
-ExecStartPost=chmod 0770 "__REPLACEME__/run/tcms.sock"
+PIDFile=__REPLACEME__/run/tcms.pid
+ExecStart=__REPLACEME__/tcms
 WorkingDirectory=__REPLACEME__/
 Restart=always
 OOMPolicy=stop
