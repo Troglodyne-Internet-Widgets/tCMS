@@ -38,6 +38,8 @@ use Trog::Data;
 use Trog::Vars;
 use Trog::FileHandler;
 
+our $MASTER_PID;
+
 # Troglodyne philosophy - simple as possible
 
 # Wrap app to return *our* error handler instead of Plack::Util::run_app's

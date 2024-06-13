@@ -3,6 +3,7 @@ package Trog::Autoreload;
 use strict;
 use warnings;
 
+no warnings qw{experimental};
 use feature qw{signatures};
 
 use Linux::Perl::inotify;
@@ -34,3 +35,5 @@ sub _readdir ( $dir ) {
     closedir($dh);
     return @dirs;
 }
+
+1;

@@ -8,7 +8,7 @@ use FindBin::libs;
 use TCMS;
 use Trog::Autoreload;
 
-our $MASTER_PID = $$;
+$TCMS::MASTER_PID = $$;
 
 $ENV{PSGI_ENGINE} //= 'starman';
 
