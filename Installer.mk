@@ -114,7 +114,7 @@ nginx:
 	sed 's/\%SERVER_SOCK\%/$(shell pwd)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
 	mkdir run
-	chown $(USER):www-data run
+	chown $(USER_NAME):www-data run
 	chmod 0770 run
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
 	sudo mkdir -p '/var/www/mail.$(SERVER_NAME)'
@@ -199,8 +199,9 @@ dns:
 	# Don't need no bind
 	[[ -e /etc/powerdns/pdns.d/bind.conf ]] && sudo rm /etc/powerdns/pdns.d/bind.conf
 	# Fix broken service configuration
-	sudo bin/configure_pdns
-	sudo cp dns/10-powerdns.conf /etc/rsyslog.d/10-powerdns.conf 
+	sudo chown $(USER_NAME):pdns dns/
+	sudo chown $(USER_NAME):pdns dns/zones.db
+	sudo cp dns/10-powerdns.conf /etc/rsyslog.d/10-powerdns.conf
 	sudo systemctl daemon-reload
 	sudo service rsyslog restart
 	sudo service pdns enable
