@@ -1,4 +1,0 @@
-[git]
-title=Git SCM
-description=Git Source Control Manager
-ports=53|22/tcp

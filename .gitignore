@@ -42,3 +42,11 @@ dns/default.zone.sql
 *-wal
 service-files/*.service
 .ssh/*
+.bash_profile
+.bash_history
+.bashrc
+.cache/
+.gitconfig
+.viminfo
+.vimrc
+.tmux.conf

@@ -6,12 +6,6 @@ use warnings;
 use FindBin::libs;
 
 use Trog::Config();
-use Getopt::Long qw{GetOptionsFromArray};
-
-my $user;
-GetOptionsFromArray(\@ARGV,
-    'user' => \$user,
-);
 
 my $hostname = $ARGV[0];
 
@@ -23,11 +17,5 @@ if ($hostname) {
 
 my $domain = $conf->param('general.hostname');
 die "Hostname not set in tCMS configuration.  Please set this first by passing the hostname to bin/tcms-hostname." unless $domain;
-
-# Transform the domain name into something maximally compatible with being a username.
-if ($user) {
-    $domain = substr($domain, 0, 32);
-    $domain =~ s/\./-/g;
-}
 
 print "$domain\n";

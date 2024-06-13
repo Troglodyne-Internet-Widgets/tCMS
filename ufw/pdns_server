@@ -1,4 +1,0 @@
-[pdns_server]
-title=PowerDNS Server
-description=A caching name server
-ports=53
