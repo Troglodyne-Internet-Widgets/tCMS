@@ -30,6 +30,9 @@ service-user:
 	sudo chmod 0775 run
 	sudo chown -R $(USER_NAME):www-data run
 	sudo chmod -R 0770 bin/ tcms www/server.psgi
+	sudo -u $(USER_NAME) mkdir 0700 .ssh
+	sudo -u $(USER_NAME) touch .ssh/authorized_keys
+	sudo -u $(USER_NAME) chmod 0600 .ssh/authorized_keys
 
 .PHONY: install-service
 install-service: #service-user
