@@ -1,0 +1,4 @@
+[git]
+title=Git SCM
+description=A distributed revision control system
+ports=53|22/tcp

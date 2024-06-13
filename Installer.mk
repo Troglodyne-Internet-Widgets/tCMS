@@ -199,6 +199,7 @@ dns:
 	# Don't need no bind
 	[[ -e /etc/powerdns/pdns.d/bind.conf ]] && sudo rm /etc/powerdns/pdns.d/bind.conf
 	# Fix broken service configuration
+	sudo dns/configure_pdns
 	sudo chown $(USER_NAME):pdns dns/
 	sudo chown $(USER_NAME):pdns dns/zones.db
 	sudo cp dns/10-powerdns.conf /etc/rsyslog.d/10-powerdns.conf
