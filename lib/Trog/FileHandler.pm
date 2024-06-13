@@ -7,19 +7,12 @@ no warnings 'experimental';
 use feature qw{signatures};
 
 use POSIX qw{strftime};
-use Mojo::File;
-use Plack::MIME;
 use IO::Compress::Gzip;
 use Time::HiRes qw{tv_interval};
 
 use Trog::Log qw{:all};
 use Trog::Vars;
-
-#TODO consider integrating libfile
-#Stuff that isn't in upstream finders
-my %extra_types = (
-    '.docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-);
+use Trog::Utils;
 
 =head2 serve
 
@@ -28,17 +21,12 @@ Serve a file, with options to stream and cache the output.
 =cut
 
 sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) {
-    my $mf  = Mojo::File->new($path);
-    my $ext = '.' . $mf->extname();
-    my $ft;
-    if ($ext) {
-        $ft = Plack::MIME->mime_type($ext) if $ext;
-        $ft ||= $extra_types{$ext} if exists $extra_types{$ext};
-    }
+    my $ft = Trog::Utils::mime_type($path);
     $ft ||= $Trog::Vars::content_types{text};
 
     my $ct      = 'Content-type';
     my @headers = ( $ct => $ft );
+    DEBUG("$ct : $ft");
 
     #TODO use static Cache-Control for everything but JS/CSS?
     push( @headers, 'Cache-control' => $Trog::Vars::cache_control{revalidate} );

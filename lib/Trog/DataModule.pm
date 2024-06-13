@@ -7,8 +7,6 @@ use FindBin::libs;
 
 use List::Util;
 use File::Copy;
-use Mojo::File;
-use Plack::MIME;
 use Path::Tiny();
 use Ref::Util();
 
@@ -52,12 +50,12 @@ sub new ( $class, $config ) {
 }
 
 #It is required that subclasses implement this
-sub lang ($self)                { ... }
-sub help ($self)                { ... }
-sub read ( $self, $query = {} ) { ... }
-sub write ($self)               { ... }
-sub count ($self)               { ... }
-sub tags ($self)                { ... }
+sub lang  ($self)                { ... }
+sub help  ($self)                { ... }
+sub read  ( $self, $query = {} ) { ... }
+sub write ($self)                { ... }
+sub count ($self)                { ... }
+sub tags  ($self)                { ... }
 
 =head1 METHODS
 
@@ -133,7 +131,7 @@ sub _fixup ( $self, @filtered ) {
 
         $subj->{method} = 'GET' unless exists( $subj->{method} );
 
-        $subj->{user_class} = Trog::Auth::username2classname($subj->{user});
+        $subj->{user_class} = Trog::Auth::username2classname( $subj->{user} );
         $subj
     } @filtered;
 
@@ -141,7 +139,7 @@ sub _fixup ( $self, @filtered ) {
 }
 
 sub _filter_param ( $query, $param, @filtered ) {
-    @filtered = grep { ( $_->{$param} || '') eq $query->{$param} } @filtered;
+    @filtered = grep { ( $_->{$param} || '' ) eq $query->{$param} } @filtered;
     @filtered = _dedup_versions( $query->{version}, @filtered );
     return @filtered;
 }
@@ -154,7 +152,7 @@ sub filter ( $self, $query, @filtered ) {
     # If an ID or title or acl is passed, just get that (and all it's prior versions)
     foreach my $key (qw{id title aclname}) {
         next unless $query->{$key};
-        return _filter_param( $query, $key, @filtered);
+        return _filter_param( $query, $key, @filtered );
     }
 
     @filtered = _dedup_versions( undef, @filtered );
@@ -176,7 +174,7 @@ sub filter ( $self, $query, @filtered ) {
         grep {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{tags} }
-          } @$tags
+        } @$tags
     } @filtered if @{ $query->{tags} };
 
     # Filter posts *matching* the passed exclude_tag(s), if any
@@ -185,7 +183,7 @@ sub filter ( $self, $query, @filtered ) {
         !grep {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{exclude_tags} }
-          } @$tags
+        } @$tags
     } @filtered if @{ $query->{exclude_tags} };
 
     # Filter posts without the proper ACLs
@@ -194,7 +192,7 @@ sub filter ( $self, $query, @filtered ) {
         grep {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{acls} }
-          } @$tags
+        } @$tags
     } @filtered unless grep { $_ eq 'admin' } @{ $query->{acls} };
 
     @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
@@ -406,7 +404,7 @@ sub _process ($post) {
     $post->{href}      = _handle_upload( $post->{file},           $post->{id} ) if $post->{file};
     $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id} ) if $post->{preview_file};
     $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id} ) if $post->{wallpaper_file};
-    $post->{preview} = $post->{href} if $post->{app} && $post->{app} eq 'image';
+    $post->{preview}   = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};
@@ -438,26 +436,14 @@ sub _process ($post) {
     @{ $post->{aliases} } = List::Util::uniq( @{ $post->{aliases} } );
 
     # Handle multimedia content types
-    if ( $post->{href} ) {
-        my $mf  = Mojo::File->new("www/$post->{href}");
-        my $ext = '.' . $mf->extname();
-        $post->{content_type} = Plack::MIME->mime_type($ext) if $ext;
-    }
-    if ( $post->{video_href} ) {
-        my $mf  = Mojo::File->new("www/$post->{video_href}");
-        my $ext = '.' . $mf->extname();
-        $post->{video_content_type} = Plack::MIME->mime_type($ext) if $ext;
-    }
-    if ( $post->{audio_href} ) {
-        my $mf  = Mojo::File->new("www/$post->{audio_href}");
-        my $ext = '.' . $mf->extname();
-        $post->{audio_content_type} = Plack::MIME->mime_type($ext) if $ext;
-    }
+    $post->{content_type}       = Trog::Utils::mime_type("www/$post->{href}")       if $post->{href};
+    $post->{video_content_type} = Trog::Utils::mime_type("www/$post->{video_href}") if $post->{video_href};
+    $post->{audio_content_type} = Trog::Utils::mime_type("www/$post->{audio_href}") if $post->{audio_href};
     $post->{content_type} ||= 'text/html';
 
-    $post->{is_video} = 1 if $post->{content_type} =~ m/^video\//;
-    $post->{is_audio} = 1 if $post->{content_type} =~ m/^audio\//;
-    $post->{is_image} = 1 if $post->{content_type} =~ m/^image\//;
+    $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
+    $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
+    $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
     $post->{is_profile} = 1 if grep { $_ eq 'about' } @{ $post->{tags} };
 
     return $post;

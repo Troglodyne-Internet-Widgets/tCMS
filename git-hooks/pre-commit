@@ -1,0 +1,14 @@
+#!/bin/sh
+
+to_tidy=$(git diff --cached --name-only  | egrep ".p[m|l]$")
+
+# Redirect output to stderr.
+exec 1>&2
+
+if [ $to_tidy  ]
+then
+    echo "Auto-tidying perl changes..."
+    perltidy -b $to_tidy
+    git add $to_tidy
+    echo "Done."
+fi

@@ -30,6 +30,9 @@ service-user:
 	sudo chmod 0775 run
 	sudo chown -R $(USER_NAME):www-data run
 	sudo chmod -R 0770 bin/ tcms www/server.psgi
+	sudo -u $(USER_NAME) mkdir 0700 .ssh
+	sudo -u $(USER_NAME) touch .ssh/authorized_keys
+	sudo -u $(USER_NAME) chmod 0600 .ssh/authorized_keys
 
 .PHONY: install-service
 install-service: #service-user
@@ -57,7 +60,7 @@ prereq-debs:
 	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl uuid-dev                    \
 	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl \
 		selinux-utils setools policycoreutils-python-utils policycoreutils selinux-basics auditd \
-		pdns-tools pdns-server pdns-backend-sqlite3
+		pdns-tools pdns-server pdns-backend-sqlite3 libmagic-dev autotools-dev dh-autoreconf
 
 .PHONY: prereq-perl
 prereq-perl:
@@ -72,9 +75,13 @@ prereq-frontend:
 	mkdir -p www/scripts; pushd www/scripts && curl -L --remote-name-all                        \
 		"https://raw.githubusercontent.com/chalda-pnuzig/emojis.json/master/dist/list.min.json" \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js" \
-		"https://cdn.jsdelivr.net/npm/chart.js"; popd
-	mkdir -p www/styles; cd www/styles && curl -L --remote-name-all \
-		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css"
+		"https://cdn.jsdelivr.net/npm/chart.js" \
+		"https://github.com/hakimel/reveal.js/blob/master/dist/reveal.js"; popd
+	mkdir -p www/styles; pushd www/styles && curl -L --remote-name-all \
+		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css" \
+	    "https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.css" \
+		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/theme/white.css"; popd
+	mv www/styles/white.css www/styles/reveal-white.css
 
 .PHONY: reset
 reset: reset-remove install
@@ -199,6 +206,10 @@ dns:
 	sudo service pdns enable
 	sudo service pdns start
 
+.PHONY: githook
+githook:
+	cp git-hooks/pre-commit .git/hooks
+
 .PHONY: firewall
 firewall:
 	# Remove dopey unauthenticated port for git from /etc/services
@@ -207,4 +218,4 @@ firewall:
 	sudo ufw/setup-rules
 
 .PHONY: all
-all: prereq-debian install fail2ban nginx mail firewall
+all: prereq-debian install fail2ban nginx mail dns firewall githook

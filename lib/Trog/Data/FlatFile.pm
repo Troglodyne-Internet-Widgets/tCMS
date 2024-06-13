@@ -10,7 +10,6 @@ use Carp qw{confess};
 use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
-use Mojo::File;
 use Path::Tiny();
 use Capture::Tiny qw{capture_merged};
 

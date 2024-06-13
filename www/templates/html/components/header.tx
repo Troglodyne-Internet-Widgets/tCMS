@@ -46,6 +46,12 @@
         <!-- For highlight.js !-->
         <link rel="preload" type="text/css" href="/styles/obsidian.min.css" as="style" />
         <link rel="stylesheet" type="text/css" href="/styles/obsidian.min.css" />
+        <!-- For reveal.js !-->
+        <link rel="preload" type="text/css" href="/styles/reveal.css" as="style" />
+        <link rel="stylesheet" type="text/css" href="/styles/reveal.css" />
+        <link rel="preload" type="text/css" href="/styles/reveal-white.css" as="style" />
+        <link rel="stylesheet" type="text/css" href="/styles/reveal-white.css" />
+
         <!-- Javascript !-->
         : for $scripts -> $script {
         <script type="text/javascript" src="<: $script :>"></script>

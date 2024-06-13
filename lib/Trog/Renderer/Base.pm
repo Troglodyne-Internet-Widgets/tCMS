@@ -12,6 +12,7 @@ use IO::Compress::Gzip;
 use Text::Xslate;
 use Trog::Themes;
 use Trog::Config;
+use Time::HiRes qw{tv_interval};
 
 =head1 Trog::Renderer::Base
 
@@ -71,7 +72,7 @@ sub render (%options) {
 
 sub headers ( $options, $body ) {
     my $query   = $options->{data};
-    my $uh      = ref $options->{headers} eq 'HASH' ? $options->{headers} : {};
+    my $uh      = ref $options->{headers} eq 'HASH'      ? $options->{headers}        : {};
     my $ct      = $options->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$options->{contenttype};";
     my %headers = (
         'Content-Type'           => $ct,
@@ -79,6 +80,7 @@ sub headers ( $options, $body ) {
         'Cache-Control'          => $query->{cachecontrol} // $Trog::Vars::cache_control{revalidate},
         'X-Content-Type-Options' => 'nosniff',
         'Vary'                   => 'Accept-Encoding',
+        'Server-Timing'          => "render;dur=" . ( tv_interval( $query->{start} ) * 1000 ),
         %$uh,
     );
 
