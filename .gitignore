@@ -11,10 +11,13 @@ nytprof*
 www/nytprof
 pm_to_blib
 pod2htmd.tmp
-list.min.json
-highlight.min.js
-obsidian.min.css
+www/scripts/list.min.json
+www/scripts/highlight.min.js
 www/scripts/chart.js
+www/scripts/reveal.js
+www/styles/obsidian.min.css
+www/styles/reveal.css
+www/styles/reveal-white.css
 www/.well_known
 config/auth.db
 config/has_users

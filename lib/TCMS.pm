@@ -71,6 +71,7 @@ sub _app {
     # Make sure all writes are with the proper permissions, none need know of our love
     umask 0077;
 
+    INFO("TCMS starting up on PID $MASTER_PID, Worker PID $$");
     # Start the server timing clock
     my $start = [gettimeofday];
 

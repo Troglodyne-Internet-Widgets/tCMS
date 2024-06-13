@@ -48,7 +48,7 @@ See migrate.pl, and modify the $docroot variable appropriately
 Content Types
 =============
 Content templates are modular.
-Add in a template to /templates/forms which describe the content *and* how to edit it.
+Add in a template to www/templates/html/components/forms which describe the content *and* how to edit it.
 Our post data storage being JSON allows us the flexibility to have any kind of meta associated with posts, so go hog wild.
 
 Currently supported:
@@ -57,9 +57,10 @@ Currently supported:
 * Files (Video/Audio/Images/Other)
 * About Pages
 * Post Series
+* Presentations
 
 Planned development:
-* Presentations
+* LaTeX
 * Test Plans / Issues (crossover with App::Prove::Elasticsearch)
 
 Embedding Posts within other Posts

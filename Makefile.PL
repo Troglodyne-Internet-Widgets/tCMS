@@ -71,6 +71,7 @@ WriteMakefile(
     'DNS::Unbound'              => '0',
     'Net::IP'                   => '0',
     'File::LibMagic'            => '0',
+    'Linux::Perl::inotify'      => '0',
   },
   test => {TESTS => 't/*.t'}
 );
