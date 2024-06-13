@@ -50,3 +50,5 @@ service-files/*.service
 .viminfo
 .vimrc
 .tmux.conf
+.tig_history
+.sqlite_history
