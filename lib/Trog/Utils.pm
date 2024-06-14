@@ -13,6 +13,7 @@ use Mojo::File;
 use File::LibMagic;
 use Ref::Util qw{is_hashref};
 
+use Trog::Autoreload;
 use Trog::Log qw{WARN};
 use Trog::Config();
 

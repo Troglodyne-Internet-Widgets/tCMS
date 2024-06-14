@@ -10,7 +10,7 @@
 
     	<div class="reveal postData responsive-text" id="postData-<: $post.id :>">
       		<div class="slides">
-      			<: for $post.data -> slide { :>
+      			<: for $post.data -> $slide { :>
       				<section>
                         <: render_it($slide) | mark_raw  :>
                     </section>
@@ -32,7 +32,8 @@
             : include "visibility.tx";
             : include "acls.tx";
             : include "tags.tx";
-            : include "form_common.tx";
+            : include "aliases.tx"
+            : include "form_multi.tx";
         </form>
         : include "edit_foot.tx";
         </div>

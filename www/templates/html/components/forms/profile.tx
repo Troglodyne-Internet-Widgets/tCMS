@@ -37,6 +37,7 @@
         : }
         <input type="hidden" name="callback" value="Trog::Routes::HTML::users" />
         : include "visibility.tx";
+        : include "aliases.tx";
         : include "form_common.tx";
     </form>
     : include "edit_foot.tx";

@@ -60,6 +60,7 @@
         : include "visibility.tx";
         : include "acls.tx";
         : include "tags.tx";
+        : include "aliases.tx";
         : include "form_common.tx";
     </form>
     : include "edit_foot.tx";
