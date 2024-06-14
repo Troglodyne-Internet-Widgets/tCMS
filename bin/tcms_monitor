@@ -1,0 +1,75 @@
+#!/usr/bin/env perl
+
+use FindBin::libs;
+use FindBin;
+use Proc::Daemon;
+
+use strict;
+use warnings;
+
+use Trog::Autoreload;
+
+# Note that we do not reload ourselves.
+
+sub cleanup {
+    unlink 'run/monitor.pid';
+    return 0;
+};
+
+$SIG{HUP} = sub {
+    print "Recieved signal from tcms master process, restarting.\n";
+    cleanup();
+    exec $0;
+};
+
+sub get_master_pid {
+    # Get the PID of the current master process
+    my $ppf = 'run/tcms.pid';
+    my $ppid;
+    if (-f $ppf) {
+        open(my $pidfile, '<', $ppf);
+        read($pidfile, $ppid, 10000);
+        close $pidfile;
+        chomp $ppid;
+        if (!-d "/proc/$ppid") {
+            print "tCMS not running, but left a PIDFile behind. Exiting monitor.\n";
+            exit 0 if -f "/run/$ppid";
+        }
+    } else {
+        print "tCMS not running, exiting monitor.\n";
+        exit 0;
+    }
+    return $ppid;
+}
+
+sub main {
+    my $pf = 'run/monitor.pid';
+    my $monitor_pid = Trog::Autoreload::monitor_pid();
+    if ($monitor_pid) {
+        print "Change monitor already running, killing and re-starting.\n";
+        kill 'TERM', $monitor_pid;
+    }
+
+    # daemonize immediately.  We are handling the pidfile ourselves, see below
+    my $daemon = Proc::Daemon->new(
+        work_dir => "$FindBin::Bin/..",
+        pid_file => $pf,
+        child_STDOUT => 'logs/monitor.log',
+        child_STDERR => 'logs/monitor.err',
+    );
+    my $child_pid = $daemon->Init;
+    return 0 if $child_pid;
+
+    my $ppid = get_master_pid();
+    # If we go here, we (probably) have a PID, so watch for the changes.
+    my $status = Trog::Autoreload::watch_for_changes('lib', $ppid);
+    if ($status) {
+        # tCMS process went away.  Bye bye!
+        print "tCMS process went away, shutting down monitor\n";
+        return cleanup();
+    }
+    # By now we should have recieved SIGHUP and are already dead, so exit anyways.
+    return cleanup();
+}
+
+exit main(@ARGV) unless caller;

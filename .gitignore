@@ -52,3 +52,4 @@ service-files/*.service
 .tmux.conf
 .tig_history
 .sqlite_history
+.xslate_cache

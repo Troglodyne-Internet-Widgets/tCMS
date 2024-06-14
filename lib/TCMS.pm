@@ -38,8 +38,6 @@ use Trog::Data;
 use Trog::Vars;
 use Trog::FileHandler;
 
-our $MASTER_PID;
-
 # Troglodyne philosophy - simple as possible
 
 # Wrap app to return *our* error handler instead of Plack::Util::run_app's
@@ -73,7 +71,6 @@ sub _app {
     # Make sure all writes are with the proper permissions, none need know of our love
     umask 0077;
 
-    INFO("TCMS starting up on PID $MASTER_PID, Worker PID $$");
     # Start the server timing clock
     my $start = [gettimeofday];
 
@@ -91,6 +88,8 @@ sub _app {
 
     # Setup logging
     log_init();
+    INFO("tCMS worker starting on pid $$");
+
     my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
 

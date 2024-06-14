@@ -76,12 +76,13 @@ prereq-frontend:
 		"https://raw.githubusercontent.com/chalda-pnuzig/emojis.json/master/dist/list.min.json" \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js" \
 		"https://cdn.jsdelivr.net/npm/chart.js" \
-		"https://github.com/hakimel/reveal.js/blob/master/dist/reveal.js"; popd
+		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.js"; popd
 	mkdir -p www/styles; pushd www/styles && curl -L --remote-name-all \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css" \
 	    "https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.css" \
 		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/theme/white.css"; popd
 	mv www/styles/white.css www/styles/reveal-white.css
+	sed -i 's/Source Sans Pro,//g' www/styles/reveal-white.css
 
 .PHONY: reset
 reset: reset-remove install

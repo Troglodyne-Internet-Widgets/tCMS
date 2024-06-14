@@ -26,7 +26,6 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
 
     my $ct      = 'Content-type';
     my @headers = ( $ct => $ft );
-    DEBUG("$ct : $ft");
 
     #TODO use static Cache-Control for everything but JS/CSS?
     push( @headers, 'Cache-control' => $Trog::Vars::cache_control{revalidate} );

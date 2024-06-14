@@ -16,3 +16,6 @@ sudo chown $USERNAME:www-data run/tcms.sock
 sudo chmod 0770 run/tcms.sock
 
 echo "tCMS running as PID "`cat run/tcms.pid`
+
+# Run reloader process
+bin/tcms_monitor
