@@ -872,6 +872,8 @@ sub post_save ($query) {
     my $acls = $query->{acls};
 
     $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
+    use Data::Dumper;
+    INFO(Dumper($query->{data}));
 
     # Filter bits and bobs
     delete $query->{primary_post};

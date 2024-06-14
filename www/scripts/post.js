@@ -36,17 +36,31 @@ function add2aliases(id) {
 function add2data(id, page) {
     var select = document.getElementById( id + '-pages');
     var input  = document.getElementById( id + '-' + page + '-page');
+    var thisPage = document.getElementById(id+'-'+page+'-page-option');
+    if (thisPage) {
+        thisPage.value = input.value;
+        return false;
+    }
+
     var newOption = document.createElement('option');
     newOption.value = input.value;
     newOption.innerText = "Page " + page;
     newOption.selected = true;
+    newOption.id = id+'-'+page+"-page-option";
     select.appendChild(newOption);
 }
 
 function addPage(id) {
     var pageContainer = document.getElementById( 'content-pages-' + id );
-    var curPage = 0; //TODO actually get this
-
+    var lastPage = document.querySelector('#content-pages-'+id+' > textarea.data-page:nth-last-of-type(1)');
+    var curPage;
+    if (!lastPage) {
+        curPage = 0;
+    } else {
+        var matches = /^\d*-(\d+)-page$/.exec(lastPage.id);
+        console.log(matches,lastPage.id);
+        curPage = parseInt(matches[1]) + 1;
+    }
     var newSpan = document.createTextNode('Page '+ curPage);
     pageContainer.appendChild(newSpan);
     var newButan = document.createElement('button');
@@ -58,6 +72,7 @@ function addPage(id) {
     pageContainer.appendChild(newBr);
     var newTextArea = document.createElement('textarea');
     newTextArea.id = id + "-" + curPage + "-page";
+    newTextArea.className = 'cooltext data-page';
     pageContainer.appendChild(newTextArea);
     var newSubmit = document.createElement('button');
     newSubmit.style="float:right;";

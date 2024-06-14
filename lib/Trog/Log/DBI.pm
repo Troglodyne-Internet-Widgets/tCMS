@@ -36,7 +36,7 @@ sub log_message {
     # Rip apart the message.  If it's got any extended info, lets grab that too.
     my $msg = $params{message};
     my $message;
-    my ( $date, $uuid, $ip, $user, $method, $code, $route ) = $msg =~ m!^([\w|\-|:]+) \[INFO\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (\w+) (\d+) (.+)!;
+    my ( $date, $uuid, $ip, $user, $method, $code, $bytes, $route ) = $msg =~ m!^([\w|\-|:]+) \[INFO\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (\w+) (\d+) (\d+) (.+)!;
 
     # Otherwise, let's mark it down in the "messages" table.  This will be deferred until the final write.
     if ( !$date ) {
@@ -65,6 +65,7 @@ sub log_message {
     $ua      //= 'none';
     $urchin  //= {};
 
+    # TODO track bytes in the DB
     my $res = $self->{sth}->execute( $uuid, $epoch, $ip, $user, $method, $route, $referer, $ua, $code );
 
     # Dump in the accumulated messages

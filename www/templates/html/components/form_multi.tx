@@ -1,13 +1,13 @@
 Pages:<br />
-<select class="cooltext" multiple name="data" id="<: $post.id :>-pages" >
+<select class="cooltext" multiple name="data" id="<: $post.id :>-pages" style="display:none;" >
     : for $post.data -> $page {
-        <option value="<: $page :>" selected>Page <: $~page :></option>
+        <option value="<: $page :>" selected id="<: $post.id :>-<: $~page :>-page-option">Page <: $~page :></option>
     : }
 </select>
 <div id="content-pages-<: $post.id :>">
 : for $post.data -> $data {
 Page <: $~data :><button type="button" class="coolbutton emojiPicker">😎</button>:
-<br /><textarea class="cooltext" id="<: $post.id :>-<: $~data :>-page" placeholder="Potzrebie"><: $data :></textarea>
+<br /><textarea class="cooltext data-page" id="<: $post.id :>-<: $~data :>-page" placeholder="Potzrebie"><: $data :></textarea>
 <button style="float:right;" onclick="add2data('<: $post.id :>', <: $~data :>); return false;" class="coolbutton" >Add/Edit</button>
 : }
 </div>
