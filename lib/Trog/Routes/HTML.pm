@@ -326,7 +326,8 @@ sub _build_social_meta ( $query, $title ) {
     my $default_tags = $Theme::default_tags;
     $default_tags .= ',' . join( ',', @{ $query->{primary_post}->{tags} } ) if $default_tags && $query->{primary_post}->{tags};
 
-    my $meta_desc = $query->{primary_post}{data} // $Theme::description // "tCMS Site";
+    my $primary_data = ref $query->{primary_post}{data} eq 'ARRAY' ? $query->{primary_post}{data}[0] : $query->{primary_post}{data};
+    my $meta_desc = $primary_data // $Theme::description // "tCMS Site";
     $meta_desc = Trog::Utils::strip_and_trunc($meta_desc) || '';
 
     my $meta_tags = '';
@@ -872,6 +873,8 @@ sub post_save ($query) {
     my $acls = $query->{acls};
 
     $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
+    # Support data with multiple pages like presentations
+    $query->{data} = Trog::Utils::coerce_array( $query->{data} ) if $query->{data_is_array};
     use Data::Dumper;
     INFO(Dumper($query->{data}));
 
@@ -1263,6 +1266,7 @@ sub posts ( $query, $direct = 0 ) {
             months            => [ 0 .. 11 ],
             emoji_picker      => $picker,
             embed             => $query->{embed},
+            nochrome          => $query->{nochrome},
         },
         contenttype => 'text/html',
         component   => 1,

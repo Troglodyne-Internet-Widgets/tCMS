@@ -42,23 +42,25 @@ document.addEventListener("DOMContentLoaded", function(){
     hljs.highlightAll();
 });
 </script>
-<span class="title">
-: if ( $rss ) {
-<a title="RSS" class="rss" href="?format=rss"></a>
-<: $category :>:
-: }
-</span>
-: if ( $in_series && $rss ) {
-     <div class="subhead">
-     <: $subhead | mark_raw :>
-     </div>
-: }
+: if (!$nochrome) {
+    <span class="title">
+    : if ( $rss ) {
+    <a title="RSS" class="rss" href="?format=rss"></a>
+    <: $category :>:
+    : }
+    </span>
+    : if ( $in_series && $rss ) {
+         <div class="subhead">
+         <: $subhead | mark_raw :>
+         </div>
+    : }
 
-: if ( $header ) {
-    <: $header | mark_raw :>
-: }
-: if (!$style) {
-<hr class="divider" />
+    : if ( $header ) {
+        <: $header | mark_raw :>
+    : }
+    : if (!$style) {
+    <hr class="divider" />
+    : }
 : }
 : for $posts -> $post {
     : if ( !$post.form ) {

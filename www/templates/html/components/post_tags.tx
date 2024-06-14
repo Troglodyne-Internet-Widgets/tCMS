@@ -1,5 +1,6 @@
-<span id="<: $post.id :>-tags-display">
+<span class="post-tags" id="<: $post.id :>-tags-display">
 : for $post.extra_tags -> $tag {
     <a href="/posts?tag=<: $tag :>" class="tag">🏷️ <: $tag :></a>
 : }
 </span><br />
+

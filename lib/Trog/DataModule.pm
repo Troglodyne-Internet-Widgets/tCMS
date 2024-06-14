@@ -285,6 +285,11 @@ my $hashref_or_string = sub {
     return Ref::Util::is_hashref($subj) || $not_ref->($subj);
 };
 
+my $arrayref_or_string = sub {
+    my $subj = shift;
+    return Ref::Util::is_arrayref($subj) || $not_ref->($subj);
+};
+
 # TODO more strict validation of strings?
 our %schema = (
     ## Parameters which must be in every single post
@@ -302,7 +307,7 @@ our %schema = (
     'local_href' => $not_ref,
 
     # Post body
-    'data' => $not_ref,
+    'data' => $arrayref_or_string,
 
     # How do I edit this post?
     'form' => $not_ref,

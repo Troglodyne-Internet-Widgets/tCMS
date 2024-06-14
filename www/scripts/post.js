@@ -57,8 +57,9 @@ function addPage(id) {
     if (!lastPage) {
         curPage = 0;
     } else {
-        var matches = /^\d*-(\d+)-page$/.exec(lastPage.id);
-        console.log(matches,lastPage.id);
+        var matches = /^[a-f0-9\-]*-(\d+)-page$/.exec(lastPage.id);
+        // Go ahead and add this page in case we forgot.
+        add2data(id, matches[1]);
         curPage = parseInt(matches[1]) + 1;
     }
     var newSpan = document.createTextNode('Page '+ curPage);
@@ -80,4 +81,14 @@ function addPage(id) {
     newSubmit.className = "coolbutton";
     newSubmit.innerText = "Add/Edit";
     pageContainer.appendChild(newSubmit);
+}
+
+function addAllPages(id) {
+    var pages = document.querySelectorAll('#content-pages-'+id+' textarea');
+    for (page of pages) {
+        var matches = /^[a-f0-9\-]*-(\d+)-page$/.exec(page.id);
+        // Go ahead and add this page in case we forgot.
+        add2data(id, matches[1]);
+    }
+    return true;
 }

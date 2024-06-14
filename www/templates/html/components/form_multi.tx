@@ -19,4 +19,5 @@ Page <: $~data :><button type="button" class="coolbutton emojiPicker">😎</butt
 <input type="hidden" name="id" value="<: $post.id :>" />
 : }
 <input type="hidden" name="form" value="<: $post.form :>"></input>
-<input class="coolbutton" type="submit" value="Publish" text="Publish" />
+<input type="hidden" name="data_is_array" value="1"></input>
+<input class="coolbutton" type="submit" onclick="addAllPages('<: $post.id :>')" value="Publish" text="Publish" />
