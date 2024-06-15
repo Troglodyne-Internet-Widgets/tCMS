@@ -75,12 +75,6 @@ function addPage(id) {
     newTextArea.id = id + "-" + curPage + "-page";
     newTextArea.className = 'cooltext data-page';
     pageContainer.appendChild(newTextArea);
-    var newSubmit = document.createElement('button');
-    newSubmit.style="float:right;";
-    newSubmit.setAttribute('onclick',"add2data('"+id+"', "+curPage+"); return false;");
-    newSubmit.className = "coolbutton";
-    newSubmit.innerText = "Add/Edit";
-    pageContainer.appendChild(newSubmit);
 }
 
 function addAllPages(id) {

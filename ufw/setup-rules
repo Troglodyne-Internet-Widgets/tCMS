@@ -27,9 +27,18 @@ my @rules = (
 # Allow, but rate limit
 foreach my $app (@apps) {
     push(@rules,
-        ["limit", "in", $app],
         ["allow", "out", $app],
     );
+    # HTTP tends to request lots of stuff simultaneously
+    if ($app =~ m/^Nginx/i) {
+        push(@rules,
+            ["allow", "in", $app]
+        );
+    } else {
+        push(@rules,
+            ["limit", "in", $app],
+        );
+    }
 }
 
 @rules = map { unshift(@{$_}, '--dry-run'); $_ } @rules if $DRY_RUN;
