@@ -9,6 +9,7 @@ use List::Util;
 use File::Copy;
 use Path::Tiny();
 use Ref::Util();
+use File::Basename qw{basename};
 
 use Trog::Log qw{:all};
 use Trog::Utils;
@@ -340,9 +341,9 @@ our %schema = (
     'preview'      => $not_ref,
 
     ## Content specific parameters
-    'audio_href' => $not_ref,
-    'video_href' => $not_ref,
-    'file'       => $hashref_or_string,
+    'audio_href'  => $not_ref,
+    'video_href'  => $not_ref,
+    'file'        => $hashref_or_string,
     'attachments' => \&Ref::Util::is_arrayref,
 );
 
@@ -410,8 +411,8 @@ sub _process ($post) {
     $post->{href}      = _handle_upload( $post->{file},           $post->{id} ) if $post->{file};
     $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id} ) if $post->{preview_file};
     $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id} ) if $post->{wallpaper_file};
-    @{$post->{attachments}} = map { _handle_upload( $_, $post->{id}) } @{$post->{attachments}} if $post->{attachments};
-    $post->{preview}   = $post->{href} if $post->{app} && $post->{app} eq 'image';
+    @{ $post->{attachments} } = map { _handle_upload( $_, $post->{id} ) } @{ $post->{attachments} } if $post->{attachments};
+    $post->{preview} = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
     delete $post->{preview_file};
@@ -456,11 +457,24 @@ sub _process ($post) {
     return $post;
 }
 
+# Browsers try and save time in the event that the same file is sent twice, so handle that.
+my %seen_files;
+
 sub _handle_upload ( $file, $uuid ) {
-    my $f       = $file->{tempname};
+    my $fname;
+    if ( ref $file ne 'HASH' ) {
+        use Data::Dumper;
+        $file =~ s/\\/\//g;
+        $fname = basename($file);
+        FATAL("Did not expect bogus file before its real counterpart!") unless $seen_files{$fname};
+        return $seen_files{$fname};
+    }
+    my $f = $file->{tempname};
+    $fname = basename( $file->{filename} );
     my $newname = "$uuid.$file->{filename}";
     File::Copy::move( $f, "www/assets/$newname" );
-    return "/assets/$newname";
+    $seen_files{$fname} = "/assets/$newname";
+    return $seen_files{$fname};
 }
 
 =head2 delete(@posts)

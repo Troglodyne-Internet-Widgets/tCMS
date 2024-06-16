@@ -1,4 +1,4 @@
-Attachments: Add assets which may be referred to by ID in posts via attachment($attachment_number) in a <a href="https://metacpan.org/pod/Text::Xslate::Syntax::Kolon">Kolon Tag</a>.<br />
+Attachments: Add assets which may be referred to by ID in posts via $post.attachments[$attachment_number] in a <a href="https://metacpan.org/pod/Text::Xslate::Syntax::Kolon">Kolon Tag</a>.<br />
 <select class="cooltext" multiple name="attachments" id="<: $post.id :>-attachments" style="display:none;" >
     : for $post.attachments -> $att {
         <option value="<: $att :>" selected id="<: $post.id :>-<: $~att :>-attachment-option">Attachment <: $~att :></option>
