@@ -1,3 +1,4 @@
+// Editor toggle
 function switchMenu(obj) {
     var el = document.getElementById(obj);
     if ( el === null ) {
@@ -11,6 +12,7 @@ function switchMenu(obj) {
     }
 }
 
+//Add items to the tags forms
 function add2tags(id) {
     var select = document.getElementById( id + '-tags');
     var input  = document.getElementById( id + '-customtag');
@@ -22,6 +24,7 @@ function add2tags(id) {
     input.value= '';
 }
 
+//Ditto for aliases
 function add2aliases(id) {
     var select = document.getElementById( id + '-alias');
     var input  = document.getElementById( id + '-customalias');
@@ -33,6 +36,7 @@ function add2aliases(id) {
     input.value= '';
 }
 
+// Multi-page data functions
 function add2data(id, page) {
     var select = document.getElementById( id + '-pages');
     var input  = document.getElementById( id + '-' + page + '-page');
@@ -83,6 +87,57 @@ function addAllPages(id) {
         var matches = /^[a-f0-9\-]*-(\d+)-page$/.exec(page.id);
         // Go ahead and add this page in case we forgot.
         add2data(id, matches[1]);
+    }
+    return true;
+}
+
+// Post attachment forms
+function add2attachments(id, page) {
+    var select = document.getElementById( id + '-attachments');
+    var input  = document.getElementById( id + '-' + page + '-attachment');
+    var thisPage = document.getElementById(id+'-'+page+'-attachment-option');
+    if (thisPage) {
+        thisPage.value = input.value;
+        return false;
+    }
+
+    var newOption = document.createElement('option');
+    newOption.value = input.value;
+    newOption.innerText = "Attachment " + page;
+    newOption.selected = true;
+    newOption.id = id+'-'+page+"-attachment-option";
+    select.appendChild(newOption);
+}
+
+function addAttachment(id) {
+    var pageContainer = document.getElementById( 'content-attachments-' + id );
+    var lastPage = document.querySelector('#content-attachments-'+id+' > input.attachment:nth-last-of-type(1)');
+    var curPage;
+    if (!lastPage) {
+        curPage = 0;
+    } else {
+        var matches = /^[a-f0-9\-]*-(\d+)-attachment$/.exec(lastPage.id);
+        // Go ahead and add this page in case we forgot.
+        add2attachments(id, matches[1]);
+        curPage = parseInt(matches[1]) + 1;
+    }
+    var newSpan = document.createTextNode('Attachment '+ curPage);
+    pageContainer.appendChild(newSpan);
+    var newBr = document.createElement('br');
+    pageContainer.appendChild(newBr);
+    var newFilePicker = document.createElement('input');
+    newFilePicker.id = id + "-" + curPage + "-attachment";
+    newFilePicker.className = 'cooltext attachment';
+    newFilePicker.type = "file";
+    pageContainer.appendChild(newFilePicker);
+}
+
+function addAllAttachments(id) {
+    var pages = document.querySelectorAll('#content-attachments-'+id+' input');
+    for (page of pages) {
+        var matches = /^[a-f0-9\-]*-(\d+)-attachment$/.exec(page.id);
+        // Go ahead and add this page in case we forgot.
+        add2attachments(id, matches[1]);
     }
     return true;
 }

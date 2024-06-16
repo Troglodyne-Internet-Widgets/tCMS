@@ -875,8 +875,7 @@ sub post_save ($query) {
     $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
     # Support data with multiple pages like presentations
     $query->{data} = Trog::Utils::coerce_array( $query->{data} ) if $query->{data_is_array};
-    use Data::Dumper;
-    INFO(Dumper($query->{data}));
+    $query->{attachments} = Trog::Utils::coerce_array( $query->{attachments} );
 
     # Filter bits and bobs
     delete $query->{primary_post};

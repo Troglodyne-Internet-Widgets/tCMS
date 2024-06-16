@@ -343,6 +343,7 @@ our %schema = (
     'audio_href' => $not_ref,
     'video_href' => $not_ref,
     'file'       => $hashref_or_string,
+    'attachments' => \&Ref::Util::is_arrayref,
 );
 
 sub add ( $self, @posts ) {
@@ -409,6 +410,7 @@ sub _process ($post) {
     $post->{href}      = _handle_upload( $post->{file},           $post->{id} ) if $post->{file};
     $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id} ) if $post->{preview_file};
     $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id} ) if $post->{wallpaper_file};
+    @{$post->{attachments}} = map { _handle_upload( $_, $post->{id}) } @{$post->{attachments}} if $post->{attachments};
     $post->{preview}   = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
