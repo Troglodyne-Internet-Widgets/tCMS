@@ -39,7 +39,7 @@
     	</script>
         : } else {
             <br />
-            <a href="?embed=1&nochrome=1">Click Here to view</a>
+            <a href="/posts/<: $post.id :>?embed=1&nochrome=1">Click Here to view</a>
         : }
     : }
 
