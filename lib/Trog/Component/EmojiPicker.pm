@@ -6,6 +6,7 @@ use warnings;
 no warnings qw{experimental};
 use feature qw{signatures state};
 
+use JSON::MaybeXS;
 use Trog::Renderer;
 
 sub render () {
@@ -16,7 +17,7 @@ sub render () {
         die "Run make prereq-frontend first" unless -f $file;
 
         my $raw    = File::Slurper::read_binary($file);
-        my $emojis = Cpanel::JSON::XS::decode_json($raw);
+        my $emojis = JSON::MaybeXS::decode_json($raw);
         foreach my $emoji ( @{ $emojis->{emojis} } ) {
             $categorized{ $emoji->{category} } //= [];
             push( @{ $categorized{ $emoji->{category} } }, $emoji->{emoji} );
