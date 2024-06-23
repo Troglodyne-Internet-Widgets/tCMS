@@ -6,6 +6,7 @@ use warnings;
 no warnings qw{experimental};
 use feature qw{signatures state};
 
+use Cpanel::JSON::XS;
 use Trog::Renderer;
 
 sub render () {
