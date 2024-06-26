@@ -9,6 +9,6 @@ if [ $to_tidy  ]
 then
     echo "Auto-tidying perl changes..."
     perltidy -b $to_tidy
-    git add $to_tidy
+    git update-index --add $to_tidy
     echo "Done."
 fi
