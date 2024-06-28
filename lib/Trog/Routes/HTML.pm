@@ -424,17 +424,17 @@ Redirects to the provided page.
 
 sub redirect ($to) {
     INFO("redirect: $to");
-    return [ 302, [ "Location" => $to ], [''] ];
+    return [ 302, [ "Location" => $to, "Content-Length" => 0 ], [''] ];
 }
 
 sub redirect_permanent ($to) {
     INFO("permanent redirect: $to");
-    return [ 301, [ "Location" => $to ], [''] ];
+    return [ 301, [ "Location" => $to, "Content-Length" => 0 ], [''] ];
 }
 
 sub see_also ($to) {
     INFO("see also: $to");
-    return [ 303, [ "Location" => $to ], [''] ];
+    return [ 303, [ "Location" => $to, "Content-Length" => 0 ], [''] ];
 }
 
 =head1 NORMAL ROUTES

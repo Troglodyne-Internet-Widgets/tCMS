@@ -88,7 +88,6 @@ sub _app {
 
     # Setup logging
     log_init();
-    INFO("tCMS worker starting on pid $$");
 
     my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
