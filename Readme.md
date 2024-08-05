@@ -47,6 +47,11 @@ A Dockerfile and deployment scripts are provided for your convenience in buildin
 ```
 There is also podman container code; see images/README.md
 
+Deployment via Terraform
+========================
+
+See provisioner_configs.
+
 Migration of tCMS1 sites
 =========================
 
