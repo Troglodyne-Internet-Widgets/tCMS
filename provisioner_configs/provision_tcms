@@ -3,4 +3,46 @@
 use strict;
 use warnings;
 
+use FindBin::libs;
+use Trog::Config;
+use Archive::Tar::Builder;
+use PerlIO::gzip;
+use File::Slurper;
 
+# use bin/tcms_hostname to get the hostname, and then build a data.tar.gz based on the existing data
+my $conf = Trog::Config::get();
+my $hostname = Trog::Config::hostname($conf);
+
+mkdir $hostname unless -d $hostname;
+
+# Figure out what to backup
+my %to_archive = map {
+    my $subj = $_;
+    "$Trog::Config::home_dir/$subj" => $subj
+} grep {
+    my $subj = $_;
+    -d "$Trog::Config::home_dir/$subj"
+} qw{config data www/themes www/assets};
+$to_archive{"$Trog::Config::home_dir/provisioner_configs/Makefile"} = 'Makefile';
+
+# Build tar file
+open(my $th, '>', "$hostname/data.tar");
+my $tar = Archive::Tar::Builder->new();
+$tar->set_handle($th);
+$tar->archive_as(%to_archive);
+$tar->finish();
+close $th;
+
+# XXX Unfortunately ATB doesn't play well with PIO::Gzip.
+# This is VERY BAD, as we have to do an unnecessary read of a potentially huge tar now.
+# This is because it doesn't use the standard perl means for doing buffered I/O.
+#open(my $zh, '>:gzip', "$hostname/data.tar.gz");
+#print $zh File::Slurper::read_binary("$hostname/data.tar");
+#close($zh);
+#unlink "$hostname/data.tar";
+
+# So, we're gonna shell out for lack of better options.
+system(qw{pigz -f}, "$hostname/data.tar");
+
+# Now that we have the backup, we just have to make the config files.
+File::Copy::copy("");

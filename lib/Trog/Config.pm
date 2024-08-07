@@ -22,13 +22,12 @@ Memoized, so you will need to HUP the children on config changes.
 =cut
 
 # Figure out where the heck we are.
-
-
 our $home_cfg = "config/main.cfg";
+our $home_dir = '';
 
 sub _find_config {
     return if -f $home_cfg;
-    my $home_dir = Cwd::abs_path($FindBin::Bin);
+    $home_dir = Cwd::abs_path($FindBin::Bin);
     # The tCMS main dir will be a parent of this somewhere.
     while ($home_dir ne "/") {
         $home_dir = File::Basename::dirname($home_dir);
@@ -43,13 +42,18 @@ sub _find_config {
     die "Could not find config/default.cfg in any parent folder!";
 }
 
+sub home_dir {
+    _find_config();
+    return $home_dir;
+}
+
 sub get {
+    # home_cfg will always exist after this.
     _find_config();
     state $cf;
     return $cf                           if $cf;
-    $cf = Config::Simple->new($home_cfg) if -f $home_cfg;
-    return $cf                           if $cf;
-    die "Could not find configuration file.";
+    $cf = Config::Simple->new($home_cfg);
+    return $cf;
 }
 
 sub hostname {

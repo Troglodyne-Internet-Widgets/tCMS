@@ -72,6 +72,8 @@ WriteMakefile(
     'Net::IP'                   => '0',
     'File::LibMagic'            => '0',
     'Linux::Perl::inotify'      => '0',
+    'Archive::Tar::Builder'     => '0',
+    'PerlIO::gzip'              => '0',
   },
   test => {TESTS => 't/*.t'}
 );
