@@ -1,0 +1,18 @@
+#!/bin/sh
+WD=`dirname $(readlink -f $0)`
+cd $WD
+perlbrew download stable
+LATEST_TARBALL=$(ls -1 ~/perl5/perlbrew/dists/ | tail -n1)
+rm -rf src
+tar --one-top-level=src --strip-components=1 -zxf ~/perl5/perlbrew/dists/$LATEST_TARBALL
+rm -rf ../perl5
+mkdir ../perl5
+sudo rm /perl5
+sudo ln -sr ../perl5 /perl5
+cd src
+./Configure -des -Dprefix=/perl5
+make -j8
+make -j8 install
+/perl5/bin/cpan App::cpanminus
+cd ../..
+/perl5/bin/cpanm --installdeps .
