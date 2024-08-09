@@ -35,7 +35,7 @@ service-user:
 	sudo -u $(USER_NAME) chmod 0600 .ssh/authorized_keys
 
 .PHONY: install-service
-install-service: #service-user
+install-service: service-user
 	sudo systemctl disable $(SERVER_NAME); /bin/true
 	cp service-files/systemd.unit service-files/$(SERVER_NAME).service
 	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' service-files/$(SERVER_NAME).service
@@ -52,22 +52,23 @@ prereq-debian: prereq-debs prereq-perl prereq-frontend prereq-node
 .PHONY: prereq-debs
 prereq-debs:
 	sudo apt-get update
-	sudo apt-get install -y sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl cmake \
+	sudo apt-get install -y perlbrew sqlite3 nodejs npm libsqlite3-dev libdbd-sqlite3-perl cpanminus starman libxml2 curl cmake \
 		uwsgi uwsgi-plugin-psgi fail2ban nginx certbot postfix dovecot-imapd dovecot-pop3d postgrey spamassassin amavis clamav\
-		opendmarc opendkim opendkim-tools libunbound-dev \
-	    libtext-xslate-perl libplack-perl libconfig-tiny-perl libdatetime-format-http-perl libjson-maybexs-perl          \
-	    libuuid-tiny-perl libcapture-tiny-perl libconfig-simple-perl libdbi-perl libfile-slurper-perl libfile-touch-perl \
-	    libfile-copy-recursive-perl libxml-rss-perl libmodule-install-perl libio-string-perl uuid-dev                    \
-	    libmoose-perl libmoosex-types-datetime-perl libxml-libxml-perl liblist-moreutils-perl libclone-perl libpath-tiny-perl \
+		opendmarc opendkim opendkim-tools libunbound-dev uuid-dev\
 		selinux-utils setools policycoreutils-python-utils policycoreutils selinux-basics auditd \
-		pdns-tools pdns-server pdns-backend-sqlite3 libmagic-dev autotools-dev dh-autoreconf pigz
+		pdns-tools pdns-server pdns-backend-sqlite3 libmagic-dev autotools-dev dh-autoreconf pigz libdeflate-dev
 
 .PHONY: prereq-perl
 prereq-perl:
-	sudo cpanm -n --installdeps .
+	perl/build_perl
+	yes | perl5/bin/cpan -i App::cpanminus
+	perl5/bin/cpanm -n --installdeps .
 
 .PHONY: prereq-node
 prereq-node:
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+	nvm install node
+	nvm use node
 	npm i
 
 .PHONY: prereq-frontend
@@ -110,7 +111,6 @@ fail2ban:
 
 .PHONY: nginx
 nginx:
-	[ -n "$$SERVER_NAME" ] || ( echo "Please set the SERVER_NAME environment variable before running (e.g. test.test)" && /bin/false )
 	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
 	sed 's/\%SERVER_SOCK\%/$(shell pwd)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
@@ -221,4 +221,4 @@ firewall:
 	sudo ufw/setup-rules
 
 .PHONY: all
-all: prereq-debian install fail2ban nginx mail dns firewall githook
+all: prereq-debian prereq-perl prereq-frontend install install-service nginx mail dns firewall fail2ban githook

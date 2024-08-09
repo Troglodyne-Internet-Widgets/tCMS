@@ -1,0 +1,7 @@
+all:
+	git init
+    git remote add origin https://github.com/Troglodyne-Internet-Widgets/tCMS.git
+    git fetch
+	git checkout -f -b --track -b provisioner origin/provisioner
+    cpan -i FindBin::libs Getopt::Long Config::Simple File::Copy
+	make -f Installer.mk all

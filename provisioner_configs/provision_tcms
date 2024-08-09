@@ -9,11 +9,18 @@ use Archive::Tar::Builder;
 use PerlIO::gzip;
 use File::Slurper;
 
+my $contactemail = $ARGV[0];
+die "Must pass contact email." unless $contactemail;
+
 # use bin/tcms_hostname to get the hostname, and then build a data.tar.gz based on the existing data
 my $conf = Trog::Config::get();
 my $hostname = Trog::Config::hostname($conf);
 
+my $THIS_DIR="$Trog::Config::home_dir/provisioner_configs";
+
 mkdir $hostname unless -d $hostname;
+my $username = $hostname;
+$username =~ s/\./-/g;
 
 # Figure out what to backup
 my %to_archive = map {
@@ -23,7 +30,7 @@ my %to_archive = map {
     my $subj = $_;
     -d "$Trog::Config::home_dir/$subj"
 } qw{config data www/themes www/assets};
-$to_archive{"$Trog::Config::home_dir/provisioner_configs/Makefile"} = 'Makefile';
+$to_archive{"$THIS_DIR/Makefile.tmpl"} = 'Makefile';
 
 # Build tar file
 open(my $th, '>', "$hostname/data.tar");
@@ -45,4 +52,8 @@ close $th;
 system(qw{pigz -f}, "$hostname/data.tar");
 
 # Now that we have the backup, we just have to make the config files.
-File::Copy::copy("");
+my $pconf = File::Slurper::read_text("$THIS_DIR/provision.tmpl");
+$pconf =~ s/%CONTACTEMAIL%/$contactemail/gmx;
+File::Slurper::write_text("$THIS_DIR/$hostname/provision.conf", $pconf);
+
+print "Done. Please put your administrative user configuration in $THIS_DIR/$hostname/users.yaml\n" unless -f "$THIS_DIR/$hostname/users.yaml";
