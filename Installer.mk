@@ -168,18 +168,23 @@ dmarc:
 	sudo service opendmarc enable
 	sudo service opendmarc start
 
-.PHONY: dns
-dns:
-	cp dns/tcms.tmpl dns/tcms.conf
-	sed -i 's#__DIR__#$(shell pwd)#g' dns/tcms.conf
-	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' dns/tcms.conf
-	[[ -e /etc/powerdns/pdns.d/$(SERVER_NAME).conf ]] && sudo rm /etc/powerdns/pdns.d/$(SERVER_NAME).conf
-	sudo cp dns/tcms.conf /etc/powerdns/pdns.d/$(SERVER_NAME).conf
+.PHONY: disable-stub-resolver
+disable-stub-resolver:
+ifneq (exists, $(shell test -f /etc/systemd/resolved.conf.d/10-disable-stub-resolver.conf && echo 'exists'))
 	sudo mkdir /etc/systemd/resolved.conf.d/; /bin/true
 	sudo cp dns/10-disable-stub-resolver.conf /etc/systemd/resolved.conf.d/
 	sudo chown -R systemd-resolve:systemd-resolve /etc/systemd/resolved.conf.d/
 	sudo chmod 0660 /etc/systemd/resolved.conf.d/10-disable-stub-resolver.conf
 	sudo systemctl restart systemd-resolved
+endif
+
+.PHONY: dns
+dns: disable-stub-resolver
+	cp dns/tcms.tmpl dns/tcms.conf
+	sed -i 's#__DIR__#$(shell pwd)#g' dns/tcms.conf
+	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' dns/tcms.conf
+	[[ -e /etc/powerdns/pdns.d/$(SERVER_NAME).conf ]] && sudo rm /etc/powerdns/pdns.d/$(SERVER_NAME).conf
+	sudo cp dns/tcms.conf /etc/powerdns/pdns.d/$(SERVER_NAME).conf
 	# Build the zone database and initialize the zone for our domain
 	rm dns/zones.db; /bin/true
 	sqlite3 dns/zones.db < /usr/share/pdns-backend-sqlite3/schema/schema.sqlite3.sql
