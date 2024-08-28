@@ -44,6 +44,8 @@ WriteMakefile(
     'Text::Xslate'           => '0',
     'URL::Encode'            => '0',
     'UUID'                   => '0',
+    # Unmentioned dep of LibXML
+    'Text::Unidecode'        => '0',
     'WWW::Sitemap::XML'      => '0',
     'WWW::SitemapIndex::XML' => '0',
     'CSS::Minifier::XS'      => '0',
