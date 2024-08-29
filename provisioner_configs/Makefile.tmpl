@@ -3,5 +3,9 @@ all:
     git remote add origin https://github.com/Troglodyne-Internet-Widgets/tCMS.git
     git fetch
 	git checkout -f -b --track -b provisioner origin/provisioner
+    echo "%TCMS_HOSTNAME%" > TCMS_HOSTNAME
+    echo "%TCMS_USERNAME%" > TCMS_USERNAME
     cpan -i FindBin::libs Getopt::Long Config::Simple File::Copy
-	make -f Installer.mk all
+	make -f Installer.mk prereq_debs prereq_perl
+    bin/tcms_hostname %TCMS_HOSTNAME%
+    make -f Installer.mk all

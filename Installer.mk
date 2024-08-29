@@ -1,11 +1,13 @@
 SHELL := /bin/bash
-SERVER_NAME := $(shell bin/tcms-hostname)
-USER_NAME   := $(shell bin/tcms-hostname --user)
+SERVER_NAME := $(shell test -f TCMS_HOSTNAME && cat TCMS_HOSTNAME || bin/tcms-hostname)
+USER_NAME   := $(shell test -f TCMS_USERNAME && cat TCMS_USERNAME || bin/tcms-hostname --user)
 
 .PHONY: depend
-depend:
-	[ -f "/etc/debian_version" ] && make -f Installer.mk prereq-debs; /bin/true;
-	make -f Installer.mk prereq-perl prereq-frontend
+ifneq (exists, $(shell test -f /etc/debian_version && echo 'exists'))
+depend: prereq-centos service-user prereq-perl prereq-frontend prereq-node
+else
+depend: prereq-debs service-user prereq-perl prereq-frontend prereq-node
+endif
 
 .PHONY: install
 install:
@@ -60,9 +62,12 @@ prereq-debs:
 
 .PHONY: prereq-perl
 prereq-perl:
-	perl/build_perl
-	yes | perl5/bin/cpan -i App::cpanminus
-	perl5/bin/cpanm -n --installdeps .
+	sudo -u $(USER_NAME) perlbrew init
+	sudo -u $(USER_NAME) bin/perlbrew download stable
+	sudo -u $(USER_NAME) bin/perlbrew install $(shell ls -1 ~/perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
+	sudo -u $(USER_NAME) bin/perlbrew switch $(shell ls -1 ~/perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
+	sudo -u $(USER_NAME) bin/perlbrew install-cpanm
+	sudo -u $(USER_NAME) bin/cpanm -n --installdeps .
 
 .PHONY: prereq-node
 prereq-node:
@@ -226,4 +231,4 @@ firewall:
 	sudo ufw/setup-rules
 
 .PHONY: all
-all: prereq-debian prereq-perl prereq-frontend install install-service nginx mail dns firewall fail2ban githook
+all: depend install install-service nginx mail dns firewall fail2ban githook

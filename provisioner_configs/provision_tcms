@@ -8,6 +8,7 @@ use Trog::Config;
 use Archive::Tar::Builder;
 use PerlIO::gzip;
 use File::Slurper;
+use File::Copy;
 
 my $contactemail = $ARGV[0];
 die "Must pass contact email." unless $contactemail;
@@ -15,12 +16,11 @@ die "Must pass contact email." unless $contactemail;
 # use bin/tcms_hostname to get the hostname, and then build a data.tar.gz based on the existing data
 my $conf = Trog::Config::get();
 my $hostname = Trog::Config::hostname($conf);
+my $username = Trog::Config::hostname($conf, undef, 1);
 
 my $THIS_DIR="$Trog::Config::home_dir/provisioner_configs";
 
 mkdir $hostname unless -d $hostname;
-my $username = $hostname;
-$username =~ s/\./-/g;
 
 # Figure out what to backup
 my %to_archive = map {
@@ -30,7 +30,15 @@ my %to_archive = map {
     my $subj = $_;
     -d "$Trog::Config::home_dir/$subj"
 } qw{config data www/themes www/assets};
-$to_archive{"$THIS_DIR/Makefile.tmpl"} = 'Makefile';
+
+my $written_template = "$THIS_DIR/Makefile";
+File::Copy::copy("$THIS_DIR/Makefile.tmpl", $written_template);
+my $template = File::Slurper::read_text($written_template);
+$template =~ s/%TCMS_HOSTNAME%/$hostname/gmx;
+$template =~ s/%TCMS_USERNAME%/$username/gmx;
+File::Slurper::write_text($written_template, $template);
+
+$to_archive{"$THIS_DIR/Makefile"} = 'Makefile';
 
 # Build tar file
 open(my $th, '>', "$hostname/data.tar");
