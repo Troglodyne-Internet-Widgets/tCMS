@@ -29,6 +29,9 @@ service-user:
 	# For some reason, nginx needs world readability to see the socket, despite having group permissions.
 	# Seems pretty dumb to me, but whatever.  We are locking every single other file away from it & other users.
 	sudo chmod 0755 .
+	mkdir run; /bin/true
+	chown $(USER_NAME):www-data run
+	chmod 0770 run
 	sudo chmod 0775 run
 	sudo chown -R $(USER_NAME):www-data run
 	sudo chmod -R 0770 bin/ tcms www/server.psgi
@@ -119,7 +122,7 @@ nginx:
 	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
 	sed 's/\%SERVER_SOCK\%/$(shell pwd)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
-	mkdir run
+	mkdir run; /bin/true
 	chown $(USER_NAME):www-data run
 	chmod 0770 run
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
