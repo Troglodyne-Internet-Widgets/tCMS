@@ -9,19 +9,17 @@ else
 depend: prereq-debs service-user prereq-perl prereq-frontend prereq-node
 endif
 
+dirs: run www/themes data/files www/assets www/statics www/scripts www/styles totp .tcms .ssh logs
+run www/themes data/files www/assets www/statics www/scripts totp .tcms .ssh logs:
+	mkdir -p $@
+
 .PHONY: install
-install:
-	test -d www/themes || mkdir -p www/themes
-	test -d data/files || mkdir -p data/files
-	test -d www/assets || mkdir -p www/assets
-	test -d www/statics || mkdir -p www/statics
-	test -d totp/ || mkdir -p totp
-	test -d ~/.tcms || mkdir ~/.tcms
-	test -d logs || mkdir -p logs
-	$(RM) pod2htmd.tmp;
+install: dirs
+	$(RM) pod2htmd.tmp; /bin/true
 
 .PHONY: service-user
-service-user:
+service-user: dirs
+	sudo userdel $(USER_NAME); /bin/true
 	sudo useradd -MU -s /sbin/nologin -d "$(shell pwd)" $(USER_NAME); /bin/true
 	sudo chown -R $(USER_NAME):$(USER_NAME) .
 	# Can be 760 if you aren't using git features as a developer user that is not the system user.
@@ -29,13 +27,12 @@ service-user:
 	# For some reason, nginx needs world readability to see the socket, despite having group permissions.
 	# Seems pretty dumb to me, but whatever.  We are locking every single other file away from it & other users.
 	sudo chmod 0755 .
-	mkdir run; /bin/true
 	chown $(USER_NAME):www-data run
 	chmod 0770 run
 	sudo chmod 0775 run
 	sudo chown -R $(USER_NAME):www-data run
 	sudo chmod -R 0770 bin/ tcms www/server.psgi
-	sudo -u $(USER_NAME) mkdir 0700 .ssh
+	sudo -u $(USER_NAME) chmod 0700 .ssh
 	sudo -u $(USER_NAME) touch .ssh/authorized_keys
 	sudo -u $(USER_NAME) chmod 0600 .ssh/authorized_keys
 
@@ -64,7 +61,7 @@ prereq-debs:
 		pdns-tools pdns-server pdns-backend-sqlite3 libmagic-dev autotools-dev dh-autoreconf pigz libdeflate-dev
 
 .PHONY: prereq-perl
-prereq-perl:
+prereq-perl: service-user
 	sudo -u $(USER_NAME) perlbrew init
 	sudo -u $(USER_NAME) bin/perlbrew download stable
 	sudo -u $(USER_NAME) bin/perlbrew install $(shell ls -1 ~/perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
@@ -73,20 +70,19 @@ prereq-perl:
 	sudo -u $(USER_NAME) bin/cpanm -n --installdeps .
 
 .PHONY: prereq-node
-prereq-node:
-	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-	nvm install node
-	nvm use node
-	npm i
+prereq-node: service-user
+	sudo -u $(USER_NAME) curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+	sudo -u $(USER_NAME) nvm install node
+	sudo -u $(USER_NAME) bin/npm i
 
 .PHONY: prereq-frontend
-prereq-frontend:
-	mkdir -p www/scripts; pushd www/scripts && curl -L --remote-name-all                        \
+prereq-frontend: dirs
+	pushd www/scripts && curl -L --remote-name-all                        \
 		"https://raw.githubusercontent.com/chalda-pnuzig/emojis.json/master/dist/list.min.json" \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js" \
 		"https://cdn.jsdelivr.net/npm/chart.js" \
 		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.js"; popd
-	mkdir -p www/styles; pushd www/styles && curl -L --remote-name-all \
+	pushd www/styles && curl -L --remote-name-all \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css" \
 	    "https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.css" \
 		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/theme/white.css"; popd
@@ -118,11 +114,10 @@ fail2ban:
 	sudo systemctl reload fail2ban
 
 .PHONY: nginx
-nginx:
+nginx: dirs
 	sed 's/\%SERVER_NAME\%/$(SERVER_NAME)/g' nginx/tcms.conf.tmpl > nginx/tcms.conf.intermediate
 	sed 's/\%SERVER_SOCK\%/$(shell pwd)/g' nginx/tcms.conf.intermediate > nginx/tcms.conf
 	rm nginx/tcms.conf.intermediate
-	mkdir run; /bin/true
 	chown $(USER_NAME):www-data run
 	chmod 0770 run
 	sudo mkdir -p '/var/www/$(SERVER_NAME)'
@@ -139,7 +134,7 @@ nginx:
 	sudo systemctl reload nginx
 
 .PHONY: mail
-mail: dkim dmarc
+mail: dirs dkim dmarc
 	# Dovecot
 	sudo cp /etc/dovecot/conf.d/10-ssl.conf /etc/dovecot/conf.d/10-ssl.conf.orig
 	sudo sed -i 's/^\(ssl_cert\s*=\).*/\1<\/etc\/letsencrypt\/live\/$(SERVER_NAME)\/fullchain.pem/g' /etc/dovecot/conf.d/10-ssl.conf
@@ -160,7 +155,7 @@ mail: dkim dmarc
 	# TODO setup various mail aliases and so forth, e.g. postmaster@, soa@, the various lists etc
 
 .PHONY: dkim
-dkim:
+dkim: dirs
 	sudo mkdir -p /etc/opendkim/keys/$(SERVER_NAME)
 	sudo opendkim-genkey --directory /etc/opendkim/keys/$(SERVER_NAME) -s mail -d $(SERVER_NAME)
 	sudo openssl rsa -in /etc/opendkim/keys/$(SERVER_NAME)/mail.private -pubout > /tmp/mail.public
@@ -171,7 +166,7 @@ dkim:
 	sudo service opendkim start
 
 .PHONY: dmarc
-dmarc:
+dmarc: dirs
 	sudo mail/mongle_dmarc_config $(SERVER_NAME) mail.$(SERVER_NAME)
 	sudo service opendmarc enable
 	sudo service opendmarc start
@@ -187,7 +182,7 @@ ifneq (exists, $(shell test -f /etc/systemd/resolved.conf.d/10-disable-stub-reso
 endif
 
 .PHONY: dns
-dns: disable-stub-resolver
+dns: dirs disable-stub-resolver
 	cp dns/tcms.tmpl dns/tcms.conf
 	sed -i 's#__DIR__#$(shell pwd)#g' dns/tcms.conf
 	sed -i 's#__DOMAIN__#$(SERVER_NAME)#g' dns/tcms.conf
