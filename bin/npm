@@ -1,3 +1,0 @@
-#!/bin/bash
-nvm use node
-npm "$@"

@@ -27,8 +27,8 @@ service-user: dirs
 	# For some reason, nginx needs world readability to see the socket, despite having group permissions.
 	# Seems pretty dumb to me, but whatever.  We are locking every single other file away from it & other users.
 	sudo chmod 0755 .
-	chown $(USER_NAME):www-data run
-	chmod 0770 run
+	sudo chown $(USER_NAME):www-data run
+	sudo chmod 0770 run
 	sudo chmod 0775 run
 	sudo chown -R $(USER_NAME):www-data run
 	sudo chmod -R 0770 bin/ tcms www/server.psgi
@@ -62,18 +62,18 @@ prereq-debs:
 
 .PHONY: prereq-perl
 prereq-perl: service-user
-	sudo -u $(USER_NAME) perlbrew init
-	sudo -u $(USER_NAME) bin/perlbrew download stable
-	sudo -u $(USER_NAME) bin/perlbrew install $(shell ls -1 ~/perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
-	sudo -u $(USER_NAME) bin/perlbrew switch $(shell ls -1 ~/perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
-	sudo -u $(USER_NAME) bin/perlbrew install-cpanm
-	sudo -u $(USER_NAME) bin/cpanm -n --installdeps .
+	sudo -u $(USER_NAME) HOME=. perlbrew init
+	sudo -u $(USER_NAME) HOME=. bin/perlbrew download stable
+	sudo -u $(USER_NAME) HOME=. bin/perlbrew install $(shell ls -1 ./perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
+	sudo -u $(USER_NAME) HOME=. bin/perlbrew switch $(shell ls -1 ./perl5/perlbrew/dists/ | tail -n1 | sed -e s/.tar.gz// )
+	sudo -u $(USER_NAME) HOME=. bin/perlbrew install-cpanm
+	sudo -u $(USER_NAME) HOME=. bin/cpanm -n --installdeps .
 
 .PHONY: prereq-node
 prereq-node: service-user
 	sudo -u $(USER_NAME) curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-	sudo -u $(USER_NAME) nvm install node
-	sudo -u $(USER_NAME) bin/npm i
+	sudo -u $(USER_NAME) bin/nvm install node
+	sudo -u $(USER_NAME) bin/nvm exec node npm i
 
 .PHONY: prereq-frontend
 prereq-frontend: dirs
