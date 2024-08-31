@@ -1,4 +1,4 @@
-#!/usr/bin/starman
+#!bin/starman
 
 use strict;
 use warnings;

@@ -12,7 +12,7 @@ die "Can't find service file $service_file" unless -f $service_file;
 
 my $cfg = Config::Simple->new($service_file);
 
-#$cfg->param("Service.WorkingDirectory", "/var/spool/powerdns");
+$cfg->param("Service.WorkingDirectory", "/var/spool/powerdns");
 my $invocation = "/usr/sbin/pdns_server --guardian=no --daemon=no --logging-facility=1 --log-timestamp=yes --write-pid=no --chroot";
 $cfg->param("Service.ExecStart", $invocation);
 
