@@ -19,16 +19,22 @@ Utility functions for getting themed paths.
 
 our $template_dir = 'www/templates';
 
-my $get_theme_dir = sub {
-    my $conf = Trog::Config::get();
+sub get_dir {
     state $tdir;
+    return $tdir if $tdir;
+    my $conf = Trog::Config::get();
     $tdir = "www/themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
     return $tdir;
 };
 
+sub td {
+    my $dir = get_dir();
+    return $dir ? "/$dir" : '';
+}
+
 sub template_dir ( $template, $content_type, $is_component = 0, $is_dir = 0 ) {
     my $ct = $Trog::Vars::byct{$content_type};
-    my ( $mtd, $mtemp ) = ( $get_theme_dir->() . "/templates/$ct", "$template_dir/$ct" );
+    my ( $mtd, $mtemp ) = ( get_dir() . "/templates/$ct", "$template_dir/$ct" );
     if ($is_component) {
         $mtd   .= "/components";
         $mtemp .= "/components";
@@ -41,7 +47,7 @@ sub template_dir ( $template, $content_type, $is_component = 0, $is_dir = 0 ) {
 
 # Pick appropriate dir based on whether theme override exists
 sub _dir_for_resource ($resource) {
-    my $theme_dir = $get_theme_dir->();
+    my $theme_dir = get_dir();
     return $theme_dir && -f "$theme_dir/$resource" ? $theme_dir : '';
 }
 

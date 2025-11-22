@@ -240,7 +240,7 @@ Most subsequent functions simply pass content to this function.
 =cut
 
 sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
-    $query->{theme_dir} = $Trog::Themes::td;
+    $query->{theme_dir} = Trog::Themes::td();
 
     my $to_render = $query->{template} // $landing_page;
     $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
@@ -294,7 +294,7 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
             %$query,
             search_lang  => $data->lang(),
             search_help  => $data->help(),
-            theme_dir    => $Trog::Themes::td,
+            theme_dir    => Trog::Themes::td(),
             content      => $content,
             title        => $title,
             htmltitle    => $htmltitle,
@@ -333,7 +333,7 @@ sub _build_social_meta ( $query, $title ) {
     $card_type = 'featured_image' if $query->{primary_post} && $query->{primary_post}{is_image};
     $card_type = 'player'         if $query->{primary_post} && $query->{primary_post}{is_video};
 
-    my $image = $Theme::default_image ? "https://$query->{domain}/$Trog::Themes::td/$Theme::default_image" : '';
+    my $image = $Theme::default_image ? "https://$query->{domain}/" . Trog::Themes::get_dir() . "/$Theme::default_image" : '';
     $image = "https://$query->{domain}/$query->{primary_post}{preview}" if $query->{primary_post} && $query->{primary_post}{preview};
     $image = "https://$query->{domain}/$query->{primary_post}{href}"    if $query->{primary_post} && $query->{primary_post}{is_image};
 
@@ -475,7 +475,7 @@ sub totp ($query) {
     return Trog::Routes::HTML::index(
         {
             title     => 'Enable TOTP 2-Factor Auth',
-            theme_dir => $Trog::Themes::td,
+            theme_dir => Trog::Themes::td(),
             uri       => $uri,
             qr        => $qr,
             failure   => $failure,
@@ -551,7 +551,7 @@ sub login ($query) {
             message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
             btnmsg      => $btnmsg,
             stylesheets => _build_themed_styles( [qw{structure.css screen.css login.css}] ),
-            theme_dir   => $Trog::Themes::td,
+            theme_dir   => Trog::Themes::td(),
             has_users   => $hasusers,
             %$query,
         },
@@ -669,7 +669,7 @@ sub config ( $query = {} ) {
     return Trog::Routes::HTML::index(
         {
             title              => 'Configure tCMS',
-            theme_dir          => $Trog::Themes::td,
+            theme_dir          => Trog::Themes::td(),
             stylesheets        => [qw{config.css}],
             scripts            => [qw{post.js}],
             themes             => _get_themes() || [],
@@ -707,7 +707,7 @@ sub resetpass ($query) {
     return Trog::Routes::HTML::index(
         {
             title       => 'Request Authentication Resets',
-            theme_dir   => $Trog::Themes::td,
+            theme_dir   => Trog::Themes::td(),
             stylesheets => [qw{config.css}],
             scripts     => [qw{post.js}],
             message     => $query->{message},
@@ -1133,14 +1133,14 @@ sub posts ( $query, $direct = 0 ) {
     my ( $header, $footer );
     $header = Trog::Renderer->render(
         template    => 'headers/' . $query->{primary_post}{header},
-        data        => { theme_dir => $Trog::Themes::td, %$query },
+        data        => { theme_dir => Trog::Themes::td(), %$query },
         component   => 1,
         contenttype => 'text/html',
     ) if $query->{primary_post}{header};
     return $header if ref $header eq 'ARRAY';
     $footer = Trog::Renderer->render(
         template    => 'footers/' . $query->{primary_post}{footer},
-        data        => { theme_dir => $Trog::Themes::td, %$query },
+        data        => { theme_dir => Trog::Themes::td(), %$query },
         component   => 1,
         contenttype => 'text/html',
     ) if $query->{primary_post}{footer};
@@ -1548,7 +1548,7 @@ sub manual ($query) {
     return Trog::Routes::HTML::index(
         {
             title     => 'tCMS Manual',
-            theme_dir => $Trog::Themes::td,
+            theme_dir => Trog::Themes::td(),
             content   => $content,
             template  => 'manual.tx',
             is_admin  => 1,
@@ -1563,7 +1563,7 @@ sub processed ($query) {
     return Trog::Routes::HTML::index(
         {
             title     => "Your request has been processed",
-            theme_dir => $Trog::Themes::td,
+            theme_dir => Trog::Themes::td(),
         },
         "Your request has been processed.<br /><br />You will recieve subsequent communications about this matter via means you have provided earlier.",
         ['post.css']
@@ -1579,7 +1579,7 @@ sub metrics ($query) {
     return Trog::Routes::HTML::index(
         {
             title     => 'tCMS Metrics',
-            theme_dir => $Trog::Themes::td,
+            theme_dir => Trog::Themes::td(),
             template  => 'metrics.tx',
             is_admin  => 1,
             %$query,

@@ -18,12 +18,6 @@ use Trog::Routes::HTML();
 
 use Trog::Log::Metrics();
 
-my $conf = Trog::Config::get();
-
-# TODO de-duplicate this, it's shared in html
-my $theme_dir = '';
-$theme_dir = "themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
-
 our %routes = (
     '/api/catalog' => {
         method     => 'GET',
@@ -93,6 +87,7 @@ sub catalog ($query) {
 
 sub webmanifest ($query) {
     state $headers  = { ETag => 'manifest-' . _version() };
+    my $theme_dir = Trog::Themes::get_dir();
     state %manifest = (
         "icons" => [
             { "src" => "$theme_dir/img/icon/favicon-32.png",  "type" => "image/png", "sizes" => "32x32" },
