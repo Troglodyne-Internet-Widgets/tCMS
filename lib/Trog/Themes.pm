@@ -10,6 +10,7 @@ use FindBin::libs;
 
 use Trog::Vars;
 use Trog::Config;
+use Trog::Log;
 
 =head1 Trog::Themes
 
@@ -23,7 +24,12 @@ sub get_dir {
     state $tdir = '';
     return $tdir if $tdir;
     my $conf = Trog::Config::get();
-    $tdir = "www/themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
+    my $theme = $conf->param('general.theme') || '';
+    if( $theme ) {
+        my $themedir = "www/themes/$theme";
+        $tdir = $themedir if -d $themedir;
+    }
+    Trog::Log::INFO("Loading Theme '$theme' from '$tdir'");
     return $tdir;
 };
 
