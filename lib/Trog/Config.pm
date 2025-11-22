@@ -4,7 +4,10 @@ use strict;
 use warnings;
 use feature qw{state};
 
+use FindBin::libs;
+
 use Config::Simple;
+use Trog::Log ();
 
 =head1 Trog::Config
 
@@ -17,14 +20,18 @@ Memoized, so you will need to HUP the children on config changes.
 
 =cut
 
-our $home_cfg = "config/main.cfg";
+our $home_cfg = "main.cfg";
+our $default  = "default.cfg";
 
 sub get {
     state $cf;
-    return $cf                           if $cf;
-    $cf = Config::Simple->new($home_cfg) if -f $home_cfg;
-    return $cf                           if $cf;
-    $cf = Config::Simple->new('config/default.cfg');
+    return $cf if $cf;
+    foreach my $cfg2try ($home_cfg, $default) {
+        next unless -f "config/$cfg2try";
+        $cf = Config::Simple->new("config/$cfg2try");
+        Trog::Log::INFO("Loaded config file: $home_cfg");
+        last;
+    }
     return $cf;
 }
 

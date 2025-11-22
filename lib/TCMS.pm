@@ -77,6 +77,9 @@ sub _app {
     # Build the routing table
     state( $conf, $data, %aliases );
 
+    # Setup logging
+    log_init();
+
     $conf //= Trog::Config::get();
     $data //= Trog::Data->new($conf);
     my %routes = %{ _routes($data) };
@@ -85,9 +88,6 @@ sub _app {
     # XXX this is built progressively across the forks, leading to inconsistent behavior.
     # This should eventually be pre-filled from DB.
     my %etags;
-
-    # Setup logging
-    log_init();
 
     my $requestid = Trog::Utils::uuid();
     Trog::Log::uuid($requestid);
