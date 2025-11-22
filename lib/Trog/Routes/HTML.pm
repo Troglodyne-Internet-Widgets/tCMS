@@ -34,8 +34,6 @@ use Trog::Email;
 
 use Trog::Component::EmojiPicker;
 
-my $conf = Trog::Config::get();
-
 our $landing_page = 'default.tx';
 our $htmltitle    = 'title.tx';
 our $midtitle     = 'midtitle.tx';
@@ -288,7 +286,7 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     }
 
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     return finish_render(
         $tmpl,
@@ -522,7 +520,7 @@ sub login ($query) {
             Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
 
             # Add a stub user page and the initial series.
-            my $dat = Trog::Data->new($conf);
+            my $dat = Trog::Data->new(Trog::Config::get());
             _setup_initial_db( $dat, $query->{username}, $query->{display_name}, $query->{contact_email} );
 
             # Ensure we stop registering new users
@@ -662,6 +660,7 @@ sub config ( $query = {} ) {
     #XXX ACHTUNG config::simple has this brain damaged behavior of returning a multiple element array when you access something that does not exist.
     #XXX straight up dying would be preferrable.
     #XXX anyways, this means you can NEVER NEVER NEVER access a param from within a hash directly.  YOU HAVE BEEN WARNED!
+    my $conf = Trog::Config::get();
     state $theme    = $conf->param('general.theme')              // '';
     state $dm       = $conf->param('general.data_model')         // 'DUMMY';
     state $embeds   = $conf->param('security.allow_embeds_from') // '';
@@ -777,7 +776,7 @@ sub do_totp_clear ($query) {
 
 sub _get_series ( $edit = 0 ) {
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     my @series = $data->get(
         acls  => [qw{public}],
@@ -815,6 +814,7 @@ sub config_save ($query) {
     return see_also('/login')                    unless $query->{user};
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
+    my $conf = Trog::Config::get();
     $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
     $conf->param( 'general.data_model',         $query->{data_model} ) if $query->{data_model};
     $conf->param( 'security.allow_embeds_from', $query->{embeds} )     if $query->{embeds};
@@ -890,7 +890,7 @@ sub post_save ($query) {
     $query->{method} = 'GET';
 
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     $data->add($query) and die "Could not add post";
     return see_also($to);
@@ -908,7 +908,7 @@ sub profile ($query) {
 
     # Find the user's post and edit it
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     my @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
 
@@ -951,7 +951,7 @@ sub post_delete ($query) {
     return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     $data->delete($query) and die "Could not delete post";
     return see_also( $query->{to} );
@@ -1199,7 +1199,7 @@ sub posts ( $query, $direct = 0 ) {
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
 
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     # Grab the rest of the tags to dump into the edit form
     my @tags_all = $data->tags();
@@ -1285,7 +1285,7 @@ sub _themed_title ($path) {
 
 sub _post_helper ( $query, $tags, $acls ) {
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     $query->{page}  ||= 1;
     $query->{limit} ||= 25;
@@ -1323,7 +1323,7 @@ Passing compressed=1 will gzip the output.
 sub sitemap ($query) {
 
     state $data;
-    $data //= Trog::Data->new($conf);
+    $data //= Trog::Data->new(Trog::Config::get());
 
     state $etag = "sitemap-" . time();
     my ( @to_map, $is_index, $route_type );
