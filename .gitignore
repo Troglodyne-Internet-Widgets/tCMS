@@ -53,3 +53,4 @@ service-files/*.service
 .tig_history
 .sqlite_history
 .xslate_cache
+tCMS.log
