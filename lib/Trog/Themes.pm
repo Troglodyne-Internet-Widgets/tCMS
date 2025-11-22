@@ -20,7 +20,7 @@ Utility functions for getting themed paths.
 our $template_dir = 'www/templates';
 
 sub get_dir {
-    state $tdir;
+    state $tdir = '';
     return $tdir if $tdir;
     my $conf = Trog::Config::get();
     $tdir = "www/themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
