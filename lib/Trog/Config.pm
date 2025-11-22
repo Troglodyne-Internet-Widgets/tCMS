@@ -29,7 +29,7 @@ sub get {
     foreach my $cfg2try ($home_cfg, $default) {
         next unless -f "config/$cfg2try";
         $cf = Config::Simple->new("config/$cfg2try");
-        Trog::Log::INFO("Loaded config file: $home_cfg");
+        Trog::Log::INFO("Loaded config file: $cfg2try");
         last;
     }
     return $cf;
