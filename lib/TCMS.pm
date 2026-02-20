@@ -43,18 +43,23 @@ use Trog::FileHandler;
 # Wrap app to return *our* error handler instead of Plack::Util::run_app's
 my $cur_query = {};
 
-sub app {
-    return eval { _app(@_) } || do {
-        my $env = shift;
-        $env->{'psgi.errors'}->print($@);
+# Build routes
+sub build_routes {
+    my $conf //= Trog::Config::get();
+    my $data //= Trog::Data->new($conf);
+    my %routes = %{ _routes($data) };
 
-        # Redact the stack trace past line 1, it usually has things which should not be shown
-        $cur_query->{message} = $@;
-        $cur_query->{message} =~ s/\n.*//g if $cur_query->{message};
-
-        return _error($cur_query);
-    };
+    # Transform 'method' / 'callback' to new scheme
+    my %routes_adj = map {
+        my $k = $_;
+        my $v = $routes{$k};
+        $v->{callbacks} = { delete $v->{method} => delete $v->{callback} };
+        $k => $v
+    } keys(%routes);
+    return [%routes_adj];
 }
+
+our %routes = build_routes();
 
 =head2 app()
 
@@ -340,9 +345,9 @@ sub _app {
         my $output = $routes{$path}{callback}->($query);
         die "$path returned no data!" unless ref $output eq 'ARRAY' && @$output == 3;
 
-        my $pport = defined $query->{port} ? ":$query->{port}" : "";
-        my %headers = @{$output->[1]};
-        my $bytes = $headers{'Content-Length'};
+        my $pport   = defined $query->{port} ? ":$query->{port}" : "";
+        my %headers = @{ $output->[1] };
+        my $bytes   = $headers{'Content-Length'};
         INFO("$env->{REQUEST_METHOD} $output->[0] $bytes $fullpath");
 
         # Append server-timing headers if they aren't present
