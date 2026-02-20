@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
+
 use Clone        qw{clone};
 use Date::Format qw{strftime};
 
@@ -24,7 +25,10 @@ use URI();
 use Ref::Util qw{is_coderef is_hashref is_arrayref};
 
 #Grab our custom routes
+use FindBin;
+use lib "$FindBin::Bin/../lib";
 use FindBin::libs;
+
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
 
@@ -45,6 +49,7 @@ my $cur_query = {};
 
 # Build routes
 sub build_routes {
+    Trog::Log::log_init();
     my $conf //= Trog::Config::get();
     my $data //= Trog::Data->new($conf);
     my %routes = %{ _routes($data) };
@@ -53,13 +58,17 @@ sub build_routes {
     my %routes_adj = map {
         my $k = $_;
         my $v = $routes{$k};
-        $v->{callbacks} = { delete $v->{method} => delete $v->{callback} };
+        my %cb;
+        my $method = delete $v->{method};
+        my $callback = delete $v->{callback};
+        $cb{$method} = $callback if $callback && $method;
+        $v->{callbacks} = \%cb;
         $k => $v
     } keys(%routes);
     return [%routes_adj];
 }
 
-our %routes = build_routes();
+our @routes = @{build_routes()};
 
 =head2 app()
 
@@ -83,7 +92,7 @@ sub _app {
     state( $conf, $data, %aliases );
 
     # Setup logging
-    log_init();
+    #log_init();
 
     $conf //= Trog::Config::get();
     $data //= Trog::Data->new($conf);

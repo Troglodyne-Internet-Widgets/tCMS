@@ -32,6 +32,7 @@ sub get {
         Trog::Log::INFO("Loaded config file: $cfg2try");
         last;
     }
+    die "Could not find config file!" unless $cf;
     return $cf;
 }
 

@@ -65,7 +65,10 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::index,
     },
-
+    '/' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::index,
+    },
     # This should only be enabled to debug
     #    '/setup' => {
     #        method   => 'GET',
