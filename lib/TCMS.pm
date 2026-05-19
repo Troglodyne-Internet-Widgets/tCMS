@@ -6,7 +6,6 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
-
 use Clone        qw{clone};
 use Date::Format qw{strftime};
 
@@ -49,21 +48,21 @@ my $cur_query = {};
 
 # Build routes
 sub build_routes {
-    my $conf    = Trog::Config::get();
-    my $data    = Trog::Data->new($conf);
-    my %routes  = %{ _routes($data) };
+    my $conf   = Trog::Config::get();
+    my $data   = Trog::Data->new($conf);
+    my %routes = %{ _routes($data) };
 
     # Transform 'method' / 'callback' to new scheme
     my %routes_adj = map {
         my $k = $_;
         my $v = $routes{$k};
         my %cb;
-        my $method = $v->{method};
+        my $method   = $v->{method};
         my $callback = delete $v->{callback};
 
         #XXX For now we will discard the tPSGI object.  We might want it later.
         my $cb_wrap = sub {
-            my ($tpsgi, $query) = @_;
+            my ( $tpsgi, $query ) = @_;
 
             # Set the urchin parameters if necessary.
             %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
@@ -98,7 +97,7 @@ sub build_routes {
             my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
             @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
 
-            $query->{user}    = $active_user;
+            $query->{user}         = $active_user;
             $query->{body}         = '';
             $query->{social_meta}  = 1;
             $query->{primary_post} = {};
@@ -131,7 +130,7 @@ sub build_routes {
     return [%routes_adj];
 }
 
-our @routes = @{build_routes()};
+our @routes  = @{ build_routes() };
 our %aliases = aliases();
 
 =head2 app()
