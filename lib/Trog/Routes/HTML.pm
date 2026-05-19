@@ -802,11 +802,15 @@ sub _get_themes {
 }
 
 sub _get_data_models {
-    my $dir = 'lib/Trog/Data';
-    opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
-    my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);
-    closedir $dh;
-    return \@dmods;
+    foreach my $incdir (@INC) {
+        my $dir = "$incdir/Trog/Data";
+        next unless -d $dir;
+        opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
+        my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);
+        closedir $dh;
+        return \@dmods;
+    }
+    die "Could not find tCMS data modules!  Is tCMS in \@INC?";
 }
 
 =head2 config_save
@@ -1547,8 +1551,14 @@ sub manual ($query) {
     $query->{failure} //= -1;
 
     my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
-    return notfound($query) unless -f "lib/$infile";
-    my $content = capture { Pod::Html::pod2html( qw{--podpath=lib --podroot=.}, "--infile=lib/$infile" ) };
+    my $found = 0;
+    foreach my $libdir (@INC) {
+        $found = $libdir if -f "$libdir/$infile";
+        last if $found;
+    }
+    return notfound($query) unless $found;
+
+    my $content = capture { Pod::Html::pod2html( qw{--podpath=lib --podroot=.}, "--infile=$found/$infile" ) };
 
     return Trog::Routes::HTML::index(
         {
@@ -1595,10 +1605,12 @@ sub metrics ($query) {
     );
 }
 
+# XXX we should never ever have to get here, let tpsgi handle it instead
 # basically a file rewrite rule for themes
 sub icon ($query) {
     my $path = $query->{route};
-    return Trog::FileHandler::serve( Trog::Themes::themed("img/icon/$path") );
+    my $tpath = Trog::Themes::themed("img/icon/$path");
+    return Trog::FileHandler::serve( $tpath, $tpath, $query->{start}, 1, undef  );
 }
 
 # TODO make statics, abstract gzipped outputting & header handling
