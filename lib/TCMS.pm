@@ -113,11 +113,6 @@ sub build_routes {
             # Now that we have firmed up the actual routing, let's validate.
             return $tpsgi->forbidden($query) if exists $query->{dispatcher}{auth} && !$active_user;
 
-            # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
-            if ( index( $query->{route}, '/templates' ) == 0 || index( $query->{route}, '/statics' ) == 0 || $query->{route} =~ m/.*(\.psgi|\.pm)$/i ) {
-                return $tpsgi->forbidden($query);
-            }
-
             no strict 'refs';
             $callback->($query);
             use strict;
