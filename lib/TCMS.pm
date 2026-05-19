@@ -87,6 +87,8 @@ sub build_routes {
                 $active_user     = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
                 $Trog::Log::user = $active_user if $active_user;
             }
+            # Make sure TPSGI can log the user
+            $tpsgi->{user} = $active_user;
 
             # Enrich the query with tcms specific foo
             $query->{user_acls} = [];

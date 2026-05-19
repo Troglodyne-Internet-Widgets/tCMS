@@ -1572,12 +1572,11 @@ sub metrics ($query) {
     );
 }
 
-# XXX we should never ever have to get here, let tpsgi handle it instead
 # basically a file rewrite rule for themes
 sub icon ($query) {
     my $path = $query->{route};
     my $tpath = Trog::Themes::themed("img/icon/$path");
-    return $query->{tpsgi}->serve( $tpath, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate}  );
+    return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate}  );
 }
 
 sub totp_qr ($query) {
