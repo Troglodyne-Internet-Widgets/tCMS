@@ -1,3 +1,0 @@
-: include "components/header.tx";
-: include "index.tx";
-: include "components/footer.tx"

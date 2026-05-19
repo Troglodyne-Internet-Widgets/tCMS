@@ -389,65 +389,6 @@ sub _build_social_meta ( $query, $title ) {
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 
-=head1 ADMIN ROUTES
-
-These are things that issue returns other than 200, and are not directly accessible by users via any defined route.
-
-=head2 notfound, forbidden, badrequest
-
-Implements the 4XX status codes.  Override templates named the same for theming this.
-
-=cut
-
-sub _generic_route ( $rname, $code, $title, $query ) {
-    $query->{code} = $code;
-    $query->{route} //= $rname;
-    $query->{title}    = $title;
-    $query->{template} = "$rname.tx";
-    return Trog::Routes::HTML::index($query);
-}
-
-sub notfound (@args) {
-    return _generic_route( 'notfound', 404, "Return to sender, Address unknown", @args );
-}
-
-sub forbidden (@args) {
-    return _generic_route( 'forbidden', 403, "STAY OUT YOU RED MENACE", @args );
-}
-
-sub badrequest (@args) {
-    return _generic_route( 'badrequest', 400, "Bad Request", @args );
-}
-
-sub toolong (@args) {
-    return _generic_route( 'toolong', 419, "URI too long", @args );
-}
-
-sub error (@args) {
-    return _generic_route( 'error', 500, "Internal Server Error", @args );
-}
-
-=head2 redirect, redirect_permanent, see_also
-
-Redirects to the provided page.
-
-=cut
-
-sub redirect ($to) {
-    INFO("redirect: $to");
-    return [ 302, [ "Location" => $to, "Content-Length" => 0 ], [''] ];
-}
-
-sub redirect_permanent ($to) {
-    INFO("permanent redirect: $to");
-    return [ 301, [ "Location" => $to, "Content-Length" => 0 ], [''] ];
-}
-
-sub see_also ($to) {
-    INFO("see also: $to");
-    return [ 303, [ "Location" => $to, "Content-Length" => 0 ], [''] ];
-}
-
 =head1 NORMAL ROUTES
 
 These are expected to either return a 200, or redirect to something which does.
@@ -521,7 +462,7 @@ sub login ($query) {
     $query->{to} = '/config' if List::Util::any { $query->{to} eq $_ } qw{/login /logout};
     if ( $query->{user} ) {
         DEBUG("Login by $query->{user}, redirecting to $query->{to}");
-        return see_also( $query->{to} );
+        return $query->{tpsgi}->see_also( $query->{to} );
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
@@ -669,8 +610,8 @@ Renders the configuration page, or redirects you back to the login page.
 =cut
 
 sub config ( $query = {} ) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -745,10 +686,10 @@ sub do_resetpass ($query) {
     my $user = $query->{username};
 
     # User Does not exist
-    return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::user_exists($user);
+    return $query->{tpsgi}->forbidden($query) if !Trog::Auth::user_exists($user);
 
     # User exists, but is not logged in this session
-    return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
+    return $query->{tpsgi}->forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
     my $token   = Trog::Utils::uuid();
     my $newpass = $query->{password} // Trog::Utils::uuid();
@@ -757,7 +698,7 @@ sub do_resetpass ($query) {
 
     # If the user is logged in, just do the deed, otherwise send them the token in an email
     if ( $query->{user} ) {
-        return see_also("/api/auth_change_request/$token");
+        return $query->{tpsgi}->see_also("/api/auth_change_request/$token");
     }
     Trog::Email::contact(
         $user,
@@ -765,17 +706,17 @@ sub do_resetpass ($query) {
         "$query->{domain}: Password reset URL for $user",
         { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'password_reset.tx' }
     );
-    return see_also("/processed");
+    return $query->{tpsgi}->see_also("/processed");
 }
 
 sub do_totp_clear ($query) {
     my $user = $query->{username};
 
     # User Does not exist
-    return Trog::Routes::HTML::forbidden($query) if !Trog::Auth::user_exists($user);
+    return $query->{tpsgi}->forbidden($query) if !Trog::Auth::user_exists($user);
 
     # User exists, but is not logged in this session
-    return Trog::Routes::HTML::forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
+    return $query->{tpsgi}->forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
     my $token = Trog::Utils::uuid();
     my $res   = Trog::Auth::add_change_request( type => 'clear_totp', user => $user, token => $token );
@@ -783,7 +724,7 @@ sub do_totp_clear ($query) {
 
     # If the user is logged in, just do the deed, otherwise send them the token in an email
     if ( $query->{user} ) {
-        return see_also("/api/auth_change_request/$token");
+        return $query->{tpsgi}->see_also("/api/auth_change_request/$token");
     }
     Trog::Email::contact(
         $user,
@@ -791,7 +732,7 @@ sub do_totp_clear ($query) {
         "$query->{domain}: Password reset URL for $user",
         { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'totp_reset.tx' }
     );
-    return see_also("/processed");
+    return $query->{tpsgi}->see_also("/processed");
 }
 
 sub _get_series ( $edit = 0 ) {
@@ -863,8 +804,8 @@ Clone a theme by copying a directory.
 =cut
 
 sub themeclone ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my ( $theme, $newtheme ) = ( $query->{theme}, $query->{newtheme} );
 
@@ -877,7 +818,7 @@ sub themeclone ($query) {
         $query->{failure} = 0;
         $query->{message} = "Successfully cloned theme '$theme' as '$newtheme'.";
     }
-    return see_also('/config');
+    return $query->{tpsgi}->see_also('/config');
 }
 
 =head2 post_save
@@ -932,8 +873,8 @@ Saves / updates new users.
 =cut
 
 sub profile ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     # Find the user's post and edit it
     state $data;
@@ -976,14 +917,14 @@ deletes posts.
 =cut
 
 sub post_delete ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     state $data;
     $data //= Trog::Data->new(Trog::Config::get());
 
     $data->delete($query) and die "Could not delete post";
-    return see_also( $query->{to} );
+    return $query->{tpsgi}->see_also( $query->{to} );
 }
 
 =head2 series
@@ -1068,7 +1009,7 @@ sub users ($query) {
     $display_name = URI::Escape::uri_unescape($display_name);
 
     my $username = Trog::Auth::display2username($display_name);
-    return notfound($query) unless $username;
+    return $query->{tpsgi}->notfound($query) unless $username;
 
     $query->{username} //= $username;
     push( @{ $query->{user_acls} }, 'public' );
@@ -1144,7 +1085,7 @@ sub posts ( $query, $direct = 0 ) {
     }
 
     if ( !$is_admin ) {
-        return notfound($query) unless @posts;
+        return $query->{tpsgi}->notfound($query) unless @posts;
     }
 
     # Set the eTag so that we don't get a re-fetch
@@ -1560,8 +1501,8 @@ Basically a thin wrapper around Pod::Html.
 =cut
 
 sub manual ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     require Pod::Html;
     require Capture::Tiny;
@@ -1576,7 +1517,7 @@ sub manual ($query) {
         $found = $libdir if -f "$libdir/$infile";
         last if $found;
     }
-    return notfound($query) unless $found;
+    return $query->{tpsgi}->notfound($query) unless $found;
 
     my $content = capture { Pod::Html::pod2html( qw{--podpath=lib --podroot=.}, "--infile=$found/$infile" ) };
 
@@ -1606,8 +1547,8 @@ sub processed ($query) {
 }
 
 sub metrics ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 

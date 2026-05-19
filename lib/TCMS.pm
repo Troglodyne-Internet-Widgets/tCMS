@@ -43,7 +43,6 @@ use Trog::FileHandler;
 
 # Troglodyne philosophy - simple as possible
 
-# Wrap app to return *our* error handler instead of Plack::Util::run_app's
 my $cur_query = {};
 
 # Build routes
@@ -128,6 +127,15 @@ sub build_routes {
         $k => $v
     } keys(%routes);
     return [%routes_adj];
+}
+
+# Override the generic error handler to look spiffy
+sub generic_route ( $rname, $code, $title, $query ) {
+    $query->{code} = $code;
+    $query->{route} //= $rname;
+    $query->{title}    = $title;
+    $query->{template} = "$rname.tx";
+    return Trog::Routes::HTML::index($query);
 }
 
 our @routes  = @{ build_routes() };
