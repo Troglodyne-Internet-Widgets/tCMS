@@ -105,7 +105,7 @@ sub process_auth_change_request ($query) {
     my $token = $query->{token};
 
     my $msg = Trog::Auth::process_change_request($token);
-    return Trog::Routes::HTML::forbidden($query) unless $msg;
+    return $query->{tpsgi}->forbidden($query) unless $msg;
     return _render(
         200, undef,
         message => $msg,
