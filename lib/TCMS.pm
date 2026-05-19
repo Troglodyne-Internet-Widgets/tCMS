@@ -59,9 +59,10 @@ sub build_routes {
         my $k = $_;
         my $v = $routes{$k};
         my %cb;
-        my $method = delete $v->{method};
+        my $method = $v->{method};
         my $callback = delete $v->{callback};
-        $cb{$method} = $callback if $callback && $method;
+        #XXX todo support different callbacks per requested content-type
+        $cb{'*'} = $callback if $callback && $method;
         $v->{callbacks} = \%cb;
         $k => $v
     } keys(%routes);
