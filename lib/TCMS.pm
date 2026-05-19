@@ -61,8 +61,12 @@ sub build_routes {
         my %cb;
         my $method = $v->{method};
         my $callback = delete $v->{callback};
+        #XXX For now we will discard the tPSGI object.  We might want it later.
+        my $cb_wrap = sub { shift; $callback->(shift); };
+
         #XXX todo support different callbacks per requested content-type
-        $cb{'*'} = $callback if $callback && $method;
+        $cb{'*'} = $cb_wrap if $callback;
+
         $v->{callbacks} = \%cb;
         $k => $v
     } keys(%routes);
