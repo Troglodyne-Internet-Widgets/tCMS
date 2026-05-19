@@ -6,6 +6,7 @@ use warnings;
 no warnings qw{experimental once};
 use feature qw{signatures state};
 
+use POSIX qw{strftime};
 use Errno qw{ENOENT};
 use File::Touch();
 use File::Basename qw{basename};
@@ -482,8 +483,10 @@ sub totp ($query) {
     my $active_user = $query->{user};
     my $domain      = $query->{domain};
     $query->{failure} //= -1;
-    my ( $uri, $qr, $failure, $message ) = Trog::Auth::totp( $active_user, $domain );
+    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( $active_user, $domain );
 
+    my $now_tm = time;
+    my $now_string = strftime("%a %b %e T%H:%M:%SZ %Y", gmtime($now_tm));
     return Trog::Routes::HTML::index(
         {
             title     => 'Enable TOTP 2-Factor Auth',
@@ -494,6 +497,8 @@ sub totp ($query) {
             message   => $message,
             template  => 'totp.tx',
             is_admin  => 1,
+            cur_code  => $totp->expected_totp_code($now_tm),
+            timestamp => $now_string,
             %$query,
         },
         undef,
@@ -716,6 +721,8 @@ Routes for user service of their authentication details.
 sub resetpass ($query) {
     $query->{failure} //= -1;
 
+    my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
     return Trog::Routes::HTML::index(
         {
             title       => 'Request Authentication Resets',
@@ -726,6 +733,7 @@ sub resetpass ($query) {
             failure     => $query->{failure},
             scheme      => $query->{scheme},
             template    => 'resetpass.tx',
+            is_admin    => $is_admin,
             %$query,
         },
         undef,

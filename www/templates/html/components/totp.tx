@@ -3,4 +3,6 @@
     <: $uri :>
     <br />
     <img src="/totp_qr/<: $qr :>" alt="TOTP QR Code" />
+    <br />
+    Current Code (<: $timestamp :>): <: $cur_code :>
 </div>
