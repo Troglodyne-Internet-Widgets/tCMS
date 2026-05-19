@@ -128,6 +128,8 @@ sub _render ( $code, $headers, %data ) {
         template    => 'bogus.tx',
         contenttype => 'application/json',
         headers     => $headers,
+        # TODO it may be appropriate to cache some of these methods.
+        nocache     => 1,
     );
 }
 

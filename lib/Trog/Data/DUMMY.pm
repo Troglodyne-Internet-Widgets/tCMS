@@ -66,9 +66,6 @@ sub delete ( $self, @posts ) {
     }
     $self->write( $example_posts, 1 );
 
-    # Gorilla cache invalidation
-    Path::Tiny::path('www/statics')->remove_tree;
-
     return 0;
 }
 

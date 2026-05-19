@@ -58,13 +58,19 @@ sub render ( $class, %options ) {
     return _yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
 
     #TODO future - save the components too and then compose them?
-    my $skip_save = !$options{component} || !$options{data}{route} || $options{data}{has_query} || $options{data}{user} || ( $options{code} // 0 ) != 200 || Trog::Log::is_debug();
+    my $data = $options{data};
+    my $skip_save = $options{component} || $options{nocache} || !$data->{route} || $data->{has_query} || $data->{user} || ( $options{code} // 0 ) != 200 || Trog::Log::is_debug();
 
     my $ret;
     local $@;
     eval {
         $ret = $renderer->(%options);
-        save_render( $options{data}, $ret->[2], %{ $ret->[1] } ) unless $skip_save;
+        if (exists $data->{tpsgi} && !$skip_save) {
+            $data->{tpsgi}->add_post_close_callback(sub {
+                # We invalidate these in the individual routes themselves.
+                $data->{tpsgi}->save_render( $data->{route}, $rendertype, $ret->[2][0] );
+            });
+        }
         1;
     } or do {
         return _yeet( $renderer, $@, %options );
@@ -94,22 +100,6 @@ sub _yeet ( $renderer, $error, %options ) {
         FATAL($msg);
     };
     return $ret;
-}
-
-sub save_render ( $vars, $body, %headers ) {
-    Path::Tiny::path( "www/statics/" . dirname( $vars->{route} ) )->mkpath;
-    my $file = "www/statics/$vars->{route}";
-
-    my $verb = -f $file ? 'Overwrite' : 'Write';
-    DEBUG("$verb static for $vars->{route}");
-    open( my $fh, '>', $file ) or die "Could not open $file for writing";
-    print $fh "HTTP/1.1 $vars->{code} OK\n";
-    foreach my $h ( keys(%headers) ) {
-        print $fh "$h:$headers{$h}\n" if $headers{$h};
-    }
-    print $fh "\n";
-    print $fh $body;
-    close $fh;
 }
 
 1;

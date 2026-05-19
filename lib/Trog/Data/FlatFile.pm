@@ -144,9 +144,6 @@ sub delete ( $self, @posts ) {
         Trog::SQLite::TagIndex::remove_post($update);
     }
 
-    # Gorilla cache invalidation
-    Path::Tiny::path('www/statics')->remove_tree;
-
     return 0;
 }
 

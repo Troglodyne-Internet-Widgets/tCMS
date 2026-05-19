@@ -176,6 +176,7 @@ This is a "special" route as it needs to know about all the routes in order to d
 
 =cut
 
+# TODO anytime that the routing table changes, we need to invalidate the cache.
 sub robots ($query) {
     state $etag = "robots-" . time();
     my $routes = _routes();

@@ -860,6 +860,12 @@ sub post_save ($qq) {
 
     $data->add($query) and die "Could not add post";
 
+    # Instruct tpsgi to invalidate the cached render.
+    $qq->{tpsgi}->add_post_close_callback(sub {
+        # We invalidate these in the individual routes themselves.
+        $qq->{tpsgi}->invalidate_render( $qq->{route}, 'html' );
+    });
+
     # Instruct tpsgi to restart the server after closing the request.
     $qq->{tpsgi}->signal_restart_parent();
 
@@ -1588,7 +1594,6 @@ sub totp_qr ($query) {
     );
 }
 
-# TODO make statics, abstract gzipped outputting & header handling
 sub rss_style ($query) {
     $query->{port}       = ":$query->{port}" if $query->{port};
     $query->{title}      = qq{<xsl:value-of select="rss/channel/title"/>};

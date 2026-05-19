@@ -395,9 +395,6 @@ sub add ( $self, @posts ) {
     }
     $self->write( \@to_write );
 
-    # Gorilla cache invalidation
-    Path::Tiny::path('www/statics')->remove_tree;
-
     return 0;
 }
 
