@@ -8,6 +8,7 @@ use feature qw{signatures state};
 
 use Errno qw{ENOENT};
 use File::Touch();
+use File::Basename qw{basename};
 use List::Util();
 use List::MoreUtils();
 use Capture::Tiny qw{capture};
@@ -210,6 +211,11 @@ our %routes = (
     '/favicon.ico' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::icon,
+    },
+    '/totp_qr/(.*)' => {
+        auth     => 1,
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::totp_qr,
     },
     '/styles/rss-style.xsl' => {
         method   => 'GET',
@@ -1610,7 +1616,21 @@ sub metrics ($query) {
 sub icon ($query) {
     my $path = $query->{route};
     my $tpath = Trog::Themes::themed("img/icon/$path");
-    return Trog::FileHandler::serve( $tpath, $tpath, $query->{start}, 1, undef  );
+    return $query->{tpsgi}->serve( $tpath, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate}  );
+}
+
+sub totp_qr ($query) {
+    my $fname = basename($query->{route});
+    # For authenticated content, we have to now do a serve().
+    return $query->{tpsgi}->serve(
+        "totp/$fname",
+        "totp/$fname",
+        $query->{start},
+        $query->{streaming},
+        $query->{ranges},
+        $query->{last_fetched},
+        $query->{deflate},
+    );
 }
 
 # TODO make statics, abstract gzipped outputting & header handling

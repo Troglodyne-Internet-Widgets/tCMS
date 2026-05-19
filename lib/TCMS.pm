@@ -103,6 +103,9 @@ sub build_routes {
             $query->{social_meta}  = 1;
             $query->{primary_post} = {};
 
+            # Some routes may just need to do serve()
+            $query->{tpsgi} = $tpsgi;
+
             # Redirecting somewhere naughty not allow
             $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
 
