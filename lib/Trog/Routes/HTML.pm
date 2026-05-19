@@ -14,6 +14,7 @@ use List::MoreUtils();
 use Capture::Tiny qw{capture};
 use HTML::SocialMeta;
 
+use Clone qw{clone};
 use Encode qw{encode_utf8};
 use IO::Compress::Gzip;
 use Path::Tiny();
@@ -826,8 +827,8 @@ Implements /config/save route.  Saves what little configuration we actually use 
 =cut
 
 sub config_save ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $conf = Trog::Config::get();
     $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
@@ -842,8 +843,7 @@ sub config_save ($query) {
         $query->{message} = "Configuration updated succesfully.";
     }
 
-    #Get the PID of the parent port using lsof, send HUP
-    Trog::Utils::restart_parent();
+    $query->{tpsgi}->signal_restart_parent();
 
     return config($query);
 }
@@ -878,9 +878,11 @@ Saves posts submitted via the /post pages
 
 =cut
 
-sub post_save ($query) {
-    return see_also('/login')                    unless $query->{user};
-    return Trog::Routes::HTML::forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+sub post_save ($qq) {
+    return $qq->{tpsgi}->see_also('/login') unless $qq->{user};
+    return $qq->{tpsgi}->forbidden($qq)  unless grep { $_ eq 'admin' } @{ $qq->{user_acls} };
+
+    my $query = clone($qq);
 
     my $to = delete $query->{to};
 
@@ -892,7 +894,7 @@ sub post_save ($query) {
     $query->{data} = Trog::Utils::coerce_array( $query->{data} ) if $query->{data_is_array};
     $query->{attachments} = Trog::Utils::coerce_array( $query->{attachments} );
 
-    # Filter bits and bobs
+    # Filter bits and bobs XXX this is done deeper in, may require removal
     delete $query->{primary_post};
     delete $query->{social_meta};
     delete $query->{deflate};
@@ -908,7 +910,11 @@ sub post_save ($query) {
     $data //= Trog::Data->new(Trog::Config::get());
 
     $data->add($query) and die "Could not add post";
-    return see_also($to);
+
+    # Instruct tpsgi to restart the server after closing the request.
+    $qq->{tpsgi}->signal_restart_parent();
+
+    return $qq->{tpsgi}->see_also($to);
 }
 
 =head2 profile

@@ -395,9 +395,6 @@ sub add ( $self, @posts ) {
     }
     $self->write( \@to_write );
 
-    #hup the parent to refresh the routing table
-    Trog::Utils::restart_parent();
-
     # Gorilla cache invalidation
     Path::Tiny::path('www/statics')->remove_tree;
 
