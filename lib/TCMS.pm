@@ -49,10 +49,9 @@ my $cur_query = {};
 
 # Build routes
 sub build_routes {
-    Trog::Log::log_init();
-    my $conf //= Trog::Config::get();
-    my $data //= Trog::Data->new($conf);
-    my %routes = %{ _routes($data) };
+    my $conf    = Trog::Config::get();
+    my $data    = Trog::Data->new($conf);
+    my %routes  = %{ _routes($data) };
 
     # Transform 'method' / 'callback' to new scheme
     my %routes_adj = map {
@@ -61,8 +60,64 @@ sub build_routes {
         my %cb;
         my $method = $v->{method};
         my $callback = delete $v->{callback};
+
         #XXX For now we will discard the tPSGI object.  We might want it later.
-        my $cb_wrap = sub { shift; $callback->(shift); };
+        my $cb_wrap = sub {
+            my ($tpsgi, $query) = @_;
+
+            # Set the urchin parameters if necessary.
+            %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
+
+            # Set the IP of the request so we can fail2ban
+            $Trog::Log::ip = $query->{req_address};
+
+            # Set the referer & ua to go into DB logs, but not logs in general.
+            # The referer/ua largely has no importance beyond being a proto bug report for log messages.
+            $Trog::Log::DBI::referer = $query->{referer};
+            $Trog::Log::DBI::ua      = $query->{ua};
+
+            # Figure out if we have a logged in user, so we can serve them user-specific files
+            my $cookies = {};
+            $cookies = CGI::Cookie->parse( $query->{cookies} ) if $query->{cookies};
+
+            my $active_user = '';
+            $Trog::Log::user = 'nobody';
+            if ( exists $cookies->{tcmslogin} ) {
+                $active_user     = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
+                $Trog::Log::user = $active_user if $active_user;
+            }
+
+            # Enrich the query with tcms specific foo
+            $query->{user_acls} = [];
+            $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
+
+            # Grab the list of ACLs we want to add to a post, if any.
+            $query->{acls} = [ $query->{acls} ] if ( $query->{acls} && ref $query->{acls} ne 'ARRAY' );
+
+            # Filter out passed ACLs which are naughty
+            my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
+            @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
+
+            $query->{user}    = $active_user;
+            $query->{body}         = '';
+            $query->{social_meta}  = 1;
+            $query->{primary_post} = {};
+
+            # Redirecting somewhere naughty not allow
+            $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
+
+            # Now that we have firmed up the actual routing, let's validate.
+            return $tpsgi->forbidden($query) if exists $query->{dispatcher}{auth} && !$active_user;
+
+            # Disallow any paths that are naughty ( starman auto-removes .. up-traversal)
+            if ( index( $query->{route}, '/templates' ) == 0 || index( $query->{route}, '/statics' ) == 0 || $query->{route} =~ m/.*(\.psgi|\.pm)$/i ) {
+                return $tpsgi->forbidden($query);
+            }
+
+            no strict 'refs';
+            $callback->($query);
+            use strict;
+        };
 
         #XXX todo support different callbacks per requested content-type
         $cb{'*'} = $cb_wrap if $callback;
@@ -74,6 +129,7 @@ sub build_routes {
 }
 
 our @routes = @{build_routes()};
+our %aliases = aliases();
 
 =head2 app()
 
@@ -197,7 +253,7 @@ sub _app {
     # It's mod_rewrite!
     $path = '/index' if $path eq '/';
 
-    #XXX this is hardcoded in browsers, so just rewrite the path
+    #XXX this is hardcoded in browsers, so just rewrite the path - neeeds to be an alias
     $path = '/img/icon/favicon.ico' if $path eq '/favicon.ico';
 
     # Translate alias paths into their actual path
@@ -376,10 +432,9 @@ sub _routes ( $data = {} ) {
     state %routes;
     return clone( \%routes ) if %routes;
 
-    if ( !$data ) {
-        my $conf = Trog::Config::get();
-        $data = Trog::Data->new($conf);
-    }
+    my $conf = Trog::Config::get();
+    $data = Trog::Data->new($conf) unless $data;
+
     my %roots = $data->routes();
     %routes                                      = %Trog::Routes::HTML::routes;
     @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
@@ -393,6 +448,12 @@ sub _routes ( $data = {} ) {
     };
 
     return clone( \%routes );
+}
+
+sub aliases {
+    my $conf = Trog::Config::get();
+    my $data = Trog::Data->new($conf);
+    return $data->aliases();
 }
 
 =head2 robots

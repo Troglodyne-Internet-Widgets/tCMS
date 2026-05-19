@@ -110,7 +110,7 @@ sub FATAL {
 }
 
 sub _check_init {
-    die "You must run log_init() before using other Trog::Log methods" unless $log;
+    log_init() unless $log;
 }
 
 1;

@@ -219,8 +219,10 @@ our %routes = (
 
 # Grab theme routes
 my $themed = 0;
-if ($Trog::Themes::theme_dir) {
-    my $theme_mod = "$Trog::Themes::theme_dir/routes.pm";
+my $theme_dir = Trog::Themes::get_dir();
+if ($theme_dir) {
+
+    my $theme_mod = "$theme_dir/routes.pm";
     if ( -f $theme_mod ) {
         use lib '.';
         require $theme_mod;
@@ -375,7 +377,7 @@ sub _build_social_meta ( $query, $title ) {
     $meta_tags =~ s/content="video"/content="video:other"/mg if $meta_tags;
     $meta_tags .= $extra_tags                                if $extra_tags;
 
-    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $Trog::Themes::theme_dir && !$meta_tags;
+    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $theme_dir && !$meta_tags;
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 

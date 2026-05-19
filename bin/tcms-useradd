@@ -62,8 +62,6 @@ Display this output.
 =cut
 
 sub main {
-    Trog::Log::log_init();
-
     my %options;
     Getopt::Long::GetOptionsFromArray(
         \@_,
