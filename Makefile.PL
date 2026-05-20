@@ -31,6 +31,7 @@ WriteMakefile(
     'File::Copy'             => '0',
     'File::Slurper'          => '0',
     'File::Touch'            => '0',
+    'File::Path'             => '0',
     'HTML::SocialMeta'       => '0',
     'HTTP::Body'             => '0',
     'IO::String'             => '0',
