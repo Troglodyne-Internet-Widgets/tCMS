@@ -57,21 +57,6 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::index,
     },
-
-    #Deal with most indexDocument directives interfering with proxied requests to /
-    #TODO replace with alias routes
-    '/index.html' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::index,
-    },
-    '/index.php' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::index,
-    },
-    '/' => {
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::index,
-    },
     # This should only be enabled to debug
     #    '/setup' => {
     #        method   => 'GET',

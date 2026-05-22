@@ -20,6 +20,18 @@ Utility functions for getting themed paths.
 
 our $template_dir = 'www/templates';
 
+sub routes {
+    my $rdir = get_dir();
+    return () unless -f "$rdir/routes.pm";
+
+    local $@;
+    eval { require "$rdir/routes.pm"; 1; } or do {
+        die "Could not load Theme routing package: $@";
+    };
+
+    return %Theme::routes;
+}
+
 sub get_dir {
     state $tdir = '';
     return $tdir if $tdir;

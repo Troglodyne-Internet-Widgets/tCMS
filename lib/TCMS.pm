@@ -33,11 +33,9 @@ use Trog::Log qw{:all};
 use Trog::Log::DBI;
 
 use Trog::Auth;
-use Trog::Utils;
 use Trog::Config;
 use Trog::Data;
-use Trog::Vars;
-use Trog::FileHandler;
+use Trog::Themes;
 
 # Troglodyne philosophy - simple as possible
 
@@ -50,9 +48,17 @@ sub build_routes {
     my %routes = %{ _routes($data) };
 
     # Transform 'method' / 'callback' to new scheme
-    my %routes_adj = map {
-        my $k = $_;
+    my %routes_adj;
+    foreach my $k (keys(%routes)) {
         my $v = $routes{$k};
+
+        # Some routes are just pointers to other routes.
+        # In this case they might have already been transformed and need to be skipped.
+        if (exists $v->{callbacks}) {
+            $routes_adj{$k} = $v;
+            next;
+        }
+
         my %cb;
         my $method   = $v->{method};
         my $callback = delete $v->{callback};
@@ -122,8 +128,9 @@ sub build_routes {
         $cb{'*'} = $cb_wrap if $callback;
 
         $v->{callbacks} = \%cb;
-        $k => $v
-    } keys(%routes);
+        $routes_adj{$k} = $v;
+    }
+
     return [%routes_adj];
 }
 
@@ -147,10 +154,15 @@ sub _routes ( $data = {} ) {
     my $conf = Trog::Config::get();
     $data = Trog::Data->new($conf) unless $data;
 
+    # Routes in general are going to override earlier, more default ones.
+    # XXX this is probably bad in the case of the specific content-typed routes, they should be mutex
     my %roots = $data->routes();
+    my %themed = Trog::Themes::routes();
+
     %routes                                      = %Trog::Routes::HTML::routes;
     @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
     @routes{ keys(%roots) }                      = values(%roots);
+    @routes{ keys(%themed) }                     = values(%themed) if %themed;
 
     # Add in global routes, here because they *must* know about all other routes
     # Also, nobody should ever override these.
@@ -158,6 +170,11 @@ sub _routes ( $data = {} ) {
         method   => 'GET',
         callback => \&robots,
     };
+
+    # The Various aliases for directory indices
+    foreach my $index (qw{ / /index.html /index.htm}) {
+        $routes{$index} = $routes{'/index'} unless exists $routes{$index};
+    }
 
     return clone( \%routes );
 }
