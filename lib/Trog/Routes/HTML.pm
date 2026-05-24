@@ -76,6 +76,7 @@ our %routes = (
     '/auth' => {
         method   => 'POST',
         callback => \&Trog::Routes::HTML::login,
+        nocache  => 1,
         noindex  => 1,
     },
     '/totp' => {
@@ -501,6 +502,7 @@ sub login ($query) {
         headers     => $headers,
         contenttype => 'text/html',
         code        => 200,
+        nocache     => $query->{nocache},
     );
 }
 

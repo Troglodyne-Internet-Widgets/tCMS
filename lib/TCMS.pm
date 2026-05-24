@@ -109,6 +109,7 @@ sub build_routes {
             $query->{body}         = '';
             $query->{social_meta}  = 1;
             $query->{primary_post} = {};
+            $query->{nocache} = $v->{nocache};
 
             # Some routes may just need to do serve()
             $query->{tpsgi} = $tpsgi;
