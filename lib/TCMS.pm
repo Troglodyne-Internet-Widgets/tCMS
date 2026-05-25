@@ -177,6 +177,29 @@ sub _routes ( $data = {} ) {
         callback => \&robots,
     };
 
+    # Special 'am I authenticated' route for nginx
+    $routes{'/authenticated'} = {
+        method => 'GET',
+        nocache => 1,
+        noindex => 1,
+        callback => sub {
+            my ($query) = @_;
+            return $query->{tpsgi}->ok($query) if $query->{user};
+            return $query->{tpsgi}->forbidden($query);
+        },
+    };
+
+    # Heartbeat route
+    $routes{'/status'} = {
+        method => 'GET',
+        nocache => 1,
+        noindex => 1,
+        callback => sub {
+            my ($query) = @_;
+            return $query->{tpsgi}->ok($query);
+        },
+    };
+
     # The Various aliases for directory indices
     foreach my $index (qw{ / /index.html /index.htm}) {
         $routes{$index} = $routes{'/index'} unless exists $routes{$index};
