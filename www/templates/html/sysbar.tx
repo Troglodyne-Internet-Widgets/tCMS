@@ -1,7 +1,7 @@
 <div id="topkek" style="text-align: center; vertical-align: middle;">
     <button title="Menu" id="clickme">☰</button>
     <span id="configbar">
-        <a href="/"            title="Back home"     class="topbar">Home</a>
+        <a href="/secure/"     title="Back home"     class="topbar">Home</a>
         <a href="/config"      title="Configuration" class="topbar">Settings</a>
         <a href="/manual"      title="Manual"        class="topbar">Manual</a>
         <a href="/metrics?period=hour&num_periods=24"     title="Metrics"       class="topbar">Metrics</a>

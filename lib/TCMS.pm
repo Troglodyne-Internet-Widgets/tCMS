@@ -158,6 +158,11 @@ sub _routes ( $data = {} ) {
     # Routes in general are going to override earlier, more default ones.
     # XXX this is probably bad in the case of the specific content-typed routes, they should be mutex
     my %roots = $data->routes();
+
+    # Setup the /secure/... versions for logged in users
+    @roots{ map { "/secure$_" } keys(%roots) } = values(%roots);
+
+    # It is the responsibility of theme authors to setup /secure routes (other than index)
     my %themed = Trog::Themes::routes();
 
     %routes                                      = %Trog::Routes::HTML::routes;
@@ -175,6 +180,7 @@ sub _routes ( $data = {} ) {
     # The Various aliases for directory indices
     foreach my $index (qw{ / /index.html /index.htm}) {
         $routes{$index} = $routes{'/index'} unless exists $routes{$index};
+        $routes{"/secure$index"} = $routes{'/index'} unless exists $routes{"/secure$index"};
     }
 
     return clone( \%routes );

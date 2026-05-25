@@ -1,5 +1,9 @@
 <span id="categories">
 : for $categories -> $category {
+    : if ($user) {
+<a href="/secure<: $category.local_href :>"   title="<: $category.title :>" class="topbar"><: $category.title :></a>
+    : } else {
 <a href="<: $category.local_href :>"   title="<: $category.title :>" class="topbar"><: $category.title :></a>
+    : }
 : }
 </span>

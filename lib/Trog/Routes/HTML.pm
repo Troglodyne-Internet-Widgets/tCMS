@@ -62,7 +62,6 @@ our %routes = (
     #        method   => 'GET',
     #        callback => \&Trog::Routes::HTML::setup,
     #    },
-
     '/login' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::login,
@@ -72,6 +71,7 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::logout,
         noindex  => 1,
+        nocache  => 1,
     },
     '/auth' => {
         method   => 'POST',
@@ -125,15 +125,23 @@ our %routes = (
         callback => \&Trog::Routes::HTML::resetpass,
         noindex  => 1,
     },
+    # When we are logged in, we get a diff ver of the page.
+    '/secure/password_reset' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::resetpass,
+        auth     => 1,
+    },
     '/request_password_reset' => {
         method   => 'POST',
         callback => \&Trog::Routes::HTML::do_resetpass,
         noindex  => 1,
+        nocache  => 1,
     },
     '/request_totp_clear' => {
         method   => 'POST',
         callback => \&Trog::Routes::HTML::do_totp_clear,
         noindex  => 1,
+        nocache  => 1,
     },
     '/processed' => {
         method   => 'GET',
@@ -930,6 +938,9 @@ Displays identified series, not all series.
 sub series ($query) {
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
+    # rip away /secure if present
+    $query->{route} =~ s|^/secure||;
+
     #we are either viewed one of two ways, /post/$id or /$aclname
     my ( undef, $aclname, $id ) = split( /\//, $query->{route} );
     $query->{aclname} = $aclname if !$id;
@@ -997,6 +1008,9 @@ Implements direct user profile view.
 
 sub users ($query) {
 
+    # rip away /secure if present
+    $query->{route} =~ s|^/secure||;
+
     # Capture the username
     my ( undef, undef, $display_name ) = split( /\//, $query->{route} );
     $display_name = URI::Escape::uri_unescape($display_name);
@@ -1035,6 +1049,10 @@ sub posts ( $query, $direct = 0 ) {
 
     #Process the input URI to capture tag/id
     $query->{route} //= $query->{to};
+
+    # rip away /secure if present
+    $query->{route} =~ s|^/secure||;
+
     my ( undef, undef, $id ) = split( /\//, $query->{route} );
 
     my $tags = Trog::Utils::coerce_array( $query->{tag} );
@@ -1253,7 +1271,7 @@ sub _post_helper ( $query, $tags, $acls ) {
     $query->{page}  ||= 1;
     $query->{limit} ||= 25;
 
-    return $data->get(
+    my @d = $data->get(
         older        => $query->{older},
         newer        => $query->{newer},
         page         => int( $query->{page} ),
@@ -1267,6 +1285,12 @@ sub _post_helper ( $query, $tags, $acls ) {
         id           => $query->{id},
         version      => $query->{version},
     );
+    return map {
+        my $subj = $_;
+        $subj->{local_href} = "/secure$_->{local_href}";
+        $subj
+    } @d if $query->{user};
+    return @d;
 }
 
 =head2 sitemap
