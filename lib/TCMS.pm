@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
+use Carp qw{confess};
 use Clone        qw{clone};
 use Date::Format qw{strftime};
 
@@ -67,6 +68,11 @@ sub build_routes {
         my $cb_wrap = sub {
             my ( $tpsgi, $query ) = @_;
 
+            confess "Cannot determine directory for logs!" unless $tpsgi->{log_dir};
+
+            # Make sure the tCMS logs live in the same dir as the tpsgi logs.
+            log_init("$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info');
+
             # Let's open up our default route if needed before we bother thinking any harder
             return $routes{default}{callback}->($query) unless -f "config/setup";
 
@@ -74,7 +80,7 @@ sub build_routes {
             %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
 
             # Set the IP of the request so we can fail2ban
-            $Trog::Log::ip = $query->{req_address};
+            $Trog::Log::ip = $query->{ip};
 
             # Set the referer & ua to go into DB logs, but not logs in general.
             # The referer/ua largely has no importance beyond being a proto bug report for log messages.

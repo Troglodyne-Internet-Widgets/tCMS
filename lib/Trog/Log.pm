@@ -8,6 +8,7 @@ use Log::Dispatch;
 use Log::Dispatch::DBI;
 use Log::Dispatch::Screen;
 use Log::Dispatch::FileRotate;
+use File::Basename qw{dirname};
 
 use Trog::SQLite;
 use Trog::Log::DBI;
@@ -16,16 +17,21 @@ use Exporter 'import';
 our @EXPORT_OK   = qw{log_init is_debug INFO DEBUG WARN FATAL};
 our %EXPORT_TAGS = ( 'all' => \@EXPORT_OK );
 
-my $LOGNAME = 'logs/tcms.log';
-$LOGNAME = $ENV{CUSTOM_LOG} if $ENV{CUSTOM_LOG};
-
-my $LEVEL = $ENV{WWW_VERBOSE} ? 'debug' : 'info';
-
+my ($LEVEL, $LOGDIR);
 our ( $log, $user );
+
 $Trog::Log::user = 'nobody';
 $Trog::Log::ip   = '0.0.0.0';
 
 sub log_init {
+    my ($LOGNAME, $LEVEL)  =@_;
+
+    die "Cannot initialize logs without log name and log level" unless $LOGNAME && $LEVEL;
+
+    $LOGNAME //= 'logs/tcms.log';
+    $LEVEL   //= 'info';
+
+    $LOGDIR = dirname($LOGNAME);
 
     # By default only log requests & warnings.
     # Otherwise emit debug messages.
@@ -64,7 +70,7 @@ sub log_init {
 my $rq;
 
 sub _dbh {
-    return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
+    return Trog::SQLite::dbh( 'schema/log.schema', "$LOGDIR/log.db" );
 }
 
 sub is_debug {
@@ -90,27 +96,19 @@ sub _log {
 }
 
 sub DEBUG {
-    _check_init();
     $log->debug( _log( shift, 'DEBUG' ) );
 }
 
 sub INFO {
-    _check_init();
     $log->info( _log( shift, 'INFO' ) );
 }
 
 sub WARN {
-    _check_init();
     $log->warning( _log( shift, 'WARN' ) );
 }
 
 sub FATAL {
-    _check_init();
     $log->log_and_die( level => 'error', message => _log( shift, 'FATAL' ) );
-}
-
-sub _check_init {
-    log_init() unless $log;
 }
 
 1;

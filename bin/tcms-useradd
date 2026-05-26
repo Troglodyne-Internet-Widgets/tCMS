@@ -13,7 +13,6 @@ use List::Util qw{first};
 use Trog::Auth;
 use Trog::Data;
 use Trog::Config;
-use Trog::Log;
 
 # Don't murder our terminal when done
 $ENV{NOHUP} = 1;

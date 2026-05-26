@@ -47,6 +47,8 @@
             });
         };
     </script>
+    <div>Keep in mind that this only measures direct hits to the application, which shouldn't happen aside from API calls or logged in users.</div>
+    <br /><br />
     <form>
         Period:
         <select name=period class="cooltext" >

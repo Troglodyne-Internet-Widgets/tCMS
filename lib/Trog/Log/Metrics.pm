@@ -7,6 +7,7 @@ no warnings 'experimental';
 use feature qw{signatures state};
 
 use Trog::SQLite;
+use Trog::Log;
 
 =head1 Trog::Log::Metrics
 
@@ -14,10 +15,6 @@ A means for acquiring time-series representations of the data recorded by Trog::
 and for reasoning about the various things that it's Urchin-compatible data can give you.
 
 =cut
-
-sub _dbh {
-    return Trog::SQLite::dbh( 'schema/log.schema', "logs/log.db" );
-}
 
 =head2 requests_per(ENUM period{second,minute,hour,day,month,year}, INTEGER num_periods, [TIME_T before], INTEGER[] @codes)
 
@@ -64,7 +61,7 @@ sub requests_per ( $period, $num_periods, $before, @codes ) {
 
     my $query = "SELECT count(*) FROM all_requests $whereclause GROUP BY date / ? HAVING date < ? LIMIT ?";
 
-    my @results = map { $_->[0] } @{ _dbh()->selectall_arrayref( $query, undef, @input ) };
+    my @results = map { $_->[0] } @{ Trog::Log::_dbh()->selectall_arrayref( $query, undef, @input ) };
     my $np      = @results < $num_periods ? @results : $num_periods;
     my @labels  = reverse map { "$_ $period(s) ago" } ( 1 .. $np );
 

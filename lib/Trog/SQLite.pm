@@ -46,6 +46,7 @@ sub dbh {
     my ( $schema, $dbname ) = @_;
     $dbh //= {};
     return $dbh->{$dbname} if $dbh->{$dbname};
+
     File::Touch::touch($dbname) unless -f $dbname;
     my $db = DBI->connect( "dbi:SQLite:dbname=$dbname", "", "" );
 

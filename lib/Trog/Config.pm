@@ -7,7 +7,6 @@ use feature qw{state};
 use FindBin::libs;
 
 use Config::Simple;
-use Trog::Log ();
 
 =head1 Trog::Config
 
@@ -29,7 +28,6 @@ sub get {
     foreach my $cfg2try ($home_cfg, $default) {
         next unless -f "config/$cfg2try";
         $cf = Config::Simple->new("config/$cfg2try");
-        Trog::Log::INFO("Loaded config file: $cfg2try");
         last;
     }
     die "Could not find config file!" unless $cf;
