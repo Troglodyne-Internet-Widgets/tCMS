@@ -4,53 +4,43 @@ tCMS
 A flexible perl CMS which supports multiple data models and content types.
 Should be readily portable/hostable between any other system that runs tCMS due to being largely self-contained.
 
-tCMS is built fully around ubuntu hosts at the moment.
+tCMS is built to be run by tPSGI.
 
-Deployment is currently:
+Simple deployment is currently:
 * make -f Installer.mk depend
 * make -f Installer.mk install
+* Setup tPSGI (supposing this clone is in a subdir tCMS of the tPSGI clone):
+
+.tpsgi.conf :
+```
+http_user=www-data
+user=INSERT_MY_USERNAME_HERE
+domain=INSERT_MY_DOMAIN_NAME_HERE
+routers=tCMS/lib/TCMS.pm
+indices=
+custom_log="/var/log/www/tpsgi.log"
+basedir="tCMS"
+```
 
 Then:
 * open tmux or screen
-* `sudo ./tcms`
-OR (if you want tCMS as a systemd service for production/preproduction contexts):
-* `make -f Installer.mk all`
+* `HOME=. bin/tpsgi -p 5001`
 
-This sets up nginx, reverse proxy and SSL certs for you.
-It also sets up the mailserver and DNS for you via pdns.
+You won't want to run like this in production, but this is probably how you want to develop your themes
+or hack on tCMS itself.
 
-It is strongly suggested that you chmod everything but the run/ directory to be 0700, particularly in a shared environment.
-
-## Administration/Development
-
-Administrating the server should in general be done via the system user we setup which will be the domain setup with `tcms-hostname` with dots replaced with dashes.
-Slap in the authorized public key to .ssh/authorized\_keys, as this is the system user's homedir.
-From there you'll need to `sudo chsh -s /bin/bash $system_user_name` to allow logging in remotely.
-In production you should probably leave things nologin, and instead sudo into the user for shells from an administrator account.
-
-The user guide is self-hosted; After you first login, hit the 'Manual' section in the backend.
-
-Rate-Limiting is expected to be handled at the level of the webserver proxying requests to this application.
-See ufw/setup-rules as an example of the easy way to setup rules/limiting for all the services you need to run tCMS.
-
-Containerization
+Production Deployment
 ====================
 
-A Dockerfile and deployment scripts are provided for your convenience in building/running containers based on this:
-```
-# Build and run the server
-./fulldeploy.sh
-# Just run the server with latest changes
-./dockerdeploy.sh
-# Extract configuration & local data, then spin down the server
-./docker-exfil.sh
-```
-There is also podman container code; see images/README.md
+See trog-provisioner & related provisioners repository.
 
-Migration of tCMS1 sites
-=========================
+In the latter you will be interested particularly in:
 
-See migrate.pl, and modify the $docroot variable appropriately
+- Provisioner::Recipe::tcms
+- Provisioner::Recipe::tpsgi
+- Provisioner::Recipe::nginxproxy
+
+Many of the advanced features of tCMS won't work quite right without the configurations encoded therein.
 
 Content Types
 =============

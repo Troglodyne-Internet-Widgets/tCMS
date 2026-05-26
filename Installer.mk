@@ -4,7 +4,7 @@ SHELL := /bin/bash
 install:
 	test -d www/themes || mkdir -p www/themes
 	test -d data/files || mkdir -p data/files
-	test -d www/assets || mkdir -p www/assets
+	test -d www/assets/private || mkdir -p www/assets/private
 	test -d www/statics || mkdir -p www/statics
 	test -d totp/ || mkdir -p totp
 	test -d ~/.tcms || mkdir ~/.tcms

@@ -402,10 +402,13 @@ sub add ( $self, @posts ) {
 # Not actually a subprocess, kek
 sub _process ($post) {
 
-    $post->{href}      = _handle_upload( $post->{file},           $post->{id} ) if $post->{file};
-    $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id} ) if $post->{preview_file};
-    $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id} ) if $post->{wallpaper_file};
-    @{ $post->{attachments} } = map { _handle_upload( $_, $post->{id} ) } @{ $post->{attachments} } if $post->{attachments};
+    # If the post is private, make sure it's associated assets are too.
+    my $is_private_post = $post->{visibility} eq 'private';
+
+    $post->{href}      = _handle_upload( $post->{file},           $post->{id}, $is_private_post ) if $post->{file};
+    $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id}, $is_private_post ) if $post->{preview_file};
+    $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id}, $is_private_post ) if $post->{wallpaper_file};
+    @{ $post->{attachments} } = map { _handle_upload( $_, $post->{id}, $is_private_post ) } @{ $post->{attachments} } if $post->{attachments};
     $post->{preview} = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
@@ -423,7 +426,7 @@ sub _process ($post) {
         my $subj = $_;
         !grep { $_ eq $subj } qw{public private unlisted}
     } @{ $post->{tags} };
-    push( @{ $post->{tags} }, @{ $post->{acls} } ) if $post->{visibility} eq 'private';
+    push( @{ $post->{tags} }, @{ $post->{acls} } ) if $is_private_post;
     delete $post->{acls};
     push( @{ $post->{tags} }, $post->{visibility} );
 
@@ -454,7 +457,7 @@ sub _process ($post) {
 # Browsers try and save time in the event that the same file is sent twice, so handle that.
 my %seen_files;
 
-sub _handle_upload ( $file, $uuid ) {
+sub _handle_upload ( $file, $uuid, $private=0 ) {
     my $fname;
     if ( ref $file ne 'HASH' ) {
         use Data::Dumper;
@@ -466,6 +469,7 @@ sub _handle_upload ( $file, $uuid ) {
     my $f = $file->{tempname};
     $fname = basename( $file->{filename} );
     my $newname = "$uuid.$file->{filename}";
+    $newname = "private/$newname" if $private;
     File::Copy::move( $f, "www/assets/$newname" );
     $seen_files{$fname} = "/assets/$newname";
     return $seen_files{$fname};
