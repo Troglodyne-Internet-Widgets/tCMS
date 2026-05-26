@@ -471,6 +471,8 @@ sub _handle_upload ( $file, $uuid, $private=0 ) {
     my $newname = "$uuid.$file->{filename}";
     $newname = "private/$newname" if $private;
     File::Copy::move( $f, "www/assets/$newname" );
+    # Regrettably, we have no control over the perms of the temp file that starman creates for uploads.
+    chmod(0755, "www/assets/$newname");
     $seen_files{$fname} = "/assets/$newname";
     return $seen_files{$fname};
 }
