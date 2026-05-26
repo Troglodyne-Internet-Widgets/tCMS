@@ -787,6 +787,7 @@ sub config_save ($query) {
         $query->{message} = "Configuration updated succesfully.";
     }
 
+    #We need to reap the children with outdated configuration.
     $query->{tpsgi}->signal_restart_parent();
 
     return config($query);
@@ -857,14 +858,12 @@ sub post_save ($qq) {
 
     # Instruct tpsgi to invalidate the cached render.
     $qq->{tpsgi}->add_post_close_callback(sub {
-        # We invalidate these in the individual routes themselves.
-        $qq->{tpsgi}->invalidate_render( $qq->{route}, 'html' );
+        # XXX there is not a great way to find what needs to be re-rendered because posts can include other posts.
+        # As such we just have to nuke all the .html renders.
+        $qq->{tpsgi}->invalidate_renders('html');
     });
 
-    # Instruct tpsgi to restart the server after closing the request.
-    $qq->{tpsgi}->signal_restart_parent();
-
-    return $qq->{tpsgi}->see_also($to);
+    return $qq->{tpsgi}->see_also('/secure'.$to);
 }
 
 =head2 profile

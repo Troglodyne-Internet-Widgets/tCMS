@@ -29,23 +29,6 @@ sub strip_and_trunc ($s) {
     return substr $s, 0, 280;
 }
 
-# Instruct the parent to restart.  Normally this is HUP, but nginx-unit decides to be special.
-# Don't do anything if running NOHUP=1, which is useful when doing bulk operations
-sub restart_parent ( $parent=undef ) {
-    return if $ENV{NOHUP};
-
-    if ( $ENV{PSGI_ENGINE} && $ENV{PSGI_ENGINE} eq 'nginx-unit' ) {
-        my $conf         = Trog::Config->get();
-        my $nginx_socket = $conf->param('nginx-unit.socket');
-        my $client       = HTTP::Tiny::UNIX->new();
-        my $res          = $client->request( 'GET', "http:$nginx_socket//control/applications/tcms/restart" );
-        WARN("could not reload application (got $res->{status} from nginx-unit)!") unless $res->{status} == 200;
-        return 1;
-    }
-    $parent //= getppid;
-    kill 'HUP', $parent;
-}
-
 sub uuid {
     return UUID::uuid();
 }
