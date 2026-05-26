@@ -13,7 +13,6 @@ use Mojo::File;
 use File::LibMagic;
 use Ref::Util qw{is_hashref};
 
-use Trog::Autoreload;
 use Trog::Log qw{WARN};
 use Trog::Config();
 
@@ -45,12 +44,6 @@ sub restart_parent ( $parent=undef ) {
     }
     $parent //= getppid;
     kill 'HUP', $parent;
-
-    # Restart the monitor if it is lurking
-    my $monitor_pid = Trog::Autoreload::monitor_pid();
-    if ($monitor_pid) {
-        kill 'HUP', $monitor_pid;
-    }
 }
 
 sub uuid {
