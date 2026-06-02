@@ -1240,6 +1240,18 @@ sub posts ( $query, $direct = 0 ) {
     $query->{id}      //= '';
     my $newer = !@posts ? 0 : $posts[0]->{created};
 
+    # Pagination link tags (issue #282): next=older content, prev=newer content
+    if ( @posts && scalar(@posts) == $limit ) {
+        my $scheme = $query->{scheme} // 'https';
+        my $base   = $query->{domain} ? "$scheme://$query->{domain}" : '';
+        $query->{link_next} = "$base$query->{route}?older=$older";
+    }
+    if ( @posts && ( $query->{older} || $query->{newer} ) ) {
+        my $scheme = $query->{scheme} // 'https';
+        my $base   = $query->{domain} ? "$scheme://$query->{domain}" : '';
+        $query->{link_prev} = "$base$query->{route}?newer=$newer";
+    }
+
     #XXX messed up data has to be fixed unfortunately
     @$tags = List::Util::uniq @$tags;
 
@@ -1796,6 +1808,13 @@ sub finish_render ( $template, $vars, %headers ) {
 
     $vars->{code} ||= 200;
     $vars->{theme_dir} =~ s/^\/www\/// if $vars->{theme_dir};
+
+    # Canonical URL for rel="canonical" / rel="self" link tags (issue #283)
+    if ( !$vars->{link_canonical} && $vars->{domain} && $vars->{route} ) {
+        my $scheme = $vars->{scheme} // 'https';
+        $vars->{link_canonical} = "$scheme://$vars->{domain}$vars->{route}";
+    }
+
     $vars->{header} = Trog::Renderer->render( template => 'header.tx', data => $vars, contenttype => 'text/html', component => 1 );
     $vars->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $vars, contenttype => 'text/html', component => 1 );
 
