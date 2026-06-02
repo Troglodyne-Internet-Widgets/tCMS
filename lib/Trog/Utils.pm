@@ -7,6 +7,8 @@ no warnings 'experimental';
 use feature qw{signatures state};
 
 use UUID;
+use File::Temp ();
+use File::Basename qw{dirname};
 use HTTP::Tiny::UNIX();
 use Plack::MIME;
 use Mojo::File;
@@ -37,6 +39,29 @@ sub uuid {
 my %extra_types = (
     '.docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 );
+
+=head2 write_file_atomic($path, $content)
+
+Write $content to $path atomically using a temp file + rename.
+Prevents partial writes from corrupting data on crash or signal.
+Returns 1 on success, dies on failure.
+
+=cut
+
+sub write_file_atomic ( $path, $content ) {
+    my $dir = dirname($path);
+    my ( $tmp_fh, $tmp_path ) = File::Temp::tempfile( DIR => $dir, UNLINK => 0 );
+    eval {
+        print $tmp_fh $content;
+        close $tmp_fh or die "close $tmp_path: $!";
+        rename( $tmp_path, $path ) or die "rename $tmp_path -> $path: $!";
+    };
+    if ($@) {
+        unlink $tmp_path;
+        die $@;
+    }
+    return 1;
+}
 
 sub mime_type ($file) {
 
