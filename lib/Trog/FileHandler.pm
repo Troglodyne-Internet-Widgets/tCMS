@@ -6,6 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures};
 
+use bytes ();
 use POSIX qw{strftime};
 use IO::Compress::Gzip;
 use Time::HiRes qw{tv_interval};
@@ -74,9 +75,9 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
         my $dfh;
         IO::Compress::Gzip::gzip( $fh => \$dfh );
         print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
-        push( @headers, "Content-Length" => length($dfh) );
+        push( @headers, "Content-Length" => bytes::length($dfh) );
 
-        INFO("GET 200 ".length($dfh)." $fullpath");
+        INFO("GET 200 ".bytes::length($dfh)." $fullpath");
 
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;
@@ -112,10 +113,10 @@ sub _range ( $fullpath, $fh, $ranges, $sz, %headers ) {
     #XXX Add the entity header lengths to the value - should hash-ify this to DRY
     if ($is_multipart) {
         foreach my $range (@$ranges) {
-            $headers{'Content-Length'} += length("$fc--$Trog::Vars::CHUNK_SEP\n$primary_ct\nContent-Range: bytes $range->[0]-$range->[1]/$sz\n\n");
+            $headers{'Content-Length'} += bytes::length("$fc--$Trog::Vars::CHUNK_SEP\n$primary_ct\nContent-Range: bytes $range->[0]-$range->[1]/$sz\n\n");
             $fc = "\n";
         }
-        $headers{'Content-Length'} += length("\n--$Trog::Vars::CHUNK_SEP\--\n");
+        $headers{'Content-Length'} += bytes::length("\n--$Trog::Vars::CHUNK_SEP\--\n");
         $fc = '';
     }
 

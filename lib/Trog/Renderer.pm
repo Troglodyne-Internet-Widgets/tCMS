@@ -8,6 +8,8 @@ use feature qw{signatures state};
 
 use Carp::Always;
 
+use bytes ();
+
 use Trog::Vars;
 use Trog::Log qw{:all};
 
@@ -95,8 +97,7 @@ sub _yeet ( $renderer, $error, %options ) {
     } or do {
         my $msg = $error;
         $msg .= " and subsequently during render of error template, $@" if $renderer;
-        #XXX bytes is probably not correct here
-        INFO("$options{data}{method} 500 ".length($msg)." $options{data}{route}");
+        INFO("$options{data}{method} 500 ".bytes::length($msg)." $options{data}{route}");
         FATAL($msg);
     };
     return $ret;
