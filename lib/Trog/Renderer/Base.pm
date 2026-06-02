@@ -46,6 +46,7 @@ sub render (%options) {
         path     => $template_dir,
         function => {
             render_it => $options{child_renderer},
+            %{ $options{extra_functions} // {} },
         },
     );
 

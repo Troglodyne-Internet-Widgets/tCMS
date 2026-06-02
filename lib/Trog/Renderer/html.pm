@@ -9,6 +9,8 @@ use feature qw{signatures state};
 use parent qw{Trog::Renderer::Base};
 
 use Text::Xslate;
+use Digest::SHA qw(sha384);
+use MIME::Base64 qw(encode_base64);
 
 =head1 Trog::Renderer::html
 
@@ -16,13 +18,28 @@ Render HTML. TODO: support inlining everything like you would want when emailing
 
 =cut
 
+sub sri_hash ($url_path) {
+    state %cache;
+    return '' unless defined $url_path && $url_path =~ m{^/};
+    return $cache{$url_path} if exists $cache{$url_path};
+    my $file = "www$url_path";
+    unless ( -f $file ) {
+        return $cache{$url_path} = '';
+    }
+    open( my $fh, '<:raw', $file ) or return $cache{$url_path} = '';
+    local $/;
+    my $content = <$fh>;
+    close($fh);
+    return $cache{$url_path} = 'sha384-' . encode_base64( sha384($content), '' );
+}
+
 sub render (%options) {
     state $child_processor = Text::Xslate->new(
 
         # Prevent a recursive descent.  If the renderer is hit again, just do nothing
         # XXX unfortunately if the post tries to include itself, it will die.
         function => {
-            embed => sub {
+            embed    => sub {
                 my ( $this_id, $style ) = @_;
                 $style //= 'embed';
 
@@ -35,6 +52,7 @@ sub render (%options) {
                     )
                 );
             },
+            sri_hash => \&sri_hash,
         }
     );
     state $child_renderer = sub {
@@ -45,8 +63,9 @@ sub render (%options) {
         return $out ? $out : $template_string;
     };
 
-    $options{child_processor} = $child_processor;
-    $options{child_renderer}  = $child_renderer;
+    $options{child_processor}  = $child_processor;
+    $options{child_renderer}   = $child_renderer;
+    $options{extra_functions}  = { sri_hash => \&sri_hash };
 
     return Trog::Renderer::Base::render(%options);
 }

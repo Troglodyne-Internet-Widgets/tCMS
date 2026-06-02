@@ -35,26 +35,32 @@
         : }
         <!-- Stylesheets !-->
         : for $stylesheets -> $stylesheet {
-        <link rel="preload" type="text/css" href="<: $stylesheet :>" as="style" />
-        <link rel="stylesheet" type="text/css" href="<: $stylesheet :>" media="screen" />
+        :   my $sri = sri_hash($stylesheet);
+        <link rel="preload" type="text/css" href="<: $stylesheet :>" as="style"<: $sri ? ' integrity="' ~ $sri ~ '"' : '' | mark_raw :> />
+        <link rel="stylesheet" type="text/css" href="<: $stylesheet :>" media="screen"<: $sri ? ' integrity="' ~ $sri ~ '"' : '' | mark_raw :> />
         : }
         <!-- Print Styles !-->
         : for $print_styles -> $print_style {
-        <link rel="preload" type="text/css" href="<: $print_style :>" as="style" />
-        <link rel="stylesheet" type="text/css" href="<: $print_style :>" media="print" />
+        :   my $sri = sri_hash($print_style);
+        <link rel="preload" type="text/css" href="<: $print_style :>" as="style"<: $sri ? ' integrity="' ~ $sri ~ '"' : '' | mark_raw :> />
+        <link rel="stylesheet" type="text/css" href="<: $print_style :>" media="print"<: $sri ? ' integrity="' ~ $sri ~ '"' : '' | mark_raw :> />
         : }
         <!-- For highlight.js !-->
-        <link rel="preload" type="text/css" href="/styles/obsidian.min.css" as="style" />
-        <link rel="stylesheet" type="text/css" href="/styles/obsidian.min.css" />
+        :   my $obsidian_sri = sri_hash("/styles/obsidian.min.css");
+        <link rel="preload" type="text/css" href="/styles/obsidian.min.css" as="style"<: $obsidian_sri ? ' integrity="' ~ $obsidian_sri ~ '"' : '' | mark_raw :> />
+        <link rel="stylesheet" type="text/css" href="/styles/obsidian.min.css"<: $obsidian_sri ? ' integrity="' ~ $obsidian_sri ~ '"' : '' | mark_raw :> />
         <!-- For reveal.js !-->
-        <link rel="preload" type="text/css" href="/styles/reveal.css" as="style" />
-        <link rel="stylesheet" type="text/css" href="/styles/reveal.css" />
-        <link rel="preload" type="text/css" href="/styles/reveal-white.css" as="style" />
-        <link rel="stylesheet" type="text/css" href="/styles/reveal-white.css" />
+        :   my $reveal_sri = sri_hash("/styles/reveal.css");
+        <link rel="preload" type="text/css" href="/styles/reveal.css" as="style"<: $reveal_sri ? ' integrity="' ~ $reveal_sri ~ '"' : '' | mark_raw :> />
+        <link rel="stylesheet" type="text/css" href="/styles/reveal.css"<: $reveal_sri ? ' integrity="' ~ $reveal_sri ~ '"' : '' | mark_raw :> />
+        :   my $reveal_white_sri = sri_hash("/styles/reveal-white.css");
+        <link rel="preload" type="text/css" href="/styles/reveal-white.css" as="style"<: $reveal_white_sri ? ' integrity="' ~ $reveal_white_sri ~ '"' : '' | mark_raw :> />
+        <link rel="stylesheet" type="text/css" href="/styles/reveal-white.css"<: $reveal_white_sri ? ' integrity="' ~ $reveal_white_sri ~ '"' : '' | mark_raw :> />
 
         <!-- Javascript !-->
         : for $scripts -> $script {
-        <script type="text/javascript" src="<: $script :>"></script>
+        :   my $script_sri = sri_hash($script);
+        <script type="text/javascript" src="<: $script :>"<: $script_sri ? ' integrity="' ~ $script_sri ~ '"' : '' | mark_raw :>></script>
         : }
     </head>
     <body>
