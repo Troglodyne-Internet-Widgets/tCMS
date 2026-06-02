@@ -389,6 +389,23 @@ sub add ( $self, @posts ) {
         }
         $post->{version} //= 0;
 
+        # Auto-generate a slug alias from the title for regular (non-series, non-user) posts.
+        # Only add if the slug isn't already present and doesn't collide with another post.
+        if ( $post->{title} && !$post->{aclname} && $post->{callback} ne 'Trog::Routes::HTML::users' ) {
+            my $slug = _title_to_slug( $post->{title} );
+            if ($slug) {
+                my $slug_alias = "/posts/$slug";
+                my $already_here = List::Util::any { $_ eq $slug_alias } @{ $post->{aliases} };
+                unless ($already_here) {
+                    my %existing_aliases = $self->aliases();
+                    my $taken_by = $existing_aliases{$slug_alias};
+                    if ( !$taken_by || $taken_by eq $post->{local_href} ) {
+                        push @{ $post->{aliases} }, $slug_alias;
+                    }
+                }
+            }
+        }
+
         $post = _process($post);
 
         push @to_write, $post;
@@ -396,6 +413,22 @@ sub add ( $self, @posts ) {
     $self->write( \@to_write );
 
     return 0;
+}
+
+our $SLUG_MAX_LENGTH = 60;
+
+# Convert a post title to a URL-friendly slug.
+# Lowercases, strips non-alphanumeric chars, collapses whitespace to hyphens,
+# and truncates to $SLUG_MAX_LENGTH.  Returns '' for titles that produce an empty slug.
+sub _title_to_slug ($title) {
+    my $slug = lc($title);
+    $slug =~ s/[^\w\s-]//g;
+    $slug =~ s/[\s_]+/-/g;
+    $slug =~ s/-{2,}/-/g;
+    $slug =~ s/^-+|-+$//g;
+    $slug = substr( $slug, 0, $SLUG_MAX_LENGTH );
+    $slug =~ s/-+$//;
+    return $slug;
 }
 
 #XXX this level of post-processing seems gross, but may be unavoidable
