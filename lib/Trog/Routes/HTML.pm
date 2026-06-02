@@ -863,6 +863,9 @@ sub post_save ($qq) {
         $qq->{tpsgi}->invalidate_renders('html');
     });
 
+    # Force a reload of the routing table
+    $qq->{tpsgi}->signal_restart_parent();
+
     return $qq->{tpsgi}->see_also('/secure'.$to);
 }
 
