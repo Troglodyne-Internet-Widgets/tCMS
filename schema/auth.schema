@@ -30,3 +30,15 @@ CREATE TABLE IF NOT EXISTS change_request (
 );
 
 CREATE VIEW IF NOT EXISTS change_request_full AS SELECT cr.username, u.display_name, cr.type, cr.token, cr.secret, cr.processed, u.contact_email from change_request AS cr JOIN user AS u ON u.name=cr.username;
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_time INTEGER NOT NULL,
+    username   TEXT    NOT NULL,
+    session_id TEXT    DEFAULT NULL,
+    ip_addr    TEXT    NOT NULL DEFAULT '',
+    event_type TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS audit_log_time_idx ON audit_log(event_time);
+CREATE INDEX IF NOT EXISTS audit_log_user_idx ON audit_log(username);

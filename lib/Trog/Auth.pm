@@ -256,7 +256,7 @@ Returns a session ID, or blank string in the event the user does not exist or in
 
 =cut
 
-sub mksession ( $user, $pass, $token ) {
+sub mksession ( $user, $pass, $token, $ip_addr = '' ) {
     my $dbh  = _dbh();
     my $totp = _totp();
 
@@ -268,6 +268,7 @@ sub mksession ( $user, $pass, $token ) {
     my $worked = $dbh->selectall_arrayref( "SELECT name, totp_secret FROM user WHERE hash=? AND name = ?", { Slice => {} }, $hash, $user );
     if ( !( ref $worked eq 'ARRAY' && @$worked ) ) {
         INFO("Failed login for user $user");
+        _log_event( 'login_failure', $user, $ip_addr );
         return '';
     }
     my $uid    = $worked->[0]{name};
@@ -275,19 +276,26 @@ sub mksession ( $user, $pass, $token ) {
 
     # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
     if ($secret) {
-        return '' unless $token;
+        if ( !$token ) {
+            _log_event( 'totp_failure', $user, $ip_addr );
+            return '';
+        }
         DEBUG( "TOTP Auth: Sent code $token, expect " . $totp->expected_totp_code(time) );
 
         #XXX we have to force the secret into compliance, otherwise it generates one on the fly, oof
         $totp->{secret} = $secret;
         my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
-        INFO("TOTP Auth failed for user $user") unless $rc;
-        return ''                               unless $rc;
+        if ( !$rc ) {
+            INFO("TOTP Auth failed for user $user");
+            _log_event( 'totp_failure', $user, $ip_addr );
+            return '';
+        }
     }
 
     # Issue cookie
     my $uuid = Trog::Utils::uuid();
     $dbh->do( "INSERT OR REPLACE INTO session (id,username) VALUES (?,?)", undef, $uuid, $uid ) or return '';
+    _log_event( 'login_success', $user, $ip_addr, $uuid );
     return $uuid;
 }
 
@@ -297,9 +305,10 @@ Delete the provided user's session from the auth db.
 
 =cut
 
-sub killsession ($user) {
+sub killsession ( $user, $ip_addr = '' ) {
     my $dbh = _dbh();
     $dbh->do( "DELETE FROM session WHERE username=?", undef, $user );
+    _log_event( 'logout', $user, $ip_addr );
     return 1;
 }
 
@@ -385,6 +394,50 @@ sub process_change_request ($token) {
         FATAL("Could not set job with token $token to completed!");
     };
     return $res;
+}
+
+=head2 audit_log(%opts) = ARRAYREF
+
+Return recent authentication events.
+Supports filtering by C<username>, C<event_type>, and C<limit> (default 100).
+
+=cut
+
+sub audit_log (%opts) {
+    my $dbh   = _dbh();
+    my $limit = int( $opts{limit} // 100 );
+    my @where;
+    my @bind;
+
+    if ( $opts{username} ) {
+        push @where, 'username = ?';
+        push @bind,  $opts{username};
+    }
+    if ( $opts{event_type} ) {
+        push @where, 'event_type = ?';
+        push @bind,  $opts{event_type};
+    }
+
+    my $where = @where ? 'WHERE ' . join( ' AND ', @where ) : '';
+    my $rows = $dbh->selectall_arrayref(
+        "SELECT id, event_time, username, session_id, ip_addr, event_type FROM audit_log $where ORDER BY event_time DESC LIMIT ?",
+        { Slice => {} }, @bind, $limit
+    );
+    return [] unless ref $rows eq 'ARRAY';
+    return $rows;
+}
+
+# Write one event row; silently swallows errors so logging never breaks auth flow.
+sub _log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
+    eval {
+        my $dbh = _dbh();
+        $dbh->do(
+            "INSERT INTO audit_log (event_time, username, session_id, ip_addr, event_type) VALUES (?,?,?,?,?)",
+            undef, time(), $username, $session_id, $ip_addr, $event_type
+        );
+    };
+    WARN("audit_log insert failed: $@") if $@;
+    return;
 }
 
 # Ensure the db schema is OK, and give us a handle

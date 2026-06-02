@@ -153,6 +153,13 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::metrics,
     },
+    '/admin/sessions' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::sessions,
+        noindex  => 1,
+        nocache  => 1,
+    },
 
     #TODO transform into posts?
     '/sitemap',
@@ -480,7 +487,7 @@ sub login ($query) {
         }
 
         $query->{failed} = 1;
-        my $cookie = Trog::Auth::mksession( $query->{username}, $query->{password}, $query->{token} );
+        my $cookie = Trog::Auth::mksession( $query->{username}, $query->{password}, $query->{token}, $query->{ip} // '' );
         if ($cookie) {
 
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
@@ -593,7 +600,7 @@ Deletes your users' session and opens the index.
 =cut
 
 sub logout ($query) {
-    Trog::Auth::killsession( $query->{user} ) if $query->{user};
+    Trog::Auth::killsession( $query->{user}, $query->{ip} // '' ) if $query->{user};
     delete $query->{user};
     return Trog::Routes::HTML::index($query);
 }
@@ -1582,6 +1589,43 @@ sub metrics ($query) {
         undef,
         ['post.css'],
         ['chart.js'],
+    );
+}
+
+sub sessions ($query) {
+    return $query->{tpsgi}->see_also('/login')  unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    my $limit  = int( $query->{limit} // 100 );
+    my $events = Trog::Auth::audit_log(
+        limit      => $limit,
+        username   => $query->{filter_user}  // '',
+        event_type => $query->{filter_event} // '',
+    );
+
+    # Format timestamps for display
+    @$events = map {
+        my $e = {%$_};
+        my @t = localtime( $e->{event_time} );
+        $e->{event_ts} = sprintf( '%04d-%02d-%02d %02d:%02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1], $t[0] );
+        $e->{session_short} = $e->{session_id} ? substr( $e->{session_id}, 0, 8 ) . '...' : '';
+        $e
+    } @$events;
+
+    return Trog::Routes::HTML::index(
+        {
+            title        => 'tCMS Session Audit Log',
+            theme_dir    => Trog::Themes::td(),
+            template     => 'sessions.tx',
+            is_admin     => 1,
+            events       => $events,
+            limit        => $limit,
+            filter_user  => $query->{filter_user}  // '',
+            filter_event => $query->{filter_event} // '',
+            %$query,
+        },
+        undef,
+        ['post.css'],
     );
 }
 

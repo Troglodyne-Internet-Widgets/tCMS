@@ -1,0 +1,43 @@
+<div id="backoffice">
+    <h2>Session Audit Log</h2>
+    <form method="GET" action="/admin/sessions">
+        <label>User: <input class="cooltext" type="text" name="filter_user" value="<: $filter_user :>" placeholder="(all)" /></label>
+        <label>Event:
+            <select class="cooltext" name="filter_event">
+                <option value="">All</option>
+                : for ['login_success','login_failure','totp_failure','logout'] -> $ev {
+                <option value="<: $ev :>" <: $ev eq $filter_event ? 'selected' : '' | mark_raw :>><: $ev :></option>
+                : }
+            </select>
+        </label>
+        <label>Limit: <input class="cooltext" type="number" name="limit" value="<: $limit :>" min="10" max="1000" /></label>
+        <input class="coolbutton" type="submit" value="Filter" />
+    </form>
+    <br />
+    : if ($events) {
+    <table class="cooltext" style="width:100%;border-collapse:collapse;">
+        <thead>
+            <tr style="text-align:left;">
+                <th style="padding:4px 8px;">Time (local)</th>
+                <th style="padding:4px 8px;">Event</th>
+                <th style="padding:4px 8px;">User</th>
+                <th style="padding:4px 8px;">IP Address</th>
+                <th style="padding:4px 8px;">Session</th>
+            </tr>
+        </thead>
+        <tbody>
+            : for $events -> $ev {
+            <tr>
+                <td style="padding:4px 8px;white-space:nowrap;"><: $ev.event_ts :></td>
+                <td style="padding:4px 8px;"><: $ev.event_type :></td>
+                <td style="padding:4px 8px;"><: $ev.username :></td>
+                <td style="padding:4px 8px;font-family:monospace;"><: $ev.ip_addr :></td>
+                <td style="padding:4px 8px;font-family:monospace;font-size:0.85em;"><: $ev.session_short :></td>
+            </tr>
+            : }
+        </tbody>
+    </table>
+    : } else {
+    <p>No events recorded yet.</p>
+    : }
+</div>
