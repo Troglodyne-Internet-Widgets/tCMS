@@ -29,6 +29,7 @@ use FindBin::libs;
 
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
+use Trog::Routes::Common;
 
 use Trog::Log qw{:all};
 use Trog::Log::DBI;
@@ -145,11 +146,16 @@ sub build_routes {
 
 # Override the generic error handler to look spiffy
 sub generic_route ( $rname, $code, $title, $query ) {
-    $query->{code} = $code;
-    $query->{route} //= $rname;
-    $query->{title}    = $title;
-    $query->{template} = "$rname.tx";
-    return Trog::Routes::HTML::index($query);
+    my %dispatch = (
+        400 => \&Trog::Routes::Common::bad_request,
+        403 => \&Trog::Routes::Common::forbidden,
+        404 => \&Trog::Routes::Common::not_found,
+        419 => \&Trog::Routes::Common::too_long,
+        500 => \&Trog::Routes::Common::server_error,
+        503 => \&Trog::Routes::Common::unavailable,
+    );
+    my $handler = $dispatch{int($code)} // \&Trog::Routes::Common::server_error;
+    return $handler->($query);
 }
 
 our @routes  = @{ build_routes() };
