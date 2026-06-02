@@ -48,6 +48,8 @@ sub build_routes {
     my $data   = Trog::Data->new($conf);
     my %routes = %{ _routes($data) };
 
+    my $default_route = $routes{default}{callback};
+
     # Transform 'method' / 'callback' to new scheme
     my %routes_adj;
     foreach my $k (keys(%routes)) {
@@ -74,7 +76,7 @@ sub build_routes {
             log_init("$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info');
 
             # Let's open up our default route if needed before we bother thinking any harder
-            return $routes{default}{callback}->($query) unless -f "config/setup";
+            return $default_route->($query) unless -f "config/setup";
 
             # Set the urchin parameters if necessary.
             %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
