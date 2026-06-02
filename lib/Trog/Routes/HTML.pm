@@ -1683,6 +1683,7 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{lang}        //= 'en-US';
     $vars->{title}       //= 'tCMS';
     $vars->{stylesheets} //= [];
+    $vars->{print_styles} //= [qw{structure.css print.css}];
     $vars->{scripts}     //= [];
 
     # Theme-ize the paths
