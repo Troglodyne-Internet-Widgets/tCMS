@@ -18,7 +18,8 @@ subtest 'dbh' => sub {
     $dbimock->redefine('connect', sub { bless({},'TrogDBD') });
     my $works = 0;
     no warnings qw{redefine once};
-    local *TrogDBD::do = sub { $works };
+    local *TrogDBD::do     = sub { $works };
+    local *TrogDBD::errstr = sub { 'mock error' };
 
     like(exception { Trog::SQLite::dbh('bogus','bogus') }, qr/ensure/i, "Failure to enforce schema throws");
     $works = 1;
