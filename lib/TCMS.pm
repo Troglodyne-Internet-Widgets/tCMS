@@ -29,6 +29,8 @@ use FindBin::libs;
 
 use Trog::Routes::HTML;
 use Trog::Routes::JSON;
+use Trog::Routes::TXT;
+use Trog::Routes::XML;
 
 use Trog::Log qw{:all};
 use Trog::Log::DBI;
@@ -175,6 +177,8 @@ sub _routes ( $data = {} ) {
 
     %routes                                      = %Trog::Routes::HTML::routes;
     @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
+    @routes{ keys(%Trog::Routes::TXT::routes) }  = values(%Trog::Routes::TXT::routes);
+    @routes{ keys(%Trog::Routes::XML::routes) }  = values(%Trog::Routes::XML::routes);
     @routes{ keys(%roots) }                      = values(%roots);
     @routes{ keys(%themed) }                     = values(%themed) if %themed;
 

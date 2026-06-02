@@ -1,4 +1,4 @@
-package Trog::Routes::JSON;
+package Trog::Routes::TXT;
 
 use strict;
 use warnings;
@@ -6,28 +6,14 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
-use Clone qw{clone};
-use JSON::MaybeXS();
-
-use Scalar::Util();
-
-use Trog::Utils();
 use Trog::Config();
-use Trog::Auth();
 use Trog::Routes::HTML();
-
-use Trog::Log::Metrics();
-
-my $conf = Trog::Config::get();
-
-# TODO de-duplicate this, it's shared in html
-my $theme_dir = '';
-$theme_dir = "themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
+use Trog::Renderer;
 
 our %routes = (
     '/text/zone' => {
         method     => 'GET',
-        callback   => \&zone,
+        callback   => \&Trog::Routes::TXT::zone,
         parameters => {},
         admin      => 1,
     },
