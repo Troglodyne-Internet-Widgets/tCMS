@@ -402,6 +402,11 @@ sub add ( $self, @posts ) {
         }
         $post->{version} //= 0;
 
+        #XXX if local_href has /secure paths in it, fix this.  We don't want to save that.
+        if (index($post->{local_href}, '/secure/') == 0) {
+            $post->{local_href} =~ s|/secure||gmx;
+        }
+
         $post = _process($post);
 
         push @to_write, $post;
