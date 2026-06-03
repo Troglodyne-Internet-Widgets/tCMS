@@ -8,35 +8,57 @@
         : }
 
         <div class="postData responsive-text" id="postData-<: $post.id :>">
-            Invoice ID# <: $post.id :><br />
-            Created: <span class="unixtimestamp"><: $post.created :></span><br />
-            Due: <span class="unixtimestamp"><: $post.created + ($post.due_days * 86400 ) :></span><br />
-            <hr />
-
-            <span style="float:left;">
-            Payee<br />
-            <: $post.payee_entity.data | mark_raw :>
-            </span>
-            <span style="float: right;">
-            Payor<br />
-            <: $post.payor_entity.data | mark_raw :>
-            </span>
-            <hr />
-
-            Payment Method:
-            <: $post.payee_entity.payment_method :><br />
-            Payment Details:
-            <: $post.payee_entity.payment_details :><br />
-
-            <hr />
-            <ul>
-            : for $post.data -> $poast {
-                <li>
-                <: render_it($poast) | mark_raw  :>
-                </li>
-            : }
-            </ul>
-            Total: <: $post.total :>
+            <div class="table">
+                <div class="table-row">
+                    <div class="table-cell">
+                        Invoice ID# <: $post.id :><br />
+                    </div>
+                    <div class="table-cell"></div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell underline">
+                        Created: <span class="unixtimestamp"><: $post.created :></span><br />
+                    </div>
+                    <div class="table-cell underline">
+                        Due: <span class="unixtimestamp"><: $post.created + ($post.due_days * 86400 ) :></span>
+                    </div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell underline">
+                        Payee<br />
+                        <: $post.payee_entity.data | mark_raw :>
+                    </div>
+                    <div class="table-cell underline">
+                        Payor<br />
+                        <: $post.payor_entity.data | mark_raw :>
+                    </div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell underline">
+                        Payment Method:<br />
+                        <: $post.payee_entity.payment_method :>
+                    </div>
+                    <div class="table-cell underline">
+                        Payment Details:<br />
+                        <: $post.payee_entity.payment_details :>
+                    </div>
+                </div>
+                : for $post.data -> $poast {
+                    <div class="table-row">
+                    <div class="table-cell">
+                    <: render_it($poast) | mark_raw  :>
+                    </div>
+                    <div class="table-cell">
+                    </div>
+                    </div>
+                : }
+                <div class="table-row">
+                    <div class="table-cell overline">
+                        Total: <: $post.total :>
+                    </div>
+                    <div class="table-cell overline"></div>
+                </div>
+            </div>
         </div>
     : }
 
@@ -45,6 +67,7 @@
         : include "edit_head.tx";
         <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
             Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+            : include "preview.tx";
             : include "visibility.tx";
             : include "acls.tx";
             : include "tags.tx";

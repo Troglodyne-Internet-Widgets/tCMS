@@ -1,7 +1,7 @@
 <h3 class='blogtitles'>
     : if (!$style || $style == 'embed') {
         <a ><a href='<: $post.href :>' ><: $post.title :></a>
-        <a class="undecorated" href='<: $post.local_href :>'>🔗</a>
+        <a class="undecorated noprint" href='<: $post.local_href :>'>🔗</a>
     : }
     : if (!$style) {
         : if ( $post.version_max && !$rss ) {

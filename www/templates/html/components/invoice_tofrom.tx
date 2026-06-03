@@ -1,14 +1,14 @@
 Payee<br />
 <select id="<: $post.id :>-payee" class="cooltext" name="payee">
     : for $primary_post.entities -> $payee {
-        <option value="<: $payee.id :>"><: $payee.title :></option>
+        <option value="<: $payee.id :>" <: if ($payee.id == $post.payee) { :>selected<: } :> ><: $payee.title :></option>
     : }
 </select>
 Payor<br />
 <select id="<: $post.id :>-payor" class="cooltext" name="payor">
     : for $primary_post.entities -> $payor {
-        <option value="<: $payor.id :>"><: $payor.title :></option>
+        <option value="<: $payor.id :>" <: if ($payor.id == $post.payor) { :>selected<: } :> ><: $payor.title :></option>
     : }
 </select>
 Due in How many Days?<br />
-<input type="text" id="<: $post.id :>-due_days" class="cooltext" name="due_days" placeholder='0'></input>
+<input type="text" id="<: $post.id :>-due_days" class="cooltext" name="due_days" placeholder='0' value="<: $post.due_days :>"></input>

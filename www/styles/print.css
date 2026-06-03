@@ -32,3 +32,12 @@ h3.blogtitles {
 em.blogdetail {
  font-size: 8pt;
 }
+form {
+    display:none;
+}
+a {
+    text-decoration:none;
+}
+.noprint {
+    display:none;
+}

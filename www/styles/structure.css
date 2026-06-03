@@ -132,6 +132,26 @@ iframe.responsive {
     height: 20rem;
 }
 
+.table {
+    display: table;
+}
+
+.table-row {
+    display: table-row;
+}
+
+.table-cell {
+    display: table-cell;
+    width:100%;
+}
+
+.underline {
+    border-bottom: .1rem solid;
+}
+.overline {
+    border-top: .1rem solid;
+}
+
 @media(max-width: 45rem) {
 	iframe.responsive {
     	width: 100%;
