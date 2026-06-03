@@ -1,0 +1,63 @@
+<div class="post <: $style :>">
+    :if ( !$post.addpost ) {
+        : include "post_title.tx";
+        : include "post_tags.tx";
+
+        : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
+            <img src="<: $post.preview :>" class="responsive-img" />
+        : }
+
+        <div class="postData responsive-text" id="postData-<: $post.id :>">
+            Invoice ID# <: $post.id :><br />
+            Created: <span class="unixtimestamp"><: $post.created :></span><br />
+            Due: <span class="unixtimestamp"><: $post.created + ($post.due_days * 86400 ) :></span><br />
+            <hr />
+
+            <span style="float:left;">
+            Payee<br />
+            <: $post.payee_entity.data | mark_raw :>
+            </span>
+            <span style="float: right;">
+            Payor<br />
+            <: $post.payor_entity.data | mark_raw :>
+            </span>
+            <hr />
+
+            Payment Method:
+            <: $post.payee_entity.payment_method :><br />
+            Payment Details:
+            <: $post.payee_entity.payment_details :><br />
+
+            <hr />
+            <ul>
+            : for $post.data -> $poast {
+                <li>
+                <: render_it($poast) | mark_raw  :>
+                </li>
+            : }
+            </ul>
+            Total: <: $post.total :>
+        </div>
+    : }
+
+    : if ( $can_edit ) {
+        <div class="postedit">
+        : include "edit_head.tx";
+        <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">
+            Title *<br /><input required class="cooltext" type="text" name="title" placeholder="Iowa Man Destroys Moon" value="<: $post.title :>" />
+            : include "visibility.tx";
+            : include "acls.tx";
+            : include "tags.tx";
+            : include "aliases.tx";
+            : include "invoice_tofrom.tx";
+            <p>
+            Add one 'line item' per page below.<br />
+            The price will be tabulated for the total from a line beginning with 'Price:'.<br />
+            All prices must be in the same denomination.
+            </p>
+            : include "form_multi.tx";
+        </form>
+        : include "edit_foot.tx";
+        </div>
+    : }
+</div>

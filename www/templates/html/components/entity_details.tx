@@ -1,0 +1,4 @@
+Payment Method<br />
+<input id="<: $post.id :>-payment_method" class="cooltext" name="payment_method" value="<: $post.payment_method :>"></input>
+Payment Details<br />
+<input id="<: $post.id :>-payment_details" class="cooltext" name="payment_details" value="<: $post.payment_details :>" ></input>

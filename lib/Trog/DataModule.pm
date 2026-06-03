@@ -196,6 +196,8 @@ sub filter ( $self, $query, @filtered ) {
         } @$tags
     } @filtered unless grep { $_ eq 'admin' } @{ $query->{acls} };
 
+    @filtered = grep { ($_->{form} || '') eq $query->{form} } @filtered if $query->{form};
+
     @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
 
     @filtered = grep { $_->{user} eq $query->{author} } @filtered if $query->{author};
@@ -336,7 +338,7 @@ our %schema = (
     'wallpaper_file' => $hashref_or_string,
     'wallpaper'      => $not_ref,
 
-    # user avatar, but does double duty in content posts as preview images on videos, etc
+    ## user avatar, but does double duty in content posts as preview images on videos, etc
     'preview_file' => $hashref_or_string,
     'preview'      => $not_ref,
 
@@ -345,6 +347,17 @@ our %schema = (
     'video_href'  => $not_ref,
     'file'        => $hashref_or_string,
     'attachments' => \&Ref::Util::is_arrayref,
+    'header'      => $not_ref,
+    'footer'      => $not_ref,
+
+    ## Entity details, which are used for constructing invoices
+    'payment_details' => $not_ref,
+    'payment_method'  => $not_ref,
+
+    ## Invoice specific
+    'payee'    => $not_ref,
+    'payor'    => $not_ref,
+    'due_days' => $not_ref,
 );
 
 sub add ( $self, @posts ) {

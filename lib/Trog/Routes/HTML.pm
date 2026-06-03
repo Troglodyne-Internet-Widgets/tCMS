@@ -257,6 +257,7 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     $query->{theme_dir} = Trog::Themes::td();
 
     my $to_render = $query->{template} // $landing_page;
+
     $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
     return $content if ref $content eq "ARRAY";
 
@@ -937,6 +938,30 @@ sub post_delete ($query) {
     return $query->{tpsgi}->see_also( $query->{to} );
 }
 
+my %enrich = (
+    'invoice.tx' => sub {
+        my ($post,$query) = @_;
+        # TODO it's probably a performance problem doing this per post rather than only for the series entry
+        my %ret = ( entities => [ _post_helper({ form => 'entities.tx', visibility => 'public' }, [], $query->{user_acls}) ] );
+        return %ret unless ref $post->{data} eq 'ARRAY';
+
+        # Figure out the payee/payor
+        $ret{payee_entity} = List::Util::first { $_->{id} eq $post->{payee} } @{$ret{entities}};
+        $ret{payor_entity} = List::Util::first { $_->{id} eq $post->{payor} } @{$ret{entities}};
+
+        # Build total
+        my $denom;
+        my @prices = map {
+            my $price = 0;
+            ($denom, $price) = m/^Price:\s*(\D)(\d+)/mix;
+            $price;
+        } @{$post->{data}};
+        $denom //= '$';
+        $ret{total} = $denom.(List::Util::sum(@prices) // 0);
+        return %ret;
+    },
+);
+
 =head2 series
 
 Series specific view, much like the users/ route
@@ -966,6 +991,15 @@ sub series ($query) {
 
     #Grab the relevant tag (aclname), then pass that to posts
     my @posts = _post_helper( $query, ['series'], $query->{user_acls} );
+
+    # Enrich posts with additional data based on the template if necessary
+    if (exists $enrich{$posts[0]->{child_form}}) {
+        my $callback = $enrich{$posts[0]->{child_form}};
+        my %extra_data = $callback->($posts[0], $query);
+        foreach my $key (keys(%extra_data)) {
+            $posts[0]->{$key} = $extra_data{$key};
+        }
+    }
 
     delete $query->{id};
     delete $query->{aclname};
@@ -1217,6 +1251,18 @@ sub posts ( $query, $direct = 0 ) {
     my $picker = Trog::Component::EmojiPicker::render();
     return $picker if ref $picker eq 'ARRAY';
 
+    # Enrich posts with additional data based on the template if necessary
+    foreach my $poast (@posts) {
+        if (exists $enrich{$poast->{form}}) {
+            my $callback = $enrich{$poast->{form}};
+            my %extra_data = $callback->($poast, $query);
+            foreach my $key (keys(%extra_data)) {
+                $poast->{$key} = $extra_data{$key};
+            }
+        }
+    }
+
+
     #XXX the only reason this is needed is due to direct=1
     #XXX is this even used?
     my $content = Trog::Renderer->render(
@@ -1233,6 +1279,7 @@ sub posts ( $query, $direct = 0 ) {
             direct            => $direct,
             title             => $query->{title},
             author            => $query->{primary_post}{user} // $posts[0]{user},
+            primary_post      => $query->{primary_post},
             style             => $query->{style},
             posts             => \@posts,
             like              => $query->{like},
@@ -1293,6 +1340,7 @@ sub _post_helper ( $query, $tags, $acls ) {
         author       => $query->{author},
         id           => $query->{id},
         version      => $query->{version},
+        form         => $query->{form},
     );
     return map {
         my $subj = $_;

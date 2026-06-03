@@ -74,6 +74,7 @@ sub _dbh {
 }
 
 sub is_debug {
+    $LEVEL //= 'info';
     return $LEVEL eq 'debug';
 }
 
