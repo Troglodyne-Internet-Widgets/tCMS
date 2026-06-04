@@ -42,8 +42,11 @@ sub log_message {
     if ( !$date ) {
         ( $date, $uuid, $ip, $user, $message ) = $msg =~ m!^([\w|\-|:]+) \[\w+\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (.+)!;
 
-        $buffer{$uuid} //= [];
-        push( @{ $buffer{$uuid} }, $message );
+        # If we can't figure out its request, ignore the message
+        if(length $uuid) {
+            $buffer{$uuid} //= [];
+            push(@{$buffer{$uuid}}, $message);
+        }
         return 1;
     }
 
