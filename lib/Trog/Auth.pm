@@ -440,6 +440,21 @@ sub _log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
     return;
 }
 
+=head2 users_with_emails() = ARRAYREF
+
+Return all users and their contact emails, for use in libravatar lookups.
+
+=cut
+
+sub users_with_emails {
+    my $dbh = _dbh();
+    my $rows = $dbh->selectall_arrayref(
+        "SELECT name, contact_email FROM user WHERE contact_email IS NOT NULL AND contact_email != ''",
+        { Slice => {} }
+    );
+    return ref $rows eq 'ARRAY' ? $rows : [];
+}
+
 # Ensure the db schema is OK, and give us a handle
 sub _dbh {
     my $file   = 'schema/auth.schema';

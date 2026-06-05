@@ -17,6 +17,8 @@ use HTML::SocialMeta;
 
 use Clone qw{clone};
 use Encode qw{encode_utf8};
+use Digest::MD5 qw{md5_hex};
+use Digest::SHA qw{sha256_hex};
 use IO::Compress::Gzip;
 use Path::Tiny();
 use File::Basename qw{dirname};
@@ -210,6 +212,13 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
+    },
+    '/avatar/(.*)' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::libravatar,
+        captures => ['avatar_hash'],
+        noindex  => 1,
+        nocache  => 1,
     },
     '/favicon.ico' => {
         method   => 'GET',
@@ -1041,6 +1050,39 @@ sub avatars ($query) {
         code        => 200,
         contenttype => 'text/css',
     );
+}
+
+=head2 libravatar
+
+Implements the libravatar protocol (https://wiki.libravatar.org/running_your_own/).
+Accepts GET /avatar/{hash} where {hash} is the MD5 or SHA-256 of the user's
+lowercased email address, and redirects to their profile avatar image.
+Returns 404 when no matching user is found or the user has no avatar.
+
+=cut
+
+sub libravatar ($query) {
+    my $hash = lc( $query->{avatar_hash} // '' );
+
+    my $users = Trog::Auth::users_with_emails();
+    my $matched_user;
+    for my $u (@$users) {
+        next unless $u->{contact_email};
+        my $email = lc( $u->{contact_email} );
+        if ( $hash eq sha256_hex($email) || $hash eq md5_hex($email) ) {
+            $matched_user = $u->{name};
+            last;
+        }
+    }
+
+    return $query->{tpsgi}->notfound($query) unless $matched_user;
+
+    my @posts = _post_helper( { author => $matched_user }, ['about'], [qw{public admin}] );
+    my $preview = @posts ? $posts[0]->{preview} : '';
+
+    return $query->{tpsgi}->notfound($query) unless $preview;
+
+    return $query->{tpsgi}->redirect_permanent("/$preview");
 }
 
 =head2 users
