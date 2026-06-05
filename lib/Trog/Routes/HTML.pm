@@ -1241,15 +1241,11 @@ sub posts ( $query, $direct = 0 ) {
     my $newer = !@posts ? 0 : $posts[0]->{created};
 
     # Pagination link tags (issue #282): next=older content, prev=newer content
-    if ( @posts && scalar(@posts) == $limit ) {
+    if ( @posts ) {
         my $scheme = $query->{scheme} // 'https';
         my $base   = $query->{domain} ? "$scheme://$query->{domain}" : '';
-        $query->{link_next} = "$base$query->{route}?older=$older";
-    }
-    if ( @posts && ( $query->{older} || $query->{newer} ) ) {
-        my $scheme = $query->{scheme} // 'https';
-        my $base   = $query->{domain} ? "$scheme://$query->{domain}" : '';
-        $query->{link_prev} = "$base$query->{route}?newer=$newer";
+        $query->{link_next} = "$base$query->{route}?older=$older" if scalar(@posts) == $limit;
+        $query->{link_prev} = "$base$query->{route}?newer=$newer" if $query->{older} || $query->{newer};
     }
 
     #XXX messed up data has to be fixed unfortunately
