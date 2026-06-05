@@ -150,6 +150,12 @@ our %routes = (
         callback => \&Trog::Routes::HTML::processed,
         noindex  => 1,
     },
+    '/csp-report' => {
+        method   => 'POST',
+        callback => \&Trog::Routes::HTML::csp_report,
+        noindex  => 1,
+        nocache  => 1,
+    },
     '/metrics' => {
         method   => 'GET',
         auth     => 1,
@@ -1660,6 +1666,18 @@ sub processed ($query) {
         "Your request has been processed.<br /><br />You will recieve subsequent communications about this matter via means you have provided earlier.",
         ['post.css']
     );
+}
+
+=head2 csp_report
+
+Receive and log CSP violation reports posted by browsers.
+Returns 204 No Content so the browser gets a clean ack.
+
+=cut
+
+sub csp_report ($query) {
+    WARN("CSP violation reported from $query->{ip}");
+    return [ 204, [ 'Content-Length' => '0' ], [] ];
 }
 
 sub metrics ($query) {
