@@ -7,8 +7,7 @@ no warnings 'experimental';
 use feature qw{signatures state};
 
 use UUID;
-use File::Temp ();
-use File::Basename qw{dirname};
+use File::Slurper::Temp qw{write_binary};
 use HTTP::Tiny::UNIX();
 use Plack::MIME;
 use Mojo::File;
@@ -42,24 +41,15 @@ my %extra_types = (
 
 =head2 write_file_atomic($path, $content)
 
-Write $content to $path atomically using a temp file + rename.
-Prevents partial writes from corrupting data on crash or signal.
+Write $content to $path atomically. Delegates to
+C<File::Slurper::Temp::write_binary>, which is better tested and handles
+the temp-file + rename pattern correctly.
 Returns 1 on success, dies on failure.
 
 =cut
 
 sub write_file_atomic ( $path, $content ) {
-    my $dir = dirname($path);
-    my ( $tmp_fh, $tmp_path ) = File::Temp::tempfile( DIR => $dir, UNLINK => 0 );
-    eval {
-        print $tmp_fh $content;
-        close $tmp_fh or die "close $tmp_path: $!";
-        rename( $tmp_path, $path ) or die "rename $tmp_path -> $path: $!";
-    };
-    if ($@) {
-        unlink $tmp_path;
-        die $@;
-    }
+    write_binary( $path, $content );
     return 1;
 }
 
