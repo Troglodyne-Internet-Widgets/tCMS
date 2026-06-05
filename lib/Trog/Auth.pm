@@ -446,6 +446,7 @@ Return all users and their contact emails, for use in libravatar lookups.
 
 =cut
 
+#XXX it may be worth using the sqlite extension to do SHA hashing here to speed up lookups.
 sub users_with_emails {
     my $dbh = _dbh();
     my $rows = $dbh->selectall_arrayref(
