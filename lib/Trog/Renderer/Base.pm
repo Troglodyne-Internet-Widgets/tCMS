@@ -42,12 +42,11 @@ sub render (%options) {
         return $out ? $out : $template_string;
     };
 
+    $options{extra_functions} //= {};
+    $options{extra_functions}{render_it} = $options{child_renderer};
     $renderers{$template_dir} //= Text::Xslate->new(
         path     => $template_dir,
-        function => {
-            render_it => $options{child_renderer},
-            %{ $options{extra_functions} // {} },
-        },
+        function => $options{extra_functions},
     );
 
     my $code = $options{code};

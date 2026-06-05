@@ -9,7 +9,7 @@ use feature qw{signatures state};
 use parent qw{Trog::Renderer::Base};
 
 use Text::Xslate;
-use Digest::SHA qw(sha384);
+use Digest::SHA;
 use MIME::Base64 qw(encode_base64);
 
 =head1 Trog::Renderer::html
@@ -26,11 +26,9 @@ sub sri_hash ($url_path) {
     unless ( -f $file ) {
         return $cache{$url_path} = '';
     }
-    open( my $fh, '<:raw', $file ) or return $cache{$url_path} = '';
-    local $/;
-    my $content = <$fh>;
-    close($fh);
-    return $cache{$url_path} = 'sha384-' . encode_base64( sha384($content), '' );
+    my $digestor = Digest::SHA->new(384);
+    $digestor->addfile($file);
+    return $cache{$url_path} = 'sha384-' . encode_base64( $digestor->digest, '' );
 }
 
 sub render (%options) {
