@@ -66,6 +66,12 @@ sub dbh {
     # Turn on WALmode
     $db->do("PRAGMA journal_mode = WAL") or die "Could not enable WAL mode";
 
+    # Turn on normal sync mode
+    $db->do("PRAGMA synchronous = NORMAL") or die "Could not enable sync mode normal";
+
+    # 5s busy timeout
+    $db->do("PRAGMA busy_timeout = 5000") or die "Could not set busy_timeout";
+
     return $db;
 }
 
