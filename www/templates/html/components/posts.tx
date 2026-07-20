@@ -78,6 +78,10 @@ document.addEventListener("DOMContentLoaded", function(){
             // Fix post dates to be localized
             var timey = document.querySelectorAll('.unixtimestamp');
             for (var e of timey) {
+                if (parseInt(e.innerText) != e.innerText) {
+                    // Don't do anything.
+                    continue;
+                }
                 var d = new Date(0);
                 d.setUTCSeconds(e.innerText);
                 e.innerHTML = "&nbsp;" + d.toDateString();
