@@ -86,17 +86,17 @@ sub headers ( $options, $body ) {
 
     #Disallow framing UNLESS we are in embed mode
     my $ancestor = $query->{domain} || 'none';
-    $headers{"Content-Security-Policy"} = qq{frame-ancestors '$ancestor'} unless $query->{embed};
+    $headers{"Content-Security-Policy"} = qq{frame-ancestors $ancestor} unless $query->{embed};
 
     $headers{'X-Frame-Options'} = 'DENY' unless $query->{embed};
     $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
 
     #CSP. Yet another layer of 'no mixed content' plus whitelisted execution of remote resources.
-    my $scheme = $query->{scheme} ? "$query->{scheme}:" : '';
+    my $scheme = $query->{scheme} eq 'https' ? "$query->{scheme}:" : '';
 
     my $conf  = Trog::Config::get();
     my $sites = $conf->param('security.allow_embeds_from') // '';
-    $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' 'unsafe-eval' 'unsafe-inline' $sites";
+    $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' data: 'unsafe-eval' 'unsafe-inline' $sites";
     $headers{'Content-Security-Policy'} .= ";object-src 'none'";
 
     # Force https if we are https
