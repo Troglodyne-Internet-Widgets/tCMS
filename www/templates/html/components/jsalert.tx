@@ -1,6 +1,6 @@
 <script>
     document.addEventListener("DOMContentLoaded", function(event) {
-        var loginFailure = <: $failure :>;
+        var loginFailure = <: $failure ? $failure : -1 :>;
         if( loginFailure === -1 ) {
             document.querySelector('#jsalert').style.cssText = 'display:none;';
         } else if ( loginFailure === 1 ) {
