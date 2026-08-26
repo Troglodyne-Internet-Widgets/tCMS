@@ -162,6 +162,13 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
+    '/admin/wyzzerdd' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::post_wizard,
+        noindex  => 1,
+        nocache  => 1,
+    },
 
     #TODO transform into posts?
     '/sitemap',
@@ -1718,6 +1725,28 @@ sub sessions ($query) {
         ['post.css'],
     );
 }
+
+sub post_wizard ($query) {
+    return $query->{tpsgi}->see_also('/login')  unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    # Get the existing post types
+    my $forms = Trog::Themes::templates_in_dir( "forms", 'text/html', 1 );
+
+    return Trog::Routes::HTML::index(
+        {
+            title        => 'tCMS Post Wizard',
+            theme_dir    => Trog::Themes::td(),
+            template     => 'post_wizard.tx',
+            is_admin     => 1,
+            forms        => $forms,
+            %$query,
+        },
+        undef,
+        ['post.css'],
+    );
+}
+
 
 # basically a file rewrite rule for themes
 sub icon ($query) {

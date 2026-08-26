@@ -6,6 +6,7 @@
         <a href="/manual"      title="Manual"        class="topbar">Manual</a>
         <a href="/metrics?period=hour&num_periods=24"     title="Metrics"       class="topbar">Metrics</a>
         <a href="/admin/sessions"  title="Session Audit Log" class="topbar">Sessions</a>
+        <a href="/admin/wyzzerdd"  title="Post Type wizard" class="topbar">Post Types</a>
         <a href="/totp"        title="TOTP"          class="topbar">Enable/View TOTP 2fa</a>
         <a href="/password_reset" title="Reset Auth" class="topbar">Reset Password/TOTP</a>
         <a href="/logout"      title="Logout"        class="topbar">🚪</a>
