@@ -1,6 +1,8 @@
 <script>
     document.addEventListener("DOMContentLoaded", function(event) {
-        var loginFailure = <: $failure ? $failure : -1 :>;
+        // Defined-or, not a ternary: success is 0, which is falsy, so the old
+        // test collapsed every success to -1 and hid the banner entirely.
+        var loginFailure = <: $failure // -1 :>;
         if( loginFailure === -1 ) {
             document.querySelector('#jsalert').style.cssText = 'display:none;';
         } else if ( loginFailure === 1 ) {
@@ -13,10 +15,12 @@
             document.querySelector('#jsalert').classList.add("alert-success");
             document.querySelector('#msgIcon').innerHTML = "✓";
             document.querySelector('#message').innerHTML = "<: $message :>";
+            : if ($to) {
             //JS redir better ux than 302
             window.setTimeout(function() {
                 window.location="<: $to :>";
             }, 500);
+            : }
         }
     });
 </script>

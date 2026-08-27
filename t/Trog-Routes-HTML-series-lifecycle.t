@@ -25,6 +25,7 @@ use File::Find     ();
 use File::Path     ();
 use File::Temp     ();
 use Time::HiRes    ();
+use URI::Escape    ();
 
 our ( $REPO, $ROOT, $OLDCWD );
 our %REPO_BEFORE;
@@ -305,10 +306,15 @@ sub _save_post {
         return undef;
     }
 
-    my ( $code, undef, $body ) = @$res;
-    if ( $code != 303 ) {
+    my ( $code, $headers, $body ) = @$res;
+    my %h = @{ $headers || [] };
+
+    # Both outcomes redirect now, so the status alone proves nothing -- the
+    # outcome is in the query string post_save hands to the destination.
+    if ( $code != 303 || ( $h{Location} // '' ) =~ m/savefailed=/ ) {
         fail("$label: saved");
-        diag( "post_save returned $code:\n" . join( '', @{ $body || [''] } ) );
+        diag( "post_save returned $code, Location: " . ( $h{Location} // '(none)' ) );
+        diag( join( '', @{ $body || [''] } ) ) if $body && @$body;
         return undef;
     }
     pass("$label: saved");
@@ -681,6 +687,76 @@ subtest 'spec_widget (the wizard-built type)' => sub {
     # kept 'flavor' instead of deleting it as an unknown key.
     like( $body, qr{<span class="spec-flavor">Strawberry</span>}, 'the custom field rendered on the page' );
     like( $body, qr/Spec widget body\./, 'and the body came through the generated template' );
+};
+
+subtest 'saves report back through the jsalert banner' => sub {
+
+    # A good save redirects to where you came from, carrying the outcome.
+    my $res = Trog::Routes::HTML::post_save(
+        _admin(
+            route      => '/post/save',
+            method     => 'POST',
+            to         => '/specblog',
+            form       => 'blog.tx',
+            title      => 'Spec Feedback Child',
+            data       => 'Spec feedback body.',
+            visibility => 'public',
+            tags       => ['specblog'],
+        )
+    );
+    my ( $code, $headers ) = @$res;
+    my %h = @{ $headers || [] };
+    is( $code, 303, 'a good save redirects' );
+    like( $h{Location}, qr{^/secure/specblog\?saved=}, 'to where we came from, flagged as saved' );
+    unlike( $h{Location}, qr/\n/, 'and the message is one line, since it lands in a JS string' );
+
+    _reindex();
+
+    # Follow the redirect the way a browser would.
+    my ($qs) = $h{Location} =~ m/\?(.*)$/;
+    my %params = map { my ( $k, $v ) = split( /=/, $_, 2 ); ( $k => URI::Escape::uri_unescape($v) ) } split( /&/, $qs );
+
+    my ( $rcode, $body, $err ) = _render(
+        _admin( route => '/specblog', has_query => 1, %params ),
+        \&Trog::Routes::HTML::series,
+    );
+    is( $rcode, 200, 'the destination renders' ) or diag($err);
+    like( $body, qr/var loginFailure = 0;/,               'the banner is in success mode' );
+    like( $body, qr/Saved post &#39;Spec Feedback Child&#39;\./, 'and says what was saved' );
+
+    # Nothing to navigate on to, so the banner must not bounce us anywhere.
+    unlike( $body, qr/window\.location=/, 'and does not redirect onwards' );
+
+    # A rejected save comes back the same way, in red.
+    $res = Trog::Routes::HTML::post_save(
+        _admin(
+            route      => '/post/save',
+            method     => 'POST',
+            to         => '/specblog',
+            form       => 'blog.tx',
+            title      => 'Spec Rejected Child',
+            visibility => 'not-a-visibility',
+            tags       => ['specblog'],
+        )
+    );
+    ( $code, $headers ) = @$res;
+    %h = @{ $headers || [] };
+    is( $code, 303, 'a rejected save redirects too, rather than dead-ending on a 400' );
+    like( $h{Location}, qr{^/secure/specblog\?savefailed=}, 'flagged as failed' );
+    like( URI::Escape::uri_unescape( $h{Location} ), qr/Not in enum list/, 'carrying the validator error' );
+
+    ok( !_find_post('Spec Rejected Child'), 'and the bad post was not written' );
+
+    ($qs) = $h{Location} =~ m/\?(.*)$/;
+    %params = map { my ( $k, $v ) = split( /=/, $_, 2 ); ( $k => URI::Escape::uri_unescape($v) ) } split( /&/, $qs );
+
+    ( $rcode, $body, $err ) = _render(
+        _admin( route => '/specblog', has_query => 1, %params ),
+        \&Trog::Routes::HTML::series,
+    );
+    is( $rcode, 200, 'the destination still renders' ) or diag($err);
+    like( $body, qr/var loginFailure = 1;/, 'the banner is in failure mode' );
+    like( $body, qr/Not in enum list/,      'and shows why' );
 };
 
 subtest 'the topbar did not silently overflow' => sub {

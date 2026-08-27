@@ -4,7 +4,7 @@
     <: $emoji_picker | mark_raw :>
     </div>
     : if (!$direct) {
-        : if ($to) {
+        : if ($failure != -1) {
             : include "jsalert.tx";
         : }
         <script type="text/javascript">

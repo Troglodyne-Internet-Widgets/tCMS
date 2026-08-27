@@ -271,6 +271,53 @@ if ($theme_dir) {
 
 =head1 PRIMARY ROUTE
 
+=head2 _feedback_redirect($query, $to, $failure, $message)
+
+Redirect to $to, carrying the outcome of a save so the destination page can put
+it in the jsalert banner.
+
+We redirect rather than rendering in place so that a save stays a
+POST-redirect-GET -- refreshing the page the user lands on must not re-submit
+the post.  That means the outcome has to travel in the URL, as there is nowhere
+else to put it.
+
+=cut
+
+sub _feedback_redirect ( $query, $to, $failure, $message ) {
+
+    # The banner puts this in a JS string literal, so it has to be one line.
+    $message //= '';
+    $message =~ s/\s*\n+\s*/; /g;
+    $message =~ s/;\s*$//;
+
+    my $sep = $to =~ m/\?/ ? '&' : '?';
+    my $key = $failure     ? 'savefailed' : 'saved';
+    return $query->{tpsgi}->see_also( $to . $sep . $key . '=' . URI::Escape::uri_escape($message) );
+}
+
+=head2 _absorb_feedback($query)
+
+Turn the parameters _feedback_redirect() put in the URL back into the failure
+and message the jsalert banner reads.
+
+Done in index() rather than in each route, so that a save can hand feedback to
+any destination that renders a page, whichever route ends up serving it.
+
+=cut
+
+sub _absorb_feedback ($query) {
+    my ( $saved, $failed ) = ( $query->{saved}, $query->{savefailed} );
+    return unless defined $saved || defined $failed;
+
+    $query->{failure} = defined $failed ? 1 : 0;
+    $query->{message} = ( defined $failed ? $failed : $saved ) || ( $query->{failure} ? 'Save failed.' : 'Saved.' );
+
+    # Nothing further to navigate to -- we are already there.  Without this the
+    # banner's success branch would bounce us onwards.
+    delete $query->{to};
+    return;
+}
+
 =head2 index
 
 Implements the primary route used by all pages not behind auth.
@@ -280,6 +327,8 @@ Most subsequent functions simply pass content to this function.
 
 sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     $query->{theme_dir} = Trog::Themes::td();
+
+    _absorb_feedback($query);
 
     my $to_render = $query->{template} // $landing_page;
 
@@ -893,8 +942,11 @@ sub post_save ($qq) {
     eval { $data->add($query); 1 } or do {
         my @errors = Ref::Util::is_arrayref($@) ? @{$@} : ($@);
         my $why    = "Post failed validation:\n" . join( "\n", @errors );
+
+        # The full detail goes to the log; the user gets it in the banner on
+        # the page they came from, rather than a dead-end 400.
         WARN("Rejected post from $qq->{user}: $why");
-        return $qq->{tpsgi}->badrequest( $qq, $why );
+        return _feedback_redirect( $qq, '/secure' . $to, 1, $why );
     };
 
     # Instruct tpsgi to invalidate the cached render.
@@ -907,7 +959,7 @@ sub post_save ($qq) {
     # Force a reload of the routing table
     $qq->{tpsgi}->signal_restart_parent();
 
-    return $qq->{tpsgi}->see_also('/secure'.$to);
+    return _feedback_redirect( $qq, '/secure' . $to, 0, "Saved post '$query->{title}'." );
 }
 
 =head2 profile
@@ -1171,6 +1223,10 @@ Display multi or single posts, supports RSS and pagination.
 
 sub posts ( $query, $direct = 0 ) {
 
+    # Before we build the render data, not after: posts.tx is rendered here and
+    # handed to index() as content, so index()'s own absorb would be too late.
+    _absorb_feedback($query);
+
     # Allow rss.xml to tell what posts to loop over
     my $fmt = $query->{format} || '';
 
@@ -1359,7 +1415,7 @@ sub posts ( $query, $direct = 0 ) {
             post_visibilities => \@visibuddies,
             failure           => $query->{failure},
             to                => $query->{to},
-            message           => $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}",
+            message           => $query->{message} // ( $query->{failure} ? "Failed to add post!" : "Successfully added Post as $query->{id}" ),
             direct            => $direct,
             title             => $query->{title},
             author            => $query->{primary_post}{user} // $posts[0]{user},
