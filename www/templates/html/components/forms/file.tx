@@ -34,7 +34,7 @@
         : }
 
         : if( $post.data ) {
-            <div class="postData" id="postData" class="responsive-text">
+            <div class="postData responsive-text" id="postData-<: $post.id :>">
             : if ( $style != 'media' ) {
                 <: render_it($post.data) | mark_raw  :>
             : }

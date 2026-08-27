@@ -586,7 +586,13 @@ subtest 'file' => sub {
     my $body = _series_page( 'file', 'specfile', $title, 1 ) or return;
 
     like( $body, qr{href='/assets/\Q$child->{id}\E\.spec-upload\.txt'}, 'title links to the asset' );
+    like( $body, qr{id="postData-\Q$child->{id}\E"}, 'body block carries a unique id, like every other form' );
     like( $body, qr/Spec file body\./, 'body text rendered' );
+
+    # This form used to emit <div class="postData" id="postData" class="responsive-text">
+    # -- a duplicated class attribute, and an id shared by every file post on
+    # the page.  Neither should come back.
+    unlike( $body, qr{<div class="postData" id="postData"}, 'no duplicated class attribute' );
 
     # text/plain, so none of the media branches fire.
     unlike( $body, qr/<video/, 'no video block for a text file' );
