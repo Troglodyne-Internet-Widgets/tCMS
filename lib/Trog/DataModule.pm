@@ -397,8 +397,10 @@ picks the change up on its very next add() with no restart needed.
 sub schema_for ( $form = '' ) {
     state %cache;
 
-    # Both dirs, since either one of them gaining a sidecar changes the answer.
-    my $generation = join( ':', map { ( stat($_) )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
+    # Stat the forms dirs, not their parents -- writing blog.json bumps the
+    # mtime of forms/, and nothing above it.  Both candidates, since either one
+    # gaining a sidecar changes the answer.
+    my $generation = join( ':', map { ( stat("$_/forms") )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
 
     # Only ever keep the current generation around.
     %cache = () unless exists $cache{$generation};

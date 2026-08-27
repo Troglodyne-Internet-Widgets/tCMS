@@ -136,7 +136,9 @@ sub headers ( $options, $body ) {
     $headers{'Referrer-Policy'} = 'no-referrer-when-downgrade';
 
     #CSP. Yet another layer of 'no mixed content' plus whitelisted execution of remote resources.
-    my $scheme = $query->{scheme} eq 'https' ? "$query->{scheme}:" : '';
+    # Component renders (posts.tx, the bars) get a data hash built by the route
+    # rather than the request, and it carries no scheme.
+    my $scheme = ( $query->{scheme} // '' ) eq 'https' ? "$query->{scheme}:" : '';
 
     my $conf  = Trog::Config::get();
     my $sites = $conf->param('security.allow_embeds_from') // '';

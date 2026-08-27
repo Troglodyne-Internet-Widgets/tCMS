@@ -16,10 +16,14 @@ use lib "$FindBin::Bin/../lib";
 require_ok('Trog::DataModule') or BAIL_OUT("Can't find SUT");
 require_ok('Trog::Routes::HTML');
 
-# Point the SUT at a temp forms dir we control and hand it whatever sidecars
-# each subtest wants.  The dir has to be real, as schema_for() keys its cache on
-# the dir's mtime.
+# Point the SUT at a temp component dir we control and hand it whatever
+# sidecars each subtest wants.  The layout has to mirror the real one -- the
+# component dir with a forms/ inside it -- because schema_for() keys its cache
+# on the mtime of forms/, and an earlier version of this fixture flattened the
+# two and so could not have caught it being keyed on the wrong directory.
 my $tempdir = Path::Tiny->tempdir();
+my $formsdir = $tempdir->child('forms');
+$formsdir->mkpath();
 my %sidecars;
 
 my $thememock = Test::MockModule->new('Trog::Themes');
@@ -27,7 +31,7 @@ $thememock->redefine( 'template_dirs', sub { ("$tempdir") } );
 $thememock->redefine(
     'themed_file_in_dir',
     sub ( $path, $file, @ ) {
-        return -f "$tempdir/$file" ? "$tempdir/$file" : undef;
+        return -f "$formsdir/$file" ? "$formsdir/$file" : undef;
     }
 );
 
@@ -43,10 +47,10 @@ $slurpmock->redefine( 'read_text', sub { $sidecars{ Path::Tiny::path(shift)->bas
 my $generation = 0;
 sub set_sidecars {
     %sidecars = @_;
-    $tempdir->child($_)->remove foreach map { $_->basename } $tempdir->children();
-    $tempdir->child($_)->spew_utf8('{}') foreach keys %sidecars;
+    $_->remove foreach $formsdir->children();
+    $formsdir->child($_)->spew_utf8('{}') foreach keys %sidecars;
     $generation++;
-    utime( time() + $generation, time() + $generation, "$tempdir" );
+    utime( time() + $generation, time() + $generation, "$formsdir" );
     return;
 }
 
