@@ -1,3 +1,6 @@
 <h1>400 Bad Request</h1>
+: if ( $title != 'Bad Request' ) {
+<pre class="responsive-text"><: $title :></pre>
+: }
 <br /><br />
 See the SiteMap <a href="/sitemap">here</a> as to the valid ways to communicate with this website.

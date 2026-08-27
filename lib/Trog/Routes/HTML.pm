@@ -12,6 +12,7 @@ use File::Touch();
 use File::Basename qw{basename};
 use List::Util();
 use List::MoreUtils();
+use Ref::Util();
 use Capture::Tiny qw{capture};
 use HTML::SocialMeta;
 
@@ -19,6 +20,7 @@ use Clone qw{clone};
 use Encode qw{encode_utf8};
 use Digest::MD5 qw{md5_hex};
 use Digest::SHA qw{sha256_hex};
+use JSON::MaybeXS();
 use IO::Compress::Gzip;
 use Path::Tiny();
 use File::Basename qw{dirname};
@@ -166,6 +168,13 @@ our %routes = (
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::post_wizard,
+        noindex  => 1,
+        nocache  => 1,
+    },
+    '/admin/wyzzerdd/save' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::post_wizard_save,
         noindex  => 1,
         nocache  => 1,
     },
@@ -878,7 +887,15 @@ sub post_save ($qq) {
     state $data;
     $data //= Trog::Data->new(Trog::Config::get());
 
-    $data->add($query) and die "Could not add post";
+    # A post that doesn't match its type's schema is the user's mistake, not a
+    # server error, so hand the validation errors back rather than dying.
+    local $@;
+    eval { $data->add($query); 1 } or do {
+        my @errors = Ref::Util::is_arrayref($@) ? @{$@} : ($@);
+        my $why    = "Post failed validation:\n" . join( "\n", @errors );
+        WARN("Rejected post from $qq->{user}: $why");
+        return $qq->{tpsgi}->badrequest( $qq, $why );
+    };
 
     # Instruct tpsgi to invalidate the cached render.
     $qq->{tpsgi}->add_post_close_callback(sub {
@@ -913,13 +930,12 @@ sub profile ($query) {
 
     my $user_obj = List::Util::first { ( $_->{user} || '' ) eq $query->{username} } @userposts;
 
-    if ( $query->{username} ne $user_obj->{user} || $query->{password} || $query->{contact_email} ne $user_obj->{contact_email} || $query->{display_name} ne $user_obj->{display_name} ) {
-        my $for_user = Trog::Auth::acls4user( $query->{username} );
-
-        #TODO support non-admin users
-        my @acls = @$for_user ? @$for_user : qw{admin};
-        Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, \@acls, $query->{contact_email} );
-    }
+    my $username = $query->{username};
+    my $password = $query->{password};
+    my $changed  = $username ne ( $user_obj->{user} // '' )
+      || $password
+      || ( $query->{contact_email} // '' ) ne ( $user_obj->{contact_email} // '' )
+      || ( $query->{display_name}  // '' ) ne ( $user_obj->{display_name}  // '' );
 
     #Make sure it is "self-authored", redact pw
     $query->{user} = delete $query->{username};
@@ -933,6 +949,25 @@ sub profile ($query) {
         %$query,
         $query->{display_name} ? ( local_href => "/users/$query->{display_name}" ) : ( local_href => $user_obj->{local_href} ),
     );
+
+    # Validate before touching the auth database, not after.  useradd() does an
+    # INSERT OR REPLACE on the user row, which cascades to the session table and
+    # logs the user straight out -- doing that and *then* rejecting the post
+    # leaves the credentials disagreeing with the profile post they came from.
+    my @errors = Trog::DataModule::validate( clone( \%merged ) );
+    if (@errors) {
+        my $why = "Post failed validation:\n" . join( "\n", @errors );
+        WARN("Rejected profile update from $query->{user}: $why");
+        return $query->{tpsgi}->badrequest( $query, $why );
+    }
+
+    if ($changed) {
+        my $for_user = Trog::Auth::acls4user($username);
+
+        #TODO support non-admin users
+        my @acls = @$for_user ? @$for_user : qw{admin};
+        Trog::Auth::useradd( $username, $merged{display_name}, $password, \@acls, $merged{contact_email} );
+    }
 
     return post_save( \%merged );
 }
@@ -1220,8 +1255,8 @@ sub posts ( $query, $direct = 0 ) {
     return $header if ref $footer eq 'ARRAY';
 
     # List the available headers/footers
-    my $headers = Trog::Themes::templates_in_dir( "headers", 'text/html', 1 );
-    my $footers = Trog::Themes::templates_in_dir( "footers", 'text/html', 1 );
+    my $headers = Trog::Themes::themed_templates_in_dir( "headers", 'text/html', 1 );
+    my $footers = Trog::Themes::themed_templates_in_dir( "footers", 'text/html', 1 );
 
     #XXX used to be post.css, but probably not good anymore?
     my $styles = [];
@@ -1266,7 +1301,7 @@ sub posts ( $query, $direct = 0 ) {
         $_
     } _post_helper( {}, ['series'], $query->{user_acls} );
 
-    my $forms = Trog::Themes::templates_in_dir( "forms", 'text/html', 1 );
+    my $forms = Trog::Themes::themed_templates_in_dir( "forms", 'text/html', 1 );
 
     my $edittype = $query->{primary_post} ? $query->{primary_post}->{child_form}          : $query->{form};
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
@@ -1658,6 +1693,16 @@ sub manual ($query) {
     );
 }
 
+=head2 processed
+
+Implements /processed.
+
+The "we got it, go check your email" page, shown after a request that finishes
+out of band -- password and TOTP resets, chiefly.  Deliberately says nothing
+about whether the account existed.
+
+=cut
+
 sub processed ($query) {
     return Trog::Routes::HTML::index(
         {
@@ -1668,6 +1713,16 @@ sub processed ($query) {
         ['post.css']
     );
 }
+
+=head2 metrics
+
+Implements /metrics.  Admin only.
+
+Renders the request metrics dashboard.  The page pulls its actual numbers from
+/api/requests_per over XHR and draws them with chart.js, so there's nothing to
+compute here.
+
+=cut
 
 sub metrics ($query) {
     return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
@@ -1688,6 +1743,20 @@ sub metrics ($query) {
         ['chart.js'],
     );
 }
+
+=head2 sessions
+
+Implements /sessions.  Admin only.
+
+The session audit log: logins, logouts and failures, most recent first.
+Filterable by username and event type via the filter_user and filter_event
+parameters, and capped by limit (100 by default).
+
+Timestamps are formatted here rather than in the template, and session ids are
+truncated to their first 8 characters -- there's no reason to put a live
+session id on a page.
+
+=cut
 
 sub sessions ($query) {
     return $query->{tpsgi}->see_also('/login')  unless $query->{user};
@@ -1726,34 +1795,376 @@ sub sessions ($query) {
     );
 }
 
+# The canned includes the wizard is willing to splice into a generated form.
+# Deliberately a whitelist keyed on the checkbox name -- the include name ends
+# up interpolated straight into a template file, so it can never come from the
+# submitted data.
+our %wizard_includes = (
+    inc_preview     => 'preview.tx',
+    inc_visibility  => 'visibility.tx',
+    inc_acls        => 'acls.tx',
+    inc_tags        => 'tags.tx',
+    inc_aliases     => 'aliases.tx',
+    inc_attachments => 'attachments.tx',
+);
+
+# Emitted in this order, so generated forms read like the hand-written ones.
+our @wizard_include_order = qw{inc_preview inc_visibility inc_acls inc_tags inc_aliases inc_attachments};
+
+# Every checkbox on the wizard, and which of them start out ticked.
+our @wizard_checkboxes         = ( qw{wrapper inc_post_title inc_post_tags inc_title_input}, @wizard_include_order, 'overwrite' );
+our %wizard_checked_by_default = map { $_ => 1 } qw{wrapper inc_post_title inc_post_tags inc_title_input inc_preview inc_visibility inc_acls inc_tags inc_aliases};
+
+# Which HTML input the wizard emits, and what that field is in the sidecar's
+# OpenAPIv3 schema.  No 'file': _process() in Trog::DataModule only knows how to
+# turn the four hardcoded upload fields into hrefs, so a custom file field would
+# store an HTTP::Body::OctetStream that nothing ever picks up.  Point folks at
+# the attachment uploader instead.
+our %wizard_field_types = (
+    text     => { type => 'string' },
+    url      => { type => 'string' },
+    date     => { type => 'string' },
+    textarea => { type => 'string' },
+    number   => { type => 'integer' },
+    checkbox => { type => 'boolean' },
+);
+
+# Field names which aren't in %schema but would still collide with something.
+our @wizard_reserved = qw{app to form data_is_array addpost extra_tags is_image is_video is_audio is_profile content_type version};
+
+=head2 post_wizard
+
+Implements /admin/wyzzerdd.  Admin only.
+
+The post type wizard: lists the post types which currently exist and offers a
+form for building a new one.  See post_wizard_save() for what happens when that
+form comes back.
+
+Re-rendered by post_wizard_save() on both success and failure, so it keeps the
+submitted values and checkbox states rather than making the admin retype
+everything after a rejected submission.
+
+=cut
+
 sub post_wizard ($query) {
     return $query->{tpsgi}->see_also('/login')  unless $query->{user};
     return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
+    $query->{failure} //= -1;
+
     # Get the existing post types
-    my $forms = Trog::Themes::templates_in_dir( "forms", 'text/html', 1 );
+    my $forms = Trog::Themes::themed_templates_in_dir( "forms", 'text/html', 1 );
+
+    # Sticky checkboxes.  Nothing is submitted on a fresh GET, so fall back to
+    # the defaults rather than rendering everything unticked.
+    my %checked = map { $_ => ( $query->{wizard_submitted} ? $query->{$_} : $wizard_checked_by_default{$_} ) ? 'checked' : '' } @wizard_checkboxes;
 
     return Trog::Routes::HTML::index(
         {
-            title        => 'tCMS Post Wizard',
-            theme_dir    => Trog::Themes::td(),
-            template     => 'post_wizard.tx',
-            is_admin     => 1,
-            forms        => $forms,
+            # Sticky form values first, so a failed submission doesn't lose the
+            # admin's work -- but everything the template actually depends on is
+            # set *after* this, as the whole of %$query is attacker controlled.
             %$query,
+            title             => 'tCMS Post Wizard',
+            theme_dir         => Trog::Themes::td(),
+            template          => 'post_wizard.tx',
+            is_admin          => 1,
+            forms             => $forms,
+            forms_dir         => Trog::Themes::forms_dir(),
+            checked           => \%checked,
+            name              => _wizard_scalar( $query->{name} ),
+            title_placeholder => _wizard_scalar( $query->{title_placeholder} ),
+            body_form         => _wizard_scalar( $query->{body_form} ),
+            display           => _wizard_scalar( $query->{display} ),
+            failure           => $query->{failure},
+            message           => $query->{message} // '',
+            to                => $query->{to}      // '',
         },
         undef,
         ['post.css'],
     );
 }
 
+=head2 post_wizard_save
+
+Implements POST /admin/wyzzerdd/save.
+
+Writes a new post type template into whichever forms directory is currently in
+use, along with a JSON sidecar naming its custom fields so that
+Trog::DataModule::schema_for will merge it over the base post schema, so the
+type's own fields survive validation at save time.
+
+=cut
+
+sub post_wizard_save ($query) {
+    return $query->{tpsgi}->see_also('/login')  unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    # Anchored capture rather than a substitution, so anything containing a '/'
+    # or a '..' simply fails to match instead of being silently scrubbed into
+    # something that still escapes the directory.
+    my ($name) = _wizard_scalar( $query->{name} ) =~ m/^([A-Za-z0-9_-]+)$/;
+    return _wizard_fail( $query, "Post type names may only contain letters, numbers, '-' and '_'." ) unless $name;
+
+    # Whichever forms dir is in use: the theme's if it has one, the stock one
+    # otherwise.  Never mkdir it -- silently conjuring a forms/ dir inside a
+    # theme is not something an admin asked for by pressing this button.
+    my $dir = Trog::Themes::forms_dir();
+    return _wizard_fail( $query, "Forms directory '$dir' does not exist, or is not writable." ) unless -d $dir && -w $dir;
+
+    my $tx_file   = "$dir/$name.tx";
+    my $json_file = "$dir/$name.json";
+
+    my $overwriting = -e $tx_file;
+    return _wizard_fail( $query, "Post type '$name.tx' already exists.  Tick 'Overwrite' if you meant to replace it." )
+      if $overwriting && !$query->{overwrite};
+
+    my $fields    = _wizard_fields($query);
+    my @includes  = grep { $query->{$_} } @wizard_include_order;
+    my $body_form = _wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
+
+    my $spec = _wizard_sidecar( $name, $fields, \@includes, $body_form );
+
+    local $@;
+    eval {
+        Path::Tiny::path($tx_file)->spew_utf8( _wizard_template( $query, $fields, \@includes, $body_form ) );
+        Path::Tiny::path($json_file)->spew_utf8( JSON::MaybeXS->new( pretty => 1, canonical => 1 )->encode($spec) );
+        1;
+    } or return _wizard_fail( $query, "Failed to write post type '$name': $@" );
+
+    INFO("Post type '$name' written to $tx_file by $query->{user}");
+
+    # Nothing else is needed to publish a new type: themed_templates_in_dir()
+    # re-reads
+    # the directory every call, and Xslate resolves includes lazily, so both the
+    # wizard's own list and the series child_form dropdown pick it up on the
+    # next request without a restart.  Overwriting an *existing* type is another
+    # matter -- that changes how already-rendered anonymous pages should look.
+    if ($overwriting) {
+        $query->{tpsgi}->add_post_close_callback(
+            sub {
+                $query->{tpsgi}->invalidate_renders('html');
+            }
+        );
+    }
+
+    return post_wizard(
+        {
+            %$query,
+            wizard_submitted => 1,
+            failure          => 0,
+            message          => "Created post type '$name.tx'.",
+            to               => '/admin/wyzzerdd',
+        }
+    );
+}
+
+# Repeated params arrive as arrayrefs; anywhere we want one string, insist on one string.
+sub _wizard_scalar ( $value = '' ) {
+    return '' if !defined $value || ref $value;
+    return $value;
+}
+
+sub _wizard_fail ( $query, $message ) {
+    WARN($message);
+    return post_wizard(
+        {
+            %$query,
+            wizard_submitted => 1,
+            failure          => 1,
+            message          => $message,
+        }
+    );
+}
+
+=head2 _kolon_safe
+
+Make a submitted string safe to splice into a generated Kolon template.
+Newlines have to go, as a ':' at the start of a line is a Kolon directive, and
+the angle brackets have to go so that '<:' can never be reassembled.
+
+=cut
+
+sub _kolon_safe ( $string = '' ) {
+    $string = _wizard_scalar($string);
+    $string =~ s/[\r\n]+/ /g;
+    $string =~ s/&/&amp;/g;
+    $string =~ s/</&lt;/g;
+    $string =~ s/>/&gt;/g;
+    $string =~ s/"/&quot;/g;
+    return $string;
+}
+
+=head2 _wizard_fields
+
+Zip the parallel param_* arrays submitted by the wizard back into a list of
+field definitions.  Every row always submits exactly one of each param, so the
+arrays stay aligned even when a row is left blank.
+
+=cut
+
+sub _wizard_fields ($query) {
+    my $names  = Trog::Utils::coerce_array( $query->{param_name} );
+    my $types  = Trog::Utils::coerce_array( $query->{param_type} );
+    my $labels = Trog::Utils::coerce_array( $query->{param_label} );
+    my $phs    = Trog::Utils::coerce_array( $query->{param_placeholder} );
+    my $reqs   = Trog::Utils::coerce_array( $query->{param_required} );
+
+    my ( @fields, %seen );
+    foreach my $index ( 0 .. $#$names ) {
+        my ($fname) = lc( _wizard_scalar( $names->[$index] ) ) =~ m/^([a-z][a-z0-9_]{0,31})$/;
+
+        # Blank and bogus rows just get dropped.
+        next unless $fname;
+        next if $seen{$fname}++;
+
+        # Never let a custom field shadow a core post attribute.
+        next if exists $Trog::DataModule::post_schema{properties}{$fname};
+        next if grep { $fname eq $_ } @wizard_reserved;
+
+        my $type = _wizard_scalar( $types->[$index] );
+        $type = 'text' unless $wizard_field_types{$type};
+
+        push(
+            @fields,
+            {
+                name        => $fname,
+                type        => $type,
+                label       => _kolon_safe( $labels->[$index] ) || ucfirst($fname),
+                placeholder => _kolon_safe( $phs->[$index] ),
+                required    => _wizard_scalar( $reqs->[$index] ) ? 1 : 0,
+            }
+        );
+    }
+    return \@fields;
+}
+
+=head2 _wizard_sidecar
+
+Turn the wizard's field list into the post type's JSON sidecar: an OpenAPIv3
+object schema describing what this type ingests, with the wizard's own UI
+metadata hung off x- extension keys so there's only one file to keep in sync.
+
+Trog::DataModule::schema_for() merges this over the base post schema.
+
+=cut
+
+sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
+    my %properties;
+    my @required;
+
+    foreach my $field (@$fields) {
+        my $property = { %{ $wizard_field_types{ $field->{type} } } };
+        $property->{'x-tcms-input'} = $field->{type};
+        $property->{'x-tcms-label'} = $field->{label};
+        $property->{'x-tcms-placeholder'} = $field->{placeholder} if length $field->{placeholder};
+
+        $properties{ $field->{name} } = $property;
+        push( @required, $field->{name} ) if $field->{required};
+    }
+
+    my %spec = (
+        'x-tcms-post-type' => {
+            name      => $name,
+            generated => JSON::MaybeXS::true(),
+            generator => 'Trog::Routes::HTML::post_wizard_save',
+            body_form => $body_form,
+            includes  => [ map { $wizard_includes{$_} } @$includes ],
+        },
+        type       => 'object',
+        properties => \%properties,
+    );
+    $spec{required} = \@required if @required;
+
+    return \%spec;
+}
+
+sub _wizard_field_html ($field) {
+    my ( $n, $t, $l, $p ) = @$field{qw{name type label placeholder}};
+    my $required = $field->{required} ? 'required ' : '';
+
+    return qq|            $l<br /><textarea ${required}class="cooltext" name="$n" placeholder="$p"><: \$post.$n :></textarea>\n|
+      if $t eq 'textarea';
+
+    return qq|            <label for="<: \$post.id :>-$n">$l<input id="<: \$post.id :>-$n" class="coolcb" type="checkbox" name="$n" value="1" <: if ( \$post.$n ) { "checked" } :> /></label><br />\n|
+      if $t eq 'checkbox';
+
+    return qq|            $l<br /><input ${required}class="cooltext" type="$t" name="$n" placeholder="$p" value="<: \$post.$n :>" />\n|;
+}
+
+=head2 _wizard_template
+
+Assemble the actual .tx file, following the shape of the hand-written forms:
+a display half guarded by !$post.addpost, and an edit half guarded by $can_edit.
+
+=cut
+
+sub _wizard_template ( $query, $fields, $includes, $body_form ) {
+    my $placeholder = _kolon_safe( $query->{title_placeholder} ) || 'Iowa Man Destroys Moon';
+
+    # NOT escaped, on purpose.  Letting an admin write template code is the
+    # entire point of the wizard, and it is no more privileged than the data
+    # field of any post, which already gets run through render_it().  Both
+    # sides of this route are behind the admin ACL.
+    my $display = _wizard_scalar( $query->{display} );
+
+    my $out = "<!-- Generated by the tCMS Post Type Wizard.  Regenerating this type will overwrite any hand edits. -->\n";
+    $out .= qq|<div class="post <: \$style :>">\n| if $query->{wrapper};
+    $out .= qq|    : if ( !\$post.addpost ) {\n|;
+    $out .= qq|        : include "post_title.tx";\n| if $query->{inc_post_title};
+    $out .= qq|        : include "post_tags.tx";\n|  if $query->{inc_post_tags};
+    $out .= "$display\n"                             if $display;
+    $out .= qq|    : }\n\n|;
+    $out .= qq|    : if ( \$can_edit ) {\n|;
+    $out .= qq|        <div class="postedit">\n|;
+    $out .= qq|        : include "edit_head.tx";\n|;
+    $out .= qq|        <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">\n|;
+    $out .= qq|            Title *<br /><input required class="cooltext" type="text" name="title" placeholder="$placeholder" value="<: \$post.title :>" />\n|
+      if $query->{inc_title_input};
+    $out .= _wizard_field_html($_) foreach @$fields;
+
+    foreach my $include (@$includes) {
+        $out .= qq|            : include "$wizard_includes{$include}";\n|;
+    }
+
+    # Always last, and never optional: this is what carries the post body, the
+    # app/to/id/form hiddens and the submit button.
+    $out .= qq|            : include "$body_form";\n|;
+    $out .= qq|        </form>\n|;
+    $out .= qq|        : include "edit_foot.tx";\n|;
+    $out .= qq|        </div>\n|;
+    $out .= qq|    : }\n|;
+    $out .= qq|</div>\n| if $query->{wrapper};
+    return $out;
+}
+
 
 # basically a file rewrite rule for themes
+=head2 icon
+
+Implements the /img/icon/* routes.
+
+Serves a themed icon, falling back to the stock one.  A rewrite rule with extra
+steps, essentially, so that themes can replace individual icons.
+
+=cut
+
 sub icon ($query) {
     my $path = $query->{route};
     my $tpath = Trog::Themes::themed("img/icon/$path");
     return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate}  );
 }
+
+=head2 totp_qr
+
+Implements the /totp/* routes.
+
+Serves the QR code generated when a user enables TOTP.  These live outside
+www/, so they go out through serve() rather than the static file handler --
+handing someone else's enrolment QR out to the world would be handing them the
+shared secret.
+
+=cut
 
 sub totp_qr ($query) {
     my $fname = basename($query->{route});
@@ -1768,6 +2179,16 @@ sub totp_qr ($query) {
         $query->{deflate},
     );
 }
+
+=head2 rss_style
+
+Implements /styles/rss-style.xsl.
+
+The XSL stylesheet which makes the RSS feed legible in a browser.  The header
+and footer are rendered here and passed in as strings because the output is
+XSL rather than HTML, so an include directive isn't available.
+
+=cut
 
 sub rss_style ($query) {
     $query->{port}       = ":$query->{port}" if $query->{port};
@@ -1795,6 +2216,19 @@ sub _build_themed_scripts ($scripts) {
     my @scripts = map { Trog::Themes::themed_script("$_") } @{ Trog::Utils::coerce_array($scripts) };
     return \@scripts;
 }
+
+=head2 finish_render($template, $vars, %headers)
+
+Render a full page, as opposed to a component.
+
+Fills in the defaults every page needs (lang, title, status code, content type,
+cache control), resolves stylesheet and script names through the theme, makes
+their paths absolute, renders the header and footer, and hands the lot to
+Trog::Renderer.
+
+Just about everything in this module ends up here; index() is the usual way in.
+
+=cut
 
 sub finish_render ( $template, $vars, %headers ) {
 

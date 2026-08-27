@@ -1,0 +1,140 @@
+#!/usr/bin/env perl
+
+package tcms::login;
+
+use strict;
+use warnings;
+
+use FindBin::libs;
+use Getopt::Long;
+use Pod::Usage;
+
+use Trog::Auth;
+use Trog::Log;
+
+# Don't murder our terminal when done
+$ENV{NOHUP} = 1;
+
+=head1 SYNOPSIS
+
+Log a user in and print the resulting session cookie, so that you can hand it
+to call.pl and exercise authenticated routes without a browser.
+
+=head2 USAGE
+
+    tcmslogin --user foo --password bar
+
+    # Which is meant to be used like this:
+    call.pl GET /admin/wyzzerdd '' "$(tcmslogin --user foo --password bar)"
+
+The cookie is printed to STDOUT and nothing else is, so it is safe to capture.
+Everything else the script has to say goes to STDERR.
+
+Note that logging in wastes any session the user already holds -- the session
+table keeps one row per user -- so running this will log that user out of their
+browser.
+
+=head2 OPTIONS
+
+=over 4
+
+=item --user
+
+The user to log in.  Required.
+
+=item --password
+
+That user's password.  Leaving the option out, or passing it with no value,
+reads it from STDIN instead, which keeps it out of your shell history:
+
+    tcmslogin --user foo             # prompts, with echo off
+    tcmslogin --user foo --password  # same
+    echo hunter2 | tcmslogin --user foo
+
+=item --token
+
+The user's current TOTP code, if they have 2FA enabled.
+
+=item --raw
+
+Print just the session id, without the C<tcmslogin=> prefix.
+
+=item --help, --man
+
+Display this output.
+
+=back
+
+=cut
+
+# The logger is set up per-request by the server; a CLI run has to do it itself,
+# or the first thing Trog::Auth logs blows up on an undefined $log.
+sub _init_logs {
+    my ($who) = @_;
+    Trog::Log::log_init( 'logs/tcms.log', 'info' );
+    $Trog::Log::user = $who // 'nobody';
+    return;
+}
+
+sub _read_password {
+    my ($prompt) = @_;
+    my $password;
+    if ( -t STDIN ) {
+        print STDERR $prompt;
+        require Term::ReadKey;
+        Term::ReadKey::ReadMode('noecho');
+        $password = <STDIN>;
+        Term::ReadKey::ReadMode('restore');
+        print STDERR "\n";
+    }
+    else {
+        $password = <STDIN>;
+    }
+    chomp $password if defined $password;
+    return $password;
+}
+
+sub main {
+    my %options;
+    Getopt::Long::GetOptionsFromArray(
+        \@_,
+        'user=s'     => \$options{user},
+        'password:s' => \$options{password},
+        'token=s'    => \$options{token},
+        'raw'        => \$options{raw},
+        'help|?'     => \$options{help},
+    );
+    pod2usage( -exitval => 0, -verbose => 1 ) if $options{help};
+
+    unless ( $options{user} ) {
+        print STDERR "--user is required.\n";
+        return 2;
+    }
+
+    _init_logs( $options{user} );
+
+    # Omitted entirely or passed with no value both mean "ask me".
+    $options{password} = _read_password("Password for '$options{user}': ")
+      unless defined $options{password} && length $options{password};
+    unless ( defined $options{password} && length $options{password} ) {
+        print STDERR "No password provided.\n";
+        return 2;
+    }
+
+    # mksession() tells us nothing about *why* it said no, by design -- it is
+    # the same '' for an unknown user, a bad password and a bad TOTP code.
+    my $session = Trog::Auth::mksession( $options{user}, $options{password}, $options{token}, 'tcmslogin' );
+    unless ($session) {
+        print STDERR "Login failed for '$options{user}'.\n";
+        print STDERR "Check the password, and pass --token if this user has 2FA enabled.\n";
+        print STDERR "Use bin/tcms-useradd --user $options{user} --password ... to reset it.\n";
+        return 1;
+    }
+
+    print $options{raw} ? "$session\n" : "tcmslogin=$session\n";
+    return 0;
+}
+
+exit main(@ARGV) unless caller;
+
+1;

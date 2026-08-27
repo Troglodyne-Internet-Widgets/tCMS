@@ -1,0 +1,46 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "profile",
+      "generated" : false,
+      "description" : "A user.  Posts to /profile rather than /post/save, as it also drives Trog::Auth.",
+      "comment" : "'password' is deliberately absent: profile() strips it before the post is saved, and it must never reach the datastore."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Avatar"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Avatar",
+         "x-tcms-input" : "file"
+      },
+      "username" : {
+         "type" : "string",
+         "x-tcms-label" : "Username"
+      },
+      "display_name" : {
+         "type" : "string",
+         "x-tcms-label" : "Display Name"
+      },
+      "contact_email" : {
+         "type" : "email",
+         "x-tcms-label" : "Contact Email"
+      },
+      "wallpaper" : {
+         "type" : "string",
+         "x-tcms-label" : "Wallpaper"
+      },
+      "wallpaper_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Wallpaper",
+         "x-tcms-input" : "file"
+      },
+      "user_acls" : {
+         "type" : "array",
+         "items" : { "type" : "string" },
+         "x-tcms-label" : "User ACLs"
+      }
+   }
+}

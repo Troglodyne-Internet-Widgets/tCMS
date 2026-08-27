@@ -1,0 +1,18 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "entities",
+      "generated" : false,
+      "description" : "A party to an invoice -- who to pay, and how."
+   },
+   "type" : "object",
+   "properties" : {
+      "payment_method" : {
+         "type" : "string",
+         "x-tcms-label" : "Payment Method"
+      },
+      "payment_details" : {
+         "type" : "string",
+         "x-tcms-label" : "Payment Details"
+      }
+   }
+}

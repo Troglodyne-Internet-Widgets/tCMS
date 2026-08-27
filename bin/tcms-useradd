@@ -11,6 +11,7 @@ use Pod::Usage;
 use List::Util qw{first};
 
 use Trog::Auth;
+use Trog::Log;
 use Trog::Data;
 use Trog::Config;
 
@@ -19,9 +20,13 @@ $ENV{NOHUP} = 1;
 
 =head1 SYNOPSIS
 
-Add or edit a tCMS user.  In the event of a user edit, every option save for user is optional.
+Add or edit a tCMS user.  In the event of a user edit, every option save for user is optional,
+and the ones you leave out keep whatever value they already had.
 
-does not update user pages.  Use this to reset user passwords or fix broken users.
+Creating a user who does not exist yet needs --password, --display_name and --contact_email,
+as there is no existing profile post to inherit them from.
+
+Use this to reset user passwords or fix broken users.
 
 =head2 USAGE
 
@@ -37,7 +42,20 @@ Specify the user to add, or edit if the user already exists.
 
 =item --password
 
-Set a password for the user.  Leave blank if you want to keep the password for an existing user.
+Set a password for the user.  Omit the option entirely if you want to keep the
+password an existing user already has.
+
+Passing --password with no value prompts for one instead, with echo off, which
+keeps it out of your shell history and off your screen:
+
+    tcms-useradd --user foo --password           # prompts, twice, to confirm
+
+It can also be piped in, in which case it is read once and not confirmed:
+
+    echo hunter2 | tcms-useradd --user foo --password
+
+Note that setting a password kills any session the user currently holds, so
+they will have to log back in.
 
 =item --display_name
 
@@ -60,6 +78,53 @@ Display this output.
 
 =cut
 
+# The logger is set up per-request by the server; a CLI run has to do it itself,
+# or the first thing Trog::Auth logs blows up on an undefined $log.
+sub _init_logs {
+    my ($who) = @_;
+    Trog::Log::log_init( 'logs/tcms.log', 'info' );
+    $Trog::Log::user = $who // 'nobody';
+    return;
+}
+
+# Read a password off the terminal without echoing it, so it stays out of the
+# shell history and off the screen.  Falls back to a plain read when we aren't
+# on a TTY, which is what makes `echo hunter2 | tcms-useradd ...` work.
+sub _read_password {
+    my ($prompt) = @_;
+    my $password;
+    if ( -t STDIN ) {
+        print STDERR $prompt;
+        require Term::ReadKey;
+        Term::ReadKey::ReadMode('noecho');
+        $password = <STDIN>;
+        Term::ReadKey::ReadMode('restore');
+        print STDERR "\n";
+    }
+    else {
+        $password = <STDIN>;
+    }
+    chomp $password if defined $password;
+    return $password;
+}
+
+# What a brand new user's profile post looks like before we merge anything over
+# the top of it.  Mirrors what setup() builds for the very first user.
+sub _default_user_post {
+    return {
+        data       => 'Default user',
+        preview    => '/img/avatar/humm.gif',
+        wallpaper  => '/img/sys/testpattern.jpg',
+        tags       => ['about'],
+        visibility => 'public',
+        acls       => ['admin'],
+        callback   => 'Trog::Routes::HTML::users',
+        method     => 'GET',
+        form       => 'profile.tx',
+        aliases    => [],
+    };
+}
+
 sub main {
     my %options;
     Getopt::Long::GetOptionsFromArray(
@@ -67,40 +132,95 @@ sub main {
         'user=s'          => \$options{user},
         'display_name=s'  => \$options{display_name},
         'help|?'          => \$options{help},
-        'password=s'      => \$options{password},
+        'password:s'      => \$options{password},
         'contact_email=s' => \$options{contact_email},
         'acl=s@'          => \$options{acl},
     );
     pod2usage( -exitval => 0, -verbose => 1 ) if $options{help};
 
+    unless ( $options{user} ) {
+        print STDERR "--user is required.\n";
+        return 2;
+    }
+
+    # --password with no value means "ask me", as opposed to leaving the option
+    # out entirely, which means "leave the password alone".
+    if ( defined $options{password} && !length $options{password} ) {
+        my $interactive = -t STDIN;
+        $options{password} = _read_password("New password for '$options{user}': ");
+
+        unless ( defined $options{password} && length $options{password} ) {
+            print STDERR "No password provided.\n";
+            return 2;
+        }
+
+        # Only worth confirming when a human is typing it.  Piped input has no
+        # second line to read, and typos in a script aren't fixed by asking twice.
+        if ($interactive) {
+            my $again = _read_password("Confirm: ");
+            unless ( defined $again && $options{password} eq $again ) {
+                print STDERR "Passwords did not match.\n";
+                return 2;
+            }
+        }
+    }
+
     $options{acl} //= [];
     $options{acl} = [ $options{acl} ] if $options{acl} && ref $options{acl} ne 'ARRAY';
     $options{acl} = ['admin'] unless @{ $options{acl} };
 
-    Trog::Auth::killsession( $options{user} );
-    eval { Trog::Auth::useradd( $options{user}, $options{display_name}, $options{password}, $options{acl}, $options{contact_email} ) } or do {
-        return 1;
-    };
+    _init_logs( $options{user} );
 
-    # Find the user's post and edit it
+    # Find the user's existing post, if they have one.
     my $conf = Trog::Config::get();
     my $data = Trog::Data->new($conf);
 
     my @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
     my $user_obj  = first { ( $_->{user} || '' ) eq $options{user} } @userposts;
-    my %merged    = (
+
+    # A user we've never seen before has no post to edit, so start from the
+    # defaults rather than dereferencing undef.
+    my $is_new = !$user_obj;
+    $user_obj //= _default_user_post();
+
+    if ($is_new) {
+        unless ( $options{password} && $options{display_name} && $options{contact_email} ) {
+            print STDERR "User '$options{user}' does not exist yet.\n";
+            print STDERR "Creating one needs --password, --display_name and --contact_email.\n";
+            return 2;
+        }
+    }
+
+    # Only the options actually passed should win.  Merging %options wholesale
+    # writes an undef over every field the caller didn't mention, which is how
+    # resetting a password used to blank out the display name and contact email.
+    my %provided = map { $_ => $options{$_} } grep { defined $options{$_} } qw{user display_name contact_email};
+
+    my %merged = (
         %$user_obj,
-        %options,
-        $options{display_name} ? ( local_href => "/users/$options{display_name}" ) : ( local_href => $user_obj->{local_href} ),
+        %provided,
     );
 
-    # We don't want the password in plain text
-    delete $merged{password};
+    # The display name is the title of the post, and the URL it lives at.
+    $merged{title}      = $merged{display_name}          if $merged{display_name};
+    $merged{local_href} = "/users/$merged{display_name}" if $merged{display_name};
 
-    # The ACLs a user posesses is not necessarily what ACLs you need to view or edit a user's profile.
-    delete $merged{acl};
+    Trog::Auth::killsession( $options{user} );
 
-    $data->add( \%merged );
+    local $@;
+    eval { Trog::Auth::useradd( $options{user}, $merged{display_name}, $options{password}, $options{acl}, $merged{contact_email} ); 1 } or do {
+        print STDERR "Could not add user '$options{user}': $@";
+        return 1;
+    };
+
+    eval { $data->add( \%merged ); 1 } or do {
+        my @errors = ref $@ eq 'ARRAY' ? @{$@} : ($@);
+        print STDERR "Saved the credentials for '$options{user}', but their profile post was rejected:\n";
+        print STDERR join( "\n", @errors ), "\n";
+        return 1;
+    };
+
+    print "@{[ $is_new ? 'Added' : 'Updated' ]} user '$options{user}'.\n";
     return 0;
 }
 

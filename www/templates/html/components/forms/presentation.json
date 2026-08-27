@@ -1,0 +1,30 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "presentation",
+      "generated" : false,
+      "description" : "A multi-page post rendered as a slide deck, with attachments referrable by index."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      },
+      "video_href" : {
+         "type" : "string",
+         "x-tcms-label" : "Video",
+         "x-tcms-input" : "url",
+         "x-tcms-placeholder" : "https://youvimeo.tv/infomercial.mp4"
+      },
+      "attachments" : {
+         "type" : "array",
+         "items" : { "type" : "upload" },
+         "x-tcms-label" : "Attachments"
+      }
+   }
+}

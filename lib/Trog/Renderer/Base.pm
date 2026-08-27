@@ -24,6 +24,30 @@ Sets up the methods which must be present for all templates, e.g. render_it for 
 
 our %renderers;
 
+=head2 render(%options)
+
+Render a template and build the PSGI response around it.
+
+Recognized options:
+
+    template    => the template's filename, relative to the template dir.  Required.
+    contenttype => what we're rendering, e.g. 'text/html'.  Picks the template dir.
+    component   => render a component rather than a whole page.  Returns just the
+                   body string, with no headers and no compression.
+    data        => the variables handed to the template.
+    code        => HTTP status for the response.
+    headers     => extra headers, merged over the computed ones.
+    deflate     => gzip the body and set Content-Encoding.
+    post_processor => CODEREF run over the body before headers are computed, for
+                   things like minifiers.
+    child_processor / child_renderer => override how post bodies are rendered by
+                   the render_it() template function.  Built for you if omitted.
+
+Dies unless the template exists.  Returns the body string for components, and a
+PSGI arrayref of [ code, headers, body ] otherwise.
+
+=cut
+
 sub render (%options) {
     die "Templated renders require a template to be passed" unless $options{template};
 
@@ -31,8 +55,14 @@ sub render (%options) {
     my $t            = "$template_dir/$options{template}";
     die "Templated renders require an existing template to be passed, got $template_dir/$options{template}" unless -f $t || -s $t;
 
+    # Xslate resolves includes against every dir in path, first match winning,
+    # so handing it both lets a theme override individual templates without
+    # having to fork the ones next to them.  With no theme configured this is
+    # just the stock dir, exactly as it was.
+    my @template_dirs = Trog::Themes::template_dirs( $options{contenttype}, $options{component} );
+
     #TODO make this work with posts all the time
-    $options{child_processor} //= Text::Xslate->new( path => $template_dir );
+    $options{child_processor} //= Text::Xslate->new( path => \@template_dirs );
     my $child_processor = $options{child_processor};
     $options{child_renderer} //= sub {
         my ( $template_string, $options ) = @_;
@@ -42,15 +72,18 @@ sub render (%options) {
         return $out ? $out : $template_string;
     };
 
-    $renderers{$template_dir} //= Text::Xslate->new(
-        path     => $template_dir,
+    # Keyed on the whole search path, not just the winning dir: two different
+    # paths that happen to start with the same dir are not the same renderer.
+    my $renderer_key = join( ':', @template_dirs );
+    $renderers{$renderer_key} //= Text::Xslate->new(
+        path     => \@template_dirs,
         function => {
             render_it => $options{child_renderer},
         },
     );
 
     my $code = $options{code};
-    my $body = encode_utf8( $renderers{$template_dir}->render( $options{template}, $options{data} ) );
+    my $body = encode_utf8( $renderers{$renderer_key}->render( $options{template}, $options{data} ) );
 
     # Users can supply a post_processor to futz with the output (such as with minifiers) if they wish.
     $body = $options{post_processor}->($body) if $options{post_processor} && ref $options{post_processor} eq 'CODE';
@@ -69,6 +102,17 @@ sub render (%options) {
 
     return [ $code, [%headers], [$dfh] ];
 }
+
+=head2 headers($options, $body) = %headers
+
+The response headers for a rendered body: content type and length, caching,
+Server-Timing, and the security headers (CSP, X-Frame-Options, HSTS when we're
+on https, nosniff).  Anything in $options->{headers} is merged over the top.
+
+ETags are only set for logged in users, as everyone else is served out of the
+static render cache.
+
+=cut
 
 sub headers ( $options, $body ) {
     my $query   = $options->{data};

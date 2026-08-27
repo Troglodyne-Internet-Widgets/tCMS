@@ -1,1 +1,96 @@
-TEST
+<script type="text/javascript" src="/scripts/post_wizard.js"></script>
+<div id="backoffice">
+<p class="title">
+ Existing Post Types:
+</p>
+A "post type" is just a template living in <code>templates/html/components/forms/</code>.
+Every post picks exactly one of them &mdash; it's what the <em>Content Template</em> dropdown
+selects when you edit a Series.
+<hr />
+<ul id="existing-post-types">
+: for $forms -> $form {
+    <li><: $form :></li>
+: }
+</ul>
+<hr />
+<p class="title">
+ Create a new Post Type:
+</p>
+This writes a new template into the forms directory currently in use
+(<code><: $forms_dir :></code>) along with a matching <code>.json</code> sidecar describing
+any custom fields, so that the data model knows to keep them when a post is saved.
+<hr />
+
+<form class="Submissions" id="postTypeWizard" method="post" action="/admin/wyzzerdd/save">
+    Type Name * &mdash; letters, numbers, dash and underscore only<br />
+    <input required class="cooltext" type="text" name="name" pattern="[A-Za-z0-9_-]+" placeholder="recipe" value="<: $name :>" />
+
+    <p class="title">Canned Fields</p>
+    Most post types reuse the same handful of blocks.  Tick whichever ones this type needs.
+    <br />
+    <label for="wiz-wrapper">Wrap output in the standard post &lt;div&gt;<input id="wiz-wrapper" class="coolcb" type="checkbox" name="wrapper" value="1" <: $checked.wrapper :> /></label><br />
+    <label for="wiz-post_title">Post title &amp; permalink (post_title.tx)<input id="wiz-post_title" class="coolcb" type="checkbox" name="inc_post_title" value="1" <: $checked.inc_post_title :> /></label><br />
+    <label for="wiz-post_tags">Post tag list (post_tags.tx)<input id="wiz-post_tags" class="coolcb" type="checkbox" name="inc_post_tags" value="1" <: $checked.inc_post_tags :> /></label><br />
+    <label for="wiz-title_input">Title input in the editor<input id="wiz-title_input" class="coolcb" type="checkbox" name="inc_title_input" value="1" <: $checked.inc_title_input :> /></label><br />
+    <label for="wiz-preview">Preview image upload (preview.tx)<input id="wiz-preview" class="coolcb" type="checkbox" name="inc_preview" value="1" <: $checked.inc_preview :> /></label><br />
+    <label for="wiz-visibility">Visibility selector (visibility.tx)<input id="wiz-visibility" class="coolcb" type="checkbox" name="inc_visibility" value="1" <: $checked.inc_visibility :> /></label><br />
+    <label for="wiz-acls">ACL selector (acls.tx)<input id="wiz-acls" class="coolcb" type="checkbox" name="inc_acls" value="1" <: $checked.inc_acls :> /></label><br />
+    <label for="wiz-tags">Tag editor (tags.tx)<input id="wiz-tags" class="coolcb" type="checkbox" name="inc_tags" value="1" <: $checked.inc_tags :> /></label><br />
+    <label for="wiz-aliases">Alias URL editor (aliases.tx)<input id="wiz-aliases" class="coolcb" type="checkbox" name="inc_aliases" value="1" <: $checked.inc_aliases :> /></label><br />
+    <label for="wiz-attachments">Attachment uploader (attachments.tx)<input id="wiz-attachments" class="coolcb" type="checkbox" name="inc_attachments" value="1" <: $checked.inc_attachments :> /></label><br />
+
+    <br />
+    Title placeholder text<br />
+    <input class="cooltext" type="text" name="title_placeholder" placeholder="Iowa Man Destroys Moon" value="<: $title_placeholder :>" />
+
+    <br />
+    Content Body &mdash; this is always the last thing in the editor, and is what carries the post body itself.<br />
+    <select class="cooltext" name="body_form">
+        <option value="form_common.tx" <: $body_form == 'form_multi.tx' ? '' : 'selected' :> >Single page (form_common.tx)</option>
+        <option value="form_multi.tx" <: $body_form == 'form_multi.tx' ? 'selected' : '' :> >Multiple pages, like presentations (form_multi.tx)</option>
+    </select>
+
+    <p class="title">Custom Fields</p>
+    These become extra inputs in the editor, and are available in your display template below
+    as <code>&lt;: $post.your_field_name :&gt;</code>.
+    Uploads aren't supported here &mdash; use the Attachment uploader above for those.
+    <div id="wizard-params"></div>
+    <button type="button" style="float:right;" class="coolbutton" onclick="addParam(); return false;">Add Field</button>
+    <br style="clear:both;" />
+
+    <p class="title">Display Template</p>
+    <a href="https://metacpan.org/pod/Text::Xslate::Syntax::Kolon" title="GET UR MIND RITE">Kolon</a>
+    markup for how this post type renders when someone looks at it.
+    Use <code>&lt;: $post.yourfield :&gt;</code> for your custom fields, and
+    <code>&lt;: render_it($post.data) | mark_raw :&gt;</code> for the post body.
+    <br />
+    <textarea class="cooltext" name="display" rows="12" placeholder="&lt;div class=&quot;postData responsive-text&quot;&gt;&#10;    &lt;: render_it($post.data) | mark_raw :&gt;&#10;&lt;/div&gt;"><: $display :></textarea>
+
+    <br />
+    <label for="wiz-overwrite">Overwrite it if this type already exists?<input id="wiz-overwrite" class="coolcb" type="checkbox" name="overwrite" value="1" <: $checked.overwrite :> /></label>
+    <br />
+    <input type="submit" class="coolbutton" value="Create Post Type" />
+</form>
+
+<template id="wizard-param-template">
+    <div class="wizard-param-row">
+        <hr />
+        Name <input required class="cooltext" type="text" name="param_name" pattern="[A-Za-z][A-Za-z0-9_]*" placeholder="cook_time" />
+        Type <select class="cooltext" name="param_type">
+            <option value="text">Text</option>
+            <option value="url">URL</option>
+            <option value="number">Number</option>
+            <option value="date">Date</option>
+            <option value="textarea">Long Text</option>
+            <option value="checkbox">Checkbox</option>
+        </select>
+        Label <input class="cooltext" type="text" name="param_label" placeholder="Cook Time" />
+        Placeholder <input class="cooltext" type="text" name="param_placeholder" placeholder="45 minutes" />
+        <select class="cooltext" name="param_required">
+            <option value="0">Optional</option>
+            <option value="1">Required</option>
+        </select>
+        <button type="button" class="coolbutton" onclick="delParam(this); return false;">Remove</button>
+    </div>
+</template>
+</div>

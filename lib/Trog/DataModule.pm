@@ -10,13 +10,18 @@ use File::Copy;
 use Path::Tiny();
 use Ref::Util();
 use File::Basename qw{basename};
+use File::Slurper();
+use JSON::MaybeXS();
+use JSON::Validator::Schema::Troglodyne();
+
+use Trog::Themes();
 
 use Trog::Log qw{:all};
 use Trog::Utils;
 use Trog::Auth();
 
 no warnings 'experimental';
-use feature qw{signatures};
+use feature qw{signatures state};
 
 =head1 QUERY FORMAT
 
@@ -49,6 +54,38 @@ sub new ( $class, $config ) {
     $config = $config->vars();
     return bless( $config, $class );
 }
+
+=head1 ABSTRACT METHODS
+
+Subclasses must implement all of these; the stubs here do nothing but die.
+count() belongs to this set as well, and is documented with the rest of the
+querying interface below.
+
+=head2 lang() = STRING $language
+
+The name of the query language this data model understands, shown to the user
+beside the search bar.
+
+=head2 help() = STRING $help
+
+Documentation for that query language, shown to the user alongside it.
+
+=head2 read($query) = ARRAYREF $posts
+
+Every post the data model holds, as an arrayref of hashrefs.  Filtering is
+get()'s job unless your storage engine can do it more cheaply itself, in which
+case honour $query here and override get() too.
+
+=head2 write($posts)
+
+Commit an arrayref of posts to storage.  Called by add() once the posts have
+been filtered and validated; don't validate again here.
+
+=head2 tags() = ARRAYREF $tags
+
+Every tag known to the datastore, for building tag pickers.
+
+=cut
 
 #It is required that subclasses implement this
 sub lang  ($self)                { ... }
@@ -145,6 +182,17 @@ sub _filter_param ( $query, $param, @filtered ) {
     return @filtered;
 }
 
+=head2 filter($query, @posts) = @filtered
+
+Apply a get() request's filters to a list of posts: tags, exclude_tags, acls,
+visibility, id, title, form, search terms and author.
+
+The ACL check is the load bearing one -- a post is only visible if the caller
+holds one of its acls, or the post is public or unlisted.  Callers holding the
+'admin' acl skip that filter entirely.
+
+=cut
+
 sub filter ( $self, $query, @filtered ) {
     $query->{acls}         //= [];
     $query->{tags}         //= [];
@@ -205,6 +253,13 @@ sub filter ( $self, $query, @filtered ) {
     return @filtered;
 }
 
+=head2 paginate($query, @posts) = @page
+
+The slice of @posts named by the request's page and limit.  Both have to be
+present to page at all; limit defaults to 25 when computing the offset.
+
+=cut
+
 sub paginate ( $self, $query, @filtered ) {
     my $offset = int( $query->{limit} // 25 );
     $offset   = @filtered < $offset ? @filtered : $offset;
@@ -257,120 +312,224 @@ If any post already exists with the same id, a new post with a version higher th
 
 Passes an array of new posts to add to the data store module's write() function.
 
-These will have their parameters filtered to those present in the %schema hash.
+These will have their parameters filtered to those described by the post type's
+schema (see schema_for()), and then validated against it.  If the post doesn't
+hold up, this dies with an ARRAYREF of validation error strings -- a ref rather
+than a string so that Carp::Always doesn't staple a stack trace onto something
+we intend to show the user.
 
 You probably won't want to override this.
 
 =cut
 
-my $not_ref = sub {
-    return !Ref::Util::is_ref(shift);
-};
+# The shape of a post, as an OpenAPIv3 object schema.
+#
+# This covers the fields every post has regardless of which form produced it.
+# Anything a *particular* post type ingests lives in that type's JSON sidecar
+# next to its template in the forms directory -- see _schema_for().
+our %post_schema = (
+    type       => 'object',
+    properties => {
 
-my $valid_cb = sub {
-    my $subname = shift;
-    my ($modname) = $subname =~ m/^([\w|:]+)::\w+$/;
+        ## Parameters which must be in every single post
+        title      => { type => 'string' },
+        callback   => { type => 'callback' },
+        tags       => { type => 'array',   items   => { type => 'string' } },
+        version    => { type => 'integer', minimum => 0 },
+        visibility => { type => 'string',  enum    => [qw{public unlisted private}] },
+        aliases    => { type => 'array',   items   => { type => 'string' } },
 
-    # Modules always return 0 if they succeed!
-    eval { require $modname; } and do {
-        WARN("Post uses a callback whos module ($modname) cannot be found!");
-        return 0;
-    };
+        # title links here
+        href => { type => 'string' },
 
-    no strict 'refs';
-    my $ref = eval '\&' . $subname;
-    use strict;
-    return Ref::Util::is_coderef($ref);
-};
+        # Link to post locally
+        local_href => { type => 'string' },
 
-my $hashref_or_string = sub {
-    my $subj = shift;
-    return Ref::Util::is_hashref($subj) || $not_ref->($subj);
-};
+        # Post body.  Multi-page types (presentations, invoices) send an array.
+        data => {
+            oneOf => [
+                { type => 'string' },
+                { type => 'array', items => { type => 'string' } },
+            ],
+        },
 
-my $arrayref_or_string = sub {
-    my $subj = shift;
-    return Ref::Util::is_arrayref($subj) || $not_ref->($subj);
-};
+        # How do I edit this post?
+        form => { type => 'string' },
 
-# TODO more strict validation of strings?
-our %schema = (
-    ## Parameters which must be in every single post
-    'title'      => $not_ref,
-    'callback'   => $valid_cb,
-    'tags'       => \&Ref::Util::is_arrayref,
-    'version'    => $not_ref,
-    'visibility' => $not_ref,
-    'aliases'    => \&Ref::Util::is_arrayref,
+        # Post is restricted to visibility to these ACLs if not public/unlisted
+        acls => { type => 'array', items => { type => 'string' } },
+        id   => { type => 'string' },
 
-    # title links here
-    'href' => $not_ref,
+        # Author of the post
+        user    => { type => 'string' },
+        created => { type => 'integer' },
 
-    # Link to post locally
-    'local_href' => $not_ref,
-
-    # Post body
-    'data' => $arrayref_or_string,
-
-    # How do I edit this post?
-    'form' => $not_ref,
-
-    # Post is restricted to visibility to these ACLs if not public/unlisted
-    'acls' => \&Ref::Util::is_arrayref,
-    'id'   => $not_ref,
-
-    # Author of the post
-    'user'    => $not_ref,
-    'created' => $not_ref,
-
-    # Specific to various posts below.
-
-    ## Series specific parameters
-    'child_form' => $not_ref,
-    'aclname'    => $not_ref,
-    'tiled'      => $not_ref,
-
-    ## User specific parameters
-    'user_acls'      => \&Ref::Util::is_arrayref,
-    'username'       => $not_ref,
-    'display_name'   => $not_ref,
-    'contact_email'  => $not_ref,
-    'wallpaper_file' => $hashref_or_string,
-    'wallpaper'      => $not_ref,
-
-    ## user avatar, but does double duty in content posts as preview images on videos, etc
-    'preview_file' => $hashref_or_string,
-    'preview'      => $not_ref,
-
-    ## Content specific parameters
-    'audio_href'  => $not_ref,
-    'video_href'  => $not_ref,
-    'file'        => $hashref_or_string,
-    'attachments' => \&Ref::Util::is_arrayref,
-    'header'      => $not_ref,
-    'footer'      => $not_ref,
-
-    ## Entity details, which are used for constructing invoices
-    'payment_details' => $not_ref,
-    'payment_method'  => $not_ref,
-
-    ## Invoice specific
-    'payee'    => $not_ref,
-    'payor'    => $not_ref,
-    'due_days' => $not_ref,
+        # Posts are always GET, but it's stored, so it has to be describable.
+        method => { type => 'string' },
+    },
 );
+
+# Uploads arrive as an HTTP::Body hashref on the way in, and as the href string
+# they were turned into on the way back out of the datastore.  Sidecars say
+# 'upload' and mean this.
+our %upload_schema = (
+    oneOf => [
+        { type => 'string' },
+        { type => 'object' },
+    ],
+);
+
+=head2 schema_for($form)
+
+Return the OpenAPIv3 schema describing what the named post type ingests: the
+base post schema above, with the type's JSON sidecar merged over the top.
+
+Sidecars live beside their templates (blog.tx has blog.json) and are written
+either by hand or by the Post Type Wizard.  A post with no form, or a form with
+no sidecar, just gets the base schema.
+
+Cached, but keyed on the mtimes of the component dirs rather than memoized
+outright: adding or editing a sidecar bumps one of them, so every forked worker
+picks the change up on its very next add() with no restart needed.
+
+=cut
+
+sub schema_for ( $form = '' ) {
+    state %cache;
+
+    # Both dirs, since either one of them gaining a sidecar changes the answer.
+    my $generation = join( ':', map { ( stat($_) )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
+
+    # Only ever keep the current generation around.
+    %cache = () unless exists $cache{$generation};
+
+    # A signature default only covers an absent arg, and plenty of posts have
+    # an explicitly undef form.
+    $form = '' if !defined $form || ref $form;
+    my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;
+    $type //= '';
+    return $cache{$generation}{$type} if exists $cache{$generation}{$type};
+
+    my %merged = ( %post_schema, properties => { %{ $post_schema{properties} } } );
+
+    # Themed like the templates themselves: a theme that overrides blog.tx can
+    # ship its own blog.json alongside it, and one that doesn't still gets the
+    # stock schema rather than nothing at all.
+    my $path    = $type ? Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 ) : undef;
+    my $sidecar = $path ? _read_sidecar($path)                                                      : undef;
+    if ($sidecar) {
+
+        # The base schema is merged *last*, so a sidecar can add fields but can
+        # never redefine one of ours.  That matters: a sidecar retyping
+        # 'callback' as a plain string would defeat the check that the sub it
+        # names actually exists, which is a privilege problem rather than a
+        # cosmetic one.
+        %{ $merged{properties} } = ( %{ $sidecar->{properties} // {} }, %{ $merged{properties} } );
+
+        # A sidecar may insist on its own fields, but it can't relax anything
+        # the base schema already demands.
+        my @required = List::Util::uniq( @{ $post_schema{required} // [] }, @{ $sidecar->{required} // [] } );
+
+        # An empty required list isn't legal OpenAPI, so don't emit one.
+        $merged{required} = \@required if @required;
+    }
+
+    $cache{$generation}{$type} = \%merged;
+    return $cache{$generation}{$type};
+}
+
+sub _read_sidecar ($path) {
+    return undef unless -f $path;
+
+    local $@;
+    my $spec = eval { JSON::MaybeXS::decode_json( File::Slurper::read_text($path) ) };
+    if ( !$spec ) {
+        WARN("Could not parse post type sidecar '$path': $@");
+        return undef;
+    }
+    return undef unless Ref::Util::is_hashref($spec);
+
+    _expand_uploads($spec);
+    return $spec;
+}
+
+# Sugar: a sidecar says {"type":"upload"} rather than spelling out the
+# string-or-hashref dance every upload field would otherwise need.  Uploads are
+# a hashref on the way in from the browser and the href string they became on
+# the way back out of the datastore.
+sub _expand_uploads ($node) {
+    return unless Ref::Util::is_hashref($node);
+
+    if ( ( $node->{type} // '' ) eq 'upload' ) {
+        delete $node->{type};
+        %$node = ( %$node, %upload_schema );
+        return;
+    }
+
+    _expand_uploads($_) foreach values( %{ $node->{properties} // {} } );
+    _expand_uploads( $node->{items} ) if $node->{items};
+    foreach my $key (qw{oneOf anyOf allOf}) {
+        next unless Ref::Util::is_arrayref( $node->{$key} );
+        _expand_uploads($_) foreach @{ $node->{$key} };
+    }
+    return;
+}
+
+=head2 validate($post)
+
+Filter a post down to the fields its type actually describes, then run what's
+left through the schema.
+
+Returns the list of validation errors, which is empty when the post is good.
+Note that filtering happens first and silently: the query hash handed to us by
+the router is full of things which aren't post fields at all, and never was
+meant to round-trip.
+
+=cut
+
+sub validate ($post) {
+    state $validator;
+    $validator //= JSON::Validator::Schema::Troglodyne->new();
+
+    my $schema = schema_for( $post->{form} );
+
+    foreach my $key ( keys(%$post) ) {
+
+        # Drop everything the schema doesn't describe.
+        my $property = $schema->{properties}{$key};
+        if ( !$property ) {
+            delete $post->{$key};
+            next;
+        }
+
+        # An untouched form input submits the empty string, which is HTML for
+        # "I wasn't filled in" rather than a number, a boolean or a file.  We
+        # leave it alone for actual string fields, which is what got stored
+        # before any of this was typed.
+        delete $post->{$key}
+          if defined $post->{$key}
+          && !ref $post->{$key}
+          && $post->{$key} eq ''
+          && ( $property->{type} // '' ) ne 'string';
+    }
+
+    # OpenAPIv3 coerces as it goes, so "4" lands in the datastore as 4 and
+    # checkbox values land as real booleans.
+    return $validator->validate( $post, $schema );
+}
 
 sub add ( $self, @posts ) {
     my @to_write;
 
     foreach my $post (@posts) {
 
-        # Filter all the irrelevant data
-        foreach my $key ( keys(%$post) ) {
+        # Filter to what this post type actually describes, then validate it.
+        my @errors = validate($post);
 
-            # We need to have the key in the schema, and it validate.
-            delete $post->{$key} unless List::Util::any { ( $_ eq $key ) && ( $schema{$key}->( $post->{$key} ) ) } keys(%schema);
-        }
+        # An arrayref rather than a string on purpose.  These errors get shown
+        # to whoever submitted the post, and Carp::Always decorates a string
+        # die with a stack trace they have no use for.
+        die [ map { "$_" } @errors ] if @errors;
 
         $post->{id}      //= Trog::Utils::uuid();
         $post->{aliases} //= [];

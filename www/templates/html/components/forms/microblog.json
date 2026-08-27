@@ -1,0 +1,31 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "microblog",
+      "generated" : false,
+      "description" : "A short post pointing at something else, optionally with embedded audio or video."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      },
+      "audio_href" : {
+         "type" : "string",
+         "x-tcms-label" : "Audio",
+         "x-tcms-input" : "url",
+         "x-tcms-placeholder" : "https://soundclod.com/static.mp3"
+      },
+      "video_href" : {
+         "type" : "string",
+         "x-tcms-label" : "Video",
+         "x-tcms-input" : "url",
+         "x-tcms-placeholder" : "https://youvimeo.tv/infomercial.mp4"
+      }
+   }
+}

@@ -1,0 +1,24 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "file",
+      "generated" : false,
+      "description" : "An uploaded asset.  Renders as an image, audio or video player depending on its content type."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      },
+      "file" : {
+         "type" : "upload",
+         "x-tcms-label" : "File",
+         "x-tcms-input" : "file"
+      }
+   }
+}

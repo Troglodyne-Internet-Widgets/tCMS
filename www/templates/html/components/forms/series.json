@@ -1,0 +1,42 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "series",
+      "generated" : false,
+      "description" : "A category of posts.  Owns an ACL, and dictates which post type its children use."
+   },
+   "type" : "object",
+   "required" : [ "aclname", "child_form" ],
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      },
+      "aclname" : {
+         "type" : "string",
+         "x-tcms-label" : "ACL name"
+      },
+      "child_form" : {
+         "type" : "string",
+         "pattern" : "^[A-Za-z0-9_-]+\\.tx$",
+         "x-tcms-label" : "Content Template"
+      },
+      "tiled" : {
+         "type" : "boolean",
+         "x-tcms-label" : "Tile Display?",
+         "x-tcms-input" : "checkbox"
+      },
+      "header" : {
+         "type" : "string",
+         "x-tcms-label" : "Header"
+      },
+      "footer" : {
+         "type" : "string",
+         "x-tcms-label" : "Footer"
+      }
+   }
+}

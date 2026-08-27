@@ -19,6 +19,7 @@ subtest 'dbh' => sub {
     my $works = 0;
     no warnings qw{redefine once};
     local *TrogDBD::do = sub { $works };
+    local *TrogDBD::errstr = sub { 'bogus' };
 
     like(exception { Trog::SQLite::dbh('bogus','bogus') }, qr/ensure/i, "Failure to enforce schema throws");
     $works = 1;

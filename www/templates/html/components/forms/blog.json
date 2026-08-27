@@ -1,0 +1,19 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "blog",
+      "generated" : false,
+      "description" : "A long form post.  Body text and an optional preview image."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      }
+   }
+}

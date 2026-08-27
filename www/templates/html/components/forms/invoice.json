@@ -1,0 +1,33 @@
+{
+   "x-tcms-post-type" : {
+      "name" : "invoice",
+      "generated" : false,
+      "description" : "A multi-page invoice drawn between two entity posts."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      },
+      "payee" : {
+         "type" : "string",
+         "x-tcms-label" : "Payee"
+      },
+      "payor" : {
+         "type" : "string",
+         "x-tcms-label" : "Payor"
+      },
+      "due_days" : {
+         "type" : "integer",
+         "minimum" : 0,
+         "x-tcms-label" : "Due in (days)",
+         "x-tcms-input" : "number"
+      }
+   }
+}
