@@ -17,17 +17,26 @@ A thin wrapper around Config::Simple which reads the configuration from the appr
 Returns a configuration object that will be used by server.psgi, the data model and Routing modules.
 Memoized, so you will need to HUP the children on config changes.
 
+Reads $home_cfg, falling back to $default when the instance has never saved a
+configuration of its own.  Both are full paths relative to the tCMS root, so
+that writers can use them too -- an earlier version had the 'config/' prefix
+hardcoded here and nowhere else, which meant everything that *wrote* the
+configuration put it somewhere get() would never look.
+
 =cut
 
-our $home_cfg = "main.cfg";
-our $default  = "default.cfg";
+# Where an instance's own configuration lives, once it has saved one.
+our $home_cfg = "config/main.cfg";
+
+# Shipped defaults.  Tracked in git -- never write to this.
+our $default = "config/default.cfg";
 
 sub get {
     state $cf;
     return $cf if $cf;
     foreach my $cfg2try ($home_cfg, $default) {
-        next unless -f "config/$cfg2try";
-        $cf = Config::Simple->new("config/$cfg2try");
+        next unless -f $cfg2try;
+        $cf = Config::Simple->new($cfg2try);
         last;
     }
     die "Could not find config file!" unless $cf;

@@ -18,7 +18,11 @@ my $hostname = $ARGV[0];
 my $conf = Trog::Config->get();
 if ($hostname) {
     $conf->param('general.hostname', $hostname);
-    $conf->save();
+
+    # write(), not save().  save() writes back to whatever file get() loaded,
+    # which is the tracked config/default.cfg until the instance has saved a
+    # configuration of its own.
+    $conf->write($Trog::Config::home_cfg) or die "Could not write $Trog::Config::home_cfg";
 }
 
 my $domain = $conf->param('general.hostname');

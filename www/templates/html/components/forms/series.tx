@@ -20,7 +20,7 @@
         : }
 
         : if( $post.data ) {
-            <div class="postData" id="postData">
+            <div class="postData" id="postData-<: $post.id :>">
                 <: render_it($post.data) | mark_raw  :>
             </div>
         : }

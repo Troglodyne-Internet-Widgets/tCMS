@@ -799,7 +799,7 @@ sub _get_data_models {
 
 =head2 config_save
 
-Implements /config/save route.  Saves what little configuration we actually use to ~/.tcms/tcms.conf
+Implements /config/save route.  Saves what little configuration we actually use to config/main.cfg
 
 =cut
 
