@@ -164,6 +164,21 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
+    '/guest/screenshot/(.*)/(.*)' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::guest_screenshot,
+        captures => [qw{hypervisor domain}],
+        noindex  => 1,
+        nocache  => 1,
+    },
+    '/guest/act' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::guest_act,
+        noindex  => 1,
+        nocache  => 1,
+    },
     '/admin/wyzzerdd' => {
         method   => 'GET',
         auth     => 1,
@@ -1330,6 +1345,12 @@ sub posts ( $query, $direct = 0 ) {
         @posts = _post_helper( $query, $tags, $query->{user_acls} );
     }
 
+    # A post type can say its posts come from somewhere other than the
+    # datastore -- see Trog::DataSource::Virt, which builds them out of libvirt
+    # guests.  The series is still an ordinary post; only its children are
+    # synthesized, and they are rebuilt on every view rather than stored.
+    @posts = _datasource_posts( $query, \@posts );
+
     if ( $query->{id} ) {
         $query->{primary_post} = $posts[0] if @posts;
     }
@@ -1518,6 +1539,62 @@ sub posts ( $query, $direct = 0 ) {
 sub _themed_title ($path) {
     return $path unless %Theme::paths;
     return $Theme::paths{$path} ? $Theme::paths{$path} : $path;
+}
+
+=head2 _datasource_posts($query, $posts)
+
+Swap a series' children for whatever its datasource says they are, if its child
+type declares one.
+
+Returns the posts unchanged for every ordinary type, which is nearly all of
+them -- this is a hook, not a detour every page takes.
+
+=cut
+
+sub _datasource_posts ( $query, $posts ) {
+    my $series = $query->{primary_post};
+    return @$posts unless Ref::Util::is_hashref($series) && $series->{child_form};
+
+    my $meta   = Trog::DataModule::type_meta_for( $series->{child_form} );
+    my $source = $meta->{'x-tcms-datasource'};
+    return @$posts unless $source && !ref $source;
+
+    # Named in a sidecar, so check it rather than requiring whatever we were
+    # told to.  The namespace restriction is the point: a sidecar cannot make
+    # us load an arbitrary module.
+    if ( $source !~ m/^Trog::DataSource::\w+$/ ) {
+        WARN("Post type '$series->{child_form}' names a datasource '$source' which isn't one");
+        return @$posts;
+    }
+
+    my $modpath = $source;
+    $modpath =~ s{::}{/}g;
+    $modpath .= '.pm';
+
+    local $@;
+    eval { require $modpath; 1 } or do {
+        WARN("Datasource '$source' will not load: $@");
+        return @$posts;
+    };
+
+    no strict 'refs';
+    my $sub = "${source}::posts";
+    if ( !defined &{$sub} ) {
+        WARN("Datasource '$source' has no posts() to call");
+        return @$posts;
+    }
+
+    my @synthesized = eval { &{$sub}( $series, $query ) };
+    use strict;
+
+    if ($@) {
+        my $err = "$@";
+        $err =~ s/\n.*//s;
+        WARN("Datasource '$source' failed: $err");
+        return @$posts;
+    }
+
+    return @synthesized;
 }
 
 sub _post_helper ( $query, $tags, $acls ) {
@@ -1948,6 +2025,73 @@ our %wizard_field_types = (
 
 # Field names which aren't in %schema but would still collide with something.
 our @wizard_reserved = qw{app to form data_is_array addpost extra_tags is_image is_video is_audio is_profile content_type version};
+
+=head2 guest_screenshot
+
+Implements GET /guest/screenshot/$hypervisor/$guest.  Admin only.
+
+Served as its own route rather than inlined into the guest listing, so that a
+page of guests renders immediately and the browser fetches the console
+captures in parallel instead of us taking them one after another.
+
+=cut
+
+sub guest_screenshot ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    my $hypervisor = _guest_hypervisor( $query, $query->{hypervisor} );
+    return $query->{tpsgi}->notfound($query) unless $hypervisor;
+
+    require Trog::DataSource::Virt;
+    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hypervisor->{conn_uri}, $query->{domain} );
+    if ( !$path ) {
+        WARN("Could not screenshot '$query->{domain}': $why");
+        return $query->{tpsgi}->notfound($query);
+    }
+
+    return $query->{tpsgi}->serve(
+        $query->{route}, $path, $query->{start}, $query->{streaming},
+        $query->{ranges}, $query->{last_fetched}, $query->{deflate},
+    );
+}
+
+=head2 guest_act
+
+Implements POST /guest/act.  Admin only.
+
+Powering a guest on or off, snapshotting it, or destroying it.  Separate from
+everything that merely reads a guest, and the only route which reaches
+Trog::DataSource::Virt::act.
+
+=cut
+
+sub guest_act ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    my $to = $query->{to} || '/';
+
+    my $hypervisor = _guest_hypervisor( $query, $query->{hypervisor} );
+    return _feedback_redirect( $query, $to, 1, 'No such hypervisor.' ) unless $hypervisor;
+
+    require Trog::DataSource::Virt;
+    my ( $ok, $message ) = Trog::DataSource::Virt::act(
+        $query->{action}, $hypervisor->{conn_uri}, $query->{domain}, $query->{user},
+    );
+
+    return _feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{domain}: $message" );
+}
+
+# The hypervisor post a guest route was asked about.  Looked up rather than
+# taken from the request: the connection URI is not something a form gets to
+# hand us.
+sub _guest_hypervisor ( $query, $id ) {
+    return undef unless $id;
+    my @found = _post_helper( { id => $id }, [], $query->{user_acls} );
+    return undef unless @found && ( $found[0]{conn_uri} // '' );
+    return $found[0];
+}
 
 =head2 post_wizard
 

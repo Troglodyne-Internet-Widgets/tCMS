@@ -39,6 +39,7 @@ WriteMakefile(
     'Imager::QRCode'         => '0',
     'JSON::MaybeXS'          => '0',
     'JSON::Validator::Schema::Troglodyne' => '0',
+    'Sys::Virt'              => '0',
     'List::Util'             => '0',
     'Mojo::File'             => '0',
     'POSIX'                  => '0',

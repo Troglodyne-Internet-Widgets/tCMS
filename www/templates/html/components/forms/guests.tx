@@ -1,0 +1,36 @@
+<div class="post <: $style :>">
+    : if ( !$post.addpost ) {
+        : if ( $post.unreachable ) {
+            <h3 class='blogtitles'><: $post.title :></h3>
+            <div class="postData responsive-text">
+                Could not reach this hypervisor: <: $post.state :>
+            </div>
+        : } else {
+            <h3 class='blogtitles'>
+                <: $post.title :>
+                <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
+            </h3>
+            <div class="postData responsive-text" id="postData-<: $post.id :>">
+                <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
+                <br />
+                on <: $post.hypervisor_title :> &mdash; <: $post.vcpus :> vCPU
+                : if ( $can_edit ) {
+                <br />
+                <form class="Submissions guest-actions" action="/guest/act" method="POST">
+                    <input type="hidden" name="hypervisor" value="<: $post.hypervisor :>" />
+                    <input type="hidden" name="domain" value="<: $post.domain :>" />
+                    <input type="hidden" name="to" value="<: $route :>" />
+                    : if ( $post.is_active ) {
+                    <button class="coolbutton" type="submit" name="action" value="poweroff">Power Off</button>
+                    : } else {
+                    <button class="coolbutton" type="submit" name="action" value="poweron">Power On</button>
+                    : }
+                    <button class="coolbutton" type="submit" name="action" value="snapshot">Snapshot</button>
+                    <button class="coolbutton guest-destroy" type="submit" name="action" value="destroy"
+                            onclick="return confirm('Destroy <: $post.title :>?  This stops the guest immediately.');">Destroy</button>
+                </form>
+                : }
+            </div>
+        : }
+    : }
+</div>
