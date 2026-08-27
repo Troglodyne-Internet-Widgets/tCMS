@@ -20,6 +20,11 @@
             window.setTimeout(function() {
                 window.location="<: $to :>";
             }, 500);
+            : } else {
+            // Dismiss after a few seconds.
+            window.setTimeout(function() {
+                document.querySelector('#jsalert').classList.add('hidon');
+            }, 500);
             : }
         }
     });
@@ -34,6 +39,7 @@
         margin-top: 3rem;
         position: fixed;
         width:95%;
+        left: 0px;
     }
     .alert-danger {
         background-color: rgba(100,0,0,.95);
