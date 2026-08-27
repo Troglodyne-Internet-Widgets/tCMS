@@ -13,6 +13,32 @@ function addParam() {
         return false;
     }
     host.appendChild(document.importNode(tpl.content, true));
+
+    // The row we just added is the last one; set its relation controls to
+    // match whatever its type select says.
+    var rows = host.querySelectorAll('.wizard-param-row');
+    if (rows.length) {
+        var added = rows[rows.length - 1].querySelector('.param-type');
+        if (added) {
+            syncRelationRow(added);
+        }
+    }
+    return false;
+}
+
+// The relation selects are only meaningful for a relation field, but they must
+// stay in the DOM and keep submitting whatever the type is -- the server zips
+// the param_* arrays together positionally, so a row that submits fewer values
+// than its neighbours shifts every row after it.  Hide, never remove.
+function syncRelationRow(select) {
+    var row = select.closest('.wizard-param-row');
+    if (!row) {
+        return false;
+    }
+    var relation = row.querySelector('.wizard-relation');
+    if (relation) {
+        relation.style.display = select.value === 'relation' ? '' : 'none';
+    }
     return false;
 }
 

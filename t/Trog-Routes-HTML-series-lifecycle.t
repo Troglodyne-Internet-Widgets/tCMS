@@ -26,6 +26,7 @@ use File::Path     ();
 use File::Temp     ();
 use Time::HiRes    ();
 use URI::Escape    ();
+use JSON::MaybeXS  ();
 
 our ( $REPO, $ROOT, $OLDCWD );
 our %REPO_BEFORE;
@@ -137,6 +138,7 @@ require Trog::Data;
 require Trog::Auth;
 require Trog::SQLite::TagIndex;
 require Trog::Routes::HTML;
+require Trog::Routes::JSON;
 
 #--------------------------------------------------------------------------
 # A stand-in for the tPSGI object the router injects as $query->{tpsgi}.
@@ -416,6 +418,12 @@ subtest 'the post wizard invents a new post type' => sub {
     # This is the assertion that the sandbox is real: a symlinked template tree
     # would have put these in the developer's actual checkout.
     ok( !-e "$REPO/www/templates/html/components/forms/spec_widget.tx", 'nothing was written into the repo' );
+
+    # The relation controls have to be present in every row and always submit,
+    # or the parallel param_* arrays de-align server side.
+    like( $body, qr/name="param_relation_form"/, 'the relation target select is in the row template' );
+    like( $body, qr/name="param_relation_mode"/, 'so is the relation mode select' );
+    like( $body, qr/<option value="relation">/,  'and relation is offered as a field type' );
 };
 
 #--------------------------------------------------------------------------
@@ -432,7 +440,11 @@ subtest 'the post wizard invents a new post type' => sub {
 #--------------------------------------------------------------------------
 
 sub _make_series {
-    my ( $label, $aclname, $child_form, $title ) = @_;
+    my ( $label, $aclname, $child_form, $title, %opt ) = @_;
+
+    # _get_series caps the bar at 10 and the seeds already use two, so only the
+    # series whose topbar behaviour we actually care about get tagged.
+    my @tags = $opt{no_topbar} ? ('series') : ( 'series', 'topbar' );
 
     my $series = _save_post(
         "$label series",
@@ -445,10 +457,12 @@ sub _make_series {
         data       => "$title subhead",
         callback   => 'Trog::Routes::HTML::series',
         visibility => 'public',
-        tags       => [ 'series', 'topbar' ],
+        tags       => \@tags,
         tiled      => 0,
         to         => '/',
     ) or return undef;
+
+    return $series if $opt{no_topbar};
 
     # The topbar comes from _get_series(), which index() renders through
     # categories.tx.  Check it on / -- the series has no children yet, and
@@ -687,6 +701,142 @@ subtest 'spec_widget (the wizard-built type)' => sub {
     # kept 'flavor' instead of deleting it as an unknown key.
     like( $body, qr{<span class="spec-flavor">Strawberry</span>}, 'the custom field rendered on the page' );
     like( $body, qr/Spec widget body\./, 'and the body came through the generated template' );
+};
+
+subtest 'a wizard-built type can depend on another type' => sub {
+
+    # The type we will point at.  The relation is what is under test, so keep
+    # the target itself boring.
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route           => '/admin/wyzzerdd/save',
+            method          => 'POST',
+            name            => 'spec_target',
+            body_form       => 'form_common.tx',
+            wrapper         => 1,
+            inc_post_title  => 1,
+            inc_title_input => 1,
+            inc_visibility  => 1,
+            inc_tags        => 1,
+            display         => q{<div><: render_it($post.data) | mark_raw :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'target type created' ) or diag($err);
+
+    # ...and the type that depends on it: one picked by id, one pulling in the
+    # whole set.
+    ( $code, $body, $err ) = _render(
+        _admin(
+            route               => '/admin/wyzzerdd/save',
+            method              => 'POST',
+            name                => 'spec_relator',
+            body_form           => 'form_common.tx',
+            wrapper             => 1,
+            inc_post_title      => 1,
+            inc_title_input     => 1,
+            inc_visibility      => 1,
+            inc_tags            => 1,
+            param_name          => [ 'chosen',       'everything' ],
+            param_type          => [ 'relation',     'relation' ],
+            param_label         => [ 'Chosen One',   'All Of Them' ],
+            param_placeholder   => [ '',             '' ],
+            param_required      => [ 0,              0 ],
+            param_relation_form => [ 'spec_target.tx', 'spec_target.tx' ],
+            param_relation_mode => [ 'one',          'all' ],
+            display             => q{<div class="rel"><span class="chosen"><: $post.chosen_post.title :></span>}
+              . q{<: for $post.everything -> $t { :><span class="each"><: $t.title :></span><: } :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'relating type created' ) or diag($err);
+
+    my $sidecar = JSON::MaybeXS::decode_json(
+        Path::Tiny->new('www/templates/html/components/forms/spec_relator.json')->slurp_utf8 );
+
+    # 'one' is a field the post stores; 'all' is not a field at all.
+    is( $sidecar->{properties}{chosen}{type}, 'relation', 'the picked relation is a stored property' );
+    is( $sidecar->{properties}{chosen}{'x-tcms-relation-form'}, 'spec_target.tx', 'naming its target type' );
+    ok( !exists $sidecar->{properties}{everything}, "the 'all' relation stores nothing" );
+
+    is_deeply(
+        $sidecar->{'x-tcms-relations'},
+        {
+            chosen_post => { form => 'spec_target.tx', from => 'chosen' },
+            everything  => { form => 'spec_target.tx' },
+        },
+        'and both are declared for resolution at render'
+    );
+
+    # The relation pseudo-type has to become a real one before validation, or
+    # every relation field would be stripped as an unknown type.
+    is( Trog::DataModule::schema_for('spec_relator.tx')->{properties}{chosen}{type},
+        'string', "'relation' expands to a real schema type" );
+
+    _reindex();
+
+    # Now exercise it end to end.
+    _make_series( 'spec_target', 'spectarget', 'spec_target.tx', 'Spec Target Series', no_topbar => 1 ) or return;
+    my $target = _save_post(
+        'spec_target child',
+        form       => 'spec_target.tx',
+        title      => 'Spec Target Post',
+        data       => 'Spec target body.',
+        visibility => 'public',
+        tags       => ['spectarget'],
+        to         => '/spectarget',
+    ) or return;
+
+    _make_series( 'spec_relator', 'specrelator', 'spec_relator.tx', 'Spec Relator Series', no_topbar => 1 ) or return;
+    my $relator = _save_post(
+        'spec_relator child',
+        form       => 'spec_relator.tx',
+        title      => 'Spec Relator Post',
+        data       => 'Spec relator body.',
+        chosen     => $target->{id},
+        visibility => 'public',
+        tags       => ['specrelator'],
+        to         => '/specrelator',
+    ) or return;
+
+    is( $relator->{chosen}, $target->{id}, 'the referenced id survived validation' );
+
+    my $page = _series_page( 'spec_relator', 'specrelator', 'Spec Relator Series', 1 ) or return;
+
+    # Both halves of the relation resolved: the one we picked, and the set.
+    like( $page, qr{<span class="chosen">Spec Target Post</span>}, 'the picked post resolved into the page' );
+    like( $page, qr{<span class="each">Spec Target Post</span>},   'and so did the whole set' );
+};
+
+subtest '/api/posts_of_form feeds the relation picker' => sub {
+    my $target = _find_post('Spec Target Post');
+    ok( $target, 'the target post is there to be listed' ) or return;
+
+    my $res = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'spec_target.tx' ) );
+    is( ref $res, 'ARRAY', 'a PSGI response came back' ) or return;
+
+    my ( $code, undef, $body ) = @$res;
+    is( $code, 200, 'and it is a 200' );
+
+    my $payload = JSON::MaybeXS::decode_json( join( '', @$body ) );
+    is_deeply(
+        $payload->{posts},
+        [ { id => $target->{id}, title => 'Spec Target Post' } ],
+        'listing exactly the posts of that type, id and title only'
+    );
+
+    # An unknown type is an empty list, not an error -- a type with no posts
+    # yet is the normal state of affairs right after you create it.
+    $res = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'nosuchtype.tx' ) );
+    $payload = JSON::MaybeXS::decode_json( join( '', @{ $res->[2] } ) );
+    is_deeply( $payload->{posts}, [], 'an unknown type lists nothing rather than failing' );
+
+    # The route's own declaration is what keeps a malformed form out; check it
+    # matches what series.json demands of child_form.
+    my $validator = $Trog::Routes::JSON::routes{'/api/posts_of_form'}{parameters}{form};
+    ok( $validator->('blog.tx'), 'the parameter validator accepts a form name' );
+    ok( !$validator->('../../etc/passwd'), 'and rejects a path' );
+    ok( $Trog::Routes::JSON::routes{'/api/posts_of_form'}{auth}, 'the route requires a login' );
 };
 
 subtest 'saves report back through the jsalert banner' => sub {

@@ -1,33 +1,49 @@
 {
-   "x-tcms-post-type" : {
-      "name" : "invoice",
-      "generated" : false,
-      "description" : "A multi-page invoice drawn between two entity posts."
+   "properties": {
+      "due_days": {
+         "minimum": 0,
+         "type": "integer",
+         "x-tcms-input": "number",
+         "x-tcms-label": "Due in (days)"
+      },
+      "payee": {
+         "type": "relation",
+         "x-tcms-label": "Payee",
+         "x-tcms-relation-form": "entities.tx"
+      },
+      "payor": {
+         "type": "relation",
+         "x-tcms-label": "Payor",
+         "x-tcms-relation-form": "entities.tx"
+      },
+      "preview": {
+         "type": "string",
+         "x-tcms-label": "Preview Image"
+      },
+      "preview_file": {
+         "type": "upload",
+         "x-tcms-input": "file",
+         "x-tcms-label": "Preview Image"
+      }
    },
-   "type" : "object",
-   "properties" : {
-      "preview" : {
-         "type" : "string",
-         "x-tcms-label" : "Preview Image"
+   "type": "object",
+   "x-tcms-post-type": {
+      "description": "A multi-page invoice drawn between two entity posts.",
+      "enrich": "Trog::Enrich::Invoice::enrich",
+      "generated": false,
+      "name": "invoice"
+   },
+   "x-tcms-relations": {
+      "entities": {
+         "form": "entities.tx"
       },
-      "preview_file" : {
-         "type" : "upload",
-         "x-tcms-label" : "Preview Image",
-         "x-tcms-input" : "file"
+      "payee_entity": {
+         "form": "entities.tx",
+         "from": "payee"
       },
-      "payee" : {
-         "type" : "string",
-         "x-tcms-label" : "Payee"
-      },
-      "payor" : {
-         "type" : "string",
-         "x-tcms-label" : "Payor"
-      },
-      "due_days" : {
-         "type" : "integer",
-         "minimum" : 0,
-         "x-tcms-label" : "Due in (days)",
-         "x-tcms-input" : "number"
+      "payor_entity": {
+         "form": "entities.tx",
+         "from": "payor"
       }
    }
 }

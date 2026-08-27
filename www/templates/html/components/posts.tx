@@ -1,5 +1,6 @@
 : if ( $can_edit ) {
     <script type="text/javascript" src="/scripts/post.js"></script>
+    <script type="text/javascript" src="/scripts/post_relations.js"></script>
     <div id="emoji_picker_modal" class="modal" style="display:none;">
     <: $emoji_picker | mark_raw :>
     </div>

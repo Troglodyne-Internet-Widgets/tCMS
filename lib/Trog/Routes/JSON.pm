@@ -44,6 +44,17 @@ our %routes = (
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
     },
+    '/api/posts_of_form' => {
+        method     => 'GET',
+        auth       => 1,
+        parameters => {
+
+            # Same shape series.json demands of child_form.
+            form => sub { $_[0] =~ m/^[A-Za-z0-9_-]+\.tx$/ },
+        },
+        callback => \&posts_of_form,
+        noindex  => 1,
+    },
     '/api/requests_per' => {
         method     => 'GET',
         auth       => 1,
@@ -110,6 +121,29 @@ sub process_auth_change_request ($query) {
         200, undef,
         message => $msg,
         result  => 'success',
+    );
+}
+
+=head2 posts_of_form
+
+Implements GET /api/posts_of_form.  Requires a login.
+
+The id and title of every post of the named type which the caller is allowed to
+see.  This is what fills a relation field's dropdown in the post editor -- see
+www/scripts/post_relations.js and the x-tcms-relations tables in the post type
+sidecars.
+
+Only id and title: the caller is populating a picker, and a post's body is
+nobody's business here.
+
+=cut
+
+sub posts_of_form ($query) {
+    my @posts = Trog::Routes::HTML::_post_helper( { form => $query->{form}, limit => 0 }, [], $query->{user_acls} );
+
+    return _render(
+        200, undef,
+        posts => [ map { { id => $_->{id}, title => $_->{title} } } @posts ],
     );
 }
 

@@ -394,22 +394,78 @@ picks the change up on its very next add() with no restart needed.
 
 =cut
 
+# Stat the forms dirs, not their parents -- writing blog.json bumps the mtime
+# of forms/, and nothing above it.  Both candidates, since either one gaining a
+# sidecar changes the answer.
+sub _sidecar_generation {
+    return join( ':', map { ( stat("$_/forms") )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
+}
+
+# A signature default only covers an absent arg, and plenty of posts have an
+# explicitly undef form.
+sub _type_of ($form) {
+    $form = '' if !defined $form || ref $form;
+    my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;
+    return $type // '';
+}
+
+=head2 type_meta_for($form)
+
+The parts of a post type's sidecar which aren't schema: x-tcms-relations,
+x-tcms-post-type and friends.
+
+schema_for() deliberately keeps only properties and required, since everything
+else would be noise to the validator -- but the relation tables and the post
+type's own metadata live out there and something has to read them.
+
+=cut
+
+sub type_meta_for ( $form = '' ) {
+    state %cache;
+
+    my $generation = _sidecar_generation();
+    %cache = () unless exists $cache{$generation};
+
+    my $type = _type_of($form);
+    return $cache{$generation}{$type} if exists $cache{$generation}{$type};
+
+    my $path = $type ? Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 ) : undef;
+    my $sidecar = $path ? _read_sidecar($path) : undef;
+
+    my %meta;
+    if ($sidecar) {
+        %meta = map { $_ => $sidecar->{$_} } grep { $_ ne 'properties' && $_ ne 'required' && $_ ne 'type' } keys(%$sidecar);
+    }
+
+    $cache{$generation}{$type} = \%meta;
+    return $cache{$generation}{$type};
+}
+
+=head2 relations_for($form)
+
+The x-tcms-relations table for a post type, as a hashref keyed on the template
+variable the resolved posts land in.  Empty when the type declares none.
+
+Each entry is { form => 'other.tx', from => 'field_name' } -- 'from' naming the
+field holding a UUID to resolve, or absent to mean every post of that type.
+
+=cut
+
+sub relations_for ( $form = '' ) {
+    my $relations = type_meta_for($form)->{'x-tcms-relations'};
+    return {} unless Ref::Util::is_hashref($relations);
+    return $relations;
+}
+
 sub schema_for ( $form = '' ) {
     state %cache;
 
-    # Stat the forms dirs, not their parents -- writing blog.json bumps the
-    # mtime of forms/, and nothing above it.  Both candidates, since either one
-    # gaining a sidecar changes the answer.
-    my $generation = join( ':', map { ( stat("$_/forms") )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
+    my $generation = _sidecar_generation();
 
     # Only ever keep the current generation around.
     %cache = () unless exists $cache{$generation};
 
-    # A signature default only covers an absent arg, and plenty of posts have
-    # an explicitly undef form.
-    $form = '' if !defined $form || ref $form;
-    my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;
-    $type //= '';
+    my $type = _type_of($form);
     return $cache{$generation}{$type} if exists $cache{$generation}{$type};
 
     my %merged = ( %post_schema, properties => { %{ $post_schema{properties} } } );
@@ -451,28 +507,41 @@ sub _read_sidecar ($path) {
     }
     return undef unless Ref::Util::is_hashref($spec);
 
-    _expand_uploads($spec);
+    _expand_pseudo_types($spec);
     return $spec;
 }
+
+# A relation is stored as the referenced post's UUID, and resolved into the
+# post itself at render time -- see the x-tcms-relations table a sidecar
+# declares alongside it, and Trog::Routes::HTML::_enrich_post.  The pseudo-type
+# exists so a sidecar can say what a field *means* rather than just that it
+# happens to be a string.
+our %relation_schema = ( type => 'string' );
 
 # Sugar: a sidecar says {"type":"upload"} rather than spelling out the
 # string-or-hashref dance every upload field would otherwise need.  Uploads are
 # a hashref on the way in from the browser and the href string they became on
 # the way back out of the datastore.
-sub _expand_uploads ($node) {
+sub _expand_pseudo_types ($node) {
     return unless Ref::Util::is_hashref($node);
 
-    if ( ( $node->{type} // '' ) eq 'upload' ) {
+    my %pseudo = (
+        upload   => \%upload_schema,
+        relation => \%relation_schema,
+    );
+
+    my $type = $node->{type} // '';
+    if ( $pseudo{$type} ) {
         delete $node->{type};
-        %$node = ( %$node, %upload_schema );
+        %$node = ( %$node, %{ $pseudo{$type} } );
         return;
     }
 
-    _expand_uploads($_) foreach values( %{ $node->{properties} // {} } );
-    _expand_uploads( $node->{items} ) if $node->{items};
+    _expand_pseudo_types($_) foreach values( %{ $node->{properties} // {} } );
+    _expand_pseudo_types( $node->{items} ) if $node->{items};
     foreach my $key (qw{oneOf anyOf allOf}) {
         next unless Ref::Util::is_arrayref( $node->{$key} );
-        _expand_uploads($_) foreach @{ $node->{$key} };
+        _expand_pseudo_types($_) foreach @{ $node->{$key} };
     }
     return;
 }

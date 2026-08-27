@@ -54,6 +54,12 @@ any custom fields, so that the data model knows to keep them when a post is save
     These become extra inputs in the editor, and are available in your display template below
     as <code>&lt;: $post.your_field_name :&gt;</code>.
     Uploads aren't supported here &mdash; use the Attachment uploader above for those.
+    <br />
+    An <em>Another Post</em> field depends on a different post type.
+    <em>Pick one</em> stores a single post's ID, chosen from a dropdown in the editor, and hands you
+    the whole post as <code>&lt;: $post.your_field_name_post :&gt;</code>.
+    <em>All of them</em> stores nothing and simply hands you every post of that type as
+    <code>&lt;: $post.your_field_name :&gt;</code> to loop over.
     <div id="wizard-params"></div>
     <button type="button" style="float:right;" class="coolbutton" onclick="addParam(); return false;">Add Field</button>
     <br style="clear:both;" />
@@ -76,14 +82,26 @@ any custom fields, so that the data model knows to keep them when a post is save
     <div class="wizard-param-row">
         <hr />
         Name <input required class="cooltext" type="text" name="param_name" pattern="[A-Za-z][A-Za-z0-9_]*" placeholder="cook_time" />
-        Type <select class="cooltext" name="param_type">
+        Type <select class="cooltext param-type" name="param_type" onchange="syncRelationRow(this);">
             <option value="text">Text</option>
             <option value="url">URL</option>
             <option value="number">Number</option>
             <option value="date">Date</option>
             <option value="textarea">Long Text</option>
             <option value="checkbox">Checkbox</option>
+            <option value="relation">Another Post</option>
         </select>
+        <span class="wizard-relation" style="display:none;">
+            of type <select class="cooltext" name="param_relation_form">
+: for $forms -> $form {
+                <option value="<: $form :>"><: $form :></option>
+: }
+            </select>
+            <select class="cooltext" name="param_relation_mode">
+                <option value="one">pick one</option>
+                <option value="all">all of them</option>
+            </select>
+        </span>
         Label <input class="cooltext" type="text" name="param_label" placeholder="Cook Time" />
         Placeholder <input class="cooltext" type="text" name="param_placeholder" placeholder="45 minutes" />
         <select class="cooltext" name="param_required">

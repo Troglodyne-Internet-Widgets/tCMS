@@ -1041,29 +1041,86 @@ sub post_delete ($query) {
     return $query->{tpsgi}->see_also( $query->{to} );
 }
 
-my %enrich = (
-    'invoice.tx' => sub {
-        my ($post,$query) = @_;
-        # TODO it's probably a performance problem doing this per post rather than only for the series entry
-        my %ret = ( entities => [ _post_helper({ form => 'entities.tx', visibility => 'public' }, [], $query->{user_acls}) ] );
-        return %ret unless ref $post->{data} eq 'ARRAY';
+=head2 _enrich_post($post, $query, $cache)
 
-        # Figure out the payee/payor
-        $ret{payee_entity} = List::Util::first { $_->{id} eq $post->{payee} } @{$ret{entities}};
-        $ret{payor_entity} = List::Util::first { $_->{id} eq $post->{payor} } @{$ret{entities}};
+Resolve a post type's declared relations onto the post, and run its enrich sub
+if it has one.
 
-        # Build total
-        my $denom;
-        my @prices = map {
-            my $price = 0;
-            ($denom, $price) = m/^Price:\s*(\D)(\d+)/mix;
-            $price;
-        } @{$post->{data}};
-        $denom //= '$';
-        $ret{total} = $denom.(List::Util::sum(@prices) // 0);
-        return %ret;
-    },
-);
+A type says what it depends on in its sidecar rather than in code here -- see
+Trog::DataModule::relations_for.  An entry naming a 'from' field resolves the
+UUID in that field into the post it refers to; one without gets every post of
+the target type, which is what an editor picker or a "show me all of these"
+display wants.
+
+$cache is a per-request memo of the per-type lookups.  Without it a page of
+invoices re-scans every entities post once per invoice.
+
+=cut
+
+sub _enrich_post ( $post, $query, $cache = {} ) {
+    return unless Ref::Util::is_hashref($post) && $post->{form};
+
+    my $relations = Trog::DataModule::relations_for( $post->{form} );
+    foreach my $as ( keys(%$relations) ) {
+        my $relation = $relations->{$as};
+        next unless Ref::Util::is_hashref($relation);
+
+        my ($target) = ( $relation->{form} // '' ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
+        next unless $target;
+
+        $cache->{$target} //= [ _post_helper( { form => $target }, [], $query->{user_acls} ) ];
+
+        # No 'from' means the relation is the whole set rather than one of them.
+        my $from = $relation->{from};
+        if ( !$from ) {
+            $post->{$as} = $cache->{$target};
+            next;
+        }
+
+        my $wanted = $post->{$from};
+        $post->{$as} = defined $wanted ? List::Util::first { $_->{id} eq $wanted } @{ $cache->{$target} } : undef;
+    }
+
+    _enrich_callback( $post, $query );
+    return;
+}
+
+# Anything a type needs computed rather than merely fetched.  The sub is named
+# in the sidecar, so validate it the same way a post's own callback field is --
+# a sidecar naming an arbitrary sub is a privilege question, not a typo.
+sub _enrich_callback ( $post, $query ) {
+    my $meta = Trog::DataModule::type_meta_for( $post->{form} );
+    my $sub  = $meta->{'x-tcms-post-type'}{enrich};
+    return unless $sub && !ref $sub;
+
+    my ($modname) = $sub =~ m/^([\w:]+)::\w+$/;
+    if ( !$modname ) {
+        WARN("Post type '$post->{form}' declares a malformed enrich sub '$sub'");
+        return;
+    }
+
+    my $modpath = $modname;
+    $modpath =~ s{::}{/}g;
+    $modpath .= '.pm';
+
+    local $@;
+    eval { require $modpath; 1 } or do {
+        WARN("Post type '$post->{form}' declares enrich sub '$sub', but $modname will not load: $@");
+        return;
+    };
+
+    no strict 'refs';
+    if ( !defined &{$sub} ) {
+        WARN("Post type '$post->{form}' declares enrich sub '$sub', which does not exist");
+        return;
+    }
+
+    my %extra = &{$sub}( $post, $query );
+    use strict;
+
+    @$post{ keys(%extra) } = values(%extra);
+    return;
+}
 
 =head2 series
 
@@ -1095,12 +1152,21 @@ sub series ($query) {
     #Grab the relevant tag (aclname), then pass that to posts
     my @posts = _post_helper( $query, ['series'], $query->{user_acls} );
 
-    # Enrich posts with additional data based on the template if necessary
-    if (exists $enrich{$posts[0]->{child_form}}) {
-        my $callback = $enrich{$posts[0]->{child_form}};
-        my %extra_data = $callback->($posts[0], $query);
-        foreach my $key (keys(%extra_data)) {
-            $posts[0]->{$key} = $extra_data{$key};
+    # The series post carries its *children's* relations, so that an editor
+    # picker rendered on this page has something to populate from -- that is
+    # what $primary_post.entities is on an invoice series.  Keyed on child_form
+    # rather than form: the series is a series.tx, its children are what
+    # declare the dependency.
+    if ( $posts[0] ) {
+        my $relations = Trog::DataModule::relations_for( $posts[0]{child_form} );
+        if (%$relations) {
+
+            # Resolve against a stand-in wearing the child's form, then copy
+            # only the relation keys back, so nothing else about the series
+            # post gets overwritten.
+            my $stand_in = { %{ $posts[0] }, form => $posts[0]{child_form} };
+            _enrich_post( $stand_in, $query );
+            @{ $posts[0] }{ keys(%$relations) } = @{$stand_in}{ keys(%$relations) };
         }
     }
 
@@ -1391,16 +1457,10 @@ sub posts ( $query, $direct = 0 ) {
     my $picker = Trog::Component::EmojiPicker::render();
     return $picker if ref $picker eq 'ARRAY';
 
-    # Enrich posts with additional data based on the template if necessary
-    foreach my $poast (@posts) {
-        if (exists $enrich{$poast->{form}}) {
-            my $callback = $enrich{$poast->{form}};
-            my %extra_data = $callback->($poast, $query);
-            foreach my $key (keys(%extra_data)) {
-                $poast->{$key} = $extra_data{$key};
-            }
-        }
-    }
+    # Resolve each post's declared relations.  One cache for the whole page, so
+    # 25 invoices don't mean 25 scans of every entities post.
+    my %relation_cache;
+    _enrich_post( $_, $query, \%relation_cache ) foreach @posts;
 
 
     #XXX the only reason this is needed is due to direct=1
@@ -1877,6 +1937,7 @@ our %wizard_checked_by_default = map { $_ => 1 } qw{wrapper inc_post_title inc_p
 # store an HTTP::Body::OctetStream that nothing ever picks up.  Point folks at
 # the attachment uploader instead.
 our %wizard_field_types = (
+    relation => { type => 'relation' },
     text     => { type => 'string' },
     url      => { type => 'string' },
     date     => { type => 'string' },
@@ -2065,6 +2126,8 @@ sub _wizard_fields ($query) {
     my $labels = Trog::Utils::coerce_array( $query->{param_label} );
     my $phs    = Trog::Utils::coerce_array( $query->{param_placeholder} );
     my $reqs   = Trog::Utils::coerce_array( $query->{param_required} );
+    my $rforms = Trog::Utils::coerce_array( $query->{param_relation_form} );
+    my $rmodes = Trog::Utils::coerce_array( $query->{param_relation_mode} );
 
     my ( @fields, %seen );
     foreach my $index ( 0 .. $#$names ) {
@@ -2081,14 +2144,22 @@ sub _wizard_fields ($query) {
         my $type = _wizard_scalar( $types->[$index] );
         $type = 'text' unless $wizard_field_types{$type};
 
+        # A relation is only a relation if it names a target type that looks
+        # like one; anything else falls back to being a plain text field.
+        my ($rform) = _wizard_scalar( $rforms->[$index] ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
+        my $rmode = _wizard_scalar( $rmodes->[$index] ) eq 'all' ? 'all' : 'one';
+        $type = 'text' if $type eq 'relation' && !$rform;
+
         push(
             @fields,
             {
-                name        => $fname,
-                type        => $type,
-                label       => _kolon_safe( $labels->[$index] ) || ucfirst($fname),
-                placeholder => _kolon_safe( $phs->[$index] ),
-                required    => _wizard_scalar( $reqs->[$index] ) ? 1 : 0,
+                name          => $fname,
+                type          => $type,
+                label         => _kolon_safe( $labels->[$index] ) || ucfirst($fname),
+                placeholder   => _kolon_safe( $phs->[$index] ),
+                required      => _wizard_scalar( $reqs->[$index] ) ? 1 : 0,
+                relation_form => $rform,
+                relation_mode => $rmode,
             }
         );
     }
@@ -2109,11 +2180,29 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
     my %properties;
     my @required;
 
+    my %relations;
+
     foreach my $field (@$fields) {
+
+        # A relation pulling in every post of its target type isn't a field the
+        # post stores at all -- it is purely something injected at render, so
+        # it gets a relations entry and no property.
+        if ( $field->{type} eq 'relation' && $field->{relation_mode} eq 'all' ) {
+            $relations{ $field->{name} } = { form => $field->{relation_form} };
+            next;
+        }
+
         my $property = { %{ $wizard_field_types{ $field->{type} } } };
         $property->{'x-tcms-input'} = $field->{type};
         $property->{'x-tcms-label'} = $field->{label};
         $property->{'x-tcms-placeholder'} = $field->{placeholder} if length $field->{placeholder};
+
+        if ( $field->{type} eq 'relation' ) {
+            $property->{'x-tcms-relation-form'} = $field->{relation_form};
+
+            # The stored field holds a UUID; the resolved post lands beside it.
+            $relations{"$field->{name}_post"} = { form => $field->{relation_form}, from => $field->{name} };
+        }
 
         $properties{ $field->{name} } = $property;
         push( @required, $field->{name} ) if $field->{required};
@@ -2130,7 +2219,8 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
         type       => 'object',
         properties => \%properties,
     );
-    $spec{required} = \@required if @required;
+    $spec{required}            = \@required  if @required;
+    $spec{'x-tcms-relations'} = \%relations if %relations;
 
     return \%spec;
 }
@@ -2138,6 +2228,17 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
 sub _wizard_field_html ($field) {
     my ( $n, $t, $l, $p ) = @$field{qw{name type label placeholder}};
     my $required = $field->{required} ? 'required ' : '';
+
+    if ( $t eq 'relation' ) {
+
+        # 'all' relations aren't stored, so there is nothing to edit.
+        return '' if $field->{relation_mode} eq 'all';
+
+        # Left empty on purpose: post_relations.js fills it from
+        # /api/posts_of_form, so the picker can't go stale against the
+        # generated template.
+        return qq|            $l<br /><select ${required}class="cooltext relation-picker" name="$n" data-relation-form="$field->{relation_form}" data-selected="<: \$post.$n :>"></select>\n|;
+    }
 
     return qq|            $l<br /><textarea ${required}class="cooltext" name="$n" placeholder="$p"><: \$post.$n :></textarea>\n|
       if $t eq 'textarea';
