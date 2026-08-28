@@ -1,9 +1,0 @@
-{
-   "x-tcms-post-type" : {
-      "name" : "dns",
-      "generated" : false,
-      "description" : "Stub.  dns.tx is empty, so this type ingests nothing beyond the base post fields."
-   },
-   "type" : "object",
-   "properties" : {}
-}
