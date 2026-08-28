@@ -11,9 +11,10 @@
                     <: $post.title :>
                     <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
                 </p>
-                : # A console capture is admin-only: the route that serves it
-                : # requires the admin acl, so anyone else gets a broken image.
-                : if ( $can_edit ) {
+                : # The capture is declared private in guests.json, so a reader
+                : # who cannot edit never receives it -- there is nothing here
+                : # to remember to guard.
+                : if ( $post.preview ) {
                     <a href="<: $post.preview :>" class="undecorated" title="<: $post.title :> (<: $post.state :>)">
                         <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
                     </a>
@@ -24,7 +25,7 @@
                     <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
                 </h3>
                 <div class="postData responsive-text" id="postData-<: $post.id :>">
-                    : if ( $can_edit ) {
+                    : if ( $post.preview ) {
                         <a href="<: $post.preview :>" class="undecorated" title="console of <: $post.title :>">
                             <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
                         </a>

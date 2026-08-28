@@ -258,6 +258,7 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
     );
 
     my %post = (
+        form    => 'guests.tx',
         id      => 'uuid-alpha', title  => 'alpha',  state   => 'running', is_active => 1,
         preview => '/guest/screenshot/hv-1/alpha',   domain  => 'alpha',
         hypervisor => 'hv-1', hypervisor_title => 'spec-hv', vcpus => 2,
@@ -270,9 +271,18 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
         'untiled, admin'      => { tiled => 0, can_edit => 1 },
     );
 
+    require Trog::Routes::HTML;
+
     foreach my $view ( sort keys %views ) {
-        my $out = $tx->render( 'forms/guests.tx', { post => \%post, style => '', route => '/vm', %{ $views{$view} } } );
         my $admin = $views{$view}{can_edit};
+
+        # Redact the way posts() does before rendering, so this covers the
+        # thing that actually protects the capture -- the template only decides
+        # whether to draw an img for a value it was given.
+        my %shown = %post;
+        Trog::Routes::HTML::_redact_private( \%shown ) unless $admin;
+
+        my $out = $tx->render( 'forms/guests.tx', { post => \%shown, style => '', route => '/vm', %{ $views{$view} } } );
 
         # The guest is always named -- that is the point of the page.
         like( $out, qr/alpha/, "$view: the guest is listed" );
@@ -288,6 +298,13 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
             is( scalar( () = $out =~ m/value="\Q$action\E"/g ), $admin ? 1 : 0, "$view: no $action button" ) unless $admin;
         }
     }
+};
+
+subtest 'the guests type declares its console capture private' => sub {
+    require Trog::DataModule;
+
+    is_deeply( Trog::DataModule::private_fields_for('guests.tx'), ['preview'],
+        'so the url to it is withheld rather than guarded in the template' );
 };
 
 subtest 'private fields are dropped before a non-editor sees them' => sub {
