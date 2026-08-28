@@ -44,6 +44,19 @@ any custom fields, so that the data model knows to keep them when a post is save
     <input class="cooltext" type="text" name="title_placeholder" placeholder="Iowa Man Destroys Moon" value="<: $title_placeholder :>" />
 
     <br />
+    Where the posts come from<br />
+    <select class="cooltext" name="datasource">
+        <option value="" <: $datasource ? '' : 'selected' :> >The datastore &mdash; posts people write</option>
+: for $datasources -> $source {
+        <option value="<: $source :>" <: $datasource == $source ? 'selected' : '' :> ><: $source :></option>
+: }
+    </select>
+    <br />
+    A datasource builds this type's posts from somewhere else every time the page is drawn, rather
+    than from posts anybody wrote &mdash; and if it says its posts cannot be written, no editor is
+    generated at all, because there would be nothing behind the form to save.
+
+    <br />
     Content Body &mdash; this is always the last thing in the editor, and is what carries the post body itself.<br />
     <select class="cooltext" name="body_form">
         <option value="form_common.tx" <: $body_form == 'form_multi.tx' ? '' : 'selected' :> >Single page (form_common.tx)</option>

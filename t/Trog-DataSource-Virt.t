@@ -300,6 +300,45 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
     }
 };
 
+subtest 'a datasource says whether its posts can be edited' => sub {
+    require Trog::Routes::HTML;
+
+    my $sources = Trog::Routes::HTML::_get_datasources();
+    ok( ( grep { $_ eq 'Trog::DataSource::Virt' } @$sources ), 'the wizard can find this datasource' );
+    ok( !( grep { !m/^Trog::DataSource::\w+$/ } @$sources ), 'and finds nothing that is not one' );
+
+    is( Trog::DataSource::Virt->EDITABLE, 0, 'a guest cannot be edited' );
+    is( Trog::Routes::HTML::_datasource_editable('Trog::DataSource::Virt'), 0, 'so no editor is appropriate' );
+
+    # The datastore is the default, and posts in it are written by people.
+    is( Trog::Routes::HTML::_datasource_editable(''), 1, 'the datastore is editable' );
+
+    # A datasource that says nothing is assumed editable, since that is what a
+    # post type is unless it has a reason not to be.
+    {
+        no warnings qw{once};
+        $INC{'Trog/DataSource/SpecMute.pm'} = 1;
+        @Trog::DataSource::SpecMute::ISA = ();
+    }
+    is( Trog::Routes::HTML::_datasource_editable('Trog::DataSource::SpecMute'), 1, 'one that declares nothing is assumed editable' );
+};
+
+subtest 'the guests type is built by the wizard, from a datasource' => sub {
+    my $sidecar = JSON::MaybeXS::decode_json(
+        Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.json")->slurp_utf8 );
+
+    is( $sidecar->{'x-tcms-datasource'}, 'Trog::DataSource::Virt', 'it names its datasource' );
+    ok( $sidecar->{'x-tcms-post-type'}{generated}, 'and is wizard generated rather than hand written' );
+
+    # The relation is what tells the datasource which hypervisors to ask.
+    is_deeply( $sidecar->{'x-tcms-relations'}, { hypervisors => { form => 'hypervisor.tx' } },
+        'and keeps the relation the datasource reads' );
+
+    # No editor: a guest is built on every view and has nothing to save.
+    my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.tx")->slurp_utf8;
+    unlike( $form, qr{action="/post/save"}, 'the template offers no editor' );
+};
+
 subtest 'the guests type declares its console capture private' => sub {
     require Trog::DataModule;
 

@@ -865,6 +865,56 @@ sub _get_data_models {
     die "Could not find tCMS data modules!  Is tCMS in \@INC?";
 }
 
+=head2 _get_datasources
+
+Every Trog::DataSource::* module on disk.
+
+The wizard offers these as somewhere other than the datastore for a post type
+to get its posts from, and post_wizard_save checks a submitted one against this
+list -- the name ends up in a sidecar and is later require()d, so it has to be
+something we found rather than something we were told.
+
+=cut
+
+sub _get_datasources {
+    my %found;
+    foreach my $incdir (@INC) {
+        my $dir = "$incdir/Trog/DataSource";
+        next unless -d $dir;
+        opendir( my $dh, $dir ) or next;
+        $found{"Trog::DataSource::$_"} = 1 foreach map { s/\.pm$//r } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);
+        closedir $dh;
+    }
+    return [ sort keys(%found) ];
+}
+
+=head2 _datasource_editable($module)
+
+Whether a post type backed by $module should be given an editor.
+
+A datasource says so with an EDITABLE constant.  One that does not say is
+assumed editable, since that is what a post type is unless it has a reason not
+to be.
+
+=cut
+
+sub _datasource_editable ($module) {
+    return 1 unless $module;
+
+    my $modpath = $module;
+    $modpath =~ s{::}{/}g;
+    $modpath .= '.pm';
+
+    local $@;
+    eval { require $modpath; 1 } or do {
+        WARN("Datasource '$module' will not load: $@");
+        return 1;
+    };
+
+    return 1 unless $module->can('EDITABLE');
+    return $module->EDITABLE ? 1 : 0;
+}
+
 =head2 config_save
 
 Implements /config/save route.  Saves what little configuration we actually use to config/main.cfg
@@ -2194,6 +2244,8 @@ sub post_wizard ($query) {
             is_admin          => 1,
             forms             => $forms,
             forms_dir         => Trog::Themes::forms_dir(),
+            datasources       => _get_datasources(),
+            datasource        => _wizard_scalar( $query->{datasource} ),
             checked           => \%checked,
             name              => _wizard_scalar( $query->{name} ),
             title_placeholder => _wizard_scalar( $query->{title_placeholder} ),
@@ -2242,6 +2294,13 @@ sub post_wizard_save ($query) {
     return _wizard_fail( $query, "Post type '$name.tx' already exists.  Tick 'Overwrite' if you meant to replace it." )
       if $overwriting && !$query->{overwrite};
 
+    # Whitelisted against what is actually on disk: this name goes into a
+    # sidecar and is require()d later, so a regex is not enough.
+    my $datasource = _wizard_scalar( $query->{datasource} );
+    if ( $datasource && !grep { $_ eq $datasource } @{ _get_datasources() } ) {
+        return _wizard_fail( $query, "'$datasource' is not a datasource I can find." );
+    }
+
     my $fields = _wizard_fields($query);
 
     # Not up for discussion.  A post with no visibility gets an undef pushed
@@ -2255,11 +2314,11 @@ sub post_wizard_save ($query) {
     my @includes = grep { $query->{$_} } @wizard_include_order;
     my $body_form = _wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
 
-    my $spec = _wizard_sidecar( $name, $fields, \@includes, $body_form );
+    my $spec = _wizard_sidecar( $name, $fields, \@includes, $body_form, $datasource );
 
     local $@;
     eval {
-        Path::Tiny::path($tx_file)->spew_utf8( _wizard_template( $query, $fields, \@includes, $body_form ) );
+        Path::Tiny::path($tx_file)->spew_utf8( _wizard_template( $query, $fields, \@includes, $body_form, $datasource ) );
         Path::Tiny::path($json_file)->spew_utf8( JSON::MaybeXS->new( pretty => 1, canonical => 1 )->encode($spec) );
         1;
     } or return _wizard_fail( $query, "Failed to write post type '$name': $@" );
@@ -2393,7 +2452,7 @@ Trog::DataModule::schema_for() merges this over the base post schema.
 
 =cut
 
-sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
+sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '' ) {
     my %properties;
     my @required;
 
@@ -2440,8 +2499,9 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
         type       => 'object',
         properties => \%properties,
     );
-    $spec{required}            = \@required  if @required;
-    $spec{'x-tcms-relations'} = \%relations if %relations;
+    $spec{required}             = \@required   if @required;
+    $spec{'x-tcms-relations'}  = \%relations  if %relations;
+    $spec{'x-tcms-datasource'} = $datasource if $datasource;
 
     return \%spec;
 }
@@ -2477,7 +2537,7 @@ a display half guarded by !$post.addpost, and an edit half guarded by $can_edit.
 
 =cut
 
-sub _wizard_template ( $query, $fields, $includes, $body_form ) {
+sub _wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {
     my $placeholder = _kolon_safe( $query->{title_placeholder} ) || 'Iowa Man Destroys Moon';
 
     # NOT escaped, on purpose.  Letting an admin write template code is the
@@ -2496,7 +2556,18 @@ sub _wizard_template ( $query, $fields, $includes, $body_form ) {
     $out .= qq|        : include "post_title.tx";\n| if $query->{inc_post_title};
     $out .= qq|        : include "post_tags.tx";\n|  if $query->{inc_post_tags};
     $out .= "$display\n"                             if $display;
-    $out .= qq|    : }\n\n|;
+    $out .= qq|    : }\n|;
+
+    # A datasource can say its posts are built rather than written, in which
+    # case an editor would be a form saving something nobody can edit -- and
+    # for Trog::DataSource::Virt, one that writes a real post to sit alongside
+    # the synthesized ones and collide with them.
+    if ( !_datasource_editable($datasource) ) {
+        $out .= qq|</div>\n| if $query->{wrapper};
+        return $out;
+    }
+
+    $out .= qq|\n|;
     $out .= qq|    : if ( \$can_edit ) {\n|;
     $out .= qq|        <div class="postedit">\n|;
     $out .= qq|        : include "edit_head.tx";\n|;

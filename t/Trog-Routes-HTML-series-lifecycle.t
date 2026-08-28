@@ -449,6 +449,62 @@ subtest 'the post wizard invents a new post type' => sub {
     }
 
     like( $body, qr/name="param_private"/, 'and it offers per-field privacy' );
+    like( $body, qr/name="datasource"/,    'and a datasource to draw the posts from' );
+    like( $body, qr/Trog::DataSource::Virt/, 'listing the ones that exist' );
+};
+
+subtest 'a datasource-backed type gets no editor' => sub {
+
+    # A datasource whose posts are built rather than written has nothing behind
+    # a form to save, so generating one would produce an editor that writes
+    # real posts to sit alongside the synthesized ones.
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route          => '/admin/wyzzerdd/save',
+            method         => 'POST',
+            name           => 'spec_sourced',
+            datasource     => 'Trog::DataSource::Virt',
+            body_form      => 'form_common.tx',
+            wrapper        => 1,
+            inc_post_title => 1,
+            display        => q{<div class="s"><: $post.title :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'the type was created' ) or diag($err);
+
+    my $generated = Path::Tiny->new('www/templates/html/components/forms/spec_sourced.tx')->slurp_utf8;
+    unlike( $generated, qr{action="/post/save"}, 'no editor was generated' );
+    unlike( $generated, qr/\$can_edit/,          'and nothing guards one' );
+    like( $generated, qr/class="s"/, 'but the display half is there' );
+
+    my $sidecar = JSON::MaybeXS::decode_json(
+        Path::Tiny->new('www/templates/html/components/forms/spec_sourced.json')->slurp_utf8 );
+    is( $sidecar->{'x-tcms-datasource'}, 'Trog::DataSource::Virt', 'and the sidecar records the datasource' );
+
+    # The same type without one keeps its editor.
+    _render(
+        _admin(
+            route          => '/admin/wyzzerdd/save',
+            method         => 'POST',
+            name           => 'spec_stored',
+            body_form      => 'form_common.tx',
+            wrapper        => 1,
+            inc_post_title => 1,
+            display        => q{<div class="s"><: $post.title :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    my $stored = Path::Tiny->new('www/templates/html/components/forms/spec_stored.tx')->slurp_utf8;
+    like( $stored, qr{action="/post/save"}, 'a type on the datastore still gets one' );
+
+    # The name is require()d later, so it has to be one we found.
+    ( $code, $body ) = _render(
+        _admin( route => '/admin/wyzzerdd/save', method => 'POST', name => 'spec_bogus', datasource => 'Evil::Module' ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    like( $body, qr/not a datasource I can find/, 'a datasource we did not find is refused' );
+    ok( !-e 'www/templates/html/components/forms/spec_bogus.tx', 'and nothing was written' );
 };
 
 subtest 'a field can be declared editors-only' => sub {

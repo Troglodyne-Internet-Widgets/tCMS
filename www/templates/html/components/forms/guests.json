@@ -1,21 +1,27 @@
 {
-   "properties": {
-      "preview": {
-         "type": "string",
-         "x-tcms-label": "Console capture",
-         "x-tcms-private": true
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-input" : "text",
+         "x-tcms-label" : "Console capture",
+         "x-tcms-private" : true
       }
    },
-   "type": "object",
-   "x-tcms-datasource": "Trog::DataSource::Virt",
-   "x-tcms-post-type": {
-      "description": "A libvirt guest.  Not written by anyone -- built from the hypervisors this series' relations pull in, and rebuilt on every view.",
-      "generated": false,
-      "name": "guests"
+   "type" : "object",
+   "x-tcms-datasource" : "Trog::DataSource::Virt",
+   "x-tcms-post-type" : {
+      "body_form" : "form_common.tx",
+      "generated" : true,
+      "generator" : "Trog::Routes::HTML::post_wizard_save",
+      "includes" : [
+         "visibility.tx",
+         "acls.tx"
+      ],
+      "name" : "guests"
    },
-   "x-tcms-relations": {
-      "hypervisors": {
-         "form": "hypervisor.tx"
+   "x-tcms-relations" : {
+      "hypervisors" : {
+         "form" : "hypervisor.tx"
       }
    }
 }

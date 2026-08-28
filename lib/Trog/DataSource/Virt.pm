@@ -24,6 +24,17 @@ relations pulled in, instead of listing posts somebody wrote.  Nothing here is
 ever written to the datastore -- the guests are the source of truth, and the
 posts are rebuilt from them on every view.
 
+=head2 EDITABLE
+
+False.  A guest is built from libvirt every time the page is drawn and has
+nothing behind it to save, so a post type backed by this wants no editor: a
+form posting to /post/save would write a real post into the datastore which
+would then sit alongside, and collide with, the synthesized ones.
+
+=cut
+
+use constant EDITABLE => 0;
+
 =head2 A NOTE ON SAFETY
 
 libvirt forbids virDomainScreenshot on a read-only connection, so the read path
