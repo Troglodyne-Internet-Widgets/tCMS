@@ -424,6 +424,17 @@ subtest 'the post wizard invents a new post type' => sub {
     like( $body, qr/name="param_relation_form"/, 'the relation target select is in the row template' );
     like( $body, qr/name="param_relation_mode"/, 'so is the relation mode select' );
     like( $body, qr/<option value="relation">/,  'and relation is offered as a field type' );
+
+    # A series can ask for its children to be tiled.  A generated type has to
+    # carry that on its wrapper like the hand-written forms do, or it is the
+    # one kind of post that silently ignores the setting.
+    my $generated = Path::Tiny->new('www/templates/html/components/forms/spec_widget.tx')->slurp_utf8;
+
+    # Single quoted: the wrapper is Kolon source, so every sigil in it is
+    # literal and must not be interpolated by the test that checks for it.
+    my $wrapper = q{<div class="post <: $style :> <: $tiled ? 'tile' : '' :>">};
+    ok( index( $generated, $wrapper ) >= 0, 'the generated wrapper carries the tile class when the series asks for it' )
+      or diag( "wanted: $wrapper\ngot:    " . ( split( /\n/, $generated ) )[1] );
 };
 
 #--------------------------------------------------------------------------

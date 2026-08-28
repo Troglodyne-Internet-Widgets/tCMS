@@ -151,7 +151,7 @@ sub _fixup ( $self, @filtered ) {
         $subj->{display_name} = $user2display{ $subj->{user} };
 
         #XXX Add dynamic routing data for posts which don't have them (/posts/$id) and (/users/$user)
-        my $is_user_page = List::Util::any { $_ eq 'about' } @{ $subj->{tags} };
+        my $is_user_page = List::Util::any { ($_ // '') eq 'about' } @{ $subj->{tags} };
         if ( !exists $subj->{local_href} ) {
             $subj->{local_href} = "/posts/$subj->{id}";
 
@@ -222,7 +222,7 @@ sub filter ( $self, $query, @filtered ) {
         my $tags = $_->{tags};
         grep {
             my $t = $_;
-            grep { $t eq $_ } @{ $query->{tags} }
+            grep { ($t // '') eq $_ } @{ $query->{tags} }
         } @$tags
     } @filtered if @{ $query->{tags} };
 
@@ -612,6 +612,14 @@ sub add ( $self, @posts ) {
             $post->{local_href} //= "/$post->{aclname}";
             push( @{ $post->{aliases} }, "/posts/$post->{id}", "/series/$post->{id}" );
         }
+
+        # Every post needs one: _process pushes it into the tags, and an
+        # undef there is a tag no query will ever match, which makes the post
+        # invisible to everyone but an admin.  A post type built without a
+        # visibility selector would otherwise produce exactly that.  Private
+        # rather than public, because guessing wrong in the other direction
+        # publishes something nobody asked to publish.
+        $post->{visibility} //= 'private';
 
         $post->{callback} //= 'Trog::Routes::HTML::posts';
 

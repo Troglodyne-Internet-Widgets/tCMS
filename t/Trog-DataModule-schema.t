@@ -209,6 +209,29 @@ subtest 'add() rejects a post that does not validate' => sub {
     is( $written->[0]{servings}, 4, "the good one went through, coerced" );
 };
 
+subtest 'a post always ends up with a visibility' => sub {
+    set_sidecars();
+
+    my $written;
+    {
+        no warnings qw{once};
+        @VisData::ISA = ('Trog::DataModule');
+        *VisData::get   = sub { return () };
+        *VisData::write = sub { $written = $_[1]; return 0 };
+    }
+
+    # A post type built without a visibility selector submits none.  _process
+    # pushes visibility into the tags, so an undef one puts an undef in there
+    # and the post becomes invisible to everyone but an admin.
+    bless( {}, 'VisData' )->add( { title => 'No Visibility', tags => ['sometag'] } );
+
+    is( $written->[0]{visibility}, 'private', 'it defaults, rather than staying undef' );
+    ok( !( grep { !defined $_ } @{ $written->[0]{tags} } ), 'so no undef finds its way into the tags' );
+
+    bless( {}, 'VisData' )->add( { title => 'Explicit', visibility => 'public', tags => ['sometag'] } );
+    is( $written->[0]{visibility}, 'public', 'and an explicit one is left alone' );
+};
+
 subtest '_wizard_fields zips the parallel arrays' => sub {
 
     # The middle row was left blank.  Dropping it must not shift the type of

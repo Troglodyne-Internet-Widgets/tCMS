@@ -67,6 +67,11 @@ any custom fields, so that the data model knows to keep them when a post is save
     <p class="title">Display Template</p>
     <a href="https://metacpan.org/pod/Text::Xslate::Syntax::Kolon" title="GET UR MIND RITE">Kolon</a>
     markup for how this post type renders when someone looks at it.
+    <br />
+    <code>&lt;: $tiled :&gt;</code> is true when the series asked for its posts to be tiled, so branch on it
+    if this type wants a compact view &mdash; see <code>forms/file.tx</code> for the shape.
+    The wrapper gets the <code>tile</code> class either way.
+    Note that it is only ever true for logged-out visitors: an editor needs the full view.
     Use <code>&lt;: $post.yourfield :&gt;</code> for your custom fields, and
     <code>&lt;: render_it($post.data) | mark_raw :&gt;</code> for the post body.
     <br />
