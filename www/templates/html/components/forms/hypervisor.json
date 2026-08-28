@@ -16,6 +16,7 @@
       "generated" : true,
       "generator" : "Trog::Routes::HTML::post_wizard_save",
       "includes" : [
+         "visibility.tx",
          "acls.tx",
          "tags.tx",
          "aliases.tx"

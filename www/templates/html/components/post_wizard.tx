@@ -27,14 +27,14 @@ any custom fields, so that the data model knows to keep them when a post is save
 
     <p class="title">Canned Fields</p>
     Most post types reuse the same handful of blocks.  Tick whichever ones this type needs.
+    The title input, the visibility selector (visibility.tx) and the ACL selector (acls.tx)
+    are always included &mdash; every post has all three, and a type whose editor cannot set
+    them produces posts nobody can title, find or restrict.
     <br />
     <label for="wiz-wrapper">Wrap output in the standard post &lt;div&gt;<input id="wiz-wrapper" class="coolcb" type="checkbox" name="wrapper" value="1" <: $checked.wrapper :> /></label><br />
     <label for="wiz-post_title">Post title &amp; permalink (post_title.tx)<input id="wiz-post_title" class="coolcb" type="checkbox" name="inc_post_title" value="1" <: $checked.inc_post_title :> /></label><br />
     <label for="wiz-post_tags">Post tag list (post_tags.tx)<input id="wiz-post_tags" class="coolcb" type="checkbox" name="inc_post_tags" value="1" <: $checked.inc_post_tags :> /></label><br />
-    <label for="wiz-title_input">Title input in the editor<input id="wiz-title_input" class="coolcb" type="checkbox" name="inc_title_input" value="1" <: $checked.inc_title_input :> /></label><br />
     <label for="wiz-preview">Preview image upload (preview.tx)<input id="wiz-preview" class="coolcb" type="checkbox" name="inc_preview" value="1" <: $checked.inc_preview :> /></label><br />
-    <label for="wiz-visibility">Visibility selector (visibility.tx)<input id="wiz-visibility" class="coolcb" type="checkbox" name="inc_visibility" value="1" <: $checked.inc_visibility :> /></label><br />
-    <label for="wiz-acls">ACL selector (acls.tx)<input id="wiz-acls" class="coolcb" type="checkbox" name="inc_acls" value="1" <: $checked.inc_acls :> /></label><br />
     <label for="wiz-tags">Tag editor (tags.tx)<input id="wiz-tags" class="coolcb" type="checkbox" name="inc_tags" value="1" <: $checked.inc_tags :> /></label><br />
     <label for="wiz-aliases">Alias URL editor (aliases.tx)<input id="wiz-aliases" class="coolcb" type="checkbox" name="inc_aliases" value="1" <: $checked.inc_aliases :> /></label><br />
     <label for="wiz-attachments">Attachment uploader (attachments.tx)<input id="wiz-attachments" class="coolcb" type="checkbox" name="inc_attachments" value="1" <: $checked.inc_attachments :> /></label><br />

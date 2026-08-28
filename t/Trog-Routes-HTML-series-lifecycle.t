@@ -435,6 +435,18 @@ subtest 'the post wizard invents a new post type' => sub {
     my $wrapper = q{<div class="post <: $style :> <: $tiled ? 'tile' : '' :>">};
     ok( index( $generated, $wrapper ) >= 0, 'the generated wrapper carries the tile class when the series asks for it' )
       or diag( "wanted: $wrapper\ngot:    " . ( split( /\n/, $generated ) )[1] );
+
+    # Every post has a title, a visibility and acls.  The wizard used to let a
+    # type opt out of collecting them, which is how a hypervisor post ended up
+    # stored with no visibility and an undef in its tags.
+    foreach my $required ( 'visibility.tx', 'acls.tx' ) {
+        like( $generated, qr/\Q: include "$required";\E/, "$required is included whether or not it was asked for" );
+    }
+    like( $generated, qr/name="title"/, 'and so is the title input' );
+
+    foreach my $gone (qw{inc_title_input inc_visibility inc_acls}) {
+        unlike( $body, qr/name="\Q$gone\E"/, "the wizard no longer offers '$gone' as a choice" );
+    }
 };
 
 #--------------------------------------------------------------------------
@@ -848,6 +860,24 @@ subtest '/api/posts_of_form feeds the relation picker' => sub {
     ok( $validator->('blog.tx'), 'the parameter validator accepts a form name' );
     ok( !$validator->('../../etc/passwd'), 'and rejects a path' );
     ok( $Trog::Routes::JSON::routes{'/api/posts_of_form'}{auth}, 'the route requires a login' );
+};
+
+subtest 'a series resolves its relations for logged out visitors too' => sub {
+
+    # The relations series() resolves land on the primary post, which is what a
+    # datasource reads to find its hypervisors -- so assert on that rather than
+    # on the rendered children, whose relations posts() resolves later, after
+    # it has widened user_acls and thus by a path that was never broken.
+    foreach my $case ( [ 'anonymously', _anon( route => '/specrelator' ) ], [ 'as an admin', _admin( route => '/specrelator' ) ] ) {
+        my ( $label, $query ) = @$case;
+
+        my ( $code, undef, $err ) = _render( $query, \&Trog::Routes::HTML::series );
+        is( $code, 200, "the series renders $label" ) or do { diag($err); next };
+
+        my $resolved = $query->{primary_post}{everything};
+        is( ref $resolved, 'ARRAY', "$label, the series' own relation resolved" );
+        cmp_ok( scalar @{ $resolved || [] }, '>', 0, "$label, to something rather than nothing" );
+    }
 };
 
 subtest 'saves report back through the jsalert banner' => sub {

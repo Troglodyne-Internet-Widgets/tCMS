@@ -1184,7 +1184,15 @@ sub series ($query) {
             # only the relation keys back, so nothing else about the series
             # post gets overwritten.
             my $stand_in = { %{ $posts[0] }, form => $posts[0]{child_form} };
-            _enrich_post( $stand_in, $query );
+
+            # posts() widens user_acls to what a viewer can actually see, but
+            # that happens after this -- so resolving here against the raw list
+            # means a logged out visitor resolves every relation against no
+            # acls at all, and finds nothing however public the target is.
+            my @acls = ( @{ $query->{user_acls} }, 'public' );
+            push( @acls, 'private' ) if $is_admin;
+
+            _enrich_post( $stand_in, { %$query, user_acls => \@acls } );
             @{ $posts[0] }{ keys(%$relations) } = @{$stand_in}{ keys(%$relations) };
         }
     }
@@ -2009,8 +2017,17 @@ our %wizard_includes = (
 our @wizard_include_order = qw{inc_preview inc_visibility inc_acls inc_tags inc_aliases inc_attachments};
 
 # Every checkbox on the wizard, and which of them start out ticked.
-our @wizard_checkboxes         = ( qw{wrapper inc_post_title inc_post_tags inc_title_input}, @wizard_include_order, 'overwrite' );
-our %wizard_checked_by_default = map { $_ => 1 } qw{wrapper inc_post_title inc_post_tags inc_title_input inc_preview inc_visibility inc_acls inc_tags inc_aliases};
+# Every post has a title, a visibility and a set of acls, so a type does not
+# get to decide whether its editor collects them -- see post_wizard_save.
+our @wizard_mandatory = qw{inc_title_input inc_visibility inc_acls};
+
+our @wizard_optional_includes = grep {
+    my $include = $_;
+    !grep { $include eq $_ } @wizard_mandatory
+} @wizard_include_order;
+
+our @wizard_checkboxes         = ( qw{wrapper inc_post_title inc_post_tags}, @wizard_optional_includes, 'overwrite' );
+our %wizard_checked_by_default = map { $_ => 1 } qw{wrapper inc_post_title inc_post_tags inc_preview inc_tags inc_aliases};
 
 # Which HTML input the wizard emits, and what that field is in the sidecar's
 # OpenAPIv3 schema.  No 'file': _process() in Trog::DataModule only knows how to
@@ -2186,8 +2203,17 @@ sub post_wizard_save ($query) {
     return _wizard_fail( $query, "Post type '$name.tx' already exists.  Tick 'Overwrite' if you meant to replace it." )
       if $overwriting && !$query->{overwrite};
 
-    my $fields    = _wizard_fields($query);
-    my @includes  = grep { $query->{$_} } @wizard_include_order;
+    my $fields = _wizard_fields($query);
+
+    # Not up for discussion.  A post with no visibility gets an undef pushed
+    # into its tags by _process, which is a tag nothing matches -- so the post
+    # is invisible to everyone but an admin, for no reason anybody chose.  A
+    # title and a set of acls are equally non-negotiable: every other form has
+    # them, and a type whose editor cannot set them produces posts nobody can
+    # title or restrict.
+    $query->{$_} = 1 foreach @wizard_mandatory;
+
+    my @includes = grep { $query->{$_} } @wizard_include_order;
     my $body_form = _wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
 
     my $spec = _wizard_sidecar( $name, $fields, \@includes, $body_form );
