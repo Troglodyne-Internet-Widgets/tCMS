@@ -441,6 +441,22 @@ sub type_meta_for ( $form = '' ) {
     return $cache{$generation}{$type};
 }
 
+=head2 private_fields_for($form)
+
+The fields of a post type which only an editor may see, as declared by
+x-tcms-private in the sidecar.
+
+A field is public unless it says otherwise.  The point of declaring it here
+rather than guarding it in the template is that the value can then be dropped
+before rendering, so no amount of getting a template wrong can leak it.
+
+=cut
+
+sub private_fields_for ( $form = '' ) {
+    my $properties = schema_for($form)->{properties} // {};
+    return [ grep { $properties->{$_}{'x-tcms-private'} } keys(%$properties) ];
+}
+
 =head2 relations_for($form)
 
 The x-tcms-relations table for a post type, as a hashref keyed on the template

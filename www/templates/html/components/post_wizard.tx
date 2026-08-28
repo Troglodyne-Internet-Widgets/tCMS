@@ -55,6 +55,10 @@ any custom fields, so that the data model knows to keep them when a post is save
     as <code>&lt;: $post.your_field_name :&gt;</code>.
     Uploads aren't supported here &mdash; use the Attachment uploader above for those.
     <br />
+    A field set to <em>editors only</em> is dropped before the page is rendered for anyone who
+    cannot edit it, so it is safe to refer to in the display template below without guarding it
+    yourself &mdash; useful for a connection string or anything else that shouldn't be public.
+    <br />
     An <em>Another Post</em> field depends on a different post type.
     <em>Pick one</em> stores a single post's ID, chosen from a dropdown in the editor, and hands you
     the whole post as <code>&lt;: $post.your_field_name_post :&gt;</code>.
@@ -112,6 +116,10 @@ any custom fields, so that the data model knows to keep them when a post is save
         <select class="cooltext" name="param_required">
             <option value="0">Optional</option>
             <option value="1">Required</option>
+        </select>
+        <select class="cooltext" name="param_private">
+            <option value="0">Shown to everyone</option>
+            <option value="1">Shown to editors only</option>
         </select>
         <button type="button" class="coolbutton" onclick="delParam(this); return false;">Remove</button>
     </div>

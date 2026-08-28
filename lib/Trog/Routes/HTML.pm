@@ -1497,6 +1497,16 @@ sub posts ( $query, $direct = 0 ) {
 
 
     #XXX the only reason this is needed is due to direct=1
+    # Last thing before the data becomes a page: anything a type marks private
+    # goes no further for a reader who cannot edit.  Deliberately after the
+    # datasource has run -- a datasource may well need a private field, like
+    # the connection uri it takes to reach a hypervisor, to produce anything
+    # at all.
+    if ( !$is_admin ) {
+        my %seen;
+        _redact_private( $_, \%seen ) foreach ( @posts, $query->{primary_post} );
+    }
+
     #XXX is this even used?
     my $content = Trog::Renderer->render(
         template => 'posts.tx',
@@ -1551,6 +1561,35 @@ sub posts ( $query, $direct = 0 ) {
 sub _themed_title ($path) {
     return $path unless %Theme::paths;
     return $Theme::paths{$path} ? $Theme::paths{$path} : $path;
+}
+
+=head2 _redact_private($post, $seen)
+
+Drop the fields a post type marks private, for a reader who isn't an editor.
+
+Done to the data on its way to the template rather than with a guard inside the
+template: a type can be rendered by more than one template, templates get
+edited by people who did not write the type, and a value that was never handed
+over cannot be printed by mistake.  Recurses, because a post's relations are
+posts too and carry their own private fields.
+
+=cut
+
+sub _redact_private ( $post, $seen = {} ) {
+    return unless Ref::Util::is_hashref($post);
+
+    # Relations can point back at what pulled them in.
+    return if $seen->{$post}++;
+
+    if ( $post->{form} ) {
+        delete $post->{$_} foreach @{ Trog::DataModule::private_fields_for( $post->{form} ) };
+    }
+
+    foreach my $value ( values(%$post) ) {
+        if    ( Ref::Util::is_hashref($value) )  { _redact_private( $value, $seen ) }
+        elsif ( Ref::Util::is_arrayref($value) ) { _redact_private( $_,     $seen ) foreach @$value }
+    }
+    return;
 }
 
 =head2 _datasource_posts($query, $posts)
@@ -2302,8 +2341,9 @@ sub _wizard_fields ($query) {
     my $labels = Trog::Utils::coerce_array( $query->{param_label} );
     my $phs    = Trog::Utils::coerce_array( $query->{param_placeholder} );
     my $reqs   = Trog::Utils::coerce_array( $query->{param_required} );
-    my $rforms = Trog::Utils::coerce_array( $query->{param_relation_form} );
-    my $rmodes = Trog::Utils::coerce_array( $query->{param_relation_mode} );
+    my $rforms  = Trog::Utils::coerce_array( $query->{param_relation_form} );
+    my $rmodes  = Trog::Utils::coerce_array( $query->{param_relation_mode} );
+    my $private = Trog::Utils::coerce_array( $query->{param_private} );
 
     my ( @fields, %seen );
     foreach my $index ( 0 .. $#$names ) {
@@ -2336,6 +2376,7 @@ sub _wizard_fields ($query) {
                 required      => _wizard_scalar( $reqs->[$index] ) ? 1 : 0,
                 relation_form => $rform,
                 relation_mode => $rmode,
+                private       => _wizard_scalar( $private->[$index] ) ? 1 : 0,
             }
         );
     }
@@ -2372,6 +2413,10 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form ) {
         $property->{'x-tcms-input'} = $field->{type};
         $property->{'x-tcms-label'} = $field->{label};
         $property->{'x-tcms-placeholder'} = $field->{placeholder} if length $field->{placeholder};
+
+        # Only written when it is true: a field is public unless it says so,
+        # and a sidecar full of x-tcms-private:false reads like the opposite.
+        $property->{'x-tcms-private'} = JSON::MaybeXS::true() if $field->{private};
 
         if ( $field->{type} eq 'relation' ) {
             $property->{'x-tcms-relation-form'} = $field->{relation_form};

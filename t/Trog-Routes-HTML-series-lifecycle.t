@@ -447,6 +447,69 @@ subtest 'the post wizard invents a new post type' => sub {
     foreach my $gone (qw{inc_title_input inc_visibility inc_acls}) {
         unlike( $body, qr/name="\Q$gone\E"/, "the wizard no longer offers '$gone' as a choice" );
     }
+
+    like( $body, qr/name="param_private"/, 'and it offers per-field privacy' );
+};
+
+subtest 'a field can be declared editors-only' => sub {
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route             => '/admin/wyzzerdd/save',
+            method            => 'POST',
+            name              => 'spec_secretive',
+            body_form         => 'form_common.tx',
+            wrapper           => 1,
+            inc_post_title    => 1,
+            inc_tags          => 1,
+            param_name        => [ 'shown',            'hidden' ],
+            param_type        => [ 'text',             'text' ],
+            param_label       => [ 'Shown',            'Hidden' ],
+            param_placeholder => [ '',                 '' ],
+            param_required    => [ 0,                  0 ],
+            param_private     => [ 0,                  1 ],
+            param_relation_form => [ 'blog.tx',        'blog.tx' ],
+            param_relation_mode => [ 'one',            'one' ],
+
+            # Deliberately unguarded: declaring the field private is supposed
+            # to be enough, so an author does not have to remember.
+            display => q{<div class="s"><: $post.shown :></div><div class="h"><: $post.hidden :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'the type was created' ) or diag($err);
+
+    my $sidecar = JSON::MaybeXS::decode_json(
+        Path::Tiny->new('www/templates/html/components/forms/spec_secretive.json')->slurp_utf8 );
+    ok( $sidecar->{properties}{hidden}{'x-tcms-private'},   'the private field is marked so' );
+    ok( !exists $sidecar->{properties}{shown}{'x-tcms-private'}, 'and a public one carries no flag at all' );
+
+    _reindex();
+
+    _make_series( 'spec_secretive', 'specsecretive', 'spec_secretive.tx', 'Spec Secretive Series', no_topbar => 1 ) or return;
+    my $child = _save_post(
+        'spec_secretive child',
+        form       => 'spec_secretive.tx',
+        title      => 'Spec Secretive Child',
+        shown      => 'public value',
+        hidden     => 'private value',
+        visibility => 'public',
+        tags       => ['specsecretive'],
+        to         => '/specsecretive',
+    ) or return;
+
+    is( $child->{hidden}, 'private value', 'the value is stored like any other' );
+
+    # An editor sees both.
+    my ( $acode, $abody ) = _render( _admin( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
+    is( $acode, 200, 'the series renders for an admin' );
+    like( $abody, qr{<div class="h">private value</div>}, 'who sees the private field' );
+
+    # A logged out reader sees only the public one, without the template
+    # having guarded anything.
+    my ( $ncode, $nbody ) = _render( _anon( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
+    is( $ncode, 200, 'and for everyone else' );
+    like( $nbody, qr{<div class="s">public value</div>}, 'who still sees the public field' );
+    unlike( $nbody, qr/private value/, 'but not the private one' );
 };
 
 #--------------------------------------------------------------------------

@@ -4,7 +4,8 @@
          "type" : "string",
          "x-tcms-input" : "url",
          "x-tcms-label" : "Libvirt Connection URI",
-         "x-tcms-placeholder" : "libvirt://localhost"
+         "x-tcms-placeholder" : "libvirt://localhost",
+         "x-tcms-private" : true
       }
    },
    "required" : [

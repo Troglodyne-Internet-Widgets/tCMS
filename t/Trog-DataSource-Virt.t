@@ -5,6 +5,7 @@ use Test::More;
 use Test::MockModule qw{strict};
 use Test::Fatal qw{exception};
 use Path::Tiny();
+use JSON::MaybeXS();
 use FindBin;
 
 use lib "$FindBin::Bin/../lib";
@@ -289,18 +290,62 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
     }
 };
 
+subtest 'private fields are dropped before a non-editor sees them' => sub {
+    require Trog::Routes::HTML;
+    require Trog::DataModule;
+
+    my $dmmock = Test::MockModule->new('Trog::DataModule');
+    $dmmock->redefine( private_fields_for => sub { return $_[0] eq 'secretive.tx' ? ['hidden'] : [] } );
+
+    my $post = {
+        form   => 'secretive.tx',
+        title  => 'a post',
+        hidden => 'the secret',
+        shown  => 'not a secret',
+
+        # A relation is a post in its own right, with its own private fields.
+        related => { form => 'secretive.tx', title => 'related', hidden => 'another secret' },
+        many    => [ { form => 'secretive.tx', hidden => 'a third secret' } ],
+        other   => { form => 'ordinary.tx',   hidden => 'not declared private here' },
+    };
+
+    Trog::Routes::HTML::_redact_private($post);
+
+    ok( !exists $post->{hidden},              'the private field is gone' );
+    is( $post->{shown}, 'not a secret',       'and the public ones are not' );
+    is( $post->{title}, 'a post',             '...including the ones every post has' );
+    ok( !exists $post->{related}{hidden},     'a related post is redacted too' );
+    ok( !exists $post->{many}[0]{hidden},     'and so is one reached through a list' );
+    is( $post->{other}{hidden}, 'not declared private here', 'a type that declares nothing keeps everything' );
+};
+
+subtest 'a post that refers to itself does not hang the redactor' => sub {
+    require Trog::Routes::HTML;
+    require Trog::DataModule;
+
+    my $dmmock = Test::MockModule->new('Trog::DataModule');
+    $dmmock->redefine( private_fields_for => sub { return ['hidden'] } );
+
+    my $post = { form => 'loop.tx', hidden => 'secret' };
+    $post->{itself} = $post;
+
+    # A relation can point back at whatever pulled it in.
+    is( exception { Trog::Routes::HTML::_redact_private($post) }, undef, 'it terminates' );
+    ok( !exists $post->{hidden}, 'having done the job' );
+};
+
 subtest 'a hypervisor does not show its connection uri to everyone' => sub {
-    my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/hypervisor.tx")->slurp_utf8;
+    require Trog::DataModule;
 
     # The uri carries a host and a username, and these pages are public.  It is
-    # rendered in the display half, so it needs its own guard -- the edit half's
-    # is too late.
-    my ($display) = $form =~ m/:\s*if\s*\(\s*!\$post\.addpost\s*\)\s*\{(.*?):\s*\}/s;
-    ok( defined $display, 'the template has a display half' ) or return;
+    # declared private rather than guarded in the template, so the value is
+    # dropped before rendering and the template needs no guard of its own.
+    my $private = Trog::DataModule::private_fields_for('hypervisor.tx');
+    is_deeply( $private, ['conn_uri'], 'the connection uri is declared private' );
 
-    like( $display, qr/\$post\.conn_uri/, 'which mentions the connection uri' );
-    like( $display, qr/:\s*if\s*\(\s*\$can_edit\s*\).*\$post\.conn_uri/s,
-        'behind a $can_edit guard, so only an admin sees it' );
+    my $sidecar = JSON::MaybeXS::decode_json(
+        Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/hypervisor.json")->slurp_utf8 );
+    ok( $sidecar->{properties}{conn_uri}{'x-tcms-private'}, 'and says so in its sidecar' );
 };
 
 done_testing();
