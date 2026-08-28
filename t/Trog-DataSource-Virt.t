@@ -245,4 +245,42 @@ subtest 'the guest routes avoid the router\'s own query keys' => sub {
     like( $form, qr/name="guest"/, 'it posts the guest under a name that survives routing' );
 };
 
+subtest 'guest controls are admin only' => sub {
+    my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.tx")->slurp_utf8;
+
+    # Powering off, snapshotting and destroying a guest must never render for
+    # someone who cannot do them.  The route checks the acl too, but a button
+    # that does nothing is its own kind of bug, and these pages are meant to be
+    # safe to show to unauthenticated visitors.
+    foreach my $action (qw{poweron poweroff snapshot destroy}) {
+        my ($before) = $form =~ m/(.*)value="\Q$action\E"/s;
+        ok( defined $before, "the $action button is in the template" ) or next;
+
+        # Everything up to the button must have opened a $can_edit guard and
+        # not yet closed it.
+        my $opens  = () = $before =~ m/:\s*if\s*\(\s*\$can_edit\s*\)/g;
+        ok( $opens > 0, "the $action button sits behind a \$can_edit guard" );
+    }
+
+    # The tiled view is the one a logged out visitor gets, and it has no
+    # controls at all.
+    my ($tiled) = $form =~ m/:\s*if\s*\(\s*\$tiled\s*\)\s*\{(.*?):\s*\}\s*else/s;
+    ok( defined $tiled, 'the template has a tiled branch' );
+    unlike( $tiled, qr{/guest/act}, 'which offers no actions' ) if defined $tiled;
+};
+
+subtest 'a hypervisor does not show its connection uri to everyone' => sub {
+    my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/hypervisor.tx")->slurp_utf8;
+
+    # The uri carries a host and a username, and these pages are public.  It is
+    # rendered in the display half, so it needs its own guard -- the edit half's
+    # is too late.
+    my ($display) = $form =~ m/:\s*if\s*\(\s*!\$post\.addpost\s*\)\s*\{(.*?):\s*\}/s;
+    ok( defined $display, 'the template has a display half' ) or return;
+
+    like( $display, qr/\$post\.conn_uri/, 'which mentions the connection uri' );
+    like( $display, qr/:\s*if\s*\(\s*\$can_edit\s*\).*\$post\.conn_uri/s,
+        'behind a $can_edit guard, so only an admin sees it' );
+};
+
 done_testing();
