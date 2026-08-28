@@ -7,21 +7,29 @@
             </div>
         : } else {
             : if ( $tiled ) {
-                <a href="<: $post.preview :>" class="undecorated" title="<: $post.title :> (<: $post.state :>)">
-                    <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
-                    <p class="midtitle">
-                        <: $post.title :>
-                        <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
-                    </p>
-                </a>
+                <p class="midtitle">
+                    <: $post.title :>
+                    <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
+                </p>
+                : # A console capture is admin-only: the route that serves it
+                : # requires the admin acl, so anyone else gets a broken image.
+                : if ( $can_edit ) {
+                    <a href="<: $post.preview :>" class="undecorated" title="<: $post.title :> (<: $post.state :>)">
+                        <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
+                    </a>
+                : }
             : } else {
                 <h3 class='blogtitles'>
                     <: $post.title :>
                     <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
                 </h3>
                 <div class="postData responsive-text" id="postData-<: $post.id :>">
-                    <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
-                    <br />
+                    : if ( $can_edit ) {
+                        <a href="<: $post.preview :>" class="undecorated" title="console of <: $post.title :>">
+                            <img src="<: $post.preview :>" class="responsive-img guest-screenshot" alt="console of <: $post.title :>" loading="lazy" />
+                        </a>
+                        <br />
+                    : }
                     on <: $post.hypervisor_title :> &mdash; <: $post.vcpus :> vCPU
                     : if ( $can_edit ) {
                     <br />

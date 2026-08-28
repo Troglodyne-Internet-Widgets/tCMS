@@ -245,28 +245,48 @@ subtest 'the guest routes avoid the router\'s own query keys' => sub {
     like( $form, qr/name="guest"/, 'it posts the guest under a name that survives routing' );
 };
 
-subtest 'guest controls are admin only' => sub {
-    my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.tx")->slurp_utf8;
+subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
+    require Text::Xslate;
 
-    # Powering off, snapshotting and destroying a guest must never render for
-    # someone who cannot do them.  The route checks the acl too, but a button
-    # that does nothing is its own kind of bug, and these pages are meant to be
-    # safe to show to unauthenticated visitors.
-    foreach my $action (qw{poweron poweroff snapshot destroy}) {
-        my ($before) = $form =~ m/(.*)value="\Q$action\E"/s;
-        ok( defined $before, "the $action button is in the template" ) or next;
+    # Rendered rather than grepped: what matters is what a given viewer ends up
+    # looking at, and the template has enough branches that reading it is not
+    # the same as knowing.
+    my $tx = Text::Xslate->new(
+        path     => ["$FindBin::Bin/../www/templates/html/components"],
+        function => { render_it => sub { $_[0] } },
+    );
 
-        # Everything up to the button must have opened a $can_edit guard and
-        # not yet closed it.
-        my $opens  = () = $before =~ m/:\s*if\s*\(\s*\$can_edit\s*\)/g;
-        ok( $opens > 0, "the $action button sits behind a \$can_edit guard" );
+    my %post = (
+        id      => 'uuid-alpha', title  => 'alpha',  state   => 'running', is_active => 1,
+        preview => '/guest/screenshot/hv-1/alpha',   domain  => 'alpha',
+        hypervisor => 'hv-1', hypervisor_title => 'spec-hv', vcpus => 2,
+        addpost => 0, unreachable => 0,
+    );
+
+    my %views = (
+        'tiled, logged out'   => { tiled => 1, can_edit => 0 },
+        'untiled, logged out' => { tiled => 0, can_edit => 0 },
+        'untiled, admin'      => { tiled => 0, can_edit => 1 },
+    );
+
+    foreach my $view ( sort keys %views ) {
+        my $out = $tx->render( 'forms/guests.tx', { post => \%post, style => '', route => '/vm', %{ $views{$view} } } );
+        my $admin = $views{$view}{can_edit};
+
+        # The guest is always named -- that is the point of the page.
+        like( $out, qr/alpha/, "$view: the guest is listed" );
+
+        # The screenshot route requires the admin acl, so showing the img to
+        # anyone else is a broken image and nothing else.
+        is( scalar( () = $out =~ m/<img /g ), $admin ? 1 : 0, "$view: console capture shown only to an admin" );
+        is( scalar( () = $out =~ m{href="/guest/screenshot}g ), $admin ? 1 : 0, "$view: and so is the link to it" );
+
+        # Powering off, snapshotting and destroying likewise.
+        is( scalar( () = $out =~ m{action="/guest/act"}g ), $admin ? 1 : 0, "$view: controls shown only to an admin" );
+        foreach my $action (qw{poweroff snapshot destroy}) {
+            is( scalar( () = $out =~ m/value="\Q$action\E"/g ), $admin ? 1 : 0, "$view: no $action button" ) unless $admin;
+        }
     }
-
-    # The tiled view is the one a logged out visitor gets, and it has no
-    # controls at all.
-    my ($tiled) = $form =~ m/:\s*if\s*\(\s*\$tiled\s*\)\s*\{(.*?):\s*\}\s*else/s;
-    ok( defined $tiled, 'the template has a tiled branch' );
-    unlike( $tiled, qr{/guest/act}, 'which offers no actions' ) if defined $tiled;
 };
 
 subtest 'a hypervisor does not show its connection uri to everyone' => sub {
