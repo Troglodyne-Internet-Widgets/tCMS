@@ -40,7 +40,16 @@ is reached only from an explicit admin-gated POST.  Keep it that way.
 # captures, so they change slowly and are cheap to refetch.
 our $screenshot_ttl = 30;
 
-our $screenshot_dir = 'www/assets/guests';
+# Under www/assets like every other asset, in its own subtree because these are
+# not uploads somebody made -- they are cached datasource output, and anything
+# in here can be deleted at any time and will simply be refetched.
+#
+# Under private/ specifically because a console capture can show a login
+# prompt, a hostname, whatever the last command printed.  That is the same
+# reasoning _handle_upload uses to put a private post's assets there, and the
+# screenshot route serves these to admins itself rather than relying on
+# anything about how www/assets is exposed.
+our $screenshot_dir = 'www/assets/private/datasource/virt';
 
 # Reconnecting per guest would be absurd -- one ssh handshake per hypervisor
 # per process is enough.  Not a state var: a connection that has gone away
@@ -173,7 +182,7 @@ sub _unreachable_post ( $hypervisor, $series, $form, $why ) {
     };
 }
 
-=head2 screenshot($conn_uri, $domain_name) = ($path, $error)
+=head2 screenshot($hypervisor, $guest_name) = ($path, $error)
 
 Path to a reasonably fresh PNG of the guest's console.
 
@@ -181,13 +190,24 @@ Cached on disk, because a page of guests means one of these per guest and they
 are only interesting to about the nearest half minute.  libvirt hands back the
 mimetype; qemu gives us PNG already, so there is nothing to convert.
 
+Keyed by hypervisor as well as by guest -- guest names are only unique within
+one hypervisor, and two of them called 'staging' would otherwise show each
+other's console.
+
 =cut
 
-sub screenshot ( $conn_uri, $domain_name ) {
-    my ($safe) = $domain_name =~ m/^([A-Za-z0-9._-]+)$/;
-    return ( undef, 'bad domain name' ) unless $safe;
+sub screenshot ( $hypervisor, $guest_name ) {
+    my ($safe) = ( $guest_name // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    return ( undef, 'bad guest name' ) unless $safe;
 
-    my $path = "$screenshot_dir/$safe.png";
+    my ($host) = ( $hypervisor->{id} // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    return ( undef, 'bad hypervisor id' ) unless $host;
+
+    my $conn_uri = $hypervisor->{conn_uri};
+    return ( undef, 'hypervisor has no connection uri' ) unless $conn_uri;
+
+    my $dir  = "$screenshot_dir/$host";
+    my $path = "$dir/$safe.png";
     return ( $path, undef ) if -f $path && ( time() - ( stat($path) )[9] ) < $screenshot_ttl;
 
     my ( $conn, $why ) = _connect($conn_uri);
@@ -212,7 +232,7 @@ sub screenshot ( $conn_uri, $domain_name ) {
         return ( undef, $err );
     }
 
-    File::Path::make_path($screenshot_dir);
+    File::Path::make_path($dir);
     open( my $fh, '>', $path ) or return ( undef, "could not cache the screenshot: $!" );
     binmode $fh;
     print {$fh} $data;

@@ -18,7 +18,7 @@
                 <br />
                 <form class="Submissions guest-actions" action="/guest/act" method="POST">
                     <input type="hidden" name="hypervisor" value="<: $post.hypervisor :>" />
-                    <input type="hidden" name="domain" value="<: $post.domain :>" />
+                    <input type="hidden" name="guest" value="<: $post.domain :>" />
                     <input type="hidden" name="to" value="<: $route :>" />
                     : if ( $post.is_active ) {
                     <button class="coolbutton" type="submit" name="action" value="poweroff">Power Off</button>

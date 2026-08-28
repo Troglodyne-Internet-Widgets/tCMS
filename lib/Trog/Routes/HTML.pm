@@ -168,7 +168,11 @@ our %routes = (
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::guest_screenshot,
-        captures => [qw{hypervisor domain}],
+
+        # 'guest', not 'domain': the router sets $query->{domain} to the
+        # request's own host *after* it applies captures, so a capture by that
+        # name never survives to the callback.
+        captures => [qw{hypervisor guest}],
         noindex  => 1,
         nocache  => 1,
     },
@@ -2044,9 +2048,9 @@ sub guest_screenshot ($query) {
     return $query->{tpsgi}->notfound($query) unless $hypervisor;
 
     require Trog::DataSource::Virt;
-    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hypervisor->{conn_uri}, $query->{domain} );
+    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hypervisor, $query->{guest} );
     if ( !$path ) {
-        WARN("Could not screenshot '$query->{domain}': $why");
+        WARN("Could not screenshot '$query->{guest}': $why");
         return $query->{tpsgi}->notfound($query);
     }
 
@@ -2076,11 +2080,13 @@ sub guest_act ($query) {
     return _feedback_redirect( $query, $to, 1, 'No such hypervisor.' ) unless $hypervisor;
 
     require Trog::DataSource::Virt;
+    # Same reason the screenshot route captures 'guest': a form field called
+    # 'domain' would be overwritten by the router with the request's host.
     my ( $ok, $message ) = Trog::DataSource::Virt::act(
-        $query->{action}, $hypervisor->{conn_uri}, $query->{domain}, $query->{user},
+        $query->{action}, $hypervisor->{conn_uri}, $query->{guest}, $query->{user},
     );
 
-    return _feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{domain}: $message" );
+    return _feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{guest}: $message" );
 }
 
 # The hypervisor post a guest route was asked about.  Looked up rather than

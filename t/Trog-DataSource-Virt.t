@@ -34,11 +34,22 @@ our @CALLS;
     sub shutdown      { push @main::CALLS, [ 'shutdown',      $_[0]{name} ]; 1 }
     sub destroy       { push @main::CALLS, [ 'destroy',       $_[0]{name} ]; 1 }
     sub create_snapshot { push @main::CALLS, [ 'create_snapshot', $_[0]{name} ]; 1 }
+
+    # Reading a console is not a mutation, so this one really runs.
+    sub screenshot { return 'image/png' }
+}
+
+{
+    package FakeStream;
+    sub new { bless {}, shift }
+    sub recv_all { my ( $self, $cb ) = @_; $cb->( $self, 'fake-png-bytes' ); return 1 }
+    sub finish   { 1 }
 }
 
 {
     package FakeConn;
     sub new { bless {}, shift }
+    sub new_stream { FakeStream->new() }
     sub list_all_domains {
         return (
             FakeDomain->new( name => 'alpha', uuid => 'uuid-alpha', active => 1, state => 1 ),
@@ -138,13 +149,39 @@ subtest 'act() refuses what it should' => sub {
     is_deeply( \@CALLS, [], 'having done nothing' );
 };
 
-subtest 'screenshot() validates the guest name before anything else' => sub {
-    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( 'test:///default', '../../../etc/passwd' );
-    is( $path, undef, 'a path-shaped guest name gets no screenshot' );
-    like( $why, qr/bad domain name/, 'and is named as the reason' );
+subtest 'screenshot() validates its inputs before anything else' => sub {
+    my $hv = { id => 'hv-1', conn_uri => 'test:///default' };
 
-    ( $path, $why ) = Trog::DataSource::Virt::screenshot( 'test:///default', 'alpha/../../beta' );
+    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hv, '../../../etc/passwd' );
+    is( $path, undef, 'a path-shaped guest name gets no screenshot' );
+    like( $why, qr/bad guest name/, 'and is named as the reason' );
+
+    ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hv, 'alpha/../../beta' );
     is( $path, undef, 'nor does one with traversal in the middle' );
+
+    # The cache path is built from the hypervisor id too, so it has to be
+    # checked as well -- otherwise it is a directory traversal of its own.
+    ( $path, $why ) = Trog::DataSource::Virt::screenshot( { id => '../../..', conn_uri => 'test:///default' }, 'alpha' );
+    is( $path, undef, 'nor does a path-shaped hypervisor id' );
+    like( $why, qr/bad hypervisor id/, 'which is reported separately' );
+};
+
+subtest 'the guest cache is scoped per hypervisor' => sub {
+
+    # Two hypervisors, each with a guest called 'alpha' -- which is the normal
+    # state of affairs, not a corner case.
+    my $root = Path::Tiny->tempdir();
+    local $Trog::DataSource::Virt::screenshot_dir = "$root";
+
+    my @paths;
+    foreach my $id (qw{hv-1 hv-2}) {
+        my ( $path, $why ) = Trog::DataSource::Virt::screenshot( { id => $id, conn_uri => 'test:///default' }, 'alpha' );
+        ok( $path, "screenshot taken for $id" ) or diag($why);
+        push( @paths, $path );
+    }
+
+    isnt( $paths[0], $paths[1], "two hypervisors' guests do not share a cache entry" );
+    like( $paths[0], qr{/hv-1/alpha\.png$}, 'the path names the hypervisor and the guest' );
 };
 
 subtest 'the datasource hook only loads what it should' => sub {
@@ -182,6 +219,30 @@ subtest 'the datasource hook only loads what it should' => sub {
     my @got = Trog::Routes::HTML::_datasource_posts( $query, \@stored );
     is( scalar @got,   2,       'a declared datasource replaces the stored posts' );
     is( $got[0]{title}, 'alpha', 'with what it built' );
+};
+
+subtest 'the guest routes avoid the router\'s own query keys' => sub {
+    require Trog::Routes::HTML;
+
+    # TPSGI applies a route's captures in extract_query, and *then* overwrites
+    # $query->{domain} with the request's own host.  A capture or form field by
+    # that name therefore never reaches the callback -- which silently aimed
+    # the screenshot and action routes at a guest named after the web host.
+    my @reserved = qw{domain route method scheme port user acls to};
+
+    my $captures = $Trog::Routes::HTML::routes{'/guest/screenshot/(.*)/(.*)'}{captures};
+    foreach my $capture (@$captures) {
+        ok( !( grep { $_ eq $capture } @reserved ), "the screenshot route's '$capture' capture is not a router key" );
+    }
+
+    # The action form posts the same field names the handler reads, so check
+    # the template rather than trusting that they still agree.
+    my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.tx")->slurp_utf8;
+    foreach my $reserved (@reserved) {
+        unlike( $form, qr/name="\Q$reserved\E"/, "the guest action form does not post a field called '$reserved'" )
+          unless $reserved eq 'to';    # 'to' is the redirect target, and is meant to be the router's
+    }
+    like( $form, qr/name="guest"/, 'it posts the guest under a name that survives routing' );
 };
 
 done_testing();
