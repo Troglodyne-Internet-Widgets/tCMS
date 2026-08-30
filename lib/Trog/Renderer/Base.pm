@@ -6,7 +6,7 @@ use warnings;
 no warnings 'experimental';
 use feature qw{signatures state};
 
-use Encode qw{encode_utf8};
+use Encode qw{encode encode_utf8};
 use IO::Compress::Gzip;
 
 use Text::Xslate;
@@ -65,7 +65,7 @@ sub render (%options) {
     my $dfh;
     IO::Compress::Gzip::gzip( \$body => \$dfh );
     print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
-    $headers{"Content-Length"} = length($dfh);
+    $headers{"Content-Length"} = length(encode('UTF-8', $dfh));
 
     return [ $code, [%headers], [$dfh] ];
 }
@@ -76,7 +76,7 @@ sub headers ( $options, $body ) {
     my $ct      = $options->{contenttype} eq 'text/html' ? "text/html; charset=UTF-8" : "$options->{contenttype};";
     my %headers = (
         'Content-Type'           => $ct,
-        'Content-Length'         => length($body),
+        'Content-Length'         => length(encode('UTF-8', $body)),
         'Cache-Control'          => $query->{cachecontrol} // $Trog::Vars::cache_control{revalidate},
         'X-Content-Type-Options' => 'nosniff',
         'Vary'                   => 'Accept-Encoding',
