@@ -15,6 +15,7 @@ use Capture::Tiny qw{capture_merged};
 
 use lib 'lib';
 use Trog::SQLite::TagIndex;
+use Trog::Utils;
 
 use parent qw{Trog::DataModule};
 
@@ -125,9 +126,7 @@ sub write ( $self, $data ) {
         }
 
         mkdir $datastore;
-        open( my $fh, '>', $file ) or confess "Could not open $file";
-        print $fh $parser->encode($update);
-        close $fh;
+        Trog::Utils::write_file_atomic( $file, $parser->encode($update) );
 
         Trog::SQLite::TagIndex::add_post( $post, $self );
     }

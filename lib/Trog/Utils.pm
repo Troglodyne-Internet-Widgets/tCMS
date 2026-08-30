@@ -7,6 +7,7 @@ no warnings 'experimental';
 use feature qw{signatures state};
 
 use UUID;
+use File::Slurper::Temp qw{write_binary};
 use HTTP::Tiny::UNIX();
 use Plack::MIME;
 use Mojo::File;
@@ -37,6 +38,20 @@ sub uuid {
 my %extra_types = (
     '.docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 );
+
+=head2 write_file_atomic($path, $content)
+
+Write $content to $path atomically. Delegates to
+C<File::Slurper::Temp::write_binary>, which is better tested and handles
+the temp-file + rename pattern correctly.
+Returns 1 on success, dies on failure.
+
+=cut
+
+sub write_file_atomic ( $path, $content ) {
+    write_binary( $path, $content );
+    return 1;
+}
 
 sub mime_type ($file) {
 

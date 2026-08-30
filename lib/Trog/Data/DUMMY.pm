@@ -13,6 +13,8 @@ use List::Util qw{uniq};
 use Path::Tiny();
 use parent qw{Trog::DataModule};
 
+use Trog::Utils;
+
 =head1 WARNING
 
 Do not use this as a production data model.  It is *not* safe to race conditions, and is only here for testing.
@@ -27,9 +29,7 @@ our $posts;
 
 sub read ( $self, $query = {} ) {
     if ( !-f $datastore ) {
-        open( my $fh, '>', $datastore );
-        print $fh '[]';
-        close $fh;
+        Trog::Utils::write_file_atomic( $datastore, '[]' );
     }
     my $slurped = File::Slurper::read_text($datastore);
     $posts = JSON::MaybeXS::decode_json($slurped);
@@ -54,9 +54,7 @@ sub write ( $self, $data, $overwrite = 0 ) {
         $orig = $self->read();
         push( @$orig, @$data );
     }
-    open( my $fh, '>', $datastore ) or confess;
-    print $fh JSON::MaybeXS::encode_json($orig);
-    close $fh;
+    Trog::Utils::write_file_atomic( $datastore, JSON::MaybeXS::encode_json($orig) );
 }
 
 sub delete ( $self, @posts ) {
