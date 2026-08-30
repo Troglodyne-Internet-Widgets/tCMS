@@ -1,0 +1,60 @@
+
+/* SQLite-native data module schema.
+ *
+ * Posts are stored as JSON blobs with STORED generated columns for indexing.
+ * Generated columns require SQLite >= 3.31 (released 2020-01-22).
+ *
+ * This schema supports Trog::Data::SQLite — a full-SQLite replacement for
+ * the flat-file + TagIndex hybrid. All post data, tags, routes, and aliases
+ * live in a single database file (data/tcms_posts.db).
+ */
+
+/* Canonical registry of known post UUIDs.
+ * Acts as FK parent for post_tags and routes (which are version-independent). */
+CREATE TABLE IF NOT EXISTS post_uuids (
+    uuid TEXT PRIMARY KEY
+);
+
+/* All post versions stored as JSON blobs.
+ * STORED generated columns let SQLite index key fields without duplication. */
+CREATE TABLE IF NOT EXISTS posts (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid    TEXT    GENERATED ALWAYS AS (json_extract(data, '$.id'))      STORED,
+    version INTEGER GENERATED ALWAYS AS (json_extract(data, '$.version')) STORED,
+    created INTEGER GENERATED ALWAYS AS (json_extract(data, '$.created')) STORED,
+    data    TEXT    NOT NULL,
+    UNIQUE (uuid, version)
+);
+
+CREATE INDEX IF NOT EXISTS posts_uuid_ver ON posts (uuid, version DESC);
+CREATE INDEX IF NOT EXISTS posts_created  ON posts (created DESC);
+
+/* Tag index — per UUID (not per version) so tag-based filtering survives edits. */
+CREATE TABLE IF NOT EXISTS post_tags (
+    uuid TEXT NOT NULL REFERENCES post_uuids (uuid) ON DELETE CASCADE,
+    tag  TEXT NOT NULL,
+    UNIQUE (uuid, tag)
+);
+
+CREATE INDEX IF NOT EXISTS post_tags_tag ON post_tags (tag);
+
+/* Route registry: canonical URL per UUID. */
+CREATE TABLE IF NOT EXISTS routes (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid     TEXT NOT NULL UNIQUE REFERENCES post_uuids (uuid) ON DELETE CASCADE,
+    route    TEXT NOT NULL UNIQUE,
+    method   TEXT NOT NULL DEFAULT 'GET',
+    callback TEXT NOT NULL
+);
+
+/* Per-route aliases (e.g. /posts/<id>, /series/<id>, custom slugs). */
+CREATE TABLE IF NOT EXISTS post_aliases (
+    route TEXT NOT NULL REFERENCES routes (route) ON DELETE CASCADE,
+    alias TEXT NOT NULL UNIQUE
+);
+
+/* Convenience view mirroring TagIndex::aliases() API. */
+CREATE VIEW IF NOT EXISTS aliases AS
+    SELECT r.route AS actual, a.alias AS alias
+    FROM routes r
+    JOIN post_aliases a ON a.route = r.route;

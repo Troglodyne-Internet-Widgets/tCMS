@@ -1,0 +1,114 @@
+#!/usr/bin/perl
+
+=head1 flatfile2sqlite
+
+Migrates all posts from the C<FlatFile> data model (C<data/files/>) to the
+new C<SQLite> data model (C<data/tcms_posts.db>).
+
+Run from the tCMS root directory:
+
+    perl bin/flatfile2sqlite [--dry-run]
+
+Options:
+
+    --dry-run   Print what would be migrated without writing to SQLite.
+
+After migration, update C<config/main.cfg> (or C<config/default.cfg>) to set
+C<data_model=SQLite>, then restart tCMS.
+
+=cut
+
+use strict;
+use warnings;
+no warnings 'experimental';
+use feature qw{signatures};
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Getopt::Long qw{GetOptions};
+use Config::Simple;
+use List::Util qw{any};
+
+# Load FlatFile source and SQLite destination directly
+use Trog::Data::FlatFile;
+use Trog::Data::SQLite;
+
+my $dry_run = 0;
+GetOptions( 'dry-run' => \$dry_run );
+
+# Both modules need a Config::Simple-ish object for new().
+# We create a minimal stub rather than loading the real config, so the
+# script works even if config/main.cfg isn't present.
+{
+    package FakeCfg;
+    sub new   { bless {}, shift }
+    sub vars  { return {} }
+    sub param { return undef }
+}
+
+my $fake_cfg = FakeCfg->new();
+
+my $src = Trog::Data::FlatFile->new($fake_cfg);
+my $dst = Trog::Data::SQLite->new($fake_cfg);
+
+# Read ALL post versions from FlatFile (raw=1 skips dedup/filter).
+print "Reading all posts from FlatFile (data/files/)...\n";
+my $posts = $src->read( { limit => 0, raw => 1 } );
+
+unless ( $posts && @$posts ) {
+    print "No posts found in FlatFile store.  Nothing to migrate.\n";
+    exit 0;
+}
+
+print "Found " . scalar(@$posts) . " post version(s) across all UUIDs.\n";
+
+# Ensure local_href and callback are present — FlatFile stores them in the
+# JSON after add(), but very old posts may predate that convention.
+my %seen_uuid;
+my @to_write;
+for my $post (@$posts) {
+    next unless $post->{id};
+
+    # Track UUIDs for reporting
+    $seen_uuid{ $post->{id} } = 1;
+
+    $post->{local_href} //= do {
+        my $is_user = any { $_ eq 'about' } @{ $post->{tags} // [] };
+        $is_user ? "/users/$post->{display_name}" : "/posts/$post->{id}";
+    };
+
+    $post->{callback} //= do {
+        my $is_user = any { $_ eq 'about' } @{ $post->{tags} // [] };
+        $is_user ? 'Trog::Routes::HTML::users' : 'Trog::Routes::HTML::posts';
+    };
+
+    $post->{method}  //= 'GET';
+    $post->{aliases} //= [];
+    $post->{version} //= 0;
+    $post->{tags}    //= [];
+
+    push @to_write, $post;
+}
+
+my $n_posts   = scalar @to_write;
+my $n_uuids   = scalar keys %seen_uuid;
+printf "Migrating %d version(s) across %d unique post(s)...\n", $n_posts, $n_uuids;
+
+if ($dry_run) {
+    print "[dry-run] Would write $n_posts version(s) to data/tcms_posts.db\n";
+    for my $post (@to_write) {
+        printf "  [dry-run] uuid=%-38s  version=%-3d  title=%s\n",
+            $post->{id}, $post->{version}, $post->{title} // '(no title)';
+    }
+    exit 0;
+}
+
+$dst->write( \@to_write );
+
+# Verify
+my $migrated = $dst->count();
+printf "Migration complete.  %d post UUID(s) now in SQLite store.\n", $migrated;
+printf "To activate, set data_model=SQLite in config/main.cfg\n";
+
+exit 0;
