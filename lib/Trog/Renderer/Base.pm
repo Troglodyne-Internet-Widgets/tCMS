@@ -98,6 +98,8 @@ sub headers ( $options, $body ) {
     my $sites = $conf->param('security.allow_embeds_from') // '';
     $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' data: 'unsafe-eval' 'unsafe-inline' $sites";
     $headers{'Content-Security-Policy'} .= ";object-src 'none'";
+    $headers{'Content-Security-Policy'} .= ";form-action 'self'";
+    $headers{'Content-Security-Policy'} .= ";report-uri /csp-report";
 
     # Force https if we are https
     $headers{'Strict-Transport-Security'} = 'max-age=63072000' if ( $query->{scheme} // '' ) eq 'https';
