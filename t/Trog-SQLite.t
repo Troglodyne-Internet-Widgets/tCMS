@@ -16,6 +16,7 @@ subtest 'dbh' => sub {
     $readmock->redefine('read_text', sub { "SELECT me FROM candidates" });
     my $dbimock = Test::MockModule->new("DBI");
     $dbimock->redefine('connect', sub { bless({},'TrogDBD') });
+
     my $works = 0;
     no warnings qw{redefine once};
     local *TrogDBD::do = sub { $works };
@@ -26,6 +27,7 @@ subtest 'dbh' => sub {
 
     # Otherwise it works
     isa_ok(Trog::SQLite::dbh('bogus','bogus'),'TrogDBD');
+    unlink 'bogus';
 };
 
 subtest bulk_insert => sub {
