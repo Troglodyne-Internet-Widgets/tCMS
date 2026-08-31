@@ -42,10 +42,6 @@ reset-remove:
 	rm config/has_users; /bin/true
 	rm config/setup; /bin/true
 
-.PHONY: critic
-critic:
-	PERL5LIB=policy perlcritic bin lib
-
 .PHONY: githook
 githook:
 	cp git-hooks/pre-commit .git/hooks
