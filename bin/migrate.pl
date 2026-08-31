@@ -1,9 +1,9 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 #Migrate tCMS1 data to tCMS2 flat file data model
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use JSON::MaybeXS;
 use File::Slurper();

@@ -1,7 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 # Migrate early on tcms3 flatfile sites to store rather than compute much data (dec 2021) code
 
@@ -55,7 +55,7 @@ sub uuid { return UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::
 
 # Modify these variables to suit your installation.
 my $user         = 'george';
-my @extra_series = ();
+my @extra_series;
 
 my $conf        = Trog::Config::get();
 my $search_info = Trog::Data->new($conf);

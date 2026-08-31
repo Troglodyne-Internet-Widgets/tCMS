@@ -1,7 +1,7 @@
 package Trog::DataModule;
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use FindBin::libs;
 
@@ -20,8 +20,6 @@ use Trog::Log qw{:all};
 use Trog::Utils;
 use Trog::Auth();
 
-no warnings 'experimental';
-use feature qw{signatures state};
 
 =head1 QUERY FORMAT
 

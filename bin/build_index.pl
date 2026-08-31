@@ -1,7 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use lib 'lib';
 use Trog::Data;

@@ -1,10 +1,7 @@
 package Trog::Utils;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures state};
+use v5.36;
+use re '/aa';
 
 use UUID;
 use HTTP::Tiny::UNIX();

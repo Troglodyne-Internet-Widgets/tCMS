@@ -1,10 +1,7 @@
 package Trog::DataSource::Virt;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures state};
+use v5.36;
+use re '/aa';
 
 use File::Path();
 use Sys::Hostname::FQDN();

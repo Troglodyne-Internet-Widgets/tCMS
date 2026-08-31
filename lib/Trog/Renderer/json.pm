@@ -1,10 +1,7 @@
 package Trog::Renderer::json;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures state};
+use v5.36;
+use re '/aa';
 
 use JSON::MaybeXS;
 

@@ -1,10 +1,7 @@
 package TCMS;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures state};
+use v5.36;
+use re '/aa';
 
 use Carp qw{confess};
 use Clone        qw{clone};

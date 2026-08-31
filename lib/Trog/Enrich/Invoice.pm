@@ -1,10 +1,7 @@
 package Trog::Enrich::Invoice;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures};
+use v5.36;
+use re '/aa';
 
 use List::Util();
 

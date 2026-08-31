@@ -1,8 +1,7 @@
 package Trog::Config;
 
-use strict;
-use warnings;
-use feature qw{state};
+use v5.36;
+use re '/aa';
 
 use FindBin::libs;
 

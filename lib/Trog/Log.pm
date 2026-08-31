@@ -1,7 +1,7 @@
 package Trog::Log;
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use POSIX qw{strftime};
 use Log::Dispatch;

@@ -1,10 +1,7 @@
 package Trog::Vars;
 
-use strict;
-use warnings;
-
-use feature qw{signatures};
-no warnings qw{experimental};
+use v5.36;
+use re '/aa';
 
 =head1 Trog::Vars
 

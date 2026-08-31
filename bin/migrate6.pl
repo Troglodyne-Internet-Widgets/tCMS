@@ -2,8 +2,8 @@
 
 # Display names
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use FindBin;
 
@@ -55,6 +55,7 @@ $dbh->do("ALTER TABLE user ADD COLUMN display_name TEXT DEFAULT NULL;");
 use Trog::Auth;
 use JSON::MaybeXS;
 use File::Slurper;
+use File::Slurper::Temp;
 use URI::Escape;
 use Data::Dumper;
 
@@ -82,7 +83,10 @@ while ( my $entry = readdir $dh ) {
 
     print "Writing changes to $fname\n";
     my $encoded = JSON::MaybeXS::encode_json($decoded);
-    File::Slurper::write_binary( $fname, $encoded );
+    # Temp:: rather than plain File::Slurper -- it writes to a tempfile and
+    # renames over the target, so a crash partway can't leave a half written
+    # post behind.
+    File::Slurper::Temp::write_binary( $fname, $encoded );
 
     # Next, waste and rebuild the posts index for these user posts
     $global_changes = 1;

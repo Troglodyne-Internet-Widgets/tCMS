@@ -5,6 +5,10 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
   VERSION   => '0.01',
+
+  # Every module and script declares 'use v5.36' -- signatures without the
+  # experimental warning is what we build on.
+  MIN_PERL_VERSION => '5.036000',
   META_MERGE        => {
     "meta-spec" => { version => 2 },
     resources => {
@@ -30,6 +34,7 @@ WriteMakefile(
     'File::Basename'         => '0',
     'File::Copy'             => '0',
     'File::Slurper'          => '0',
+    'File::Slurper::Temp'    => '0',
     'File::Touch'            => '0',
     'File::Path'             => '0',
     'HTML::SocialMeta'       => '0',

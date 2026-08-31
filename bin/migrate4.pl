@@ -2,8 +2,8 @@
 
 # Migrate to 2FA
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use FindBin;
 

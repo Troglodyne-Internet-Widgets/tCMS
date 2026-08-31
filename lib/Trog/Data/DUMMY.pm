@@ -1,10 +1,7 @@
 package Trog::Data::DUMMY;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures};
+use v5.36;
+use re '/aa';
 
 use Carp qw{confess};
 use JSON::MaybeXS;

@@ -1,7 +1,7 @@
 package Trog::Log::DBI;
 
-use strict;
-use warnings;
+use v5.36;
+use re '/aa';
 
 use parent qw{Log::Dispatch::DBI};
 

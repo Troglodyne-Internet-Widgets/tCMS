@@ -1,10 +1,7 @@
 package Trog::Email;
 
-use strict;
-use warnings;
-
-no warnings qw{experimental};
-use feature qw{signatures};
+use v5.36;
+use re '/aa';
 
 use Email::MIME;
 use Email::Sender::Simple;

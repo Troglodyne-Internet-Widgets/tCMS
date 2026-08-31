@@ -1,10 +1,7 @@
 package Theme;
 
-use strict;
-use warnings;
-
-no warnings 'experimental';
-use feature qw{signatures};
+use v5.36;
+use re '/aa';
 
 =head1 Theme
 
