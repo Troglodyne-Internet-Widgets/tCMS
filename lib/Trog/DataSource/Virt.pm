@@ -7,7 +7,10 @@ no warnings 'experimental';
 use feature qw{signatures state};
 
 use File::Path();
+use Sys::Hostname::FQDN();
 use Sys::Virt();
+
+use Trog::Config();
 
 use Trog::Log qw{WARN INFO};
 
@@ -91,6 +94,46 @@ sub _state_name ($state) {
     return $states[$state] // 'unknown';
 }
 
+# What this machine calls itself.  Not a state var so that a test can pretend
+# to be a different host without having to lie to Sys::Hostname.
+our $hostname;
+
+sub _hostname {
+    return $hostname if defined $hostname;
+
+    local $@;
+
+    # Sys::Hostname croaks rather than returning undef when it cannot tell, and
+    # the configured hostname is the next best thing we know about ourselves.
+    $hostname = eval { Sys::Hostname::FQDN::fqdn() }
+      || eval { Trog::Config->get()->param('general.hostname') }
+      || '';
+
+    return $hostname;
+}
+
+=head2 _is_self($name)
+
+Whether a guest by this name is the machine we are running on.
+
+Such a guest is acting as dom0: it is serving the page the guest list appears
+on, so powering it off or destroying it takes the site down along with whatever
+asked for that.
+
+Returns true if the guest name is the same as the fqdn of this machine.
+Returns false otherwise.
+
+=cut
+
+sub _is_self ($name) {
+    my $me = lc( _hostname() );
+    $name = lc( $name // '' );
+    print("Name comp: $me $name\n");
+
+    return 1 if $name eq $me;
+    return 0;
+}
+
 =head2 posts($series, $query) = @posts
 
 One post per guest, across every hypervisor the series' relations pulled in.
@@ -149,6 +192,7 @@ sub _post_for ( $domain, $hypervisor, $series, $form ) {
         domain           => $name,
         state            => _state_name( $info->{state} ),
         is_active        => $domain->is_active() ? 1 : 0,
+        is_self          => _is_self($name),
         memory           => $info->{memory},
         vcpus            => $info->{nrVirtCpu},
         hypervisor       => $hypervisor->{id},
@@ -265,6 +309,15 @@ logged with the user who asked for it.
 sub act ( $action, $conn_uri, $domain_name, $user ) {
     my ($safe) = $domain_name =~ m/^([A-Za-z0-9._-]+)$/;
     return ( 0, 'bad guest name' ) unless $safe;
+
+    # The template draws neither of these buttons for this guest; this is what
+    # actually stops it happening.  /guest/act is a POST anybody holding the
+    # admin acl can craft by hand, and if it went through there would be
+    # nothing left running to report the mistake.
+    if ( _is_self($safe) && ( $action // '' ) =~ m/^(?:poweroff|destroy)$/ ) {
+        WARN("Refused guest action '$action' on '$safe': that is this server");
+        return ( 0, "'$safe' is this server -- refusing to $action it" );
+    }
 
     my ( $conn, $why ) = _connect($conn_uri);
     return ( 0, "could not reach the hypervisor: $why" ) unless $conn;

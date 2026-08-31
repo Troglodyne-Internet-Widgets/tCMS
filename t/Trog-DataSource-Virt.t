@@ -68,6 +68,11 @@ $virtmock->redefine(
     }
 );
 
+# Every subtest below that does not say otherwise runs as a machine which is
+# not one of the fake guests -- otherwise the suite's answers would depend on
+# what the box running it happens to be called.
+$Trog::DataSource::Virt::hostname = 'spec-host-that-is-no-guest';
+
 my $series = {
     child_form  => 'guests.tx',
     tags        => ['guests'],
@@ -96,6 +101,40 @@ subtest 'guests become posts' => sub {
 
     is_deeply( $posts[0]{tags}, ['guests'], "children inherit the series' tags" );
     is( $posts[0]{visibility}, 'private', 'and its visibility' );
+};
+
+subtest 'the guest this server runs on is marked as such' => sub {
+    local $Trog::DataSource::Virt::hostname = 'alpha';
+
+    my @posts = Trog::DataSource::Virt::posts( $series, { user_acls => ['admin'] } );
+    is( $posts[0]{is_self}, 1, 'the guest named after this machine is flagged' );
+    is( $posts[1]{is_self}, 0, 'and the one that merely lives beside it is not' );
+};
+
+subtest 'a guest is this server when it is named like it' => sub {
+    my @same = (
+        [ 'foo',                'foo'                => 'the same name' ],
+        [ 'foo',                'FOO'                => 'the same name in another case' ],
+        [ 'foo.troglodyne.net', 'foo.troglodyne.net' => 'both fully qualified' ],
+    );
+    foreach my $case (@same) {
+        my ( $guest, $host, $why ) = @$case;
+        local $Trog::DataSource::Virt::hostname = $host;
+        ok( Trog::DataSource::Virt::_is_self($guest), "$why is this server" );
+    }
+
+    my @different = (
+        [ 'beta',               'foo'                => 'a different name' ],
+        [ 'fooling',            'foo'                => 'a name this one is only a prefix of' ],
+        [ 'foo.test.test',      'foo.troglodyne.net' => 'the same label in someone else\'s domain' ],
+        [ '',                   'foo'                => 'a guest with no name at all' ],
+        [ 'foo',                ''                   => 'any guest, when we cannot tell what we are called' ],
+    );
+    foreach my $case (@different) {
+        my ( $guest, $host, $why ) = @$case;
+        local $Trog::DataSource::Virt::hostname = $host;
+        ok( !Trog::DataSource::Virt::_is_self($guest), "$why is not" );
+    }
 };
 
 subtest 'an unreachable hypervisor says so rather than vanishing' => sub {
@@ -148,6 +187,37 @@ subtest 'act() refuses what it should' => sub {
     ok( !$ok, 'an unreachable hypervisor is refused' );
     like( $message, qr/could not reach/, 'and reported' );
     is_deeply( \@CALLS, [], 'having done nothing' );
+};
+
+subtest 'act() will not take the server down with it' => sub {
+
+    # Hiding the buttons is not the guard: /guest/act is a POST anybody with
+    # the admin acl can craft, and if this went through there would be nothing
+    # left running to say what happened.
+    local $Trog::DataSource::Virt::hostname = 'alpha';
+
+    foreach my $action (qw{poweroff destroy}) {
+        @CALLS = ();
+        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, 'test:///default', 'alpha', 'specadmin' );
+        ok( !$ok, "$action on the guest we are running in is refused" );
+        like( $message, qr/is this server/, 'saying why' );
+        is_deeply( \@CALLS, [], "and the $action never reached libvirt" );
+    }
+
+    # The rest are not destructive, and a guest that cannot be snapshotted is
+    # less useful than one that can.
+    foreach my $action (qw{snapshot poweron}) {
+        @CALLS = ();
+        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, 'test:///default', 'alpha', 'specadmin' );
+        ok( $ok, "$action is still allowed on it" ) or diag($message);
+        is( scalar @CALLS, 1, 'and reached libvirt' );
+    }
+
+    # Its neighbours are ordinary guests.
+    @CALLS = ();
+    my ($ok) = Trog::DataSource::Virt::act( 'destroy', 'test:///default', 'beta', 'specadmin' );
+    ok( $ok, 'another guest on the same hypervisor is unaffected' );
+    is_deeply( \@CALLS, [ [ 'destroy', 'beta' ] ], 'and is destroyed as asked' );
 };
 
 subtest 'screenshot() validates its inputs before anything else' => sub {
@@ -298,6 +368,52 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
             is( scalar( () = $out =~ m/value="\Q$action\E"/g ), $admin ? 1 : 0, "$view: no $action button" ) unless $admin;
         }
     }
+};
+
+subtest 'the server itself is drawn without the controls that would kill it' => sub {
+    require Text::Xslate;
+
+    my $tx = Text::Xslate->new(
+        path     => ["$FindBin::Bin/../www/templates/html/components"],
+        function => { render_it => sub { $_[0] } },
+    );
+
+    my %post = (
+        form    => 'guests.tx',
+        id      => 'uuid-alpha', title => 'alpha', state => 'running', is_active => 1,
+        preview => '/guest/screenshot/hv-1/alpha', domain => 'alpha',
+        hypervisor => 'hv-1', hypervisor_title => 'spec-hv', vcpus => 2,
+        addpost => 0, unreachable => 0,
+    );
+
+    foreach my $tiled ( 0, 1 ) {
+        my $view = $tiled ? 'tiled' : 'untiled';
+
+        my $me = $tx->render( 'forms/guests.tx',
+            { post => { %post, is_self => 1 }, style => '', route => '/vm', tiled => $tiled, can_edit => 1 } );
+        my $them = $tx->render( 'forms/guests.tx',
+            { post => { %post, is_self => 0 }, style => '', route => '/vm', tiled => $tiled, can_edit => 1 } );
+
+        # Said out loud, so an admin knows why this one is different.
+        like( $me, qr/dom0/, "$view: the guest we are running in says so" );
+        unlike( $them, qr/dom0/, "$view: and an ordinary guest does not" );
+    }
+
+    # Only the untiled view draws controls at all.
+    my $me = $tx->render( 'forms/guests.tx',
+        { post => { %post, is_self => 1 }, style => '', route => '/vm', tiled => 0, can_edit => 1 } );
+
+    foreach my $action (qw{poweroff destroy}) {
+        is( scalar( () = $me =~ m/value="\Q$action\E"/g ), 0, "no $action button for the server itself" );
+    }
+    is( scalar( () = $me =~ m/value="snapshot"/g ), 1, 'but it can still be snapshotted' );
+    like( $me, qr{action="/guest/act"}, 'and the form is still there to do it with' );
+
+    # A guest that is merely switched off must keep its Power On button -- the
+    # is_self guard wraps that branch too.
+    my $off = $tx->render( 'forms/guests.tx',
+        { post => { %post, is_self => 0, is_active => 0, state => 'shut off' }, style => '', route => '/vm', tiled => 0, can_edit => 1 } );
+    is( scalar( () = $off =~ m/value="poweron"/g ), 1, 'an ordinary stopped guest can still be started' );
 };
 
 subtest 'a datasource says whether its posts can be edited' => sub {

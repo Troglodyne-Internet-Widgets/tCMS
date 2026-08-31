@@ -10,7 +10,10 @@
             : if ( $tiled ) {
                 <p class="midtitle">
                     <: $post.title :>
-                    <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
+                    <span class="tag guest-state guest-<: $post.is_active ? 'up bg-green' : 'down bg-red' :>"><: $post.state :></span>
+                    : if ( $post.is_self ) {
+                    <span class="guest-state guest-self tag" title="the server tCMS is running on">dom0</span>
+                    : }
                 </p>
                 : # The capture is declared private in guests.json, so a reader
                 : # who cannot edit never receives it -- there is nothing here
@@ -23,7 +26,10 @@
             : } else {
                 <h3 class='blogtitles'>
                     <: $post.title :>
-                    <span class="guest-state guest-<: $post.is_active ? 'up' : 'down' :>"><: $post.state :></span>
+                    <span class="tag guest-state guest-<: $post.is_active ? 'up bg-green' : 'down bg-red' :>"><: $post.state :></span>
+                    : if ( $post.is_self ) {
+                    <span class="guest-state guest-self tag" title="the server tCMS is running on">dom0</span>
+                    : }
                 </h3>
                 <div class="postData responsive-text" id="postData-<: $post.id :>">
                     : if ( $post.preview ) {
@@ -39,14 +45,22 @@
                         <input type="hidden" name="hypervisor" value="<: $post.hypervisor :>" />
                         <input type="hidden" name="guest" value="<: $post.domain :>" />
                         <input type="hidden" name="to" value="<: $route :>" />
+                        : # This guest is the server drawing the page, so the two
+                        : # controls that would take it down are not offered.
+                        : # Trog::DataSource::Virt::act() refuses them too -- see
+                        : # there for why hiding them is not the guard.
+                        : if ( !$post.is_self ) {
                         : if ( $post.is_active ) {
                         <button class="coolbutton" type="submit" name="action" value="poweroff">Power Off</button>
                         : } else {
                         <button class="coolbutton" type="submit" name="action" value="poweron">Power On</button>
                         : }
+                        : }
                         <button class="coolbutton" type="submit" name="action" value="snapshot">Snapshot</button>
+                        : if ( !$post.is_self ) {
                         <button class="coolbutton guest-destroy" type="submit" name="action" value="destroy"
                                 onclick="return confirm('Destroy <: $post.title :>?  This stops the guest immediately.');">Destroy</button>
+                        : }
                     </form>
                     : }
                 </div>

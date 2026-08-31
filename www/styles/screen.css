@@ -453,7 +453,7 @@ pre {
     border-color: #400 #700 #700 #400;
 }
 
-a.tag {
+.tag {
     padding: 0rem .5rem 0rem .5rem;
     border-radius: 1rem;
     background: #e4e4e4;
@@ -504,4 +504,11 @@ a.tag {
     position: fixed;
     top: 3rem;
     right: 3rem;
+}
+
+.bg-green {
+    background-color: green;
+}
+.bg-red {
+    background-color: red;
 }
