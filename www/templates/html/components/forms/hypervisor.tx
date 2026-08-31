@@ -4,9 +4,11 @@
         : include "post_title.tx";
         : include "post_tags.tx";
 <div class="postData responsive-text">
+    <: if ($post.conn_uri) { :>
     Connection URI:<br />
     <a href="<: $post.conn_uri :>"><: $post.conn_uri :></a>
     <br />
+    <: } :>
     <: render_it($post.data) | mark_raw :>
 </div>
 
