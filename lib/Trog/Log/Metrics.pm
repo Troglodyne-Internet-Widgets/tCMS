@@ -59,6 +59,7 @@ sub requests_per ( $period, $num_periods, $before, @codes ) {
     }
     push( @input, $interval, $before, $num_periods );
 
+    ## no critic(ValuesAndExpressions::PreventSQLInjection)
     my $query = "SELECT count(*) FROM all_requests $whereclause GROUP BY date / ? HAVING date < ? LIMIT ?";
 
     my @results = map { $_->[0] } @{ Trog::Log::_dbh()->selectall_arrayref( $query, undef, @input ) };

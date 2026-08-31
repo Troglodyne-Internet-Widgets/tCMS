@@ -24,6 +24,7 @@ Also used to retrieve cached routes from posts.
 sub posts_for_tags (@tags) {
     my $dbh    = _dbh();
     my $clause = @tags ? "WHERE tag IN (" . join( ',', ( map { '?' } @tags ) ) . ")" : '';
+    ## no critic(ValuesAndExpressions::PreventSQLInjection)
     my $rows   = $dbh->selectall_arrayref( "SELECT DISTINCT id FROM posts $clause ORDER BY created DESC", { Slice => {} }, @tags );
     return () unless ref $rows eq 'ARRAY' && @$rows;
     return map { $_->{id} } @$rows;
@@ -110,6 +111,7 @@ sub build_index ( $data_obj, $posts = [] ) {
 sub _id_for_uuid ( $dbh, @uuids ) {
     my $bind = join( ',', ( map { '?' } @uuids ) );
     Trog::SQLite::bulk_insert( $dbh, 'post', ['uuid'], 'IGNORE', @uuids );
+    ## no critic(ValuesAndExpressions::PreventSQLInjection)
     return $dbh->selectall_hashref( "SELECT id,uuid FROM post WHERE uuid IN ($bind)", 'uuid', {}, @uuids );
 }
 

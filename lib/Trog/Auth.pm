@@ -420,6 +420,7 @@ sub audit_log (%opts) {
 
     my $where = @where ? 'WHERE ' . join( ' AND ', @where ) : '';
     my $rows = $dbh->selectall_arrayref(
+        ## no critic(ValuesAndExpressions::PreventSQLInjection)
         "SELECT id, event_time, username, session_id, ip_addr, event_type FROM audit_log $where ORDER BY event_time DESC LIMIT ?",
         { Slice => {} }, @bind, $limit
     );

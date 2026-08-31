@@ -1,0 +1,55 @@
+# Troglodyne perlcritic policy
+severity  = 1
+only      = 1
+force     = 0
+verbose   = 1
+#theme     = 
+#include   =
+#exclude   =
+criticism-fatal = 1
+color     = 1
+allow-unsafe = 1
+# Usability
+[Modules::RequirePerlVersion]
+[Documentation::RequirePod]
+# Security
+[ValuesAndExpressions::PreventSQLInjection]
+[CodeLayout::RequireASCII]
+[RegularExpressions::RequireDefault]
+strict = 1
+# PEBCAK catches
+[BuiltinFunctions::ProhibitDeleteOnArrays]
+[Subroutines::ProhibitAmbiguousFunctionCalls]
+[ValuesAndExpressions::ProhibitSingleArgArraySlice]
+[Bangs::ProhibitUselessRegexModifiers]
+[Bangs::ProhibitCommentedOutCode]
+[Tics::ProhibitUseBase]
+[Plicease::ProhibitLeadingZeros]
+[RegularExpressions::ProhibitEmptyAlternatives]
+[ValuesAndExpressions::UnexpandedSpecialLiteral]
+[CodeLayout::ProhibitIfIfSameLine]
+[ValuesAndExpressions::ConstantBeforeLt]
+[ValuesAndExpressions::ProhibitDuplicateHashKeys]
+# any access checks are necessarily a TOCTOU waiting to happen
+[ValuesAndExpressions::ProhibitFiletest_f]
+[ValuesAndExpressions::ProhibitFiletest_rwxRWX]
+# Bikeshed
+[CognitiveComplexity::ProhibitExcessCognitiveComplexity]
+warn_level = 40
+info_level = 30
+[Variables::ProhibitUselessInitialization]
+[PreferredModules]
+config = .preferred_modules.ini
+[logicLAB::RequireSheBang]
+formats = #!/usr/bin/env perl
+# Performance
+[logicLAB::ProhibitShellDispatch]
+[Performance::ProhibitRegexForSimpleSubstring]
+# Extensions to perl -c
+[CompileTime]
+# Good idea, but module doesn't install due to bad testsuite...we'll have to fork
+#[Dynamic::ValidateAgainstSymbolTable]
+#at_inc_suffix=lib
+#inspect_required_modules=1
+#inspect_autoloaders=1
+#max_recursion=2

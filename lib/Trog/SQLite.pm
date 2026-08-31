@@ -118,6 +118,7 @@ sub bulk_insert ( $dbh, $table, $keys, $ACTION = 'IGNORE', @values ) {
             while (@huh) {
                 push( @value_tuples, "(" . join( ',', ( splice( @huh, 0, $nkeys ) ) ) . ")" );
             }
+            ## no critic(ValuesAndExpressions::PreventSQLInjection)
             $query = "INSERT OR $ACTION INTO $table (" . join( ',', @$keys ) . ") VALUES " . join( ',', @value_tuples );
             $smt   = $dbh->prepare($query);
         }
