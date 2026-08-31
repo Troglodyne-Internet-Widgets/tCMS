@@ -44,6 +44,8 @@ config = .preferred_modules.ini
 formats = #!/usr/bin/env perl
 # Performance
 [logicLAB::ProhibitShellDispatch]
+# Lives in policy/ in this repo, so perlcritic needs PERL5LIB=policy to see it.
+[Troglodyne::ProhibitPipeOpen]
 [Performance::ProhibitRegexForSimpleSubstring]
 # Extensions to perl -c
 [CompileTime]

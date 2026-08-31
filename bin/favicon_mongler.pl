@@ -51,11 +51,12 @@ extension.  The real container is assembled with Imager afterwards.
 # flipped between the two by hand twice (e23b678, then back in 5f0cdca).
 sub _export_flag ($bin) {
 
-    # A list-form pipe open, rather than qx// or backticks, so the path to the
-    # binary is handed over as an argument and never sees a shell.
-    open( my $fh, '-|', $bin, '--version' ) or die "Could not run $bin --version: $!";
-    my $version = do { local $/; <$fh> };
-    close $fh;
+    # Shelling out, on purpose and on the record.  system() cannot hand back
+    # what the child printed, and reaching for a pipe open instead would only
+    # be picking the spelling ProhibitShellDispatch happens not to look at --
+    # which is what Troglodyne::ProhibitPipeOpen now exists to stop.  $bin is
+    # quoted because File::Which returns whatever path it found, spaces and all.
+    my $version = qx{"$bin" --version};    ## no critic (logicLAB::ProhibitShellDispatch)
 
     my ($major) = ( $version // '' ) =~ m/Inkscape\s+(\d+)/;
     die "Could not read a version out of `$bin --version`, got: " . ( $version // '(nothing)' ) unless defined $major;
