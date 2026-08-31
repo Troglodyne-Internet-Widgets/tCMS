@@ -83,6 +83,7 @@ while ( my $entry = readdir $dh ) {
 
     print "Writing changes to $fname\n";
     my $encoded = JSON::MaybeXS::encode_json($decoded);
+
     # Temp:: rather than plain File::Slurper -- it writes to a tempfile and
     # renames over the target, so a crash partway can't leave a half written
     # post behind.

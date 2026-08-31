@@ -5,8 +5,7 @@ use re '/aa';
 
 use parent qw{Log::Dispatch::DBI};
 
-use Ref::Util     qw{is_arrayref};
-use Capture::Tiny qw{capture_merged};
+use Ref::Util qw{is_arrayref};
 
 use POSIX           qw{mktime};
 use POSIX::strptime qw{strptime};

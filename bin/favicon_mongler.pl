@@ -49,7 +49,11 @@ my %files = (
 foreach my $size ( sort { $b <=> $a } keys(%files) ) {
     print "*** Generating ${size}x${size} .$files{$size} now... ***\n";
     my @cmd = ( $bin, '-w', $size, '-h', $size, $icon, '-e', "$dir/favicon-$size.$files{$size}" );
-    system(@cmd) && die "Failed to run @cmd: $!";
+
+    # There is no maintained Perl SVG rasterizer to bind instead -- Imager has
+    # no SVG reader, and Image::LibRSVG was last released in 2006 -- so driving
+    # the renderer as a subprocess is the only option here.
+    system(@cmd) and die "Failed to run @cmd: " . ( $? == -1 ? $! : 'exit status ' . ( $? >> 8 ) );    ## no critic (logicLAB::ProhibitShellDispatch)
     print "*** Wrote $dir/favicon-$size.$files{$size} ***\n\n";
 }
 

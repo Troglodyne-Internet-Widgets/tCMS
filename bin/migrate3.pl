@@ -54,7 +54,7 @@ $ENV{NOHUP} = 1;
 sub uuid { return UUID::Tiny::create_uuid_as_string( UUID::Tiny::UUID_V1, UUID::Tiny::UUID_NS_DNS ); }
 
 # Modify these variables to suit your installation.
-my $user         = 'george';
+my $user = 'george';
 my @extra_series;
 
 my $conf        = Trog::Config::get();
