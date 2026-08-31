@@ -33,6 +33,10 @@ means adding it there too, and vice versa.
 
 Needs inkscape on the PATH to do the rendering, and dies if it isn't there.
 
+Works with either era of inkscape.  1.0 reworked the command line and renamed
+the export flag from -e to -o, and 1.x rejects -e outright, so the version is
+read off the binary rather than assumed -- see _export_flag().
+
 Overwrites whatever is already at those paths without asking.
 
 Note that inkscape only ever exports PNG -- it has no idea what an .ico is.
@@ -41,11 +45,31 @@ extension.  The real container is assembled with Imager afterwards.
 
 =cut
 
+# Inkscape 1.0 reworked the command line: the export flag went from -e to -o,
+# and 1.x errors out on -e rather than quietly accepting it.  Ask the binary
+# which era it belongs to instead of guessing -- this script has already been
+# flipped between the two by hand twice (e23b678, then back in 5f0cdca).
+sub _export_flag ($bin) {
+
+    # A list-form pipe open, rather than qx// or backticks, so the path to the
+    # binary is handed over as an argument and never sees a shell.
+    open( my $fh, '-|', $bin, '--version' ) or die "Could not run $bin --version: $!";
+    my $version = do { local $/; <$fh> };
+    close $fh;
+
+    my ($major) = ( $version // '' ) =~ m/Inkscape\s+(\d+)/;
+    die "Could not read a version out of `$bin --version`, got: " . ( $version // '(nothing)' ) unless defined $major;
+
+    return $major >= 1 ? '-o' : '-e';
+}
+
 die "Usage:\n    favicon_mongler.pl /path/to/favicon.svg" unless $ARGV[0];
 my $icon = Cwd::abs_path( $ARGV[0] );
 my $bin  = File::Which::which('inkscape');
 die "Please install inkscape" if !$bin;
 my $dir = File::Basename::dirname($icon) || die "Can't figure out dir from $icon";
+
+my $export = _export_flag($bin);
 
 # The sizes the site links to directly.
 my @png_sizes = qw{32 48 167 180 192 512};
@@ -65,7 +89,7 @@ foreach my $size ( sort { $b <=> $a } uniq( @png_sizes, @ico_sizes ) ) {
     my $out  = $keep ? "$dir/favicon-$size.png" : "$scratch/favicon-$size.png";
 
     print "*** Generating ${size}x${size} .png now... ***\n";
-    my @cmd = ( $bin, '-w', $size, '-h', $size, $icon, '-e', $out );
+    my @cmd = ( $bin, '-w', $size, '-h', $size, $icon, $export, $out );
 
     # There is no maintained Perl SVG rasterizer to bind instead -- Imager has
     # no SVG reader, and Image::LibRSVG was last released in 2006 -- so driving
