@@ -23,6 +23,56 @@ our ( $log, $user );
 $Trog::Log::user = 'nobody';
 $Trog::Log::ip   = '0.0.0.0';
 
+=head1 Trog::Log
+
+Logging for tCMS.
+
+Everything goes through one Log::Dispatch object with three outputs: a rotating
+file for the operator, the screen for anything at error level or above (which
+is what ends up in the webserver's own log), and Trog::Log::DBI, which is what
+Trog::Log::Metrics later reads its time series out of.
+
+Import the level subroutines you need, or C<:all>:
+
+    use Trog::Log qw{:all};
+    INFO("something happened");
+
+=head1 Termination Conditions
+
+log_init() dies if it isn't told where to log and at what level.  FATAL() dies
+by design, that being the point of it.  Note that the level subroutines will
+themselves die on an undefined $log, so log_init() has to have run first --
+which the server does per-worker, and CLI tools have to do for themselves.
+
+=head1 VARIABLES
+
+=over 4
+
+=item $Trog::Log::user
+
+Who the current request belongs to.  Interpolated into every log line, so that
+the request log can be grepped by user.  Defaults to 'nobody'.
+
+=item $Trog::Log::ip
+
+Where the current request came from, same deal.  Defaults to '0.0.0.0'.
+
+=back
+
+=head1 FUNCTIONS
+
+=head2 log_init(STRING logname, STRING level) = BOOL
+
+Build the logger.  Must be called before anything tries to log.
+
+$logname is the path to the log file; its directory is also where the metrics
+database gets put.  $level is a Log::Dispatch level, generally 'info' or
+'debug'.
+
+Returns 1.
+
+=cut
+
 sub log_init {
     my ($LOGNAME, $LEVEL)  =@_;
 
@@ -73,10 +123,27 @@ sub _dbh {
     return Trog::SQLite::dbh( 'schema/log.schema', "$LOGDIR/log.db" );
 }
 
+=head2 is_debug() = BOOL
+
+Whether we were initialized at debug level.  Useful for skipping the
+construction of an expensive message which would only be thrown away.
+
+=cut
+
 sub is_debug {
     $LEVEL //= 'info';
     return $LEVEL eq 'debug';
 }
+
+=head2 uuid([STRING requestid]) = STRING
+
+Get, or set, the request ID stamped onto every log line.
+
+The server sets this once per request so that the lines belonging to it can be
+picked back out of an interleaved log, and so that Trog::Log::DBI can group a
+request's messages under the request itself.
+
+=cut
 
 sub uuid {
     my $requestid = shift;
@@ -95,6 +162,18 @@ sub _log {
 
     return "$tstamp [$level]: RequestId $uuid From $Trog::Log::ip |$Trog::Log::user| $msg\n";
 }
+
+=head2 DEBUG(STRING msg), INFO(STRING msg), WARN(STRING msg), FATAL(STRING msg)
+
+Log a message at the named level.
+
+Lines are formatted as an ISO8601 timestamp, the level, the request ID, the
+originating IP and the user, followed by the message.  Don't change the leading
+timestamp -- fail2ban parses these.
+
+FATAL logs and then dies, so it never returns.
+
+=cut
 
 sub DEBUG {
     $log->debug( _log( shift, 'DEBUG' ) );

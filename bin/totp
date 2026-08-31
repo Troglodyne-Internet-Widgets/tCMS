@@ -8,6 +8,29 @@ use FindBin::libs;
 use Trog::Auth;
 use Trog::Config;
 
+=head1 SYNOPSIS
+
+Print a user's TOTP enrollment details, so that they can set up 2FA without
+going through the web UI -- or get back in when they've lost their
+authenticator and you need to read them the current code.
+
+=head2 USAGE
+
+    bin/totp username
+
+Prints the otpauth:// URI (what a QR code would encode), the base32 secret to
+type into an authenticator by hand, and the code which is valid right now.
+
+Note that this hands out everything needed to generate that user's codes
+forever, so treat the output like a password.
+
+=head2 CAVEATS
+
+Requires general.hostname to be set in the tCMS configuration, as the domain is
+part of what an authenticator shows the user.  Set it with bin/tcms-hostname.
+
+=cut
+
 my $user   = shift @ARGV;
 my $domain = Trog::Config->get()->param('general.hostname');
 

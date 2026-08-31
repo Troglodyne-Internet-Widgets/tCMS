@@ -33,6 +33,43 @@ our %routes = (
     },
 );
 
+=head1 Trog::Routes::TXT
+
+Routes which render as text/plain.
+
+=head1 CAVEATS
+
+This module is not wired up to anything.  TCMS.pm builds its routing table out
+of Trog::Routes::HTML and Trog::Routes::JSON only, so nothing here is reachable
+and /text/zone will 404.
+
+Worse, the package statement in this file says Trog::Routes::JSON rather than
+Trog::Routes::TXT, so loading it would quietly replace the JSON routing table
+with this one.  Fix that before wiring it in.
+
+=head1 VARIABLES
+
+=over 4
+
+=item %routes
+
+The usual tCMS routing table -- path to method, callback, parameters and
+whether the route requires admin.
+
+=back
+
+=head1 ROUTES
+
+=head2 zone
+
+Render zone.tx, this instance's DNS zone file.  Admin only.
+
+Note that it passes the query through as-is; zone.tx wants $ip, $nameservers,
+$subdomains and friends, so it needs a data gathering pass before it will
+render anything.
+
+=cut
+
 sub zone ($query) {
     return _render( 200, {}, $query );
 }

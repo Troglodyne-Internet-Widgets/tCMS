@@ -8,6 +8,42 @@ use FindBin::libs;
 use Trog::Config();
 use Getopt::Long qw{GetOptionsFromArray};
 
+=head1 SYNOPSIS
+
+Get, or set, the hostname this tCMS instance serves.
+
+Everything which needs to know the site's domain -- TOTP enrollment, the DNS
+zone, generated URLs -- reads it out of the configuration, so this is where it
+gets put there in the first place.
+
+=head2 USAGE
+
+    bin/tcms-hostname                  # print the configured hostname
+    bin/tcms-hostname example.com      # set it, then print it
+    bin/tcms-hostname --user           # print it as a valid username
+
+=head2 OPTIONS
+
+=over 4
+
+=item --user
+
+Print the hostname mangled into something usable as a system username: dots
+become dashes, and it's truncated to 32 characters.  Does not change what is
+stored in the configuration.
+
+=back
+
+=head2 CAVEATS
+
+Writes to $Trog::Config::home_cfg rather than saving over whatever get()
+loaded, as that is the tracked config/default.cfg until the instance has a
+configuration of its own.
+
+Dies if asked to print a hostname which was never set.
+
+=cut
+
 my $user;
 GetOptionsFromArray(\@ARGV,
     'user' => \$user,

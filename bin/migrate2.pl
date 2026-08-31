@@ -17,6 +17,39 @@ use UUID::Tiny;
 use Trog::SQLite;
 use Trog::SQLite::TagIndex;
 
+=head1 SYNOPSIS
+
+Migrate early tCMS3 flatfile sites to the 'all posts are series' code (August
+2021).
+
+Re-keys every post from a timestamp onto a UUID, keeping the old URL as an
+alias so nothing already linked breaks, and fills in the fields that release
+started requiring: local_href, callback, method, visibility and the form each
+post is edited with.  Then it rebuilds the index and adds the series posts
+(/series, /about, /config) that the new code expects to exist.
+
+=head2 USAGE
+
+Edit $user and @extra_series below to suit your installation, then:
+
+    bin/migrate2.pl
+
+Run from the tCMS root.
+
+=head2 CAVEATS
+
+Historical, and one way.  It deletes the timestamp keyed flat files as it
+rewrites them, so take a backup of data/ before running it.
+
+Also unlinks data/posts.db up front, as the index is rebuilt at the end
+regardless.
+
+The form a post gets is guessed from its tags and content type, and series
+child_form from the series title, so anything unusual will want checking
+afterwards.
+
+=cut
+
 # Kill the post index
 unlink "$FindBin::Bin/../data/posts.db";
 $ENV{NOHUP} = 1;

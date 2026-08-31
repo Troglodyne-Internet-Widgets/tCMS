@@ -8,6 +8,30 @@ use File::Basename ();
 use File::Which    ();
 use File::Copy     ();
 
+=head1 SYNOPSIS
+
+Render a favicon SVG out to every size and format a browser might ask for.
+
+=head2 USAGE
+
+    bin/favicon_mongler.pl /path/to/favicon.svg
+
+Writes favicon-<size>.<ext> next to the source SVG for each size below, and
+copies the 32x32 .ico to favicon.ico, which is what browsers guess at when a
+page doesn't tell them otherwise.
+
+The sizes are the ones which actually get asked for: 32 for the tab, 48 for the
+desktop shortcut, 167 and 180 for iPads and iPhones, and 192 and 512 for the
+web app manifest.
+
+=head2 CAVEATS
+
+Needs inkscape on the PATH to do the rendering, and dies if it isn't there.
+
+Overwrites whatever is already at those paths without asking.
+
+=cut
+
 die "Usage:\n    favicon_mongler.pl /path/to/favicon.svg" unless $ARGV[0];
 my $icon = Cwd::abs_path( $ARGV[0] );
 my $bin  = File::Which::which('inkscape');

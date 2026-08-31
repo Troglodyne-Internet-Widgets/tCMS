@@ -13,6 +13,31 @@ use Trog::Auth;
 use Trog::Log qw{:all};
 use Trog::Renderer;
 
+=head1 Trog::Email
+
+Sending mail out of tCMS.
+
+=head1 Termination Conditions
+
+Dies when asked to mail a user who has no contact email set on their profile.
+Failure to actually send is logged as FATAL rather than thrown, as by then the
+message has already been built and there's nothing the caller can do about it.
+
+=head1 FUNCTIONS
+
+=head2 contact(STRING user, STRING from, STRING subject, HASHREF data) = BOOL
+
+Send a templated message to a user's contact email.
+
+$data must have a 'template' key naming the template to render; everything else
+in it is passed through to that template as its data.  The template is rendered
+twice, once as text and once as HTML, and both are attached to a multipart
+message so that the recipient's client can pick whichever it prefers.
+
+Returns 1.
+
+=cut
+
 sub contact ( $user, $from, $subject, $data ) {
     my $email = Trog::Auth::email4user($user);
     die "No contact email set for user $user!" unless $email;

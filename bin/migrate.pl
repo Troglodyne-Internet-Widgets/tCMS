@@ -12,6 +12,39 @@ use UUID::Tiny ':std';
 use File::Copy;
 use DateTime;
 
+=head1 SYNOPSIS
+
+Migrate tCMS1 data to the tCMS2 flat file data model.
+
+Walks a tCMS1 docroot and writes each microblog entry and blog post out as a
+tCMS2 post under data/files, keyed by the original creation time so that the
+ordering survives.
+
+=head2 USAGE
+
+Edit $docroot and $dir below to point at the tCMS1 site, then:
+
+    bin/migrate.pl
+
+Run from the tCMS root; the output paths are relative to it.  Follow up with
+bin/build_index.pl, as this writes the flat files directly and leaves the post
+index untouched.
+
+=head2 CAVEATS
+
+Historical.  This is the first of the migrate scripts and only applies to a
+tCMS1 site; anything newer wants migrate2.pl onwards.
+
+Microblog entries come in two flavours -- JSON, and hand written HTML from
+before that -- so each file is tried as JSON first and parsed as HTML if that
+fails.  Post authorship is recovered from file ownership, with www-data and
+nologin owners becoming 'nobody'.
+
+There is an C<exit 0> partway through, before the video migration.  That code
+is unreachable as written and has never been run against anything current.
+
+=cut
+
 #Edit this to be whatever you need it to be
 my $docroot = "/var/www/teodesian.net/doc";
 

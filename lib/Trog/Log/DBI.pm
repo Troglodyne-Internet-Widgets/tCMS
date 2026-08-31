@@ -13,6 +13,43 @@ use POSIX::strptime qw{strptime};
 
 our ( $referer, $ua, $urchin );
 
+=head1 Trog::Log::DBI
+
+A Log::Dispatch::DBI subclass which files tCMS's request log into SQLite, so
+that Trog::Log::Metrics has something to compute time series out of.
+
+Rather than storing log lines verbatim, log_message() picks apart the format
+Trog::Log emits and stores the pieces in columns.  Lines which don't match the
+request format are treated as free text belonging to whichever request was in
+flight, and are buffered until that request's own line shows up to hang them
+off of.
+
+Anything too mangled to identify a request is dropped -- a metrics database is
+not the place to go looking for them, the log file has them either way.
+
+=head1 VARIABLES
+
+=over 4
+
+=item $referer, $ua, $urchin
+
+Per-request context which isn't in the log line itself.  The routes set these
+before responding; they only exist for metrics, which is why they aren't in the
+text logs.  $urchin is a hashref of utm_* parameters, and is only recorded when
+it has a utm_source.
+
+=back
+
+=head1 METHODS
+
+=head2 create_statement() = DBI::st
+
+Called by Log::Dispatch::DBI at construction.  Prepares, and returns, the
+statement for the requests view, and prepares the two extra statements
+log_message() needs for messages and urchin data.
+
+=cut
+
 sub create_statement {
     my $self = shift;
 
@@ -29,6 +66,15 @@ sub create_statement {
 }
 
 my %buffer;
+
+=head2 log_message(HASH params) = MIXED
+
+Record one log line.
+
+Returns the request insert's result for a request line, 1 for a message that
+got buffered, and undef for a line we couldn't make sense of.
+
+=cut
 
 sub log_message {
     my ( $self, %params ) = @_;

@@ -11,6 +11,36 @@ use lib "$FindBin::Bin/../lib";
 
 use Trog::SQLite;
 
+=head1 SYNOPSIS
+
+Display names.
+
+Adds the display_name column to the auth database's user table, then walks the
+flat file posts and converts profile posts from being titled with the user's
+login name to being titled with their display name, moving them from
+/users/<login> to /users/<display name> in the process.
+
+=head2 USAGE
+
+    bin/migrate6.pl
+
+Run from the tCMS root.  Rebuild the post index afterwards, as the profile
+posts have changed their local_href and the routes table still points at the
+old one -- the script says so when it has actually changed something.
+
+=head2 CAVEATS
+
+Historical, and not idempotent -- SQLite will refuse a second ALTER TABLE for a
+column which already exists, so re-running it dies rather than doing nothing.
+
+Post revisions are rewritten in place rather than through the data model, so
+take a backup of data/ before running it.
+
+Users with no display name set are skipped, which leaves their profile post
+where it was.
+
+=cut
+
 sub _dbh {
     my $file   = 'schema/auth.schema';
     my $dbname = "config/auth.db";
