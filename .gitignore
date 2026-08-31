@@ -1,6 +1,8 @@
 *.swp
 *.swo
-favicon.ico
+# A site operator dropping their own favicon at the repo root -- 6a34784.
+# Anchored, or it also swallows the default we ship in www/img/icon.
+/favicon.ico
 dist/
 www/assets
 data/
