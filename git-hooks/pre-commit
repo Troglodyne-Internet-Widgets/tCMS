@@ -3,12 +3,13 @@
 # Auto-tidy staged Perl before it lands.
 #
 # A file qualifies three ways:
-#   - a .pm or .pl extension
+#   - a .pm, .pl or .t extension
 #   - a .PL extension, which is how Makefile.PL gets covered
 #   - executable with perl on its shebang line, which is how the extensionless
 #     scripts in bin/ get covered
 #
-# Note that a .t file matches none of these unless it happens to be +x.
+# .t is in there because only one of the seven test files happens to be +x,
+# so the shebang rule alone would have tidied that one and let the rest drift.
 
 # Redirect output to stderr.
 exec 1>&2
@@ -29,7 +30,7 @@ do
     test -f "$file" || continue
 
     case "$file" in
-        *.pm|*.pl|*.PL)
+        *.pm|*.pl|*.PL|*.t)
             to_tidy="$to_tidy $file"
             continue
             ;;
