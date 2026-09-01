@@ -250,7 +250,10 @@ rebuilt on every view.
 
 The module provides `posts($series, $query)` and may provide `filter`, `order`,
 `lang`, `help` and `EDITABLE`. `Trog::DataSource` documents the whole contract
-and supplies the defaults.
+and supplies the defaults.  `Trog::DataSource::DirIndex` is the shortest complete
+example: a directory becomes a listing, with a hard constraint on which
+directories it will look at and an inotify watch so the cached page is thrown
+away when the directory changes.
 
 Two things about the contract are worth knowing before you write one, because
 both are places the obvious implementation is wrong:
@@ -260,6 +263,12 @@ both are places the obvious implementation is wrong:
   along with the posts it filtered. `filter()` is how the search reaches your
   posts, and you should implement it if your posts carry anything worth
   searching beyond a title.
+- **Nothing else will invalidate your page's static render.** Datasource pages
+  are cached like any other, and a post being saved does not invalidate them,
+  because no post was saved -- the thing you depend on changed instead. If you
+  can name what you depend on, register a `$tpsgi->add_watch` for it with a
+  stable `key` and invalidate through the tPSGI object your callback is *handed*,
+  not the one it closed over. `DirIndex::_watch` is four lines of this.
 - **Your posts probably all share a timestamp**, because you stamped them with
   the time you built them. Stored posts paginate by a `created` cursor, which on
   such a page cannot move -- every cursor is the same instant. Datasource pages
@@ -373,6 +382,7 @@ The contractor's cheat-sheet.
 | To restrict a section | give the series an ACL; grant it to users | none |
 | A different look | a theme directory; override the templates you care about | none |
 | A reusable chunk of UI | `Trog::Component::Whatever` with `render(%args)` | a little |
+| A page listing a directory of files | a series with a directory + a wizard type using `DirIndex` | none |
 | Content from an external system | `Trog::DataSource::Whatever` with `posts($series,$query)` | some |
 | A computed field on a type | an enrich sub, as `Trog::Enrich::Invoice` does | some |
 | A route that is not a post | add to `%Trog::Routes::HTML::routes`, or a theme's `routes.pm` | some |

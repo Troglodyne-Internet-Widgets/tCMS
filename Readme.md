@@ -144,6 +144,16 @@ Data Sources
 Sometimes you want to consider something else authoritative that isn't a datamodel under our control.
 
 * Virt - Talk to a libvirt HV to list guests.
+* DirIndex - List the contents of a directory.
+
+DirIndex is the one to copy if you are writing your own.  Point a series at a
+directory with its "Directory to index" field, build a child type in the wizard
+with DirIndex as its datasource, and every file in there becomes a post carrying
+its name, path, size, mtime, extension and content type -- so a downloads page, a
+gallery or a release listing is a template and nothing else.  It will only index
+directories under www/ (which the webserver already serves, so a listing
+discloses nothing a guessed URL would not), and never www/assets/private (whose
+files are gated, so its names are too).
 
 A post type names one in its sidecar with x-tcms-datasource, and a series of that
 type then lists whatever the source builds instead of posts somebody wrote.  The
@@ -167,6 +177,22 @@ A source has to provide posts($series, $query).  It may also provide:
 * EDITABLE - whether the wizard should generate an editor for the type.  A source
   building its posts from somewhere else has nothing to edit, and saying nothing
   means no.
+
+Datasource pages are cached as statics exactly like any other page, which raises
+the question of what throws that cache away -- saving a post will not, because no
+post was saved when somebody dropped a file in a directory.  A source which knows
+what it depends on should say so with tPSGI's watch facility, as DirIndex does:
+
+    $tpsgi->add_watch( $directory, sub {
+        my ( $watcher, $change ) = @_;
+        $watcher->invalidate_renders('html');
+    }, key => "something stable" );
+
+Pass an explicit key.  posts() runs per request, so a closure built there has a
+new address every time and the default key would stack another copy of the same
+callback on every view.  Use the tPSGI object the callback is handed rather than
+the one from the request that registered it: watches are shared between workers,
+and whichever worker notices the change is the one that has to act on it.
 
 Such pages paginate by page number rather than by the created cursor stored posts
 use.  A datasource has already built every post by the time the paginator sees

@@ -1,42 +1,50 @@
 {
-   "x-tcms-post-type" : {
-      "name" : "series",
-      "generated" : false,
-      "description" : "A category of posts.  Owns an ACL, and dictates which post type its children use."
-   },
-   "type" : "object",
-   "required" : [ "aclname", "child_form" ],
-   "properties" : {
-      "preview" : {
-         "type" : "string",
-         "x-tcms-label" : "Preview Image"
+   "properties": {
+      "aclname": {
+         "type": "string",
+         "x-tcms-label": "ACL name"
       },
-      "preview_file" : {
-         "type" : "upload",
-         "x-tcms-label" : "Preview Image",
-         "x-tcms-input" : "file"
+      "child_form": {
+         "pattern": "^[A-Za-z0-9_-]+\\.tx$",
+         "type": "string",
+         "x-tcms-label": "Content Template"
       },
-      "aclname" : {
-         "type" : "string",
-         "x-tcms-label" : "ACL name"
+      "directory": {
+         "type": "string",
+         "x-tcms-label": "Directory to index",
+         "x-tcms-placeholder": "assets/downloads"
       },
-      "child_form" : {
-         "type" : "string",
-         "pattern" : "^[A-Za-z0-9_-]+\\.tx$",
-         "x-tcms-label" : "Content Template"
+      "footer": {
+         "type": "string",
+         "x-tcms-label": "Footer"
       },
-      "tiled" : {
-         "type" : "boolean",
-         "x-tcms-label" : "Tile Display?",
-         "x-tcms-input" : "checkbox"
+      "header": {
+         "type": "string",
+         "x-tcms-label": "Header"
       },
-      "header" : {
-         "type" : "string",
-         "x-tcms-label" : "Header"
+      "preview": {
+         "type": "string",
+         "x-tcms-label": "Preview Image"
       },
-      "footer" : {
-         "type" : "string",
-         "x-tcms-label" : "Footer"
+      "preview_file": {
+         "type": "upload",
+         "x-tcms-input": "file",
+         "x-tcms-label": "Preview Image"
+      },
+      "tiled": {
+         "type": "boolean",
+         "x-tcms-input": "checkbox",
+         "x-tcms-label": "Tile Display?"
       }
+   },
+   "required": [
+      "aclname",
+      "child_form"
+   ],
+   "type": "object",
+   "x-tcms-post-type": {
+      "description": "A category of posts.  Owns an ACL, and dictates which post type its children use.",
+      "generated": false,
+      "name": "series"
    }
 }

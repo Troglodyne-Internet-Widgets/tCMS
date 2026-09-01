@@ -166,14 +166,16 @@ require Trog::Routes::JSON;
     sub new {
         my ( $class, %args ) = @_;
         return bless {
-            callbacks   => 0,
-            renders     => {},
-            invalidated => [],
-            restarts    => 0,
-            tpsgi_dir   => Cwd::getcwd(),
-            log_dir     => 'logs',
-            gid         => $),
-            verbose     => 0,
+            callbacks     => 0,
+            run_callbacks => 0,
+            renders       => {},
+            invalidated   => [],
+            watches       => [],
+            restarts      => 0,
+            tpsgi_dir     => Cwd::getcwd(),
+            log_dir       => 'logs',
+            gid           => $),
+            verbose       => 0,
             %args,
         }, $class;
     }
@@ -205,10 +207,27 @@ require Trog::Routes::JSON;
     # post_save reach save_render()/invalidate_renders().  Dropping the callback
     # on the floor is what guarantees this test never writes into www/statics,
     # whatever the renderer's own skip-save logic decides.
-    sub add_post_close_callback { $_[0]{callbacks}++; return 1 }
+    # ...unless a test explicitly asks, which is how the one test that is about
+    # what gets cached gets to see it.  Still nowhere near www/statics:
+    # save_render below only records what it was handed.
+    sub add_post_close_callback {
+        my ( $self, $callback ) = @_;
+        $self->{callbacks}++;
+        $callback->() if $self->{run_callbacks} && ref $callback eq 'CODE';
+        return 1;
+    }
 
     # The real one is `kill 'HUP', getppid`.  Under prove, that is prove.
     sub signal_restart_parent { $_[0]{restarts}++; return 1 }
+
+    # Recorded rather than inert: a datasource that watches something is
+    # supposed to register here, and the lifecycle test is where we find out
+    # whether it did through the real route.
+    sub add_watch {
+        my ( $self, $path, $callback, %options ) = @_;
+        push( @{ $self->{watches} }, { path => $path, callback => $callback, %options } );
+        return 1;
+    }
 
     sub invalidate_renders { push @{ $_[0]{invalidated} }, $_[1];              return 1 }
     sub invalidate_render  { push @{ $_[0]{invalidated} }, [ @_[ 1 .. $#_ ] ]; return 1 }
@@ -662,6 +681,86 @@ subtest 'an ordinary series survives a page number in its URL' => sub {
     unlike( $body, qr/Page 1 of/, 'and it still pages by cursor rather than by number' );
 };
 
+subtest 'a directory index series' => sub {
+
+    # A wizard-built type drawing its posts from a directory, through the real
+    # route, on whichever data model this run is using.
+    require Trog::DataSource::DirIndex;
+
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route          => '/admin/wyzzerdd/save',
+            method         => 'POST',
+            name           => 'spec_files',
+            datasource     => 'Trog::DataSource::DirIndex',
+            body_form      => 'form_common.tx',
+            wrapper        => 1,
+            inc_post_title => 1,
+            display        => q{<div class="entry"><: $post.name :> (<: $post.size_human :>)</div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'the directory-backed type was created' ) or diag($err);
+
+    File::Path::make_path('www/assets/spec_downloads');
+    foreach my $n ( 1 .. 7 ) {
+        open( my $fh, '>', "www/assets/spec_downloads/file$n.txt" ) or die $!;
+        print {$fh} ( 'x' x ( $n * 10 ) );
+        close $fh;
+    }
+
+    _reindex();
+    my $series = _make_series(
+        'spec_files', 'specfiles', 'spec_files.tx', 'Spec Files Series',
+        no_topbar => 1,
+        directory => 'assets/spec_downloads',
+    ) or return;
+
+    is( $series->{directory}, 'assets/spec_downloads', 'the series remembers which directory it indexes' );
+
+    my $names = sub {
+        my ($html) = @_;
+        return [ $html =~ m{<div class="entry">(file\d+\.txt) \(}g ];
+    };
+
+    ( $code, $body, $err ) = _render( _anon( route => '/specfiles' ), \&Trog::Routes::HTML::series );
+    is( $code, 200, 'the listing renders' ) or diag($err);
+    is_deeply( $names->($body), [ map { "file$_.txt" } 1 .. 7 ], 'listing the directory, in name order' );
+    like( $body, qr/\(10 B\)/, 'with each entry\'s size' );
+
+    # post_title.tx quotes with single quotes; the point is the target, not the quoting.
+    like( $body, qr{href=['"]/assets/spec_downloads/file1\.txt['"]}, 'and a link to the file itself' );
+
+    # It paginates like any other datasource page.
+    ( $code, $body, $err ) = _render( _anon( route => '/specfiles', limit => 3, page => 2 ), \&Trog::Routes::HTML::series );
+    is( $code, 200, 'page two renders' ) or diag($err);
+    is_deeply( $names->($body), [qw{file4.txt file5.txt file6.txt}], 'holding the next three' );
+    like( $body, qr/Page 2 of 3/, 'and saying so' );
+
+    # And searches like one.
+    ( $code, $body, $err ) = _render( _anon( route => '/specfiles', limit => 25, like => 'file3' ), \&Trog::Routes::HTML::series );
+    is_deeply( $names->($body), ['file3.txt'], 'searching the listing searches the filenames' );
+
+    # The point of the exercise: this page is cached like any other, and
+    # nothing else would ever throw that cache away, because no post is saved
+    # when somebody drops a file in a directory.
+    my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
+    _render( _anon( route => '/specfiles', tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
+
+    # And it really is cached, rather than merely being cacheable in principle:
+    # the renderer hands anonymous, unparameterised, successful renders to tPSGI
+    # to save, and a directory listing is one.
+    ok( scalar( keys %{ $tpsgi->{renders} } ),                    'the listing was handed to tPSGI to save as a static' );
+    ok( ( grep { m{^/specfiles:} } keys %{ $tpsgi->{renders} } ), 'under its own route' );
+
+    my ($watch) = grep { $_->{path} =~ m/spec_downloads/ } @{ $tpsgi->{watches} };
+    ok( $watch, 'rendering it registers a watch on the directory' );
+    like( $watch->{key}, qr/DirIndex/, 'under a stable key, so a view does not stack another' );
+
+    $watch->{callback}->( $tpsgi, { path => 'www/assets/spec_downloads/file8.txt', events => ['CREATE'] } );
+    is_deeply( $tpsgi->{invalidated}, ['html'], 'and a change to the directory invalidates the renders' );
+};
+
 subtest 'a field can be declared indexed' => sub {
     my ( $code, $body, $err ) = _render(
         _admin(
@@ -812,8 +911,11 @@ sub _make_series {
     # series whose topbar behaviour we actually care about get tagged.
     my @tags = $opt{no_topbar} ? ('series') : ( 'series', 'topbar' );
 
+    my %extra = map { $_ => $opt{$_} } grep { $_ ne 'no_topbar' } keys(%opt);
+
     my $series = _save_post(
         "$label series",
+        %extra,
         form       => 'series.tx',
         title      => $title,
         aclname    => $aclname,                       # required by series.json
