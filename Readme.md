@@ -118,9 +118,12 @@ on every save and some disk.
 On a data model with no notion of an index the checkbox simply does nothing, so
 the wizard doesn't have to know which model the site is running.
 
-To move an existing flat file site over, run bin/migrate-to-sqlite.pl from the
-tCMS root and then set data_model=SQLite.  It copies rather than moves, so
-data/files is left alone and the way back is to set data_model back.
+To move an existing flat file site over, run bin/migrate.pl from the tCMS root
+and then set data_model=SQLite and restart.  It copies rather than moves, so
+data/files is left alone and the way back is to set data_model back.  It is safe
+to re-run -- run it once against the live site, then again after a final quiet
+period to pick up whatever was written in between.  --dry-run tells you what it
+would do.
 
 Data Sources
 ============

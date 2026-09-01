@@ -232,7 +232,7 @@ sub _where ($query) {
     if ( $query->{raw} ) {
 
         # raw skips filter() altogether in the flat file model, acls included.
-        # Only bin/migrate*.pl and an index rebuild ask for it.
+        # Only bin/migrate.pl and an index rebuild ask for it.
     }
     elsif ( @$acls && !any { $_ eq 'admin' } @$acls ) {
         my $binds = join( ',', map { '?' } @$acls );
@@ -305,11 +305,38 @@ was the file.  Here a version is a row, and the unique index on (uuid, version)
 is what rejects two workers writing the same version rather than one of them
 silently winning.
 
+Several posts go in as one transaction, so a batch either lands or it doesn't --
+add() hands us everything it was given at once, and half a save is not a state
+anybody asked for.  It is also the difference between a migration taking seconds
+and taking minutes, since SQLite otherwise commits once per row.
+
 =cut
 
 sub write ( $self, $data ) {
     my $dbh = _dbh();
 
+    # Only if we are not already inside someone else's transaction: begin_work
+    # dies rather than nesting.
+    my $mine = $dbh->{AutoCommit} ? $dbh->begin_work : 0;
+
+    local $@;
+    eval {
+        _insert( $dbh, $data );
+        $dbh->commit if $mine;
+        1;
+    } or do {
+        my $error = $@;
+        if ($mine) {
+            local $@;
+            eval { $dbh->rollback; 1 } or WARN("Could not roll back a failed write: $@");
+        }
+        confess $error;
+    };
+
+    return 1;
+}
+
+sub _insert ( $dbh, $data ) {
     my $insert = $dbh->prepare('INSERT INTO posts (post_data) VALUES (?)');
 
     foreach my $post (@$data) {
@@ -330,6 +357,23 @@ sub write ( $self, $data ) {
     }
 
     return 1;
+}
+
+=head2 versions_present() = HASHREF
+
+Every (uuid, version) already stored, as C<< { uuid => { version => 1 } } >>.
+
+For bulk importers, which would otherwise ask the database once per post
+whether it has seen it before.  See bin/migrate.pl.
+
+=cut
+
+sub versions_present ($self) {
+    my $rows = _dbh()->selectall_arrayref( 'SELECT uuid, version FROM posts', { Slice => {} } ) // [];
+
+    my %present;
+    $present{ $_->{uuid} }{ $_->{version} } = 1 foreach @$rows;
+    return \%present;
 }
 
 =head2 delete(@posts)

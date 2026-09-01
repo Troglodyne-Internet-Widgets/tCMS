@@ -1,253 +1,181 @@
 #!/usr/bin/env perl
 
-#Migrate tCMS1 data to tCMS2 flat file data model
-
 use v5.36;
 use re '/aa';
 
-use JSON::MaybeXS;
-use File::Slurper();
-use HTML::Parser;
-use UUID::Tiny ':std';
-use File::Copy;
-use DateTime;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use Getopt::Long qw{GetOptions};
+use Time::HiRes  ();
+
+use Trog::Config;
+use Trog::Data::FlatFile;
+use Trog::Data::SQLite;
 
 =head1 SYNOPSIS
 
-Migrate tCMS1 data to the tCMS2 flat file data model.
-
-Walks a tCMS1 docroot and writes each microblog entry and blog post out as a
-tCMS2 post under data/files, keyed by the original creation time so that the
-ordering survives.
+Move a site from the FlatFile data model to the SQLite one.
 
 =head2 USAGE
 
-Edit $docroot and $dir below to point at the tCMS1 site, then:
+    bin/migrate.pl [--dry-run] [--batch N] [--quiet]
 
-    bin/migrate.pl
+Must be run from the tCMS root, as the data paths are relative to it.
 
-Run from the tCMS root; the output paths are relative to it.  Follow up with
-bin/build_index.pl, as this writes the flat files directly and leaves the post
-index untouched.
+    --dry-run   Say what would be carried over, and write nothing.
+    --batch N   Posts per transaction.  Default 500.
+    --quiet     Only complain; say nothing on success.
 
-=head2 CAVEATS
+=head2 WHAT IT DOES
 
-Historical.  This is the first of the migrate scripts and only applies to a
-tCMS1 site; anything newer wants migrate2.pl onwards.
+Reads every version of every post out of data/files and writes them into
+data/posts.sqlite, oldest version first, so that the version bookkeeping ends up
+the way it would have if the posts had been written there all along.
 
-Microblog entries come in two flavours -- JSON, and hand written HTML from
-before that -- so each file is tried as JSON first and parsed as HTML if that
-fails.  Post authorship is recovered from file ownership, with www-data and
-nologin owners becoming 'nobody'.
+Nothing is deleted.  data/files is left exactly as it found it, and so is the
+flat file model's tag index in data/posts.db, so the way back is to put
+data_model back to FlatFile.
 
-There is an C<exit 0> partway through, before the video migration.  That code
-is unreachable as written and has never been run against anything current.
+Safe to re-run.  Post versions already carried over are skipped rather than
+duplicated, which also makes it safe to run once against a live site and again
+after a final quiet period to pick up whatever was written in between.
+
+When it has finished, switch the site over in config/main.cfg:
+
+    [general]
+        data_model=SQLite
+
+...and restart, so the workers build the new model rather than the old one.
+
+=head2 TERMINATION CONDITIONS
+
+Exits non-zero if any post could not be carried over, having written everything
+it could.  Each batch is a transaction, so a batch that fails is not half
+applied, and re-running picks up from what actually landed.
 
 =cut
 
-#Edit this to be whatever you need it to be
-my $docroot = "/var/www/teodesian.net/doc";
+# So that progress and complaints interleave in the order they happened when
+# this is piped to a log rather than watched.
+STDOUT->autoflush(1);
+STDERR->autoflush(1);
 
-my $dir = "/var/www/teodesian.net/doc/microblog/";
+my $usage = "Usage: bin/migrate.pl [--dry-run] [--batch N] [--quiet]\n";
 
-opendir( my $dh, $dir ) or die;
-my @days = grep { !/^\./ } readdir $dh;
-closedir $dh;
+# Printed and exited rather than died: Carp::Always is in the dependency chain,
+# and a usage message wearing a stack trace reads like a crash.
+sub usage_error (@complaint) {
+    print STDERR @complaint, $usage;
+    exit 2;
+}
 
-my $ring = JSON::MaybeXS->new();
-foreach my $day (@days) {
+my ( $dry_run, $quiet, $batch_size ) = ( 0, 0, 500 );
+GetOptions(
+    'dry-run' => \$dry_run,
+    'quiet'   => \$quiet,
+    'batch=i' => \$batch_size,
+) or usage_error();
 
-    opendir( my $dht, "$dir/$day" ) or die;
-    my @times = grep { !/^\./ } readdir $dht;
-    closedir $dht;
+usage_error("--batch must be a positive number of posts.\n") if $batch_size < 1;
 
-    # Escaped on purpose: split compiles a string argument as a regex, so a
-    # bare '.' would match any character and hand back an empty list.
-    my ( $month, $date, $year ) = split( '\.', $day );
+sub say_unless_quiet (@args) {
+    return if $quiet;
+    say @args;
+    return;
+}
 
-    foreach my $time (@times) {
+my $config = Trog::Config::get();
+my $from   = Trog::Data::FlatFile->new($config);
+my $to     = Trog::Data::SQLite->new($config);
 
-        my ( $hour, $min, $sec ) = split( ':', $time );
+# raw, so we get the history rather than only the current version of each post,
+# and so that no acl filtering stands between a migration and the data it is
+# supposed to be moving.
+my $started = [ Time::HiRes::gettimeofday() ];
+my @posts   = $from->get( raw => 1, limit => 0 );
+if ( !@posts ) {
+    print STDERR "No posts found in data/files -- is this a tCMS root, and is it on the FlatFile model?\n";
+    exit 2;
+}
 
-        my $data;
-        my $file = "$dir/$day/$time";
+# Oldest first: write() appends, and the version bookkeeping is maintained as it
+# goes, so feeding it in order is what makes first_id and latest_id right.
+@posts = sort { ( $a->{id} // '' ) cmp ( $b->{id} // '' ) || ( $a->{version} // 0 ) <=> ( $b->{version} // 0 ) } @posts;
 
-        print "Migrate $file\n";
-        eval {
-            my $content = File::Slurper::read_text($file);
-            $data = $ring->decode($content);
-            $data = json_remap($data);
-        };
-        $data = html_post($file) unless $data;
+# One query rather than one per post.
+my $present = $to->versions_present();
 
-        my $dt = DateTime->new(
-            year   => $year + 2000,
-            month  => $month,
-            day    => $date,
-            hour   => $hour,
-            minute => $min,
-            second => $sec,
-        );
-        $data->{created} = $dt->epoch();
+# Separately: an array in a list assignment swallows everything after it.
+my @batch;
+my ( $written, $skipped, $failed ) = ( 0, 0, 0 );
 
-        $data->{id}      = $data->{created};
-        $data->{tags}    = [ 'public', 'news' ];
-        $data->{version} = 0;
+sub flush_batch () {
+    return unless @batch;
 
-        open( my $fh, '>', "data/files/$data->{created}" ) or die;
-        print $fh encode_json( [$data] );
-        close $fh;
+    if ($dry_run) {
+        $written += scalar(@batch);
+        @batch = ();
+        return;
     }
-}
 
-# Migrate blog posts
-$dir = "$docroot/blog";
+    local $@;
+    eval {
+        $to->write( \@batch );
+        $written += scalar(@batch);
+        1;
+    } or do {
+        my $error = $@;
+        $failed += scalar(@batch);
 
-opendir( my $bh, $dir ) or die;
-my @blogs = grep { -f "$dir/$_" } readdir $bh;    ## no critic (ProhibitFiletest_f) -- picking which entries to read
-closedir $bh;
-
-my $offset = 0;
-
-foreach my $post (
-    sort {
-        my $anum = $a =~ m/^(\d*)-/;
-        my $bnum = $b =~ m/^(\d*)-/;
-        $b <=> $a
-    } @blogs
-) {
-    my $postname = $post;
-    $postname =~ s/^\d*-//g;
-    $postname =~ s/\.post$//g;
-    my $content = File::Slurper::read_text("$dir/$post");
-
-    my $data = {
-        title => $postname,
-        data  => $content,
-        tags  => [ 'blog', 'public' ],
+        # The batch was a transaction, so none of it landed.  Name what was in
+        # it, or the operator has an error and no idea which posts to look at.
+        say STDERR "Could not write a batch of " . scalar(@batch) . " post version(s): $error";
+        say STDERR "  the batch held: " . join( ', ', map { "$_->{id}\@" . ( $_->{version} // 0 ) } @batch );
     };
 
-    my ( undef, undef, undef, undef, $uid, undef, undef, undef, undef, $ctime ) = stat("$dir/$post");
-    my $user = lc( getpwuid($uid) );
-    $user = scalar( grep { $user eq $_ } qw{/sbin/nologin www-data} ) ? 'nobody' : $user;
-    $data->{user} = $user;
-    $ctime += $offset;
-    $data->{created} = $ctime;
-    $data->{id}      = $ctime;
-    $data->{href}    = "/blog/$ctime";
-    $data->{version} = 0;
-
-    print "Migrate blog post '$post'\n";
-    open( my $fh, '>', "data/files/$data->{created}" ) or die;
-    print $fh encode_json( [$data] );
-    close $fh;
-
-    $offset--;
+    @batch = ();
+    return;
 }
+
+foreach my $post (@posts) {
+    if ( !$post->{id} ) {
+        say STDERR "Skipping a post with no id, which is not something this can carry over";
+        $failed++;
+        next;
+    }
+
+    if ( $present->{ $post->{id} }{ $post->{version} // 0 } ) {
+        $skipped++;
+        next;
+    }
+
+    push( @batch, $post );
+    flush_batch() if @batch >= $batch_size;
+}
+flush_batch();
+
+my $elapsed = Time::HiRes::tv_interval($started);
+
+if ($dry_run) {
+    say_unless_quiet( sprintf( "Would carry over %d post version(s); %d already present.", $written, $skipped ) );
+    say_unless_quiet("Nothing was written.  Re-run without --dry-run to do it.");
+    exit( $failed ? 1 : 0 );
+}
+
+# Worth stating plainly rather than trusting the counters: they say what this
+# thought it did, and the databases say what is actually there.
+my $expected = scalar( grep { $_->{id} } @posts );
+my $have     = 0;
+$have += scalar( keys %$_ ) foreach values %{ $to->versions_present() };
+
+say_unless_quiet( sprintf( "Carried over %d post version(s), skipped %d already present, in %.1fs.", $written, $skipped, $elapsed ) );
+say_unless_quiet( sprintf( "data/files holds %d post version(s); data/posts.sqlite now holds %d.", $expected, $have ) );
+
+if ( $failed || $have < $expected ) {
+    say STDERR sprintf( "%d post version(s) did not make it across.  Fix what the errors above name and re-run; what landed will be skipped.", $failed || ( $expected - $have ) );
+    exit 1;
+}
+
+say_unless_quiet("Set general.data_model to SQLite in config/main.cfg and restart to serve from it.");
 exit 0;
-my $vdir = "$docroot/fileshare/video";
-opendir( my $vh, $vdir ) or die;
-my @vidyas = grep { -f "$vdir/$_" && $_ =~ m/\.m4v$/ } readdir $vh;    ## no critic (ProhibitFiletest_f) -- picking which entries to read
-closedir $vh;
-
-foreach my $vid (@vidyas) {
-    my $postname = $vid;
-    $postname =~ s/_/ /g;
-    $postname =~ s/\.mv4$//g;
-
-    my $data = {
-        title   => $postname,
-        data    => "Description forthcoming",
-        tags    => [ 'video', 'public' ],
-        preview => "/img/sys/testpattern.jpg",
-    };
-
-    my ( undef, undef, undef, undef, $uid, undef, undef, undef, undef, $ctime ) = stat("$vdir/$vid");
-    my $user = lc( getpwuid($uid) );
-    $user            = scalar( grep { $user eq $_ } qw{/sbin/nologin www-data} ) ? 'nobody' : $user;
-    $data->{user}    = $user;
-    $data->{created} = $ctime;
-    $data->{id}      = $ctime;
-    $data->{href}    = "/assets/$ctime-$vid";
-    $data->{version} = 0;
-
-    #Copy over the video
-    File::Copy::copy( "$vdir/$vid", "www/assets/$ctime-$vid" );
-
-    print "Migrate video '$vid'\n";
-    open( my $fh, '>', "data/files/$data->{created}" ) or die;
-    print $fh encode_json( [$data] );
-    close $fh;
-}
-
-sub json_remap {
-    my $json = shift;
-
-    return {
-        preview    => $json->{"image"},
-        data       => $json->{"comment"},
-        user       => lc( $json->{"poster"} ),
-        title      => $json->{"title"},
-        audio_href => $json->{"audio"},
-        href       => $json->{"url"},
-        video_href => $json->{"video"},
-    };
-}
-
-sub html_post {
-    my $file          = shift;
-    my $is_first_link = 1;
-    my $data          = { data => '', href => '' };
-
-    my $p = HTML::Parser->new(
-        handlers => [
-            start => [
-                sub {
-                    my ( $self, $attr, $text, $tagname ) = @_;
-                    if ( $tagname eq 'a' && $is_first_link ) {
-                        $data->{href} = $attr->{href};
-                        return;
-                    }
-                    return if $is_first_link;
-                    return if $tagname eq 'hr';
-                    $data->{data} .= $text;
-                },
-                'self, attr, text,tagname'
-            ],
-            text => [
-                sub {
-                    my ( $self, $attr, $text, $tagname ) = @_;
-                    if ($is_first_link) {
-                        $data->{title} .= $text;
-                        return;
-                    }
-                    $data->{data} .= $text;
-                },
-                'self, attr, text,tagname'
-            ],
-            end => [
-                sub {
-                    my ( $self, $attr, $text, $tagname ) = @_;
-                    if ( $tagname eq 'a' && $is_first_link ) {
-                        $is_first_link = 0;
-                        return;
-                    }
-                    return if $is_first_link;
-                    $data->{data} .= $text;
-                },
-                'self, attr, text,tagname'
-            ],
-        ],
-    );
-    $p->parse_file($file);
-
-    #Get the user name from ownership
-    my ( undef, undef, undef, undef, $uid, undef, undef, undef, undef, $ctime ) = stat($file);
-    my $user = lc( getpwuid($uid) );
-    $user = scalar( grep { $user eq $_ } qw{/sbin/nologin www-data} ) ? 'nobody' : $user;
-    $data->{user} = $user;
-
-    $data->{created} = $ctime;
-
-    return $data;
-}

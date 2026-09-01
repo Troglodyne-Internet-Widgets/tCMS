@@ -186,7 +186,7 @@ subtest 'versions' => sub {
     is( $first->{title},       'The Quick Brown Fox', 'an older version can still be asked for' );
     is( $first->{version_max}, 1,                     'and knows a newer one exists' );
 
-    # raw is the history as stored, which is what bin/migrate*.pl reads.
+    # raw is the history as stored, which is what bin/migrate.pl reads.
     my @raw = $sqlite->get( raw => 1, limit => 0 );
     is( scalar(@raw), 9, 'raw gets every version of everything' );
     ok( !exists $raw[0]{version_max}, 'and does not decorate them' );
