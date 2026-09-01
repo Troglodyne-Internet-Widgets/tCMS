@@ -166,7 +166,7 @@ is one file to keep in sync rather than two:
 | `x-tcms-relation-form` | this field holds another post's UUID |
 | `x-tcms-relations` | what to resolve onto the post at render time |
 | `x-tcms-datasource` | these posts are built by a module, not stored |
-| `x-tcms-post-type` | the type's own name and description |
+| `x-tcms-post-type` | the type's own name, description, and everything the wizard was told to build it |
 
 You do not have to write either file by hand. **The Post Type Wizard**
 (`/admin/wyzzerdd`) generates both from a form: name the fields, pick their
@@ -179,6 +179,14 @@ re-reads the directory every call and Xslate resolves includes lazily.
 The generated template is ordinary Kolon, so hand-editing it afterwards is
 expected and fine. Regenerating the type overwrites it, which is why the wizard
 says so at the top of what it writes.
+
+The wizard's "Start from" dropdown reopens a type that already exists: it fills
+the form back in from the sidecar, shows the type's description, and ticks
+Overwrite, so changing one thing about a type is a two-minute job rather than
+filling the form in again from memory. That works because `x-tcms-post-type`
+records everything the wizard was told -- the description, the display template,
+the checkboxes, the placeholder -- and `schema_for` strips that whole key before
+validation, so none of it can affect whether a post saves.
 
 Series, and how content is organised
 ------------------------------------

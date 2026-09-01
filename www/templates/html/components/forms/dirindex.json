@@ -1,24 +1,25 @@
 {
-   "properties" : {
-      "directory" : {
-         "type" : "string",
-         "x-tcms-input" : "text",
-         "x-tcms-label" : "Directory to index"
+   "properties": {
+      "directory": {
+         "type": "string",
+         "x-tcms-input": "text",
+         "x-tcms-label": "Directory to index"
       }
    },
-   "type" : "object",
-   "x-tcms-datasource" : "Trog::DataSource::DirIndex",
-   "x-tcms-post-type" : {
-      "body_form" : "form_common.tx",
-      "generated" : true,
-      "generator" : "Trog::Routes::HTML::post_wizard_save",
-      "includes" : [
+   "type": "object",
+   "x-tcms-datasource": "Trog::DataSource::DirIndex",
+   "x-tcms-post-type": {
+      "body_form": "form_common.tx",
+      "description": "A listing of a directory on disk.  Its posts are built by Trog::DataSource::DirIndex rather than written, so put files in the directory instead of using an editor.",
+      "generated": true,
+      "generator": "Trog::Routes::HTML::post_wizard_save",
+      "includes": [
          "preview.tx",
          "visibility.tx",
          "acls.tx",
          "tags.tx",
          "aliases.tx"
       ],
-      "name" : "dirindex"
+      "name": "dirindex"
    }
 }

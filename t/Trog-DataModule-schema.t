@@ -411,6 +411,144 @@ subtest '_wizard_sidecar emits a usable OpenAPIv3 schema' => sub {
     is_deeply( $spec->{'x-tcms-post-type'}{includes}, ['tags.tx'], "the includes are recorded for regeneration" );
 };
 
+subtest 'a type records what the wizard was told, where the validator cannot see it' => sub {
+    my $fields = [
+        {
+            name     => 'cook_time', type => 'text', label => 'Cook Time', placeholder => '45 minutes',
+            required => 1, private => 0, indexed => 1, relation_form => '', relation_mode => 'one',
+        },
+        {
+            name     => 'everything', type => 'relation', label => '', placeholder => '',
+            required => 0, private => 0, indexed => 0, relation_form => 'blog.tx', relation_mode => 'all',
+        },
+    ];
+
+    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+        'recipe', $fields, ['inc_tags'], 'form_common.tx', '',
+        {
+            description       => 'A recipe, with its cook time.',
+            display           => '<div class="r"><: $post.cook_time :></div>',
+            title_placeholder => 'Bread',
+            wrapper           => 1,
+            inc_post_title    => 1,
+            inc_post_tags     => 0,
+        }
+    );
+
+    my $type = $spec->{'x-tcms-post-type'};
+    is( $type->{description},       'A recipe, with its cook time.',              'the description is recorded' );
+    is( $type->{display},           '<div class="r"><: $post.cook_time :></div>', 'and the display template' );
+    is( $type->{title_placeholder}, 'Bread',                                      'and the title placeholder' );
+    ok( $type->{wrapper},        'and the checkboxes which are not includes' );
+    ok( $type->{inc_post_title}, 'all of them' );
+    ok( !$type->{inc_post_tags}, 'including the ones that were clear' );
+
+    # The point of putting it there: schema_for() keeps properties and required
+    # and nothing else, so none of this can affect whether a post validates.
+    set_sidecars( 'recipe.json' => JSON::MaybeXS::encode_json($spec) );
+    my $schema = Trog::DataModule::schema_for('recipe.tx');
+    ok( !exists $schema->{'x-tcms-post-type'},   'and the validator never sees any of it' );
+    ok( exists $schema->{properties}{cook_time}, 'while the fields it does care about are there' );
+
+    is_deeply( [ Trog::DataModule::validate( { form => 'recipe.tx', title => 'x', cook_time => '45 minutes' } ) ], [], 'so a post of the type still saves' );
+};
+
+subtest 'a type reads back as the form that made it' => sub {
+    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+        'recipe',
+        [
+            {
+                name     => 'cook_time', type => 'number', label => 'Cook Time', placeholder => '45',
+                required => 1, private => 0, indexed => 1, relation_form => '', relation_mode => 'one',
+            },
+            {
+                name     => 'secret_note', type => 'textarea', label => 'Note', placeholder => '',
+                required => 0, private => 1, indexed => 0, relation_form => '', relation_mode => 'one',
+            },
+            {
+                name     => 'picked', type => 'relation', label => 'Picked', placeholder => '',
+                required => 0, private => 0, indexed => 0, relation_form => 'blog.tx', relation_mode => 'one',
+            },
+            {
+                name     => 'everything', type => 'relation', label => '', placeholder => '',
+                required => 0, private => 0, indexed => 0, relation_form => 'entities.tx', relation_mode => 'all',
+            },
+        ],
+        [qw{inc_preview inc_tags}],
+        'form_multi.tx',
+        'Trog::DataSource::Virt',
+        {
+            description       => 'What it is for.',
+            display           => '<div>x</div>',
+            title_placeholder => 'Bread',
+            wrapper           => 1,
+            inc_post_title    => 0,
+            inc_post_tags     => 1,
+        }
+    );
+    set_sidecars( 'recipe.json' => JSON::MaybeXS::encode_json($spec) );
+
+    my $types = Trog::Routes::HTML::_wizard_types( ['recipe.tx'] );
+    my $back  = $types->{'recipe.tx'};
+
+    is( $back->{name},              'recipe',                 'the name comes back without the extension' );
+    is( $back->{description},       'What it is for.',        'the description comes back' );
+    is( $back->{display},           '<div>x</div>',           'and the display' );
+    is( $back->{body_form},         'form_multi.tx',          'and which body form' );
+    is( $back->{datasource},        'Trog::DataSource::Virt', 'and the datasource' );
+    is( $back->{title_placeholder}, 'Bread',                  'and the placeholder' );
+    is( $back->{wrapper},           1,                        'the ticked boxes come back ticked' );
+    is( $back->{inc_post_title},    0,                        'the clear ones clear' );
+    is( $back->{inc_post_tags},     1,                        'individually' );
+    is( $back->{inc_preview},       1,                        'and the includes are recovered from the list' );
+    is( $back->{inc_tags},          1,                        'all of them' );
+    is( $back->{inc_aliases},       0,                        'and only them' );
+
+    my %by_name = map { $_->{name} => $_ } @{ $back->{fields} };
+    is( scalar( keys %by_name ), 4, 'every custom field comes back' );
+
+    is( $by_name{cook_time}{type},       'number',    'with the input it was given' );
+    is( $by_name{cook_time}{label},      'Cook Time', 'its label' );
+    is( $by_name{cook_time}{required},   1,           'whether it was required' );
+    is( $by_name{cook_time}{indexed},    1,           'and whether it was indexed' );
+    is( $by_name{secret_note}{private},  1,           'a private field says so' );
+    is( $by_name{picked}{type},          'relation',  'a relation says so' );
+    is( $by_name{picked}{relation_form}, 'blog.tx',   'naming its target' );
+    is( $by_name{picked}{relation_mode}, 'one',       'and that it picks one' );
+
+    # This one stores nothing, so it has no property to be found by -- it exists
+    # only as a relations entry, and would be lost without looking there.
+    is( $by_name{everything}{relation_mode}, 'all',         'a pick-everything relation comes back too' );
+    is( $by_name{everything}{relation_form}, 'entities.tx', 'naming its target' );
+
+    # And nothing from the base post schema, which was never a wizard field.
+    ok( !exists $by_name{title},      'the base schema fields are not offered as custom ones' );
+    ok( !exists $by_name{visibility}, 'any of them' );
+};
+
+subtest 'the types are handed to the page as JSON it cannot break out of' => sub {
+    no warnings qw{once};
+
+    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+        'nasty', [], [], 'form_common.tx', '',
+        { description => 'ends a script </script><script>alert(1)</script>', display => '<div>markup</div>' }
+    );
+    set_sidecars( 'nasty.json' => JSON::MaybeXS::encode_json($spec) );
+
+    my $json = Trog::Routes::HTML::_wizard_types_json( ['nasty.tx'] );
+    unlike( $json, qr/</, 'no bare < survives, so the script element cannot be closed early' );
+
+    my $back = JSON::MaybeXS::decode_json($json);
+    like( $back->{'nasty.tx'}{description}, qr{</script>}, 'while the text itself is intact once parsed' );
+    is( $back->{'nasty.tx'}{display}, '<div>markup</div>', 'and so is the display template' );
+
+    # A description is free text, but it still goes in a file.
+    my $long = Trog::Routes::HTML::_wizard_description( 'x' x 9000 );
+    ok( length($long) <= $Trog::Routes::HTML::wizard_description_max, 'a very long description is capped' );
+    is( Trog::Routes::HTML::_wizard_description(),                    '', 'and no description at all is empty rather than undef' );
+    is( Trog::Routes::HTML::_wizard_description( [ 'an', 'array' ] ), '', 'as is one that is not a string' );
+};
+
 subtest '_kolon_safe defuses template syntax' => sub {
     my $safe = Trog::Routes::HTML::_kolon_safe(qq{<: \$post.id :>\n: include "evil.tx";});
     unlike( $safe, qr/</,      "no angle brackets survive" );

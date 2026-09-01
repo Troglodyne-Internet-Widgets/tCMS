@@ -1,27 +1,28 @@
 {
-   "properties" : {
-      "conn_uri" : {
-         "type" : "string",
-         "x-tcms-input" : "url",
-         "x-tcms-label" : "Libvirt Connection URI",
-         "x-tcms-placeholder" : "libvirt://localhost",
-         "x-tcms-private" : true
+   "properties": {
+      "conn_uri": {
+         "type": "string",
+         "x-tcms-input": "url",
+         "x-tcms-label": "Libvirt Connection URI",
+         "x-tcms-placeholder": "libvirt://localhost",
+         "x-tcms-private": true
       }
    },
-   "required" : [
+   "required": [
       "conn_uri"
    ],
-   "type" : "object",
-   "x-tcms-post-type" : {
-      "body_form" : "form_common.tx",
-      "generated" : true,
-      "generator" : "Trog::Routes::HTML::post_wizard_save",
-      "includes" : [
+   "type": "object",
+   "x-tcms-post-type": {
+      "body_form": "form_common.tx",
+      "description": "A libvirt hypervisor to draw guests from.  Its connection URI is editors-only.",
+      "generated": true,
+      "generator": "Trog::Routes::HTML::post_wizard_save",
+      "includes": [
          "visibility.tx",
          "acls.tx",
          "tags.tx",
          "aliases.tx"
       ],
-      "name" : "hypervisor"
+      "name": "hypervisor"
    }
 }

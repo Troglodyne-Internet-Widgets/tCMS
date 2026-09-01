@@ -452,7 +452,9 @@ subtest 'the post wizard invents a new post type' => sub {
 
     ok( -f 'www/templates/html/components/forms/spec_widget.tx',   'the template was written' );
     ok( -f 'www/templates/html/components/forms/spec_widget.json', 'the schema sidecar was written' );
-    like( $body, qr{<li>spec_widget\.tx</li>}, 'and the new type is listed back to us' );
+
+    # The existing types are a dropdown now, not a list.
+    like( $body, qr{<option value="spec_widget\.tx">}, 'and the new type is listed back to us' );
 
     # This is the assertion that the sandbox is real: a symlinked template tree
     # would have put these in the developer's actual checkout.
@@ -767,6 +769,77 @@ subtest 'a directory index series' => sub {
 
     $watch->{callback}->( $tpsgi, { path => 'www/assets/spec_downloads/file8.txt', events => ['CREATE'] } );
     is_deeply( $tpsgi->{invalidated}, ['html'], 'and a change to the directory invalidates the renders' );
+};
+
+subtest 'the wizard offers the types that exist, and can reopen one' => sub {
+
+    # Make a type with everything the form can carry, then check the wizard
+    # hands it back as the form that would have produced it.
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route               => '/admin/wyzzerdd/save',
+            method              => 'POST',
+            name                => 'spec_reopen',
+            body_form           => 'form_common.tx',
+            wrapper             => 1,
+            inc_post_title      => 1,
+            inc_tags            => 1,
+            title_placeholder   => 'A Widget',
+            description         => 'A widget, with the size it comes in.',
+            param_name          => ['widget_size'],
+            param_type          => ['number'],
+            param_label         => ['Size'],
+            param_placeholder   => ['12'],
+            param_required      => [1],
+            param_private       => [0],
+            param_indexed       => [1],
+            param_relation_form => ['blog.tx'],
+            param_relation_mode => ['one'],
+            display             => q{<div class="w"><: $post.widget_size :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'the type was created' ) or diag($err);
+
+    # The description goes in the sidecar, under the key the validator strips.
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new('www/templates/html/components/forms/spec_reopen.json')->slurp_utf8 );
+    is( $sidecar->{'x-tcms-post-type'}{description}, 'A widget, with the size it comes in.', 'the description is stored' );
+    like( $sidecar->{'x-tcms-post-type'}{display}, qr/widget_size/, 'and so is the display template' );
+
+    # Now the wizard page itself.
+    ( $code, $body, $err ) = _render( _admin( route => '/admin/wyzzerdd' ), \&Trog::Routes::HTML::post_wizard );
+    is( $code, 200, 'the wizard renders' ) or diag($err);
+
+    like( $body, qr/id="wizard-existing"/,             'the existing types are a dropdown' );
+    like( $body, qr/<option value="">A new post type/, 'defaulting to a new one' );
+    like( $body, qr/<option value="spec_reopen\.tx">/, 'and offering the one we just made' );
+    like( $body, qr/id="wizard-description-editor"/,   'with a collapsed editor for the description' );
+
+    my ($json) = $body =~ m{id="wizard-types"[^>]*>(.*?)</script>}s;
+    ok( $json, 'the page carries what each type was made from' ) or return;
+    unlike( $json, qr/</, 'as JSON with no bare < in it, so it cannot end its own script element' );
+
+    my $types = JSON::MaybeXS::decode_json($json);
+    my $mine  = $types->{'spec_reopen.tx'};
+    ok( $mine, 'including the new type' ) or return;
+
+    is( $mine->{name},        'spec_reopen',                          'named without the extension' );
+    is( $mine->{description}, 'A widget, with the size it comes in.', 'with its description' );
+    like( $mine->{display}, qr/widget_size/, 'and its display template' );
+    is( $mine->{title_placeholder}, 'A Widget', 'and its placeholder' );
+    is( $mine->{wrapper},           1,          'the boxes that were ticked' );
+    is( $mine->{inc_tags},          1,          'includes and all' );
+    is( $mine->{inc_aliases},       0,          'and only those' );
+
+    is( scalar( @{ $mine->{fields} } ), 1, 'and its custom field' );
+    my $field = $mine->{fields}[0];
+    is( $field->{name},     'widget_size', 'by name' );
+    is( $field->{type},     'number',      'with the input it was given' );
+    is( $field->{required}, 1,             'whether it was required' );
+    is( $field->{indexed},  1,             'and whether it was indexed' );
+
+    # Which is to say: reopening it and saving it back is a round trip, not a
+    # form somebody has to fill in again from memory.
 };
 
 subtest 'a field can be declared indexed' => sub {

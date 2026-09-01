@@ -65,6 +65,11 @@ Our post data storage being JSON allows us the flexibility to have any kind of m
 You describe the type of data provided in a sidecar JSON file alongside the form's template.
 There's a wizard you can use to build these!
 
+The wizard's "Start from" dropdown reopens any type that already exists, filling the
+form in from its sidecar so you can change one thing and save it back.  Each type
+carries a description saying what it is for, which the dropdown shows and a
+collapsed textarea lets you edit.
+
 From there you make Series of the content type you want; tag the series with 'topbar' if you want it to show up in the top links.
 
 Currently supported:

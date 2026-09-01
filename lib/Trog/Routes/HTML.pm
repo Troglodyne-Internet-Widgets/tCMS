@@ -2445,6 +2445,9 @@ sub post_wizard ($query) {
             is_admin          => 1,
             forms             => $forms,
             forms_dir         => Trog::Themes::forms_dir(),
+            types             => _wizard_types_json($forms),
+            type_names        => [ map { ( $_ =~ s/\.tx$//r ) } @$forms ],
+            description       => _wizard_description( $query->{description} ),
             datasources       => _get_datasources(),
             datasource        => _wizard_scalar( $query->{datasource} ),
             checked           => \%checked,
@@ -2520,7 +2523,15 @@ sub post_wizard_save ($query) {
     my @includes  = grep { $query->{$_} } @wizard_include_order;
     my $body_form = _wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
 
-    my $spec = _wizard_sidecar( $name, $fields, \@includes, $body_form, $datasource );
+    my $spec = _wizard_sidecar(
+        $name, $fields, \@includes, $body_form, $datasource,
+        {
+            description       => _wizard_description( $query->{description} ),
+            display           => _wizard_scalar( $query->{display} ),
+            title_placeholder => _wizard_scalar( $query->{title_placeholder} ),
+            map { $_ => $query->{$_} ? 1 : 0 } qw{wrapper inc_post_title inc_post_tags},
+        }
+    );
 
     local $@;
     eval {
@@ -2623,6 +2634,205 @@ sub _wizard_reindex ( $name, $fields ) {
     };
 
     return;
+}
+
+=head2 _wizard_types($forms) = HASHREF
+
+Every post type on disk, in the shape the wizard's form is in.
+
+This is the other direction from _wizard_sidecar: it reads a type back out and
+says what the wizard would have had to be told to produce it, so that picking one
+from the dropdown can put the form into that state.
+
+Everything but the display template comes out of the sidecar.  The display comes
+out of the sidecar too for anything written since it started being recorded
+there, and is read back out of the template itself otherwise -- see
+_wizard_display_from_template, and note that a hand-written type will often
+yield nothing, which is honest: there is no wizard form that produces it.
+
+=cut
+
+sub _wizard_types ($forms) {
+    my %types;
+
+    foreach my $form (@$forms) {
+        my $schema = Trog::DataModule::schema_for($form);
+        my $meta   = Trog::DataModule::type_meta_for($form);
+        my $type   = $meta->{'x-tcms-post-type'};
+        $type = {} unless Ref::Util::is_hashref($type);
+
+        my %includes = map { $_ => 1 } @{ Ref::Util::is_arrayref( $type->{includes} ) ? $type->{includes} : [] };
+
+        my $display = $type->{display};
+        $display = _wizard_display_from_template($form) unless length( $display // '' );
+
+        $types{$form} = {
+            name              => ( $form =~ s/\.tx$//r ),
+            description       => $type->{description}         // '',
+            display           => $display                     // '',
+            body_form         => $type->{body_form}           // 'form_common.tx',
+            datasource        => $meta->{'x-tcms-datasource'} // '',
+            title_placeholder => $type->{title_placeholder}   // '',
+            generated         => $type->{generated} ? 1 : 0,
+
+            # The wizard's own checkboxes.  The includes are a list in the
+            # sidecar; the other three are recorded individually because nothing
+            # else would say whether they were ticked.
+            wrapper        => $type->{wrapper}        ? 1 : 0,
+            inc_post_title => $type->{inc_post_title} ? 1 : 0,
+            inc_post_tags  => $type->{inc_post_tags}  ? 1 : 0,
+            ( map { $_ => $includes{ $wizard_includes{$_} } ? 1 : 0 } @wizard_optional_includes ),
+
+            fields => _wizard_fields_of( $schema, $meta ),
+        };
+    }
+
+    return \%types;
+}
+
+# The custom fields of a type, as rows the wizard would have submitted.
+sub _wizard_fields_of ( $schema, $meta ) {
+    my $properties = $schema->{properties} // {};
+    my %required   = map { $_ => 1 } @{ $schema->{required} // [] };
+    my $relations  = $meta->{'x-tcms-relations'};
+    $relations = {} unless Ref::Util::is_hashref($relations);
+
+    my @fields;
+    foreach my $name ( sort keys(%$properties) ) {
+
+        # Only what this type added.  Everything in the base post schema belongs
+        # to every post and was never a wizard field.
+        next if exists $Trog::DataModule::post_schema{properties}{$name};
+
+        my $property = $properties->{$name};
+        next unless Ref::Util::is_hashref($property);
+
+        push(
+            @fields,
+            {
+                name          => $name,
+                type          => $property->{'x-tcms-input'}       // 'text',
+                label         => $property->{'x-tcms-label'}       // '',
+                placeholder   => $property->{'x-tcms-placeholder'} // '',
+                required      => $required{$name}              ? 1 : 0,
+                private       => $property->{'x-tcms-private'} ? 1 : 0,
+                indexed       => $property->{'x-tcms-indexed'} ? 1 : 0,
+                relation_form => $property->{'x-tcms-relation-form'} // '',
+                relation_mode => 'one',
+            }
+        );
+    }
+
+    # A relation pulling in every post of its target type stores nothing, so it
+    # has no property to have been found above -- it exists only as a relations
+    # entry with no 'from'.
+    foreach my $name ( sort keys(%$relations) ) {
+        my $relation = $relations->{$name};
+        next unless Ref::Util::is_hashref($relation);
+        next if $relation->{from};
+
+        push(
+            @fields,
+            {
+                name          => $name,
+                type          => 'relation',
+                label         => '',
+                placeholder   => '',
+                required      => 0,
+                private       => 0,
+                indexed       => 0,
+                relation_form => $relation->{form} // '',
+                relation_mode => 'all',
+            }
+        );
+    }
+
+    return \@fields;
+}
+
+=head2 _wizard_display_from_template($form)
+
+Recover a generated type's display template from the template itself.
+
+For types written before the wizard started recording it in the sidecar.  Only
+attempted for a file carrying the generated marker, and only between the two
+lines _wizard_template puts around it, so this either finds exactly what was
+submitted or finds nothing.  A hand-written type finds nothing, which is correct:
+there is no wizard form that produces one.
+
+=cut
+
+sub _wizard_display_from_template ($form) {
+    my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
+    return '' unless $path;
+
+    my $template = eval { File::Slurper::read_text($path) };
+    return '' unless defined $template;
+
+    my @lines = split( "\n", $template );
+
+    # CORE::index because this package has an index() of its own -- the route
+    # that renders every page.
+    return '' unless @lines && CORE::index( $lines[0], 'Generated by the tCMS Post Type Wizard' ) != -1;
+
+    my ( @display, $inside );
+    foreach my $line (@lines) {
+        if ( !$inside ) {
+            $inside = 1 if $line =~ m/^\s*:\s*if\s*\(\s*!\$post\.addpost\s*\)\s*\{\s*$/;
+            next;
+        }
+
+        last if $line =~ m/^\s*:\s*\}\s*$/;
+
+        # The includes the wizard emitted, which are checkboxes rather than
+        # anything the admin typed into the display box.
+        next if $line =~ m/^\s*:\s*include\s+"/;
+
+        push( @display, $line );
+    }
+
+    my $display = join( "\n", @display );
+    $display =~ s/^\s+|\s+$//g;
+    return $display;
+}
+
+=head2 _wizard_types_json($forms) = STRING
+
+_wizard_types() as JSON, safe to drop into a script element.
+
+Every '<' is escaped, which is still valid JSON and means the string cannot
+close the element it is sitting in -- a display template is full of markup, and
+one containing the characters that end a script tag would otherwise end it.
+
+=cut
+
+sub _wizard_types_json ($forms) {
+    my $json = eval { JSON::MaybeXS->new( canonical => 1 )->encode( _wizard_types($forms) ) };
+    if ( !defined $json ) {
+        WARN("Could not describe the existing post types: $@");
+        return '{}';
+    }
+
+    $json =~ s/</\\u003c/g;
+    return $json;
+}
+
+=head2 _wizard_description($description)
+
+A post type's description, as it goes into the sidecar.
+
+Free text rather than template source: it is shown to whoever picks the type in
+the wizard, and rendered as text, so the only thing to do to it is keep it a
+sane length and stop it being something other than a string.
+
+=cut
+
+our $wizard_description_max = 2048;
+
+sub _wizard_description ( $description = '' ) {
+    $description = _wizard_scalar($description);
+    $description = substr( $description, 0, $wizard_description_max ) if length($description) > $wizard_description_max;
+    return $description;
 }
 
 # Repeated params arrive as arrayrefs; anywhere we want one string, insist on one string.
@@ -2729,7 +2939,7 @@ Trog::DataModule::schema_for() merges this over the base post schema.
 
 =cut
 
-sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '' ) {
+sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $extra = {} ) {
     my %properties;
     my @required;
 
@@ -2769,13 +2979,26 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '' ) 
         push( @required, $field->{name} ) if $field->{required};
     }
 
+    # Everything the wizard was told, so that picking this type again puts the
+    # form back the way it was.  It all lives under x-tcms-post-type, which
+    # schema_for() strips before validation -- the validator sees properties and
+    # required and nothing else, so none of this can affect whether a post saves.
     my %spec = (
         'x-tcms-post-type' => {
-            name      => $name,
-            generated => JSON::MaybeXS::true(),
-            generator => 'Trog::Routes::HTML::post_wizard_save',
-            body_form => $body_form,
-            includes  => [ map { $wizard_includes{$_} } @$includes ],
+            name        => $name,
+            generated   => JSON::MaybeXS::true(),
+            generator   => 'Trog::Routes::HTML::post_wizard_save',
+            body_form   => $body_form,
+            includes    => [ map { $wizard_includes{$_} } @$includes ],
+            description => $extra->{description} // '',
+            display     => $extra->{display}     // '',
+
+            # The checkboxes which are not includes, and so are not recoverable
+            # from the list above.
+            wrapper           => $extra->{wrapper}        ? JSON::MaybeXS::true() : JSON::MaybeXS::false(),
+            inc_post_title    => $extra->{inc_post_title} ? JSON::MaybeXS::true() : JSON::MaybeXS::false(),
+            inc_post_tags     => $extra->{inc_post_tags}  ? JSON::MaybeXS::true() : JSON::MaybeXS::false(),
+            title_placeholder => $extra->{title_placeholder} // '',
         },
         type       => 'object',
         properties => \%properties,

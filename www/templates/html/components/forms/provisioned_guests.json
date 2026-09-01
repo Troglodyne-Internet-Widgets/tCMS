@@ -23,6 +23,7 @@
    "x-tcms-datasource": "Trog::DataSource::ProvisionedVirt",
    "x-tcms-post-type": {
       "body_form": "form_common.tx",
+      "description": "A libvirt guest, plus the recipe it was provisioned from and a button to build it again.  Built by Trog::DataSource::ProvisionedVirt.",
       "generated": true,
       "generator": "Trog::Routes::HTML::post_wizard_save",
       "includes": [

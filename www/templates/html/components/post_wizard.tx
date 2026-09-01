@@ -1,4 +1,5 @@
 <script type="text/javascript" src="/scripts/post_wizard.js"></script>
+<script type="application/json" id="wizard-types"><: $types | mark_raw :></script>
 <div id="backoffice">
 <p class="title">
  Existing Post Types:
@@ -7,15 +8,31 @@ A "post type" is just a template living in <code>templates/html/components/forms
 Every post picks exactly one of them &mdash; it's what the <em>Content Template</em> dropdown
 selects when you edit a Series.
 <hr />
-<ul id="existing-post-types">
+<label for="wizard-existing">Start from</label>
+<select class="cooltext" id="wizard-existing" name="wizard_existing" onchange="fillFromType(this);">
+    <option value="">A new post type</option>
 : for $forms -> $form {
-    <li><: $form :></li>
+    <option value="<: $form :>"><: $form :></option>
 : }
-</ul>
+</select>
+<p id="wizard-type-description" class="wizard-type-description"></p>
+<details id="wizard-description-editor">
+    <summary>Description &mdash; what this post type is for</summary>
+    Shown here when somebody picks this type.  It is stored in the sidecar under
+    x-tcms-post-type, which the validator never sees, so it can say whatever is useful.
+    <br />
+    <textarea class="cooltext" name="description" rows="3" form="postTypeWizard"
+              placeholder="A recipe, with its cook time and servings."><: $description :></textarea>
+</details>
 <hr />
 <p class="title">
  Create a new Post Type:
 </p>
+Picking an existing type above fills this form in with what that type was made from,
+so you can change one thing and save it back.  Overwrite is ticked for you when you do,
+since saving it under the same name is the point &mdash; change the name and you get a
+copy instead.
+<br />
 This writes a new template into the forms directory currently in use
 (<code><: $forms_dir :></code>) along with a matching <code>.json</code> sidecar describing
 any custom fields, so that the data model knows to keep them when a post is saved.
