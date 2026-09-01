@@ -4,6 +4,17 @@ tCMS
 A flexible perl CMS which supports multiple data models and content types.
 Should be readily portable/hostable between any other system that runs tCMS due to being largely self-contained.
 
+tCMS exists for **disintermediation from aggregators**: your content, at your
+domain, in your database, under your rules.  It is built so that standing up a
+site hosting content of any imaginable type is a day's work rather than a
+project -- which is to say, it is built for people who get paid to deliver the
+thing a client actually asked for.
+
+**See [design.md](design.md) for the architecture**: what a post is, why the
+routing table is data, how to add a content type without writing Perl, and where
+any given change belongs.  Start there if you are going to work on tCMS or build
+something on top of it.
+
 tCMS is built to be run by tPSGI.
 
 Simple deployment is currently:
@@ -44,6 +55,9 @@ Many of the advanced features of tCMS won't work quite right without the configu
 
 Content Types
 =============
+See [design.md](design.md#post-types) for how post types work and what the
+sidecar can declare.  In brief:
+
 Content templates are modular.
 Add in a template to www/templates/html/components/forms which describe the content *and* how to edit it.
 Our post data storage being JSON allows us the flexibility to have any kind of meta associated with posts, so go hog wild.
