@@ -40,17 +40,13 @@ Recognized options:
     child_processor / child_renderer => override how post bodies are rendered by
                    the render_it() template function.  Built for you if omitted.
 
-Dies unless the template exists.  Returns the body string for components, and a
-PSGI arrayref of [ code, headers, body ] otherwise.
+Dies unless Xslate can resolve and render the template.  Returns the body
+string for components, and a PSGI arrayref of [ code, headers, body ] otherwise.
 
 =cut
 
 sub render (%options) {
     die "Templated renders require a template to be passed" unless $options{template};
-
-    my $template_dir = Trog::Themes::template_dir( $options{template}, $options{contenttype}, $options{component} );
-    my $t            = "$template_dir/$options{template}";
-    die "Templated renders require an existing template to be passed, got $template_dir/$options{template}" unless -f $t || -s $t;
 
     # Xslate resolves includes against every dir in path, first match winning,
     # so handing it both lets a theme override individual templates without
@@ -80,7 +76,17 @@ sub render (%options) {
     );
 
     my $code = $options{code};
-    my $body = encode_utf8( $renderers{$renderer_key}->render( $options{template}, $options{data} ) );
+
+    # Xslate resolves the template itself, against the same @template_dirs it
+    # will actually use.  There used to be a pre-flight test here, and it was
+    # wrong twice over: it resolved through template_dir(), which returns one
+    # winning directory rather than the search path, so it could pass on a file
+    # Xslate would not use and name a nonexistent stock path in its error while
+    # a good theme template existed.  And the condition itself, -f $t || -s $t,
+    # short-circuited on -f, so an empty file passed, while a *directory* passed
+    # on -s returning its size.
+    my $body = eval { encode_utf8( $renderers{$renderer_key}->render( $options{template}, $options{data} ) ) };
+    die "Could not render template '$options{template}' (searched @template_dirs): $@" unless defined $body;
 
     # Users can supply a post_processor to futz with the output (such as with minifiers) if they wish.
     $body = $options{post_processor}->($body) if $options{post_processor} && ref $options{post_processor} eq 'CODE';

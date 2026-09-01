@@ -3,7 +3,8 @@ package Trog::Data::FlatFile;
 use v5.36;
 use re '/aa';
 
-use Carp qw{confess};
+use Carp  qw{confess};
+use Fcntl qw{LOCK_EX SEEK_SET};
 use JSON::MaybeXS;
 use File::Slurper;
 use File::Copy;
@@ -113,16 +114,24 @@ sub write ( $self, $data ) {
     foreach my $post (@$data) {
         my $file   = "$datastore/$post->{id}";
         my $update = [$post];
-        if ( -f $file ) {
-            my $slurped = File::Slurper::read_binary($file);
-            my $parsed  = $parser->decode($slurped);
-
-            $update = [ ( @$parsed, $post ) ];
-        }
 
         mkdir $datastore;
-        open( my $fh, '>', $file ) or confess "Could not open $file";
-        print $fh $parser->encode($update);
+
+        # One locked handle for the whole read-modify-write.  This used to be a
+        # -f, then a separate read, then a separate truncating open; two workers
+        # saving the same post could both read the existing revisions and then
+        # each write back only their own, silently dropping the post's history.
+        # '+>>' creates the file if it is not there, and never truncates.
+        open( my $fh, '+>>', $file ) or confess "Could not open $file: $!";
+        flock( $fh, LOCK_EX )        or confess "Could not lock $file: $!";
+
+        seek( $fh, 0, SEEK_SET ) or confess "Could not rewind $file: $!";
+        my $slurped = do { local $/; <$fh> };
+        $update = [ ( @{ $parser->decode($slurped) }, $post ) ] if length( $slurped // '' );
+
+        seek( $fh, 0, SEEK_SET ) or confess "Could not rewind $file: $!";
+        truncate( $fh, 0 )       or confess "Could not truncate $file: $!";
+        print {$fh} $parser->encode($update);
         close $fh;
 
         Trog::SQLite::TagIndex::add_post( $post, $self );

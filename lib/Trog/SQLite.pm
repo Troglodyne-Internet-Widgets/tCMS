@@ -7,7 +7,6 @@ use POSIX qw{floor};
 
 use DBI;
 use DBD::SQLite;
-use File::Touch;
 use File::Slurper();
 use List::Util qw{any};
 
@@ -44,7 +43,8 @@ sub dbh {
     $dbh //= {};
     return $dbh->{$dbname} if $dbh->{$dbname};
 
-    File::Touch::touch($dbname) unless -f $dbname;
+    # No touch first: DBI:SQLite creates the file on connect.  It also cannot
+    # simply be made unconditional, as that would bump mtime on a live database.
     my $db = DBI->connect( "dbi:SQLite:dbname=$dbname", "", "" );
 
     if ($schema) {
