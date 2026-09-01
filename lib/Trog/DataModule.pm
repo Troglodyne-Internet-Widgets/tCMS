@@ -707,14 +707,21 @@ sub add ( $self, @posts ) {
         # die with a stack trace they have no use for.
         die [ map { "$_" } @errors ] if @errors;
 
-        $post->{id}      //= Trog::Utils::uuid();
+        # ||= rather than //= for the identity and routing scalars.  An
+        # untouched hidden input submits the empty string, and validate() keeps
+        # an empty string for a field the schema types as a string -- which id,
+        # local_href, callback and method all are.  //= then saw a defined value
+        # and left it, so a post created through any editor arrived here with
+        # id => '' and the flat file model wrote it to 'data/files/', which is
+        # the datastore directory rather than a post in it.
+        $post->{id} ||= Trog::Utils::uuid();
         $post->{aliases} //= [];
         $post->{aliases} = [ $post->{aliases} ] unless ref $post->{aliases} eq 'ARRAY';
 
         if ( $post->{aclname} ) {
 
             # Then this is a series
-            $post->{local_href} //= "/$post->{aclname}";
+            $post->{local_href} ||= "/$post->{aclname}";
             push( @{ $post->{aliases} }, "/posts/$post->{id}", "/series/$post->{id}" );
         }
 
@@ -724,18 +731,18 @@ sub add ( $self, @posts ) {
         # visibility selector would otherwise produce exactly that.  Private
         # rather than public, because guessing wrong in the other direction
         # publishes something nobody asked to publish.
-        $post->{visibility} //= 'private';
+        $post->{visibility} ||= 'private';
 
-        $post->{callback} //= 'Trog::Routes::HTML::posts';
+        $post->{callback} ||= 'Trog::Routes::HTML::posts';
 
         # If this is a user creation post, add in the /user/ route
         if ( $post->{callback} eq 'Trog::Routes::HTML::users' ) {
-            $post->{local_href} //= "/users/$post->{display_name}";
-            $post->{title}      //= $post->{display_name};
+            $post->{local_href} ||= "/users/$post->{display_name}";
+            $post->{title}      ||= $post->{display_name};
         }
 
-        $post->{local_href} //= "/posts/$post->{id}";
-        $post->{method}     //= 'GET';
+        $post->{local_href} ||= "/posts/$post->{id}";
+        $post->{method}     ||= 'GET';
         $post->{created} = time();
         my @existing_posts = $self->get( id => $post->{id} );
         if (@existing_posts) {
@@ -778,7 +785,7 @@ sub _process ($post) {
     # into a tag: without one it pushed an undef into tags, which is a tag no
     # query ever matches, so the post went invisible to everyone but an admin.
     # Nothing complained, and the bunk tag was written to disk and stayed there.
-    $post->{visibility} //= 'private';
+    $post->{visibility} ||= 'private';
 
     # If the post is private, make sure it's associated assets are too.
     my $is_private_post = $post->{visibility} eq 'private';

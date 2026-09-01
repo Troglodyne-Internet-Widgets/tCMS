@@ -39,6 +39,8 @@ use Trog::Renderer;
 use Trog::Email;
 use Trog::DataSource;
 
+use CGI::Cookie ();
+
 our $landing_page = 'default.tx';
 
 # Note to maintainers: never ever remove backends from this list.
@@ -296,15 +298,48 @@ else to put it.
 =cut
 
 sub _feedback_redirect ( $query, $to, $failure, $message ) {
+    my $cookie = _feedback_cookie( $failure, $message );
 
-    # The banner puts this in a JS string literal, so it has to be one line.
+    # Appended to what see_also() built rather than replacing it, so this still
+    # logs and still redirects the way every other redirect in here does.
+    my $response = $query->{tpsgi}->see_also($to);
+    push( @{ $response->[1] }, 'Set-Cookie' => $cookie );
+
+    return $response;
+}
+
+=head2 _feedback_cookie($failure, $message) = STRING
+
+The Set-Cookie which carries a save's outcome to the page it redirects to.
+
+A cookie because a redirect's own headers are gone by the time the destination
+renders, and a cookie is the one header that survives the hop.  It used to be a
+query parameter, which meant a save's message was in the URL: a validation error
+carrying a Carp::Always stack trace built a URL of several thousand characters,
+and tPSGI answered the redirect it had just issued with a 419.  The user was
+shown neither the page nor the error.
+
+Trimmed to one line, because the banner puts it in a JS string literal, and
+capped at $feedback_max characters, because a cookie has a size limit of its own
+and nothing a person needs to read is longer than that.  The whole of it is in
+the log either way.
+
+=cut
+
+our $feedback_max = 512;
+
+sub _feedback_cookie ( $failure, $message ) {
     $message //= '';
     $message =~ s/\s*\n+\s*/; /g;
     $message =~ s/;\s*$//;
+    $message = substr( $message, 0, $feedback_max - 3 ) . '...' if length($message) > $feedback_max;
 
-    my $sep = index( $to, '?' ) != -1 ? '&'          : '?';
-    my $key = $failure                ? 'savefailed' : 'saved';
-    return $query->{tpsgi}->see_also( $to . $sep . $key . '=' . URI::Escape::uri_escape($message) );
+    my $value = ( $failure ? 1 : 0 ) . ':' . URI::Escape::uri_escape($message);
+
+    # HttpOnly because the banner is rendered server side and no script has any
+    # business reading it; Max-Age because a message nobody collected should not
+    # follow them around; Path=/ because the destination is wherever they were.
+    return "tcmsfeedback=$value; Path=/; HttpOnly; SameSite=Lax; Max-Age=30";
 }
 
 =head2 _absorb_feedback($query)
@@ -318,16 +353,58 @@ any destination that renders a page, whichever route ends up serving it.
 =cut
 
 sub _absorb_feedback ($query) {
-    my ( $saved, $failed ) = ( $query->{saved}, $query->{savefailed} );
-    return unless defined $saved || defined $failed;
+    my ( $failure, $message ) = _feedback_from_cookie( $query->{cookies} );
 
-    $query->{failure} = defined $failed ? 1 : 0;
-    $query->{message} = ( defined $failed ? $failed : $saved ) || ( $query->{failure} ? 'Save failed.' : 'Saved.' );
+    # The query parameters are still read, for a redirect issued by a worker
+    # which had not been restarted yet, and for anyone who has one bookmarked.
+    if ( !defined $failure ) {
+        my ( $saved, $failed ) = ( $query->{saved}, $query->{savefailed} );
+        return unless defined $saved || defined $failed;
+
+        $failure = defined $failed ? 1       : 0;
+        $message = defined $failed ? $failed : $saved;
+    }
+
+    $query->{failure} = $failure;
+    $query->{message} = $message || ( $failure ? 'Save failed.' : 'Saved.' );
+
+    # A page showing a banner is not a page to cache: the banner is for the one
+    # person who just saved something, and a static of it would be served to
+    # everybody.  The query parameter form was accidentally safe here, since a
+    # query string skips the render cache on its own; a cookie is not.
+    $query->{nocache} = 1;
+
+    # Read once.  Without this the banner reappears on every page until the
+    # cookie expires.
+    $query->{feedback_seen} = 1;
 
     # Nothing further to navigate to -- we are already there.  Without this the
     # banner's success branch would bounce us onwards.
     delete $query->{to};
     return;
+}
+
+=head2 _feedback_from_cookie($cookies) = ($failure, $message)
+
+Pull a save's outcome back out of the cookie _feedback_redirect set.
+
+Returns nothing when there isn't one, so that the caller can fall back to the
+query parameters this replaced.
+
+=cut
+
+sub _feedback_from_cookie ($cookies) {
+    return () unless $cookies;
+
+    local $@;
+    my $jar = eval { CGI::Cookie->parse($cookies) };
+    return () unless ref $jar eq 'HASH' && $jar->{tcmsfeedback};
+
+    my $value = $jar->{tcmsfeedback}->value // '';
+    my ( $failure, $message ) = $value =~ m/^([01]):(.*)$/s;
+    return () unless defined $failure;
+
+    return ( int($failure), URI::Escape::uri_unescape($message) );
 }
 
 =head2 index
@@ -375,6 +452,11 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
 
     my ( $search_lang, $search_help ) = _search_language($query);
 
+    # Consumed, so expire it: otherwise the banner reappears on every page the
+    # reader visits until the cookie times out on its own.
+    my %headers;
+    %headers = ( 'Set-Cookie' => 'tcmsfeedback=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' ) if $query->{feedback_seen};
+
     return finish_render(
         $tmpl,
         {
@@ -394,7 +476,8 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
             default_tags => $default_tags,
             meta_desc    => $meta_desc,
             meta_tags    => $meta_tags,
-        }
+        },
+        %headers,
     );
 }
 
@@ -971,7 +1054,7 @@ sub post_save ($qq) {
     local $@;
     eval { $data->add($query); 1 } or do {
         my @errors = Ref::Util::is_arrayref($@) ? @{$@} : ($@);
-        my $why    = "Post failed validation:\n" . join( "\n", @errors );
+        my $why    = "Post failed validation:\n" . join( "\n", map { _short_error($_) } @errors );
 
         # The full detail goes to the log; the user gets it in the banner on
         # the page they came from, rather than a dead-end 400.
@@ -2389,6 +2472,27 @@ sub post_wizard_save ($query) {
     );
 }
 
+=head2 _short_error($error) = STRING
+
+An error as a person should see it: the first line, without the file and line
+number Perl glued onto the end.
+
+add() dies with an arrayref of validation errors precisely so that they arrive
+clean, but a failure further down -- a write that could not land, say -- is an
+ordinary string die, and Carp::Always decorates those with the entire call
+stack.  That whole thing used to go to the user.
+
+The undecorated original is logged; this is only what reaches the banner.
+
+=cut
+
+sub _short_error ( $error = '' ) {
+    $error = "$error";
+    $error =~ s/\n.*//s;
+    $error =~ s/\s+at\s+\S+\s+line\s+\d+\.?\s*$//;
+    return $error;
+}
+
 =head2 _wizard_reindex($name, $fields)
 
 Bring the data model's idea of which custom fields are queryable into line with
@@ -2805,7 +2909,16 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{code} ||= 200;
     $vars->{theme_dir} =~ s/^\/www\/// if $vars->{theme_dir};
 
-    return Trog::Renderer->render( template => $template, data => $vars, contenttype => 'text/html', code => $vars->{code} );
+    # %headers was accepted and then ignored, which nothing noticed because
+    # nothing passed any.  index() passes one now, to expire the feedback cookie
+    # once its message has been rendered.
+    return Trog::Renderer->render(
+        template    => $template,
+        data        => $vars,
+        contenttype => 'text/html',
+        code        => $vars->{code},
+        ( %headers ? ( headers => \%headers ) : () ),
+    );
 }
 
 1;

@@ -1350,18 +1350,26 @@ subtest 'saves report back through the jsalert banner' => sub {
     );
     my ( $code, $headers ) = @$res;
     my %h = @{ $headers || [] };
-    is( $code, 303, 'a good save redirects' );
-    like( $h{Location}, qr{^/secure/specblog\?saved=}, 'to where we came from, flagged as saved' );
-    unlike( $h{Location}, qr/\n/, 'and the message is one line, since it lands in a JS string' );
+    is( $code,        303,                'a good save redirects' );
+    is( $h{Location}, '/secure/specblog', 'to where we came from, and nowhere else' );
+
+    # The outcome rides in a cookie, not the URL.  It used to be a query
+    # parameter, and a save which failed with a stack trace attached built a URL
+    # of several thousand characters that tPSGI answered with a 419 -- so the
+    # user saw neither the page nor the error.
+    unlike( $h{Location}, qr/[?&]/, 'the URL carries no message at all' );
+    ok( length( $h{Location} ) < 2048, 'so it cannot outgrow what a server will accept' );
+    like( $h{'Set-Cookie'}, qr/^tcmsfeedback=0:/, 'the outcome is in a cookie instead' );
+    unlike( $h{'Set-Cookie'}, qr/\n/, 'and the message is one line, since it lands in a JS string' );
 
     _reindex();
 
-    # Follow the redirect the way a browser would.
-    my ($qs) = $h{Location} =~ m/\?(.*)$/;
-    my %params = map { my ( $k, $v ) = split( /=/, $_, 2 ); ( $k => URI::Escape::uri_unescape($v) ) } split( /&/, $qs );
+    # Follow the redirect the way a browser would: same destination, carrying
+    # the cookie it was just handed.
+    my $feedback = ( split( /;/, $h{'Set-Cookie'} ) )[0];
 
     my ( $rcode, $body, $err ) = _render(
-        _admin( route => '/specblog', has_query => 1, %params ),
+        _admin( route => '/specblog', cookies => $feedback ),
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination renders' ) or diag($err);
@@ -1385,22 +1393,74 @@ subtest 'saves report back through the jsalert banner' => sub {
     );
     ( $code, $headers ) = @$res;
     %h = @{ $headers || [] };
-    is( $code, 303, 'a rejected save redirects too, rather than dead-ending on a 400' );
-    like( $h{Location},                              qr{^/secure/specblog\?savefailed=}, 'flagged as failed' );
-    like( URI::Escape::uri_unescape( $h{Location} ), qr/Not in enum list/,               'carrying the validator error' );
+    is( $code,        303,                'a rejected save redirects too, rather than dead-ending on a 400' );
+    is( $h{Location}, '/secure/specblog', 'to the same place a good one goes' );
+    like( $h{'Set-Cookie'},                              qr/^tcmsfeedback=1:/, 'flagged as failed' );
+    like( URI::Escape::uri_unescape( $h{'Set-Cookie'} ), qr/Not in enum list/, 'carrying the validator error' );
 
     ok( !_find_post('Spec Rejected Child'), 'and the bad post was not written' );
 
-    ($qs) = $h{Location} =~ m/\?(.*)$/;
-    %params = map { my ( $k, $v ) = split( /=/, $_, 2 ); ( $k => URI::Escape::uri_unescape($v) ) } split( /&/, $qs );
+    $feedback = ( split( /;/, $h{'Set-Cookie'} ) )[0];
 
     ( $rcode, $body, $err ) = _render(
-        _admin( route => '/specblog', has_query => 1, %params ),
+        _admin( route => '/specblog', cookies => $feedback ),
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination still renders' ) or diag($err);
     like( $body, qr/var loginFailure = 1;/, 'the banner is in failure mode' );
     like( $body, qr/Not in enum list/,      'and shows why' );
+
+    # Read once: the cookie is expired by the page that rendered it, or the
+    # banner follows the reader around until it times out on its own.
+    my ( undef, undef, undef, $rheaders ) = _render(
+        _admin( route => '/specblog', cookies => $feedback ),
+        \&Trog::Routes::HTML::series,
+    );
+    my %rh = @{ $rheaders || [] };
+    like( $rh{'Set-Cookie'}, qr/^tcmsfeedback=;.*Max-Age=0/, 'and the page that shows it expires it' );
+
+    # A page showing a banner must not be cached, or the one person who saved
+    # something has their message served to everybody.  The query parameter
+    # form was accidentally safe here; a cookie is not.
+    my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
+    _render( _anon( route => '/specblog', cookies => $feedback, tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
+    is_deeply( [ keys %{ $tpsgi->{renders} } ], [], 'and it is never saved as a static' );
+};
+
+subtest 'a hidden id that was never filled in' => sub {
+
+    # Every editor posts <input type="hidden" name="id"> and it is empty for a
+    # new post.  validate() keeps an empty string for a field the schema types
+    # as a string, which id is, so //= saw a defined value and left it -- and
+    # the flat file model wrote the post to 'data/files/', the datastore
+    # directory rather than a post in it.  The error named File::Slurper, and
+    # its stack trace then went into the redirect URL and produced a 419.
+    my $res = Trog::Routes::HTML::post_save(
+        _admin(
+            route      => '/post/save',
+            method     => 'POST',
+            to         => '/specblog',
+            id         => '',
+            form       => 'blog.tx',
+            title      => 'Spec Empty Id Child',
+            data       => 'Saved despite an empty hidden id.',
+            visibility => 'public',
+            tags       => ['specblog'],
+        )
+    );
+    my ( $code, $headers ) = @$res;
+    my %h = @{ $headers || [] };
+    is( $code, 303, 'the save succeeds' );
+    like( $h{'Set-Cookie'}, qr/^tcmsfeedback=0:/, 'and reports success' );
+
+    _reindex();
+    my $saved = _find_post('Spec Empty Id Child');
+    ok( $saved,                       'the post was written' ) or return;
+    ok( length( $saved->{id} // '' ), 'with an id of its own' );
+    isnt( $saved->{id}, '', 'rather than the empty one it was handed' );
+
+    # And the datastore directory is still a directory.
+    ok( -d 'data/files', 'the datastore was not written over' );
 };
 
 subtest 'the topbar did not silently overflow' => sub {

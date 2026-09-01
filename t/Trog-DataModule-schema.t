@@ -7,6 +7,7 @@ use Test::Deep;
 use Test::Fatal qw{exception};
 use JSON::MaybeXS();
 use Path::Tiny();
+use URI::Escape();
 use FindBin;
 use feature qw{signatures};
 no warnings qw{experimental::signatures};
@@ -324,6 +325,46 @@ subtest 'a post always ends up with a visibility' => sub {
 
     bless( {}, 'VisData' )->add( { title => 'Explicit', visibility => 'public', tags => ['sometag'] } );
     is( $written->[0]{visibility}, 'public', 'and an explicit one is left alone' );
+};
+
+subtest 'a save message never becomes a URL' => sub {
+
+    # The whole shape of the bug: a write that failed deep in File::Slurper,
+    # decorated by Carp::Always with the entire call stack, went into the
+    # redirect URL as a query parameter.  The result was several thousand
+    # characters, and tPSGI answered its own redirect with a 419 -- so the user
+    # saw neither the page they saved from nor the error.
+    my $realistic = "Couldn't rename data/dnZHxmlXE5 to data/files/: Not a directory at /opt/perl5/lib/File/Slurper/Temp.pm line 56.\n" . "\tFile::Slurper::Temp::write_text(\"data/files/\", \"[{...}]\") called at /opt/perl5/lib/File/Slurper/Temp.pm line 63\n" . ( "\tTrog::Routes::HTML::post_save(HASH(0x5e798a626570)) called at lib/TCMS.pm line 130\n" x 40 );
+
+    my $short = Trog::Routes::HTML::_short_error($realistic);
+    unlike( $short, qr/\n/,       'the trace is gone' );
+    unlike( $short, qr/line \d+/, 'and so is the file and line Perl glued on' );
+    like( $short, qr/^Couldn't rename data/, 'leaving what actually went wrong' );
+
+    my $cookie = Trog::Routes::HTML::_feedback_cookie( 1, $realistic );
+    ok( length($cookie) < 2048, 'even the whole untrimmed thing fits in a cookie' )
+      or diag( 'cookie was ' . length($cookie) . ' bytes' );
+    like( $cookie, qr/^tcmsfeedback=1:/, 'flagged as a failure' );
+    like( $cookie, qr/HttpOnly/,         'and not readable by script, since nothing needs to' );
+    like( $cookie, qr/Max-Age=\d+/,      'and does not outlive the message it carries' );
+
+    # One line, because the banner puts it in a JS string literal.
+    my ($value) = $cookie =~ m/^tcmsfeedback=1:([^;]*)/;
+    unlike( URI::Escape::uri_unescape($value), qr/\n/, 'the message is one line' );
+
+    # Round trips.
+    my ( $failure, $message ) = Trog::Routes::HTML::_feedback_from_cookie($cookie);
+    is( $failure, 1, 'the outcome comes back out' );
+    like( $message, qr/^Couldn't rename/, 'and so does the message' );
+
+    ( $failure, $message ) = Trog::Routes::HTML::_feedback_from_cookie( Trog::Routes::HTML::_feedback_cookie( 0, "Saved post 'Thing'." ) );
+    is( $failure, 0,                     'a success comes back as one' );
+    is( $message, "Saved post 'Thing'.", 'with its message intact' );
+
+    # And nothing at all when there is no cookie to read.
+    is_deeply( [ Trog::Routes::HTML::_feedback_from_cookie('') ],                 [], 'no cookies, no feedback' );
+    is_deeply( [ Trog::Routes::HTML::_feedback_from_cookie('other=thing') ],      [], 'nor other cookies' );
+    is_deeply( [ Trog::Routes::HTML::_feedback_from_cookie('tcmsfeedback=xyz') ], [], 'nor one that is malformed' );
 };
 
 subtest '_wizard_fields zips the parallel arrays' => sub {

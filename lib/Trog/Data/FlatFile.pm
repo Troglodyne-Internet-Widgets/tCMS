@@ -144,6 +144,13 @@ sub write ( $self, $data ) {
     my $spool = File::Basename::dirname($datastore);
 
     foreach my $post (@$data) {
+
+        # Or the write lands on the datastore directory itself: "$datastore/"
+        # is a directory, rename() onto it fails, and the error names File::
+        # Slurper rather than the post that had no id.  add() will not produce
+        # one, but nothing else guarantees a caller went through add().
+        confess "Cannot write a post with no id" unless length( $post->{id} // '' );
+
         my $file = "$datastore/$post->{id}";
 
         File::Path::make_path($datastore);
