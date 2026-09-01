@@ -526,6 +526,76 @@ subtest 'a datasource-backed type gets no editor' => sub {
     ok( !-e 'www/templates/html/components/forms/spec_bogus.tx', 'and nothing was written' );
 };
 
+subtest 'a field can be declared indexed' => sub {
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route          => '/admin/wyzzerdd/save',
+            method         => 'POST',
+            name           => 'spec_indexed',
+            body_form      => 'form_common.tx',
+            wrapper        => 1,
+            inc_post_title => 1,
+
+            # The middle row is the one that matters: its box is clear, and the
+            # wizard zips these arrays together positionally, so if a clear box
+            # ever submitted nothing the flag would land on the wrong field.
+            param_name          => [ 'cook_time', 'garnish', 'serves' ],
+            param_type          => [ 'text',      'text',    'number' ],
+            param_label         => [ 'Cook Time', 'Garnish', 'Serves' ],
+            param_placeholder   => [ '',          '',        '' ],
+            param_required      => [ 0,           0,         0 ],
+            param_private       => [ 0,           0,         0 ],
+            param_indexed       => [ 1,           0,         1 ],
+            param_relation_form => [ 'blog.tx',   'blog.tx', 'blog.tx' ],
+            param_relation_mode => [ 'one',       'one',     'one' ],
+            display             => q{<div class="ct"><: $post.cook_time :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'the type was created' ) or diag($err);
+
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new('www/templates/html/components/forms/spec_indexed.json')->slurp_utf8 );
+    ok( $sidecar->{properties}{cook_time}{'x-tcms-indexed'},         'the ticked field is marked indexed' );
+    ok( $sidecar->{properties}{serves}{'x-tcms-indexed'},            'and so is the one after the clear box' );
+    ok( !exists $sidecar->{properties}{garnish}{'x-tcms-indexed'},   'the field between them is not' );
+    ok( !exists $sidecar->{properties}{cook_time}{'x-tcms-private'}, 'and indexing is not privacy' );
+
+    is_deeply(
+        Trog::DataModule::indexed_fields_for('spec_indexed.tx'),
+        [ sort qw{cook_time serves} ],
+        'and the model reads them back out of the sidecar'
+    );
+
+  SKIP: {
+        skip( "the $MODEL model has nothing to index with", 3 ) unless $MODEL eq 'SQLite';
+
+        my $dbh     = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );
+        my %columns = map { $_->{name} => 1 } @{ $dbh->selectall_arrayref( 'PRAGMA table_xinfo(posts)',                                              { Slice => {} } ) };
+        my %indexes = map { $_->{name} => 1 } @{ $dbh->selectall_arrayref( "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='posts'", { Slice => {} } ) };
+
+        ok( $columns{cook_time},                'saving the type gave the ticked field a column' );
+        ok( $indexes{'posts_custom_cook_time'}, 'and an index' );
+        ok( !$indexes{'posts_custom_garnish'},  'and left the unticked one alone' );
+    }
+
+    # A post of the type still saves and reads back the same as any other.
+    _reindex();
+    _make_series( 'spec_indexed', 'specindexed', 'spec_indexed.tx', 'Spec Indexed Series', no_topbar => 1 ) or return;
+    my $child = _save_post(
+        'spec_indexed child',
+        form       => 'spec_indexed.tx',
+        title      => 'Spec Indexed Child',
+        cook_time  => '45 minutes',
+        garnish    => 'parsley',
+        visibility => 'public',
+        tags       => ['specindexed'],
+        to         => '/specindexed',
+    ) or return;
+
+    is( $child->{cook_time}, '45 minutes', 'an indexed field stores like any other' );
+    is( $child->{garnish},   'parsley',    'and so does the one beside it' );
+};
+
 subtest 'a field can be declared editors-only' => sub {
     my ( $code, $body, $err ) = _render(
         _admin(

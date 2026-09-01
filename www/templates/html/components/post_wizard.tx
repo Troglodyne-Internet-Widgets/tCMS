@@ -134,6 +134,18 @@ any custom fields, so that the data model knows to keep them when a post is save
             <option value="0">Shown to everyone</option>
             <option value="1">Shown to editors only</option>
         </select>
+        <!--
+            The checkbox has no name, so it never submits; the hidden input beside
+            it carries the value and always submits exactly one, ticked or not.
+            A named checkbox would submit nothing when clear, and the server zips
+            the param_* arrays together positionally, so one short row shifts
+            every row after it.
+        -->
+        <label class="wizard-index" title="Give this field its own column and index, so queries on it do not have to read every post.  Costs a little on save and some disk; only worth it for a field you actually search or filter on.">
+            Index this field
+            <input type="hidden" name="param_indexed" value="0" />
+            <input class="coolcb" type="checkbox" onchange="syncIndexedRow(this);" />
+        </label>
         <button type="button" class="coolbutton" onclick="delParam(this); return false;">Remove</button>
     </div>
 </template>

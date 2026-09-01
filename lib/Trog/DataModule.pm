@@ -14,6 +14,7 @@ use File::Slurper();
 use JSON::MaybeXS();
 use JSON::Validator::Schema::Troglodyne();
 
+use Time::HiRes();
 use Trog::Themes();
 
 use Trog::Log qw{:all};
@@ -394,8 +395,16 @@ picks the change up on its very next add() with no restart needed.
 # Stat the forms dirs, not their parents -- writing blog.json bumps the mtime
 # of forms/, and nothing above it.  Both candidates, since either one gaining a
 # sidecar changes the answer.
+#
+# Time::HiRes::stat, because core stat truncates mtime to the second: the post
+# type wizard writes a sidecar and something reads it back moments later, and at
+# one second of resolution those two are frequently the same generation.  The
+# reader then answers out of the cache it filled before the write, which is how
+# a type saved and used inside the same second validated against the schema it
+# had a moment ago.  Falls back to whatever stat gives where the filesystem
+# carries no sub-second timestamps.
 sub _sidecar_generation {
-    return join( ':', map { ( stat("$_/forms") )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
+    return join( ':', map { ( Time::HiRes::stat("$_/forms") )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
 }
 
 # A signature default only covers an absent arg, and plenty of posts have an
@@ -453,6 +462,43 @@ sub private_fields_for ( $form = '' ) {
     my $properties = schema_for($form)->{properties} // {};
     return [ grep { $properties->{$_}{'x-tcms-private'} } keys(%$properties) ];
 }
+
+=head2 indexed_fields_for($form)
+
+The custom fields of a post type which the Post Type Wizard was told to index,
+as declared by x-tcms-indexed in the sidecar.
+
+A field is unindexed unless it says otherwise.  What indexing a field actually
+means is up to the data model -- see index_fields(), which most of them ignore.
+
+=cut
+
+sub indexed_fields_for ( $form = '' ) {
+    my $properties = schema_for($form)->{properties} // {};
+
+    # Sorted, unlike private_fields_for(), which is only ever asked whether a
+    # given field is in it.  This list is collected across every post type and
+    # handed to a data model to act on, and an answer that comes back in a
+    # different order each run makes a reconciliation impossible to reason about.
+    return [ sort grep { $properties->{$_}{'x-tcms-indexed'} } keys(%$properties) ];
+}
+
+=head2 index_fields(@fields)
+
+Tell the data model which custom fields ought to be queryable, and let it do
+whatever that means for it.
+
+The default is to do nothing at all, and that is a perfectly good answer: a
+model with no notion of an index has nothing to build, and the wizard should not
+have to know which model it is talking to in order to offer the option.
+
+Called with the full set every time rather than with a delta, so a model that
+does act on it can bring itself into line in one pass -- including letting go of
+what is no longer asked for.
+
+=cut
+
+sub index_fields ( $self, @fields ) { return 0 }
 
 =head2 relations_for($form)
 

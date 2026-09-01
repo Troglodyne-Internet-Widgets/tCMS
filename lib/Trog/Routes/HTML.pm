@@ -2272,6 +2272,11 @@ sub post_wizard_save ($query) {
 
     INFO("Post type '$name' written to $tx_file by $query->{user}");
 
+    # Whatever the data model makes of an indexed field, it wants the whole
+    # picture rather than this type's share of it -- see _wizard_reindex.
+    my $index_error = _wizard_reindex( $name, $fields );
+    return _wizard_fail( $query, "Post type '$name' was written, but indexing its fields failed: $index_error" ) if $index_error;
+
     # Nothing else is needed to publish a new type: themed_templates_in_dir()
     # re-reads
     # the directory every call, and Xslate resolves includes lazily, so both the
@@ -2295,6 +2300,49 @@ sub post_wizard_save ($query) {
             to               => '/admin/wyzzerdd',
         }
     );
+}
+
+=head2 _wizard_reindex($name, $fields)
+
+Bring the data model's idea of which custom fields are queryable into line with
+what the post types on disk declare.
+
+Every type's indexed fields, not just the one that was saved: two types can
+declare a field of the same name, so reconciling against one of them alone would
+have saving that type drop the other's index.
+
+The type being saved is taken from the field list in hand rather than by reading
+back the sidecar just written.  schema_for() caches on the mtime of the forms
+directory, which has one second of resolution, so a read here can legitimately
+land on the generation before this save.
+
+Returns the error if there was one, and nothing if all was well.  A failure to
+index is not a failure to create the post type: the type is written by this
+point, works, and is only missing an optimisation.
+
+=cut
+
+sub _wizard_reindex ( $name, $fields ) {
+    my %indexed = map { $_->{name} => 1 } grep { $_->{indexed} } @$fields;
+
+    my $this_type = "$name.tx";
+    foreach my $form ( @{ Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 ) } ) {
+        next if $form eq $this_type;
+        $indexed{$_} = 1 foreach @{ Trog::DataModule::indexed_fields_for($form) };
+    }
+
+    local $@;
+    eval {
+        my $data = Trog::Data->new( Trog::Config::get() );
+        $data->index_fields( sort keys %indexed );
+        1;
+    } or do {
+        my $error = $@;
+        WARN("Could not reconcile custom field indexes: $error");
+        return $error;
+    };
+
+    return;
 }
 
 # Repeated params arrive as arrayrefs; anywhere we want one string, insist on one string.
@@ -2350,6 +2398,7 @@ sub _wizard_fields ($query) {
     my $rforms  = Trog::Utils::coerce_array( $query->{param_relation_form} );
     my $rmodes  = Trog::Utils::coerce_array( $query->{param_relation_mode} );
     my $private = Trog::Utils::coerce_array( $query->{param_private} );
+    my $indexed = Trog::Utils::coerce_array( $query->{param_indexed} );
 
     my ( @fields, %seen );
     foreach my $index ( 0 .. $#$names ) {
@@ -2383,6 +2432,7 @@ sub _wizard_fields ($query) {
                 relation_form => $rform,
                 relation_mode => $rmode,
                 private       => _wizard_scalar( $private->[$index] ) ? 1 : 0,
+                indexed       => _wizard_scalar( $indexed->[$index] ) ? 1 : 0,
             }
         );
     }
@@ -2423,6 +2473,10 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '' ) 
         # Only written when it is true: a field is public unless it says so,
         # and a sidecar full of x-tcms-private:false reads like the opposite.
         $property->{'x-tcms-private'} = JSON::MaybeXS::true() if $field->{private};
+
+        # Likewise unindexed unless asked for.  The sidecar is the declaration;
+        # post_wizard_save() reconciles the data model against it.
+        $property->{'x-tcms-indexed'} = JSON::MaybeXS::true() if $field->{indexed};
 
         if ( $field->{type} eq 'relation' ) {
             $property->{'x-tcms-relation-form'} = $field->{relation_form};

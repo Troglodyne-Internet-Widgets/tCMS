@@ -359,6 +359,100 @@ sub count ($self) {
     return $count // 0;
 }
 
+=head2 index_fields(@fields)
+
+Give each named custom field a virtual column and an index, and take the indexes
+back off the fields no longer named.
+
+This is what the Post Type Wizard's per-field "Index this field" checkbox does
+when the site is on this data model.  A virtual generated column costs no
+storage and ADD COLUMN on one rewrites nothing, so the expensive half is
+building the index, which is a one-off.
+
+Called with every indexed field across every post type, not just the type that
+was saved -- two types can declare the same field name, and reconciling against
+the whole picture is what stops saving one of them dropping the other's index.
+
+Only indexes this created are ever dropped, which is why they carry a prefix.
+The columns are left in place: they cost nothing, something may reference one,
+and re-ticking the box then only has to rebuild the index.
+
+Field names are re-validated here rather than trusted from the caller -- they
+reach SQLite as an identifier and a JSON path, neither of which can be bound as
+a parameter.
+
+=cut
+
+our $index_prefix = 'posts_custom_';
+
+# The columns schema/sqlite.schema defines for itself.  The wizard already
+# refuses a custom field named after anything in the post schema, which covers
+# most of these; this is the backstop for the ones that are not post fields at
+# all, and it is what stops "index this field" quietly indexing the blob.
+our %reserved = map { $_ => 1 } qw{id post_data uuid version created title user author form aclname visibility local_href data};
+
+sub index_fields ( $self, @fields ) {
+    my $dbh = _dbh();
+
+    my %want;
+    foreach my $field (@fields) {
+        my ($safe) = ( $field // '' ) =~ m/^([a-z][a-z0-9_]{0,31})$/;
+        if ( !defined $safe ) {
+            WARN( "Refusing to index '" . ( $field // '' ) . "': not a field name" );
+            next;
+        }
+        if ( $reserved{$safe} ) {
+            WARN("Refusing to index '$safe': the schema owns that column, and already indexes the ones worth indexing");
+            next;
+        }
+        $want{$safe} = 1;
+    }
+
+    # Whatever is already there, base columns included.  A custom field can
+    # never be named after one of those -- the wizard refuses any name already
+    # in the post schema -- so anything found here is either ours or was added
+    # by hand, and either way there is nothing to add.
+    #
+    # xinfo rather than info: table_info omits generated columns, which is every
+    # column on this table bar the blob, so it would report an empty slate every
+    # time and ADD COLUMN would fail on the second call for the same field.
+    my %have = map { $_->{name} => 1 } @{ $dbh->selectall_arrayref( 'PRAGMA table_xinfo(posts)', { Slice => {} } ) // [] };
+
+    my $built = 0;
+    foreach my $field ( sort keys %want ) {
+        if ( !$have{$field} ) {
+            ## no critic(ValuesAndExpressions::PreventSQLInjection) -- $field is the anchored capture above
+            $dbh->do("ALTER TABLE posts ADD COLUMN $field TEXT GENERATED ALWAYS AS (json_extract(post_data, '\$.$field')) VIRTUAL")
+              or confess "Could not add a column for '$field': " . $dbh->errstr;
+        }
+
+        ## no critic(ValuesAndExpressions::PreventSQLInjection) -- as above
+        $dbh->do("CREATE INDEX IF NOT EXISTS $index_prefix$field ON posts($field)")
+          or confess "Could not index '$field': " . $dbh->errstr;
+        $built++;
+    }
+
+    # Anything we built before and were not asked for this time.
+    my $ours = $dbh->selectall_arrayref(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'posts' AND name LIKE ?",
+        { Slice => {} },
+        "$index_prefix%"
+    ) // [];
+
+    my $dropped = 0;
+    foreach my $index ( map { $_->{name} } @$ours ) {
+        my $field = substr( $index, length($index_prefix) );
+        next if $want{$field};
+
+        ## no critic(ValuesAndExpressions::PreventSQLInjection) -- $index came out of sqlite_master
+        $dbh->do("DROP INDEX IF EXISTS $index") or confess "Could not drop the index on '$field': " . $dbh->errstr;
+        $dropped++;
+    }
+
+    INFO("Indexed $built custom field(s), dropped $dropped") if $built || $dropped;
+    return $built;
+}
+
 =head2 tags() = @tags
 
 Every tag in use, from the index the schema's triggers maintain.

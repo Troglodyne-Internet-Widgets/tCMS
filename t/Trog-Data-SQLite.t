@@ -301,4 +301,58 @@ subtest 'writing' => sub {
     unlike( $blob, qr/version_max|"modified"|display_name|user_class/, 'derived fields are not stored' );
 };
 
+subtest 'indexing a custom field' => sub {
+
+    # index_fields() logs what it did, and with no logger configured that comes
+    # out on stderr with a Carp::Always trace behind it.
+    local $SIG{__WARN__} = sub { };
+
+    my $dbh = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );
+
+    # xinfo, because table_info does not list generated columns.
+    my $columns = sub {
+        return { map { $_->{name} => 1 } @{ $dbh->selectall_arrayref( 'PRAGMA table_xinfo(posts)', { Slice => {} } ) } };
+    };
+    my $indexes = sub {
+        return { map { $_->{name} => 1 } @{ $dbh->selectall_arrayref( "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='posts'", { Slice => {} } ) } };
+    };
+
+    ok( !$columns->()->{cook_time}, 'the field has no column to start with' );
+
+    $sqlite->index_fields(qw{cook_time});
+    ok( $columns->()->{cook_time},                'indexing a field gives it a column' );
+    ok( $indexes->()->{'posts_custom_cook_time'}, 'and an index' );
+
+    # The column is generated out of the blob, so it is populated for posts that
+    # were written long before anybody asked for it.
+    $sqlite->write( [ post( id => 'p-recipe', title => 'Soup', cook_time => '45 minutes' ) ] );
+    my ($value) = $dbh->selectrow_array(q{SELECT cook_time FROM posts WHERE uuid = 'p-recipe'});
+    is( $value, '45 minutes', 'and the column reads the value straight out of the post' );
+
+    # And SQLite actually uses it, which is the entire point.
+    my ($plan) = map { $_->{detail} } @{ $dbh->selectall_arrayref( q{EXPLAIN QUERY PLAN SELECT id FROM posts WHERE cook_time = '45 minutes'}, { Slice => {} } ) };
+    like( $plan, qr/USING INDEX posts_custom_cook_time/, 'and searches it rather than every post' );
+
+    is( exception { $sqlite->index_fields(qw{cook_time}) }, undef, 'asking twice is not an error' );
+
+    # Reconciling against a set that no longer names it.
+    $sqlite->index_fields(qw{serves});
+    ok( !$indexes->()->{'posts_custom_cook_time'}, 'a field left out loses its index' );
+    ok( $columns->()->{cook_time},                 'but keeps its column, which costs nothing' );
+    ok( $indexes->()->{'posts_custom_serves'},     'and the newly named one gains an index' );
+
+    # Only ever ours.
+    $sqlite->index_fields();
+    ok( $indexes->()->{posts_created}, "the schema's own indexes are left alone" );
+    ok( $indexes->()->{posts_title},   'all of them' );
+
+    # The name reaches SQLite as an identifier and a JSON path, neither of which
+    # can be bound as a parameter, so it is checked here and not merely upstream.
+    foreach my $hostile ( 'cook_time; DROP TABLE posts', "cook'time", 'Cook_Time', '1st_course', 'a' x 40, '', 'post_data' ) {
+        is( exception { $sqlite->index_fields($hostile) }, undef, "'$hostile' is refused rather than run" );
+    }
+    ok( $indexes->()->{posts_created},             'and the table is still there afterwards' );
+    ok( !$indexes->()->{'posts_custom_post_data'}, 'and a schema column did not pick up an index of its own' );
+};
+
 done_testing();

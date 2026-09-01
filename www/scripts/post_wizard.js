@@ -1,9 +1,15 @@
 // Post Type Wizard - repeatable custom field rows.
 //
 // Every row contributes exactly one param_name, param_type, param_label,
-// param_placeholder and param_required, so the five arrive server side as
-// aligned arrays.  This is why 'required' is a <select> and not a checkbox --
-// an unchecked checkbox submits nothing and would shift every later row.
+// param_placeholder, param_required, param_private and param_indexed, so they
+// arrive server side as aligned arrays.  This is why 'required' is a <select>
+// and not a checkbox -- an unchecked checkbox submits nothing and would shift
+// every later row.
+//
+// 'Index this field' is a real checkbox because it reads like one, and keeps
+// the guarantee anyway: the checkbox itself has no name and never submits, and
+// the hidden input beside it -- which always submits, exactly once -- is what
+// syncIndexedRow keeps in step with it.
 
 function addParam() {
     var tpl  = document.getElementById('wizard-param-template');
@@ -38,6 +44,19 @@ function syncRelationRow(select) {
     var relation = row.querySelector('.wizard-relation');
     if (relation) {
         relation.style.display = select.value === 'relation' ? '' : 'none';
+    }
+    return false;
+}
+
+// Copy a row's index checkbox into the hidden input that actually submits.
+function syncIndexedRow(checkbox) {
+    var row = checkbox.closest('.wizard-param-row');
+    if (!row) {
+        return false;
+    }
+    var hidden = row.querySelector('input[name="param_indexed"]');
+    if (hidden) {
+        hidden.value = checkbox.checked ? '1' : '0';
     }
     return false;
 }

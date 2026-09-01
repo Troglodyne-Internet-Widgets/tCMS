@@ -108,6 +108,16 @@ schema/sqlite.schema.  No migration, because the data itself never moves:
         GENERATED ALWAYS AS (json_extract(post_data, '$.subhead')) VIRTUAL;
     CREATE INDEX posts_subhead ON posts(subhead);
 
+For a post type's own custom fields you don't have to write that yourself: the
+Post Type Wizard offers an "Index this field" checkbox per field, off by default,
+and saving the type does the above for every field that has it ticked.  Untick it
+and the index goes away again on the next save.  It is worth ticking for a field
+you actually search or filter on, and not otherwise -- an index costs a little
+on every save and some disk.
+
+On a data model with no notion of an index the checkbox simply does nothing, so
+the wizard doesn't have to know which model the site is running.
+
 To move an existing flat file site over, run bin/migrate-to-sqlite.pl from the
 tCMS root and then set data_model=SQLite.  It copies rather than moves, so
 data/files is left alone and the way back is to set data_model back.
