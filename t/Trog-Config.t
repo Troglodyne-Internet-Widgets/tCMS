@@ -23,7 +23,7 @@ our $ROOT   = File::Temp::tempdir( 'tcms-config-XXXXXX', TMPDIR => 1, CLEANUP =>
 our $OLDCWD = Cwd::getcwd();
 
 END {
-    chdir($OLDCWD) if $OLDCWD;
+    chdir($OLDCWD)                 if $OLDCWD;
     File::Path::remove_tree($ROOT) if $ROOT && -d $ROOT;
 }
 
@@ -63,12 +63,15 @@ subtest 'a config written to home_cfg is the one that gets read back' => sub {
 };
 
 subtest 'the shipped defaults are left alone' => sub {
+
     # get() is memoized, so this is the same object as above -- which is the
     # point: bin/tcms-hostname used to call save() on it, and save() writes back
     # to whichever file it was constructed from.
-    is( Path::Tiny->new('config/default.cfg')->slurp_utf8,
+    is(
+        Path::Tiny->new('config/default.cfg')->slurp_utf8,
         "[general]\ndata_model=FlatFile\ntitle=Stock\n",
-        'default.cfg is untouched' );
+        'default.cfg is untouched'
+    );
 };
 
 done_testing();

@@ -73,7 +73,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
         print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
         push( @headers, "Content-Length" => length($dfh) );
 
-        INFO("GET 200 ".length($dfh)." $fullpath");
+        INFO( "GET 200 " . length($dfh) . " $fullpath" );
 
         # Append server-timing headers
         my $tot = tv_interval($start) * 1000;

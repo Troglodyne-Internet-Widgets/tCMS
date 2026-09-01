@@ -55,18 +55,20 @@ sub render ( $class, %options ) {
     return _yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
 
     #TODO future - save the components too and then compose them?
-    my $data = $options{data};
+    my $data      = $options{data};
     my $skip_save = $options{component} || $options{nocache} || !$data->{route} || $data->{has_query} || $data->{user} || ( $options{code} // 0 ) != 200 || Trog::Log::is_debug();
 
     my $ret;
     local $@;
     eval {
         $ret = $renderer->(%options);
-        if (exists $data->{tpsgi} && !$skip_save) {
-            $data->{tpsgi}->add_post_close_callback(sub {
-                # We invalidate these in the individual routes themselves.
-                $data->{tpsgi}->save_render( $data->{route}, $rendertype, $ret->[2][0] );
-            });
+        if ( exists $data->{tpsgi} && !$skip_save ) {
+            $data->{tpsgi}->add_post_close_callback(
+                sub {
+                    # We invalidate these in the individual routes themselves.
+                    $data->{tpsgi}->save_render( $data->{route}, $rendertype, $ret->[2][0] );
+                }
+            );
         }
         1;
     } or do {
@@ -92,8 +94,9 @@ sub _yeet ( $renderer, $error, %options ) {
     } or do {
         my $msg = $error;
         $msg .= " and subsequently during render of error template, $@" if $renderer;
+
         #XXX bytes is probably not correct here
-        INFO("$options{data}{method} 500 ".length($msg)." $options{data}{route}");
+        INFO( "$options{data}{method} 500 " . length($msg) . " $options{data}{route}" );
         FATAL($msg);
     };
     return $ret;

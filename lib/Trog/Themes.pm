@@ -54,14 +54,14 @@ Memoized for the life of the process: changing the theme goes through
 sub get_dir {
     state $tdir = '';
     return $tdir if $tdir;
-    my $conf = Trog::Config::get();
+    my $conf  = Trog::Config::get();
     my $theme = $conf->param('general.theme') || '';
-    if( $theme ) {
+    if ($theme) {
         my $themedir = "www/themes/$theme";
         $tdir = $themedir if -d $themedir;
     }
     return $tdir;
-};
+}
 
 =head2 td() = STRING $dir
 

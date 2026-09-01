@@ -16,7 +16,7 @@ my $stock = $root->child('www/templates/html/components/forms');
 my $theme = $root->child('www/themes/spec/templates/html/components/forms');
 $_->mkpath foreach ( $stock, $theme );
 
-$stock->child($_)->spew_utf8("stock $_") foreach qw{blog.tx series.tx profile.tx blog.json series.json};
+$stock->child($_)->spew_utf8("stock $_")  foreach qw{blog.tx series.tx profile.tx blog.json series.json};
 $theme->child($_)->spew_utf8("themed $_") foreach qw{blog.tx gallery.tx blog.json};
 
 my $themedir = '';
@@ -40,7 +40,7 @@ subtest 'with no theme, nothing changes' => sub {
 
     my $old = [ sort @{ Trog::Themes::templates_in_dir( 'forms', 'text/html', 1 ) } ];
     my $new = [ sort @{ Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 ) } ];
-    is_deeply( $new, $old, "the themed helper agrees with the old one" );
+    is_deeply( $new, $old,                               "the themed helper agrees with the old one" );
     is_deeply( $new, [qw{blog.tx profile.tx series.tx}], "...and lists the stock templates" );
 };
 
@@ -68,19 +68,25 @@ subtest 'with a partial theme, the two disagree' => sub {
     );
 
     my $listed = Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 );
-    is( scalar( grep { $_ eq 'blog.tx' } @$listed ), 1, "an overridden template is listed once, not twice" );
-    is( $listed->[0], 'blog.tx', "and the theme's copies come first" );
+    is( scalar( grep { $_ eq 'blog.tx' } @$listed ), 1,         "an overridden template is listed once, not twice" );
+    is( $listed->[0],                                'blog.tx', "and the theme's copies come first" );
 };
 
 subtest 'themed_file_in_dir prefers the theme, falls back to stock' => sub {
     $themedir = "$root/www/themes/spec";
 
-    is( Trog::Themes::themed_file_in_dir( 'forms', 'blog.json', 'text/html', 1 ),
-        "$theme/blog.json", "the theme's copy wins" );
-    is( Trog::Themes::themed_file_in_dir( 'forms', 'series.json', 'text/html', 1 ),
-        "$stock/series.json", "one the theme lacks falls back" );
-    is( Trog::Themes::themed_file_in_dir( 'forms', 'nope.json', 'text/html', 1 ),
-        undef, "and one nobody has is undef, not a path that doesn't exist" );
+    is(
+        Trog::Themes::themed_file_in_dir( 'forms', 'blog.json', 'text/html', 1 ),
+        "$theme/blog.json", "the theme's copy wins"
+    );
+    is(
+        Trog::Themes::themed_file_in_dir( 'forms', 'series.json', 'text/html', 1 ),
+        "$stock/series.json", "one the theme lacks falls back"
+    );
+    is(
+        Trog::Themes::themed_file_in_dir( 'forms', 'nope.json', 'text/html', 1 ),
+        undef, "and one nobody has is undef, not a path that doesn't exist"
+    );
 };
 
 subtest 'an empty or missing dir is not fatal' => sub {

@@ -17,7 +17,7 @@ use Exporter 'import';
 our @EXPORT_OK   = qw{log_init is_debug INFO DEBUG WARN FATAL};
 our %EXPORT_TAGS = ( 'all' => \@EXPORT_OK );
 
-my ($LEVEL, $LOGDIR);
+my ( $LEVEL, $LOGDIR );
 our ( $log, $user );
 
 $Trog::Log::user = 'nobody';
@@ -74,7 +74,7 @@ Returns 1.
 =cut
 
 sub log_init {
-    my ($LOGNAME, $LEVEL)  =@_;
+    my ( $LOGNAME, $LEVEL ) = @_;
 
     die "Cannot initialize logs without log name and log level" unless $LOGNAME && $LEVEL;
 

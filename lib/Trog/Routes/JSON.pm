@@ -94,7 +94,7 @@ sub catalog ($query) {
 }
 
 sub webmanifest ($query) {
-    state $headers  = { ETag => 'manifest-' . _version() };
+    state $headers = { ETag => 'manifest-' . _version() };
     my $theme_dir = Trog::Themes::get_dir();
     state %manifest = (
         "icons" => [
@@ -159,8 +159,9 @@ sub _render ( $code, $headers, %data ) {
         template    => 'bogus.tx',
         contenttype => 'application/json',
         headers     => $headers,
+
         # TODO it may be appropriate to cache some of these methods.
-        nocache     => 1,
+        nocache => 1,
     );
 }
 

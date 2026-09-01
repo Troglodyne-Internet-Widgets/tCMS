@@ -3,7 +3,7 @@ package TCMS;
 use v5.36;
 use re '/aa';
 
-use Carp qw{confess};
+use Carp         qw{confess};
 use Clone        qw{clone};
 use Date::Format qw{strftime};
 
@@ -14,7 +14,7 @@ use Text::Xslate ();
 use DateTime::Format::HTTP();
 use CGI::Cookie ();
 use File::Basename();
-use Time::HiRes      qw{gettimeofday tv_interval};
+use Time::HiRes qw{gettimeofday tv_interval};
 use List::Util;
 use URI();
 use Ref::Util qw{is_coderef is_hashref is_arrayref};
@@ -49,12 +49,12 @@ sub build_routes {
 
     # Transform 'method' / 'callback' to new scheme
     my %routes_adj;
-    foreach my $k (keys(%routes)) {
+    foreach my $k ( keys(%routes) ) {
         my $v = $routes{$k};
 
         # Some routes are just pointers to other routes.
         # In this case they might have already been transformed and need to be skipped.
-        if (exists $v->{callbacks}) {
+        if ( exists $v->{callbacks} ) {
             $routes_adj{$k} = $v;
             next;
         }
@@ -70,7 +70,7 @@ sub build_routes {
             confess "Cannot determine directory for logs!" unless $tpsgi->{log_dir};
 
             # Make sure the tCMS logs live in the same dir as the tpsgi logs.
-            log_init("$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info');
+            log_init( "$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info' );
 
             # Let's open up our default route if needed before we bother thinking any harder
             return $default_route->($query) unless -f "config/setup";    ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
@@ -96,6 +96,7 @@ sub build_routes {
                 $active_user     = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
                 $Trog::Log::user = $active_user if $active_user;
             }
+
             # Make sure TPSGI can log the user
             $tpsgi->{user} = $active_user;
 
@@ -114,7 +115,7 @@ sub build_routes {
             $query->{body}         = '';
             $query->{social_meta}  = 1;
             $query->{primary_post} = {};
-            $query->{nocache} = $v->{nocache};
+            $query->{nocache}      = $v->{nocache};
 
             # Some routes may just need to do serve()
             $query->{tpsgi} = $tpsgi;
@@ -165,8 +166,8 @@ sub _routes ( $data = {} ) {
     my %roots = $data->routes();
 
     # Setup the /secure/... versions for logged in users, except for already secured routes.
-    foreach my $route (keys(%roots)) {
-        next if index($route, '/secure/') == 0;
+    foreach my $route ( keys(%roots) ) {
+        next if index( $route, '/secure/' ) == 0;
         $roots{"/secure$route"} = $roots{$route};
     }
 
@@ -187,9 +188,9 @@ sub _routes ( $data = {} ) {
 
     # Special 'am I authenticated' route for nginx
     $routes{'/authenticated'} = {
-        method => 'GET',
-        nocache => 1,
-        noindex => 1,
+        method   => 'GET',
+        nocache  => 1,
+        noindex  => 1,
         callback => sub {
             my ($query) = @_;
             return $query->{tpsgi}->ok($query) if $query->{user};
@@ -199,9 +200,9 @@ sub _routes ( $data = {} ) {
 
     # Heartbeat route
     $routes{'/status'} = {
-        method => 'GET',
-        nocache => 1,
-        noindex => 1,
+        method   => 'GET',
+        nocache  => 1,
+        noindex  => 1,
         callback => sub {
             my ($query) = @_;
             return $query->{tpsgi}->ok($query);
@@ -210,7 +211,7 @@ sub _routes ( $data = {} ) {
 
     # The Various aliases for directory indices
     foreach my $index (qw{ / /index.html /index.htm}) {
-        $routes{$index} = $routes{'/index'} unless exists $routes{$index};
+        $routes{$index}          = $routes{'/index'} unless exists $routes{$index};
         $routes{"/secure$index"} = $routes{'/index'} unless exists $routes{"/secure$index"};
     }
 

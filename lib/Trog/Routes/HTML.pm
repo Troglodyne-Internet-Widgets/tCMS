@@ -15,8 +15,8 @@ use Ref::Util();
 use Capture::Tiny qw{capture};
 use HTML::SocialMeta;
 
-use Clone qw{clone};
-use Encode qw{encode_utf8};
+use Clone       qw{clone};
+use Encode      qw{encode_utf8};
 use Digest::MD5 qw{md5_hex};
 use Digest::SHA qw{sha256_hex};
 use JSON::MaybeXS();
@@ -60,6 +60,7 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::index,
     },
+
     # This should only be enabled to debug
     #    '/setup' => {
     #        method   => 'GET',
@@ -128,6 +129,7 @@ our %routes = (
         callback => \&Trog::Routes::HTML::resetpass,
         noindex  => 1,
     },
+
     # When we are logged in, we get a diff ver of the page.
     '/secure/password_reset' => {
         method   => 'GET',
@@ -270,7 +272,7 @@ our %routes = (
 );
 
 # Grab theme routes
-my $themed = 0;
+my $themed    = 0;
 my $theme_dir = Trog::Themes::get_dir();
 if ($theme_dir) {
 
@@ -308,8 +310,8 @@ sub _feedback_redirect ( $query, $to, $failure, $message ) {
     $message =~ s/\s*\n+\s*/; /g;
     $message =~ s/;\s*$//;
 
-    my $sep = index( $to, '?' ) != -1 ? '&' : '?';
-    my $key = $failure     ? 'savefailed' : 'saved';
+    my $sep = index( $to, '?' ) != -1 ? '&'          : '?';
+    my $key = $failure                ? 'savefailed' : 'saved';
     return $query->{tpsgi}->see_also( $to . $sep . $key . '=' . URI::Escape::uri_escape($message) );
 }
 
@@ -393,7 +395,7 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     }
 
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     return finish_render(
         $tmpl,
@@ -432,7 +434,7 @@ sub _build_social_meta ( $query, $title ) {
     $default_tags .= ',' . join( ',', @{ $query->{primary_post}->{tags} } ) if $default_tags && $query->{primary_post}->{tags};
 
     my $primary_data = ref $query->{primary_post}{data} eq 'ARRAY' ? $query->{primary_post}{data}[0] : $query->{primary_post}{data};
-    my $meta_desc = $primary_data // $Theme::description // "tCMS Site";
+    my $meta_desc    = $primary_data // $Theme::description // "tCMS Site";
     $meta_desc = Trog::Utils::strip_and_trunc($meta_desc) || '';
 
     my $meta_tags = '';
@@ -518,8 +520,8 @@ sub totp ($query) {
     $query->{failure} //= -1;
     my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( $active_user, $domain );
 
-    my $now_tm = time;
-    my $now_string = strftime("%a %b %e T%H:%M:%SZ %Y", gmtime($now_tm));
+    my $now_tm     = time;
+    my $now_string = strftime( "%a %b %e T%H:%M:%SZ %Y", gmtime($now_tm) );
     return Trog::Routes::HTML::index(
         {
             title     => 'Enable TOTP 2-Factor Auth',
@@ -558,7 +560,7 @@ sub login ($query) {
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
-    my $hasusers = -f "config/has_users";    ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
+    my $hasusers = -f "config/has_users";               ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
     my $btnmsg   = $hasusers ? "Log In" : "Register";
 
     my $headers;
@@ -570,7 +572,7 @@ sub login ($query) {
             Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
 
             # Add a stub user page and the initial series.
-            my $dat = Trog::Data->new(Trog::Config::get());
+            my $dat = Trog::Data->new( Trog::Config::get() );
             _setup_initial_db( $dat, $query->{username}, $query->{display_name}, $query->{contact_email} );
 
             # Ensure we stop registering new users
@@ -703,8 +705,8 @@ Renders the configuration page, or redirects you back to the login page.
 =cut
 
 sub config ( $query = {} ) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -830,7 +832,7 @@ sub do_totp_clear ($query) {
 
 sub _get_series ( $edit = 0 ) {
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     my @series = $data->get(
         acls  => [qw{public}],
@@ -919,8 +921,8 @@ Implements /config/save route.  Saves what little configuration we actually use 
 =cut
 
 sub config_save ($query) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $conf = Trog::Config::get();
     $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
@@ -948,8 +950,8 @@ Clone a theme by copying a directory.
 =cut
 
 sub themeclone ($query) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my ( $theme, $newtheme ) = ( $query->{theme}, $query->{newtheme} );
 
@@ -973,7 +975,7 @@ Saves posts submitted via the /post pages
 
 sub post_save ($qq) {
     return $qq->{tpsgi}->see_also('/login') unless $qq->{user};
-    return $qq->{tpsgi}->forbidden($qq)  unless grep { $_ eq 'admin' } @{ $qq->{user_acls} };
+    return $qq->{tpsgi}->forbidden($qq)     unless grep { $_ eq 'admin' } @{ $qq->{user_acls} };
 
     my $query = clone($qq);
 
@@ -983,8 +985,9 @@ sub post_save ($qq) {
     my $acls = $query->{acls};
 
     $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
+
     # Support data with multiple pages like presentations
-    $query->{data} = Trog::Utils::coerce_array( $query->{data} ) if $query->{data_is_array};
+    $query->{data}        = Trog::Utils::coerce_array( $query->{data} ) if $query->{data_is_array};
     $query->{attachments} = Trog::Utils::coerce_array( $query->{attachments} );
 
     # Filter bits and bobs XXX this is done deeper in, may require removal
@@ -1000,7 +1003,7 @@ sub post_save ($qq) {
     $query->{method} = 'GET';
 
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     # A post that doesn't match its type's schema is the user's mistake, not a
     # server error, so hand the validation errors back rather than dying.
@@ -1016,11 +1019,13 @@ sub post_save ($qq) {
     };
 
     # Instruct tpsgi to invalidate the cached render.
-    $qq->{tpsgi}->add_post_close_callback(sub {
-        # XXX there is not a great way to find what needs to be re-rendered because posts can include other posts.
-        # As such we just have to nuke all the .html renders.
-        $qq->{tpsgi}->invalidate_renders('html');
-    });
+    $qq->{tpsgi}->add_post_close_callback(
+        sub {
+            # XXX there is not a great way to find what needs to be re-rendered because posts can include other posts.
+            # As such we just have to nuke all the .html renders.
+            $qq->{tpsgi}->invalidate_renders('html');
+        }
+    );
 
     # Force a reload of the routing table
     $qq->{tpsgi}->signal_restart_parent();
@@ -1035,12 +1040,12 @@ Saves / updates new users.
 =cut
 
 sub profile ($query) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     # Find the user's post and edit it
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     my @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
 
@@ -1050,7 +1055,8 @@ sub profile ($query) {
 
     my $username = $query->{username};
     my $password = $query->{password};
-    my $changed  = $username ne ( $user_obj->{user} // '' )
+    my $changed =
+         $username ne ( $user_obj->{user} // '' )
       || $password
       || ( $query->{contact_email} // '' ) ne ( $user_obj->{contact_email} // '' )
       || ( $query->{display_name}  // '' ) ne ( $user_obj->{display_name}  // '' );
@@ -1097,11 +1103,11 @@ deletes posts.
 =cut
 
 sub post_delete ($query) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     $data->delete($query) and die "Could not delete post";
     return $query->{tpsgi}->see_also( $query->{to} );
@@ -1311,7 +1317,7 @@ sub libravatar ($query) {
 
     return $query->{tpsgi}->notfound($query) unless $matched_user;
 
-    my @posts = _post_helper( { author => $matched_user }, ['about'], [qw{public admin}] );
+    my @posts   = _post_helper( { author => $matched_user }, ['about'], [qw{public admin}] );
     my $preview = @posts ? $posts[0]->{preview} : '';
 
     return $query->{tpsgi}->notfound($query) unless $preview;
@@ -1509,7 +1515,7 @@ sub posts ( $query, $direct = 0 ) {
     my $tiled    = $query->{primary_post} ? !$is_admin && $query->{primary_post}->{tiled} : 0;
 
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     # Grab the rest of the tags to dump into the edit form
     my @tags_all = $data->tags();
@@ -1541,7 +1547,6 @@ sub posts ( $query, $direct = 0 ) {
     # 25 invoices don't mean 25 scans of every entities post.
     my %relation_cache;
     _enrich_post( $_, $query, \%relation_cache ) foreach @posts;
-
 
     #XXX the only reason this is needed is due to direct=1
     # Last thing before the data becomes a page: anything a type marks private
@@ -1697,7 +1702,7 @@ sub _datasource_posts ( $query, $posts ) {
 
 sub _post_helper ( $query, $tags, $acls ) {
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     $query->{page}  ||= 1;
     $query->{limit} ||= 25;
@@ -1742,7 +1747,7 @@ Passing compressed=1 will gzip the output.
 sub sitemap ($query) {
 
     state $data;
-    $data //= Trog::Data->new(Trog::Config::get());
+    $data //= Trog::Data->new( Trog::Config::get() );
 
     state $etag = "sitemap-" . time();
     my ( @to_map, $is_index, $route_type );
@@ -1950,8 +1955,8 @@ Basically a thin wrapper around Pod::Html.
 =cut
 
 sub manual ($query) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     require Pod::Html;
     require Capture::Tiny;
@@ -1961,10 +1966,10 @@ sub manual ($query) {
     $query->{failure} //= -1;
 
     my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
-    my $found = 0;
+    my $found  = 0;
     foreach my $libdir (@INC) {
         $found = $libdir if -f "$libdir/$infile";    ## no critic (ProhibitFiletest_f) -- which @INC dir supplies the pod
-        last if $found;
+        last             if $found;
     }
     return $query->{tpsgi}->notfound($query) unless $found;
 
@@ -2016,8 +2021,8 @@ compute here.
 =cut
 
 sub metrics ($query) {
-    return $query->{tpsgi}->see_also('/login')                    unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -2050,8 +2055,8 @@ session id on a page.
 =cut
 
 sub sessions ($query) {
-    return $query->{tpsgi}->see_also('/login')  unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $limit  = int( $query->{limit} // 100 );
     my $events = Trog::Auth::audit_log(
@@ -2064,7 +2069,7 @@ sub sessions ($query) {
     @$events = map {
         my $e = {%$_};
         my @t = localtime( $e->{event_time} );
-        $e->{event_ts} = sprintf( '%04d-%02d-%02d %02d:%02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1], $t[0] );
+        $e->{event_ts}      = sprintf( '%04d-%02d-%02d %02d:%02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1], $t[0] );
         $e->{session_short} = $e->{session_id} ? substr( $e->{session_id}, 0, 8 ) . '...' : '';
         $e
     } @$events;
@@ -2145,7 +2150,7 @@ captures in parallel instead of us taking them one after another.
 
 sub guest_screenshot ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $hypervisor = _guest_hypervisor( $query, $query->{hypervisor} );
     return $query->{tpsgi}->notfound($query) unless $hypervisor;
@@ -2158,7 +2163,7 @@ sub guest_screenshot ($query) {
     }
 
     return $query->{tpsgi}->serve(
-        $query->{route}, $path, $query->{start}, $query->{streaming},
+        $query->{route},  $path, $query->{start}, $query->{streaming},
         $query->{ranges}, $query->{last_fetched}, $query->{deflate},
     );
 }
@@ -2175,7 +2180,7 @@ Trog::DataSource::Virt::act.
 
 sub guest_act ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $to = $query->{to} || '/';
 
@@ -2183,6 +2188,7 @@ sub guest_act ($query) {
     return _feedback_redirect( $query, $to, 1, 'No such hypervisor.' ) unless $hypervisor;
 
     require Trog::DataSource::Virt;
+
     # Same reason the screenshot route captures 'guest': a form field called
     # 'domain' would be overwritten by the router with the request's host.
     my ( $ok, $message ) = Trog::DataSource::Virt::act(
@@ -2217,8 +2223,8 @@ everything after a rejected submission.
 =cut
 
 sub post_wizard ($query) {
-    return $query->{tpsgi}->see_also('/login')  unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -2269,8 +2275,8 @@ type's own fields survive validation at save time.
 =cut
 
 sub post_wizard_save ($query) {
-    return $query->{tpsgi}->see_also('/login')  unless $query->{user};
-    return $query->{tpsgi}->forbidden($query) unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     # Anchored capture rather than a substitution, so anything containing a '/'
     # or a '..' simply fails to match instead of being silently scrubbed into
@@ -2282,6 +2288,7 @@ sub post_wizard_save ($query) {
     # otherwise.  Never mkdir it -- silently conjuring a forms/ dir inside a
     # theme is not something an admin asked for by pressing this button.
     my $dir = Trog::Themes::forms_dir();
+
     # -d only.  A -w here would check mode bits against our uid, which says
     # nothing about read-only mounts, ACLs or immutable flags -- and it is the
     # files, not the directory, that get written.  The eval around the two
@@ -2312,7 +2319,7 @@ sub post_wizard_save ($query) {
     # title or restrict.
     $query->{$_} = 1 foreach @wizard_mandatory;
 
-    my @includes = grep { $query->{$_} } @wizard_include_order;
+    my @includes  = grep { $query->{$_} } @wizard_include_order;
     my $body_form = _wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
 
     my $spec = _wizard_sidecar( $name, $fields, \@includes, $body_form, $datasource );
@@ -2396,11 +2403,11 @@ arrays stay aligned even when a row is left blank.
 =cut
 
 sub _wizard_fields ($query) {
-    my $names  = Trog::Utils::coerce_array( $query->{param_name} );
-    my $types  = Trog::Utils::coerce_array( $query->{param_type} );
-    my $labels = Trog::Utils::coerce_array( $query->{param_label} );
-    my $phs    = Trog::Utils::coerce_array( $query->{param_placeholder} );
-    my $reqs   = Trog::Utils::coerce_array( $query->{param_required} );
+    my $names   = Trog::Utils::coerce_array( $query->{param_name} );
+    my $types   = Trog::Utils::coerce_array( $query->{param_type} );
+    my $labels  = Trog::Utils::coerce_array( $query->{param_label} );
+    my $phs     = Trog::Utils::coerce_array( $query->{param_placeholder} );
+    my $reqs    = Trog::Utils::coerce_array( $query->{param_required} );
     my $rforms  = Trog::Utils::coerce_array( $query->{param_relation_form} );
     my $rmodes  = Trog::Utils::coerce_array( $query->{param_relation_mode} );
     my $private = Trog::Utils::coerce_array( $query->{param_private} );
@@ -2470,8 +2477,8 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '' ) 
         }
 
         my $property = { %{ $wizard_field_types{ $field->{type} } } };
-        $property->{'x-tcms-input'} = $field->{type};
-        $property->{'x-tcms-label'} = $field->{label};
+        $property->{'x-tcms-input'}       = $field->{type};
+        $property->{'x-tcms-label'}       = $field->{label};
         $property->{'x-tcms-placeholder'} = $field->{placeholder} if length $field->{placeholder};
 
         # Only written when it is true: a field is public unless it says so,
@@ -2500,8 +2507,8 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '' ) 
         type       => 'object',
         properties => \%properties,
     );
-    $spec{required}             = \@required   if @required;
-    $spec{'x-tcms-relations'}  = \%relations  if %relations;
+    $spec{required}            = \@required  if @required;
+    $spec{'x-tcms-relations'}  = \%relations if %relations;
     $spec{'x-tcms-datasource'} = $datasource if $datasource;
 
     return \%spec;
@@ -2548,6 +2555,7 @@ sub _wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' 
     my $display = _wizard_scalar( $query->{display} );
 
     my $out = "<!-- Generated by the tCMS Post Type Wizard.  Regenerating this type will overwrite any hand edits. -->\n";
+
     # A series can ask for its children to be tiled, which is a layout the
     # wrapper has to carry -- see how file.tx and series.tx do it.  Harmless
     # when the series hasn't asked, and it means a generated type gets tiling
@@ -2592,8 +2600,8 @@ sub _wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' 
     return $out;
 }
 
-
 # basically a file rewrite rule for themes
+
 =head2 icon
 
 Implements the /img/icon/* routes.
@@ -2604,9 +2612,9 @@ steps, essentially, so that themes can replace individual icons.
 =cut
 
 sub icon ($query) {
-    my $path = $query->{route};
+    my $path  = $query->{route};
     my $tpath = Trog::Themes::themed("img/icon/$path");
-    return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate}  );
+    return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate} );
 }
 
 =head2 totp_qr
@@ -2621,7 +2629,8 @@ shared secret.
 =cut
 
 sub totp_qr ($query) {
-    my $fname = basename($query->{route});
+    my $fname = basename( $query->{route} );
+
     # For authenticated content, we have to now do a serve().
     return $query->{tpsgi}->serve(
         "totp/$fname",
@@ -2687,11 +2696,11 @@ Just about everything in this module ends up here; index() is the usual way in.
 sub finish_render ( $template, $vars, %headers ) {
 
     #XXX default vars that need to be pulled from config
-    $vars->{lang}        //= 'en-US';
-    $vars->{title}       //= 'tCMS';
-    $vars->{stylesheets} //= [];
+    $vars->{lang}         //= 'en-US';
+    $vars->{title}        //= 'tCMS';
+    $vars->{stylesheets}  //= [];
     $vars->{print_styles} //= [qw{structure.css print.css}];
-    $vars->{scripts}     //= [];
+    $vars->{scripts}      //= [];
 
     # Theme-ize the paths
     $vars->{stylesheets}  = [ @{ _build_themed_styles( $vars->{stylesheets} ) } ];

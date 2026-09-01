@@ -20,7 +20,6 @@ use Trog::Log qw{:all};
 use Trog::Utils;
 use Trog::Auth();
 
-
 =head1 QUERY FORMAT
 
 The $query_language and $query_help variables are presented to the user as to how to use the search box in the tCMS header.
@@ -149,7 +148,7 @@ sub _fixup ( $self, @filtered ) {
         $subj->{display_name} = $user2display{ $subj->{user} };
 
         #XXX Add dynamic routing data for posts which don't have them (/posts/$id) and (/users/$user)
-        my $is_user_page = List::Util::any { ($_ // '') eq 'about' } @{ $subj->{tags} };
+        my $is_user_page = List::Util::any { ( $_ // '' ) eq 'about' } @{ $subj->{tags} };
         if ( !exists $subj->{local_href} ) {
             $subj->{local_href} = "/posts/$subj->{id}";
 
@@ -220,7 +219,7 @@ sub filter ( $self, $query, @filtered ) {
         my $tags = $_->{tags};
         grep {
             my $t = $_;
-            grep { ($t // '') eq $_ } @{ $query->{tags} }
+            grep { ( $t // '' ) eq $_ } @{ $query->{tags} }
         } @$tags
     } @filtered if @{ $query->{tags} };
 
@@ -242,7 +241,7 @@ sub filter ( $self, $query, @filtered ) {
         } @$tags
     } @filtered unless grep { $_ eq 'admin' } @{ $query->{acls} };
 
-    @filtered = grep { ($_->{form} || '') eq $query->{form} } @filtered if $query->{form};
+    @filtered = grep { ( $_->{form} || '' ) eq $query->{form} } @filtered if $query->{form};
 
     @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
 
@@ -427,8 +426,8 @@ sub type_meta_for ( $form = '' ) {
     my $type = _type_of($form);
     return $cache{$generation}{$type} if exists $cache{$generation}{$type};
 
-    my $path = $type ? Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 ) : undef;
-    my $sidecar = $path ? _read_sidecar($path) : undef;
+    my $path    = $type ? Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 ) : undef;
+    my $sidecar = $path ? _read_sidecar($path)                                                      : undef;
 
     my %meta;
     if ($sidecar) {
@@ -511,6 +510,7 @@ sub schema_for ( $form = '' ) {
 }
 
 sub _read_sidecar ($path) {
+
     # -e, not -f: the question is whether a sidecar exists at all, and most
     # post types have none.  Letting the read below fail instead would WARN
     # about every type that simply does not have one.
@@ -658,7 +658,7 @@ sub add ( $self, @posts ) {
         $post->{version} //= 0;
 
         #XXX if local_href has /secure paths in it, fix this.  We don't want to save that.
-        if (index($post->{local_href}, '/secure/') == 0) {
+        if ( index( $post->{local_href}, '/secure/' ) == 0 ) {
             $post->{local_href} =~ s|/secure||gmx;
         }
 
@@ -730,7 +730,7 @@ sub _process ($post) {
 # Browsers try and save time in the event that the same file is sent twice, so handle that.
 my %seen_files;
 
-sub _handle_upload ( $file, $uuid, $private=0 ) {
+sub _handle_upload ( $file, $uuid, $private = 0 ) {
     my $fname;
     if ( ref $file ne 'HASH' ) {
         use Data::Dumper;
@@ -744,8 +744,9 @@ sub _handle_upload ( $file, $uuid, $private=0 ) {
     my $newname = "$uuid.$file->{filename}";
     $newname = "private/$newname" if $private;
     File::Copy::move( $f, "www/assets/$newname" );
+
     # Regrettably, we have no control over the perms of the temp file that starman creates for uploads.
-    chmod(0755, "www/assets/$newname");
+    chmod( 0755, "www/assets/$newname" );
     $seen_files{$fname} = "/assets/$newname";
     return $seen_files{$fname};
 }

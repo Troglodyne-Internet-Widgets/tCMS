@@ -28,15 +28,18 @@ require_ok('Trog::Auth') or BAIL_OUT("Can't load Trog::Auth");
 
 subtest 'users_with_emails — no rows returned' => sub {
     my $sqlite_mock = Test::MockModule->new('Trog::SQLite');
-    $sqlite_mock->redefine( 'dbh', sub {
-        my $fake_dbh = bless {}, 'FakeDBH_NoRows';
-        no warnings 'once';
-        *FakeDBH_NoRows::selectall_arrayref = sub { undef };
-        return $fake_dbh;
-    });
+    $sqlite_mock->redefine(
+        'dbh',
+        sub {
+            my $fake_dbh = bless {}, 'FakeDBH_NoRows';
+            no warnings 'once';
+            *FakeDBH_NoRows::selectall_arrayref = sub { undef };
+            return $fake_dbh;
+        }
+    );
     my $result = Trog::Auth::users_with_emails();
-    is( ref $result, 'ARRAY', 'returns arrayref even when DB returns undef' );
-    is( scalar @$result, 0, 'empty arrayref when no rows' );
+    is( ref $result,     'ARRAY', 'returns arrayref even when DB returns undef' );
+    is( scalar @$result, 0,       'empty arrayref when no rows' );
 };
 
 subtest 'users_with_emails — returns populated list' => sub {
@@ -45,23 +48,26 @@ subtest 'users_with_emails — returns populated list' => sub {
         { name => 'bob',   contact_email => 'bob@example.com' },
     ];
     my $sqlite_mock = Test::MockModule->new('Trog::SQLite');
-    $sqlite_mock->redefine( 'dbh', sub {
-        my $fake_dbh = bless {}, 'FakeDBH_WithRows';
-        no warnings 'once';
-        *FakeDBH_WithRows::selectall_arrayref = sub { $fake_rows };
-        return $fake_dbh;
-    });
+    $sqlite_mock->redefine(
+        'dbh',
+        sub {
+            my $fake_dbh = bless {}, 'FakeDBH_WithRows';
+            no warnings 'once';
+            *FakeDBH_WithRows::selectall_arrayref = sub { $fake_rows };
+            return $fake_dbh;
+        }
+    );
     my $result = Trog::Auth::users_with_emails();
-    is( ref $result, 'ARRAY', 'returns arrayref' );
-    is( scalar @$result, 2, 'correct number of users' );
+    is( ref $result,                 'ARRAY',             'returns arrayref' );
+    is( scalar @$result,             2,                   'correct number of users' );
     is( $result->[0]{name},          'alice',             'first user name' );
     is( $result->[0]{contact_email}, 'alice@example.com', 'first user email' );
     is( $result->[1]{name},          'bob',               'second user name' );
 };
 
 subtest 'libravatar hash matching logic' => sub {
-    use Digest::MD5  qw{md5_hex};
-    use Digest::SHA  qw{sha256_hex};
+    use Digest::MD5 qw{md5_hex};
+    use Digest::SHA qw{sha256_hex};
 
     my $email  = 'Test@Example.COM';
     my $norm   = lc($email);

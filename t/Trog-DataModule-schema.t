@@ -21,7 +21,7 @@ require_ok('Trog::Routes::HTML');
 # component dir with a forms/ inside it -- because schema_for() keys its cache
 # on the mtime of forms/, and an earlier version of this fixture flattened the
 # two and so could not have caught it being keyed on the wrong directory.
-my $tempdir = Path::Tiny->tempdir();
+my $tempdir  = Path::Tiny->tempdir();
 my $formsdir = $tempdir->child('forms');
 $formsdir->mkpath();
 my %sidecars;
@@ -45,6 +45,7 @@ $slurpmock->redefine( 'read_text', sub { $sidecars{ Path::Tiny::path(shift)->bas
 # -f has to agree with %sidecars, and the dir mtime has to move, or the
 # mtime-keyed cache will hand back a stale answer.
 my $generation = 0;
+
 sub set_sidecars {
     %sidecars = @_;
     $_->remove foreach $formsdir->children();
@@ -60,9 +61,9 @@ subtest 'the base schema applies with no sidecar at all' => sub {
     set_sidecars();
 
     my $schema = Trog::DataModule::schema_for('blog.tx');
-    ok( exists $schema->{properties}{title},   "base properties are there" );
-    ok( !exists $schema->{properties}{gravy},  "and nothing else is" );
-    ok( !exists $schema->{required},           "an empty required list isn't emitted - it isn't legal OpenAPI" );
+    ok( exists $schema->{properties}{title},  "base properties are there" );
+    ok( !exists $schema->{properties}{gravy}, "and nothing else is" );
+    ok( !exists $schema->{required},          "an empty required list isn't emitted - it isn't legal OpenAPI" );
 
     is_deeply(
         Trog::DataModule::schema_for(''),
@@ -84,8 +85,10 @@ subtest 'a sidecar merges over the base' => sub {
     ok( exists $schema->{properties}{title},    "...without losing the base's" );
     is_deeply( $schema->{required}, ['servings'], "required carries over" );
 
-    ok( !exists Trog::DataModule::schema_for('blog.tx')->{properties}{servings},
-        "and they don't leak onto another post type" );
+    ok(
+        !exists Trog::DataModule::schema_for('blog.tx')->{properties}{servings},
+        "and they don't leak onto another post type"
+    );
 };
 
 subtest 'sidecars cannot redefine core post fields' => sub {
@@ -118,8 +121,10 @@ subtest 'the cache follows the forms dir mtime' => sub {
     ok( exists Trog::DataModule::schema_for('recipe.tx')->{properties}{servings}, "declared" );
 
     set_sidecars();
-    ok( !exists Trog::DataModule::schema_for('recipe.tx')->{properties}{servings},
-        "removing the sidecar is picked up without a restart" );
+    ok(
+        !exists Trog::DataModule::schema_for('recipe.tx')->{properties}{servings},
+        "removing the sidecar is picked up without a restart"
+    );
 };
 
 subtest 'validate() filters, coerces and reports' => sub {
@@ -156,7 +161,7 @@ subtest 'validate() filters, coerces and reports' => sub {
     # 'upload' is our own sugar for the string-or-hashref an upload field is,
     # depending on which direction it's travelling.
     is_deeply( [ Trog::DataModule::validate( { form => 'recipe.tx', photo => { filename => 'x' } } ) ], [], "an upload hashref passes" );
-    is_deeply( [ Trog::DataModule::validate( { form => 'recipe.tx', photo => '/assets/x.jpg' } ) ],      [], "so does the href it becomes" );
+    is_deeply( [ Trog::DataModule::validate( { form => 'recipe.tx', photo => '/assets/x.jpg' } ) ],     [], "so does the href it becomes" );
 };
 
 subtest 'empty inputs are treated as absent, except for strings' => sub {
@@ -189,7 +194,7 @@ subtest 'add() rejects a post that does not validate' => sub {
     my $written;
     {
         no warnings qw{once};
-        @TestData::ISA = ('Trog::DataModule');
+        @TestData::ISA   = ('Trog::DataModule');
         *TestData::get   = sub { return () };
         *TestData::write = sub { $written = $_[1]; return 0 };
     }
@@ -215,7 +220,7 @@ subtest 'a post always ends up with a visibility' => sub {
     my $written;
     {
         no warnings qw{once};
-        @VisData::ISA = ('Trog::DataModule');
+        @VisData::ISA   = ('Trog::DataModule');
         *VisData::get   = sub { return () };
         *VisData::write = sub { $written = $_[1]; return 0 };
     }
@@ -246,27 +251,27 @@ subtest '_wizard_fields zips the parallel arrays' => sub {
         }
     );
 
-    is( scalar @$fields, 2, "blank, core-shadowing and duplicate rows are dropped" );
-    is( $fields->[0]{name},      'servings',  "names are lowercased" );
-    is( $fields->[0]{required},  1,           "required survives" );
-    is( $fields->[1]{name},      'cook_time', "the row after the blank one is still present" );
-    is( $fields->[1]{type},      'textarea',  "...with its own type, not the blank row's" );
+    is( scalar @$fields,        2,           "blank, core-shadowing and duplicate rows are dropped" );
+    is( $fields->[0]{name},     'servings',  "names are lowercased" );
+    is( $fields->[0]{required}, 1,           "required survives" );
+    is( $fields->[1]{name},     'cook_time', "the row after the blank one is still present" );
+    is( $fields->[1]{type},     'textarea',  "...with its own type, not the blank row's" );
 };
 
 subtest '_wizard_sidecar emits a usable OpenAPIv3 schema' => sub {
     my $spec = Trog::Routes::HTML::_wizard_sidecar(
         'recipe',
         [
-            { name => 'servings',  type => 'number',   label => 'Servings',  placeholder => '4', required => 1 },
-            { name => 'vegan',     type => 'checkbox', label => 'Vegan?',    placeholder => '', required => 0 },
+            { name => 'servings', type => 'number',   label => 'Servings', placeholder => '4', required => 1 },
+            { name => 'vegan',    type => 'checkbox', label => 'Vegan?',   placeholder => '',  required => 0 },
         ],
         ['inc_tags'],
         'form_common.tx',
     );
 
-    is( $spec->{type},                          'object',   "it's an object schema" );
-    is( $spec->{properties}{servings}{type},    'integer',  "a number input is an integer" );
-    is( $spec->{properties}{vegan}{type},       'boolean',  "a checkbox is a boolean" );
+    is( $spec->{type},                       'object',  "it's an object schema" );
+    is( $spec->{properties}{servings}{type}, 'integer', "a number input is an integer" );
+    is( $spec->{properties}{vegan}{type},    'boolean', "a checkbox is a boolean" );
     is_deeply( $spec->{required}, ['servings'], "only the required rows are required" );
 
     # UI metadata rides along on x- keys so there's only one file to keep in sync.

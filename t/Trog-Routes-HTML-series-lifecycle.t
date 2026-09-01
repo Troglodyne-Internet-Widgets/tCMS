@@ -18,15 +18,15 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 use Test::More;
-use Cwd            ();
-use Encode         ();
-use File::Copy     ();
-use File::Find     ();
-use File::Path     ();
-use File::Temp     ();
-use Time::HiRes    ();
-use URI::Escape    ();
-use JSON::MaybeXS  ();
+use Cwd           ();
+use Encode        ();
+use File::Copy    ();
+use File::Find    ();
+use File::Path    ();
+use File::Temp    ();
+use Time::HiRes   ();
+use URI::Escape   ();
+use JSON::MaybeXS ();
 
 our ( $REPO, $ROOT, $OLDCWD );
 our %REPO_BEFORE;
@@ -84,10 +84,11 @@ BEGIN {
 
     # Installer.mk's tree, plus upload-src for the file.tx fixture.
     File::Path::make_path(
-        map { "$ROOT/$_" } qw{
+        map { "$ROOT/$_" }
+          qw{
           config schema data/files logs totp upload-src
           www/assets/private www/statics www/themes www/scripts
-        }
+          }
     );
 
     # A real fresh install: get() looks for config/main.cfg, doesn't find one,
@@ -121,6 +122,7 @@ END {
         diag("TCMS_TEST_KEEP set, sandbox left at $ROOT");
     }
     elsif ( $ROOT && -d $ROOT ) {
+
         # SQLite handles are file-lexical in Trog::SQLite and unreachable from
         # here; DBI disconnects at global destruction, after these are gone.
         eval { File::Path::remove_tree($ROOT) };
@@ -144,6 +146,7 @@ require Trog::Routes::JSON;
 # A stand-in for the tPSGI object the router injects as $query->{tpsgi}.
 #--------------------------------------------------------------------------
 {
+
     package Test::TPSGI;
 
     sub new {
@@ -161,20 +164,20 @@ require Trog::Routes::JSON;
         }, $class;
     }
 
-    sub INFO  {1}
-    sub DEBUG {1}
-    sub WARN  {1}
-    sub ERROR {1}
-    sub CRIT  {1}
-    sub ALERT {1}
-    sub EMERG {1}
-    sub FATAL {1}
+    sub INFO  { 1 }
+    sub DEBUG { 1 }
+    sub WARN  { 1 }
+    sub ERROR { 1 }
+    sub CRIT  { 1 }
+    sub ALERT { 1 }
+    sub EMERG { 1 }
+    sub FATAL { 1 }
 
     sub see_also           { return [ 303, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
     sub redirect           { return [ 302, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
     sub redirect_permanent { return [ 301, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
 
-    sub _reply { return [ $_[1], [ 'Content-type' => 'text/html' ], [ defined $_[2] ? $_[2] : '' ] ] }
+    sub _reply     { return [ $_[1], [ 'Content-type' => 'text/html' ], [ defined $_[2] ? $_[2] : '' ] ] }
     sub ok         { return $_[0]->_reply( 200, $_[2] ) }
     sub notfound   { return $_[0]->_reply( 404, $_[2] // 'Not Found' ) }
     sub forbidden  { return $_[0]->_reply( 403, $_[2] // 'Forbidden' ) }
@@ -193,7 +196,7 @@ require Trog::Routes::JSON;
     # The real one is `kill 'HUP', getppid`.  Under prove, that is prove.
     sub signal_restart_parent { $_[0]{restarts}++; return 1 }
 
-    sub invalidate_renders { push @{ $_[0]{invalidated} }, $_[1]; return 1 }
+    sub invalidate_renders { push @{ $_[0]{invalidated} }, $_[1];              return 1 }
     sub invalidate_render  { push @{ $_[0]{invalidated} }, [ @_[ 1 .. $#_ ] ]; return 1 }
     sub save_render        { $_[0]{renders}{"$_[1]:$_[2]"} = $_[3]; return 1 }
 }
@@ -216,9 +219,9 @@ sub _query {
     my %q = (
         route        => '/',
         method       => 'GET',
-        scheme       => 'http',                          # Renderer::Base compares this with no undef guard
+        scheme       => 'http',                             # Renderer::Base compares this with no undef guard
         domain       => 'tcms.test',
-        start        => [ Time::HiRes::gettimeofday() ], # tv_interval() dies on anything else
+        start        => [ Time::HiRes::gettimeofday() ],    # tv_interval() dies on anything else
         deflate      => 0,
         streaming    => 0,
         ranges       => [],
@@ -246,7 +249,7 @@ sub _render {
     $how ||= \&Trog::Routes::HTML::index;
 
     my $res = eval { $how->($query) };
-    return ( 0, '', "died: $@" ) if !$res;
+    return ( 0, '', "died: $@" )                                      if !$res;
     return ( 0, '', 'returned a ' . ( ref($res) || 'plain scalar' ) ) if ref $res ne 'ARRAY';
 
     my ( $code, $headers, $body ) = @$res;
@@ -286,7 +289,7 @@ sub _post_count {
 # The rendered page is ~40KB and mostly JavaScript.  Show the content well.
 sub _kontent {
     my ($body) = @_;
-    my ($k) = $body =~ m{<div id="kontent" class="kontained">(.*?)<div id="rightbar"}s;
+    my ($k)    = $body =~ m{<div id="kontent" class="kontained">(.*?)<div id="rightbar"}s;
     $k //= $body;
     $k =~ s/<script\b.*?<\/script>//gs;
     return length($k) > 2500 ? substr( $k, 0, 2500 ) . "\n...[truncated]" : $k;
@@ -328,10 +331,9 @@ sub _save_post {
     return $saved;
 }
 
-
-
 sub _find_post {
     my ($title) = @_;
+
     # filter() short-circuits on title; the admin acl skips the visibility filter.
     my @posts = _data()->get( title => $title, acls => ['admin'], limit => 0 );
     return $posts[0];
@@ -341,7 +343,7 @@ sub _find_post {
 
 subtest 'the sandbox is what we are actually running against' => sub {
     is( Cwd::getcwd(), Cwd::abs_path($ROOT), 'cwd is the sandbox' );
-    ok( -d 'data/files',  'datastore dir exists' );
+    ok( -d 'data/files',         'datastore dir exists' );
     ok( -f 'config/default.cfg', 'config was seeded' );
     ok( !-f 'config/main.cfg',   'and there is no main.cfg, so we fall through to the default' );
 
@@ -400,9 +402,7 @@ subtest 'the post wizard invents a new post type' => sub {
         param_label       => ['Flavor'],
         param_placeholder => ['Strawberry'],
         param_required    => [0],
-        display           => q{<div class="postData responsive-text" id="postData-<: $post.id :>">}
-          . q{<span class="spec-flavor"><: $post.flavor :></span>}
-          . q{<: render_it($post.data) | mark_raw :></div>},
+        display           => q{<div class="postData responsive-text" id="postData-<: $post.id :>">} . q{<span class="spec-flavor"><: $post.flavor :></span>} . q{<: render_it($post.data) | mark_raw :></div>},
     );
 
     my ( $code, $body, $err ) = _render(
@@ -448,8 +448,8 @@ subtest 'the post wizard invents a new post type' => sub {
         unlike( $body, qr/name="\Q$gone\E"/, "the wizard no longer offers '$gone' as a choice" );
     }
 
-    like( $body, qr/name="param_private"/, 'and it offers per-field privacy' );
-    like( $body, qr/name="datasource"/,    'and a datasource to draw the posts from' );
+    like( $body, qr/name="param_private"/,   'and it offers per-field privacy' );
+    like( $body, qr/name="datasource"/,      'and a datasource to draw the posts from' );
     like( $body, qr/Trog::DataSource::Virt/, 'listing the ones that exist' );
 };
 
@@ -478,8 +478,7 @@ subtest 'a datasource-backed type gets no editor' => sub {
     unlike( $generated, qr/\$can_edit/,          'and nothing guards one' );
     like( $generated, qr/class="s"/, 'but the display half is there' );
 
-    my $sidecar = JSON::MaybeXS::decode_json(
-        Path::Tiny->new('www/templates/html/components/forms/spec_sourced.json')->slurp_utf8 );
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new('www/templates/html/components/forms/spec_sourced.json')->slurp_utf8 );
     is( $sidecar->{'x-tcms-datasource'}, 'Trog::DataSource::Virt', 'and the sidecar records the datasource' );
 
     # The same type without one keeps its editor.
@@ -510,21 +509,21 @@ subtest 'a datasource-backed type gets no editor' => sub {
 subtest 'a field can be declared editors-only' => sub {
     my ( $code, $body, $err ) = _render(
         _admin(
-            route             => '/admin/wyzzerdd/save',
-            method            => 'POST',
-            name              => 'spec_secretive',
-            body_form         => 'form_common.tx',
-            wrapper           => 1,
-            inc_post_title    => 1,
-            inc_tags          => 1,
-            param_name        => [ 'shown',            'hidden' ],
-            param_type        => [ 'text',             'text' ],
-            param_label       => [ 'Shown',            'Hidden' ],
-            param_placeholder => [ '',                 '' ],
-            param_required    => [ 0,                  0 ],
-            param_private     => [ 0,                  1 ],
-            param_relation_form => [ 'blog.tx',        'blog.tx' ],
-            param_relation_mode => [ 'one',            'one' ],
+            route               => '/admin/wyzzerdd/save',
+            method              => 'POST',
+            name                => 'spec_secretive',
+            body_form           => 'form_common.tx',
+            wrapper             => 1,
+            inc_post_title      => 1,
+            inc_tags            => 1,
+            param_name          => [ 'shown',   'hidden' ],
+            param_type          => [ 'text',    'text' ],
+            param_label         => [ 'Shown',   'Hidden' ],
+            param_placeholder   => [ '',        '' ],
+            param_required      => [ 0,         0 ],
+            param_private       => [ 0,         1 ],
+            param_relation_form => [ 'blog.tx', 'blog.tx' ],
+            param_relation_mode => [ 'one',     'one' ],
 
             # Deliberately unguarded: declaring the field private is supposed
             # to be enough, so an author does not have to remember.
@@ -534,9 +533,8 @@ subtest 'a field can be declared editors-only' => sub {
     );
     is( $code, 200, 'the type was created' ) or diag($err);
 
-    my $sidecar = JSON::MaybeXS::decode_json(
-        Path::Tiny->new('www/templates/html/components/forms/spec_secretive.json')->slurp_utf8 );
-    ok( $sidecar->{properties}{hidden}{'x-tcms-private'},   'the private field is marked so' );
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new('www/templates/html/components/forms/spec_secretive.json')->slurp_utf8 );
+    ok( $sidecar->{properties}{hidden}{'x-tcms-private'},        'the private field is marked so' );
     ok( !exists $sidecar->{properties}{shown}{'x-tcms-private'}, 'and a public one carries no flag at all' );
 
     _reindex();
@@ -592,8 +590,8 @@ sub _make_series {
         "$label series",
         form       => 'series.tx',
         title      => $title,
-        aclname    => $aclname,       # required by series.json
-        child_form => $child_form,    # required by series.json
+        aclname    => $aclname,                       # required by series.json
+        child_form => $child_form,                    # required by series.json
         local_href => "/$aclname",
         href       => "/$aclname",
         data       => "$title subhead",
@@ -692,11 +690,11 @@ subtest 'blog' => sub {
 
     my $body = _series_page( 'blog', 'specblog', $title, 1 ) or return;
 
-    like( $body, qr/Spec Blog Child/,                  'child title rendered' );
-    like( $body, qr{href='/posts/\Q$child->{id}\E'},   'child permalink rendered' );
-    like( $body, qr{id="postData-\Q$child->{id}\E"},   'child body block rendered' );
-    like( $body, qr/Spec blog body text\./,            'child body text rendered' );
-    unlike( $body, qr/Spec Payee Entity/,              'no bleed from the entities series' );
+    like( $body, qr/Spec Blog Child/,                'child title rendered' );
+    like( $body, qr{href='/posts/\Q$child->{id}\E'}, 'child permalink rendered' );
+    like( $body, qr{id="postData-\Q$child->{id}\E"}, 'child body block rendered' );
+    like( $body, qr/Spec blog body text\./,          'child body text rendered' );
+    unlike( $body, qr/Spec Payee Entity/, 'no bleed from the entities series' );
 };
 
 subtest 'microblog' => sub {
@@ -717,8 +715,8 @@ subtest 'microblog' => sub {
     my $body = _series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
 
     like( $body, qr{href='https://example\.com/spec' >Spec Microblog Child</a>}, 'title links out to href' );
-    like( $body, qr{id="postData-\Q$child->{id}\E"}, 'body block rendered' );
-    like( $body, qr/Spec microblog body\./,          'body text rendered' );
+    like( $body, qr{id="postData-\Q$child->{id}\E"},                             'body block rendered' );
+    like( $body, qr/Spec microblog body\./,                                      'body text rendered' );
 };
 
 subtest 'file' => sub {
@@ -742,14 +740,14 @@ subtest 'file' => sub {
         to         => '/specfile',
     ) or return;
 
-    ok( !-e $src, 'the upload was moved out of its temp location, not copied' );
+    ok( !-e $src,                                     'the upload was moved out of its temp location, not copied' );
     ok( -f "www/assets/$child->{id}.spec-upload.txt", 'and it landed in www/assets' );
 
     my $body = _series_page( 'file', 'specfile', $title, 1 ) or return;
 
     like( $body, qr{href='/assets/\Q$child->{id}\E\.spec-upload\.txt'}, 'title links to the asset' );
-    like( $body, qr{id="postData-\Q$child->{id}\E"}, 'body block carries a unique id, like every other form' );
-    like( $body, qr/Spec file body\./, 'body text rendered' );
+    like( $body, qr{id="postData-\Q$child->{id}\E"},                    'body block carries a unique id, like every other form' );
+    like( $body, qr/Spec file body\./,                                  'body text rendered' );
 
     # This form used to emit <div class="postData" id="postData" class="responsive-text">
     # -- a duplicated class attribute, and an id shared by every file post on
@@ -842,7 +840,7 @@ subtest 'spec_widget (the wizard-built type)' => sub {
     # schema_for merged it over the base post schema, and validate() therefore
     # kept 'flavor' instead of deleting it as an unknown key.
     like( $body, qr{<span class="spec-flavor">Strawberry</span>}, 'the custom field rendered on the page' );
-    like( $body, qr/Spec widget body\./, 'and the body came through the generated template' );
+    like( $body, qr/Spec widget body\./,                          'and the body came through the generated template' );
 };
 
 subtest 'a wizard-built type can depend on another type' => sub {
@@ -879,25 +877,23 @@ subtest 'a wizard-built type can depend on another type' => sub {
             inc_title_input     => 1,
             inc_visibility      => 1,
             inc_tags            => 1,
-            param_name          => [ 'chosen',       'everything' ],
-            param_type          => [ 'relation',     'relation' ],
-            param_label         => [ 'Chosen One',   'All Of Them' ],
-            param_placeholder   => [ '',             '' ],
-            param_required      => [ 0,              0 ],
+            param_name          => [ 'chosen',         'everything' ],
+            param_type          => [ 'relation',       'relation' ],
+            param_label         => [ 'Chosen One',     'All Of Them' ],
+            param_placeholder   => [ '',               '' ],
+            param_required      => [ 0,                0 ],
             param_relation_form => [ 'spec_target.tx', 'spec_target.tx' ],
-            param_relation_mode => [ 'one',          'all' ],
-            display             => q{<div class="rel"><span class="chosen"><: $post.chosen_post.title :></span>}
-              . q{<: for $post.everything -> $t { :><span class="each"><: $t.title :></span><: } :></div>},
+            param_relation_mode => [ 'one',            'all' ],
+            display             => q{<div class="rel"><span class="chosen"><: $post.chosen_post.title :></span>} . q{<: for $post.everything -> $t { :><span class="each"><: $t.title :></span><: } :></div>},
         ),
         \&Trog::Routes::HTML::post_wizard_save,
     );
     is( $code, 200, 'relating type created' ) or diag($err);
 
-    my $sidecar = JSON::MaybeXS::decode_json(
-        Path::Tiny->new('www/templates/html/components/forms/spec_relator.json')->slurp_utf8 );
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new('www/templates/html/components/forms/spec_relator.json')->slurp_utf8 );
 
     # 'one' is a field the post stores; 'all' is not a field at all.
-    is( $sidecar->{properties}{chosen}{type}, 'relation', 'the picked relation is a stored property' );
+    is( $sidecar->{properties}{chosen}{type},                   'relation',       'the picked relation is a stored property' );
     is( $sidecar->{properties}{chosen}{'x-tcms-relation-form'}, 'spec_target.tx', 'naming its target type' );
     ok( !exists $sidecar->{properties}{everything}, "the 'all' relation stores nothing" );
 
@@ -912,8 +908,10 @@ subtest 'a wizard-built type can depend on another type' => sub {
 
     # The relation pseudo-type has to become a real one before validation, or
     # every relation field would be stripped as an unknown type.
-    is( Trog::DataModule::schema_for('spec_relator.tx')->{properties}{chosen}{type},
-        'string', "'relation' expands to a real schema type" );
+    is(
+        Trog::DataModule::schema_for('spec_relator.tx')->{properties}{chosen}{type},
+        'string', "'relation' expands to a real schema type"
+    );
 
     _reindex();
 
@@ -969,15 +967,15 @@ subtest '/api/posts_of_form feeds the relation picker' => sub {
 
     # An unknown type is an empty list, not an error -- a type with no posts
     # yet is the normal state of affairs right after you create it.
-    $res = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'nosuchtype.tx' ) );
+    $res     = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'nosuchtype.tx' ) );
     $payload = JSON::MaybeXS::decode_json( join( '', @{ $res->[2] } ) );
     is_deeply( $payload->{posts}, [], 'an unknown type lists nothing rather than failing' );
 
     # The route's own declaration is what keeps a malformed form out; check it
     # matches what series.json demands of child_form.
     my $validator = $Trog::Routes::JSON::routes{'/api/posts_of_form'}{parameters}{form};
-    ok( $validator->('blog.tx'), 'the parameter validator accepts a form name' );
-    ok( !$validator->('../../etc/passwd'), 'and rejects a path' );
+    ok( $validator->('blog.tx'),                                 'the parameter validator accepts a form name' );
+    ok( !$validator->('../../etc/passwd'),                       'and rejects a path' );
     ok( $Trog::Routes::JSON::routes{'/api/posts_of_form'}{auth}, 'the route requires a login' );
 };
 
@@ -1031,7 +1029,7 @@ subtest 'saves report back through the jsalert banner' => sub {
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination renders' ) or diag($err);
-    like( $body, qr/var loginFailure = 0;/,               'the banner is in success mode' );
+    like( $body, qr/var loginFailure = 0;/,                      'the banner is in success mode' );
     like( $body, qr/Saved post &#39;Spec Feedback Child&#39;\./, 'and says what was saved' );
 
     # Nothing to navigate on to, so the banner must not bounce us anywhere.
@@ -1052,8 +1050,8 @@ subtest 'saves report back through the jsalert banner' => sub {
     ( $code, $headers ) = @$res;
     %h = @{ $headers || [] };
     is( $code, 303, 'a rejected save redirects too, rather than dead-ending on a 400' );
-    like( $h{Location}, qr{^/secure/specblog\?savefailed=}, 'flagged as failed' );
-    like( URI::Escape::uri_unescape( $h{Location} ), qr/Not in enum list/, 'carrying the validator error' );
+    like( $h{Location},                              qr{^/secure/specblog\?savefailed=}, 'flagged as failed' );
+    like( URI::Escape::uri_unescape( $h{Location} ), qr/Not in enum list/,               'carrying the validator error' );
 
     ok( !_find_post('Spec Rejected Child'), 'and the bad post was not written' );
 

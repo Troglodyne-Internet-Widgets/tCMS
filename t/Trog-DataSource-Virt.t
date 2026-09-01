@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::MockModule qw{strict};
-use Test::Fatal qw{exception};
+use Test::Fatal      qw{exception};
 use Path::Tiny();
 use JSON::MaybeXS();
 use FindBin;
@@ -23,17 +23,18 @@ $logmock->redefine( INFO => sub { note(shift) } );
 our @CALLS;
 
 {
+
     package FakeDomain;
-    sub new { my ( $c, %a ) = @_; return bless {%a}, $c }
+    sub new             { my ( $c, %a ) = @_; return bless {%a}, $c }
     sub get_name        { $_[0]{name} }
     sub get_uuid_string { $_[0]{uuid} }
     sub is_active       { $_[0]{active} }
     sub get_info        { { state => $_[0]{state}, memory => 1024, nrVirtCpu => 2 } }
 
     # The operations we must never actually perform: record and return.
-    sub create        { push @main::CALLS, [ 'create',        $_[0]{name} ]; 1 }
-    sub shutdown      { push @main::CALLS, [ 'shutdown',      $_[0]{name} ]; 1 }
-    sub destroy       { push @main::CALLS, [ 'destroy',       $_[0]{name} ]; 1 }
+    sub create          { push @main::CALLS, [ 'create',          $_[0]{name} ]; 1 }
+    sub shutdown        { push @main::CALLS, [ 'shutdown',        $_[0]{name} ]; 1 }
+    sub destroy         { push @main::CALLS, [ 'destroy',         $_[0]{name} ]; 1 }
     sub create_snapshot { push @main::CALLS, [ 'create_snapshot', $_[0]{name} ]; 1 }
 
     # Reading a console is not a mutation, so this one really runs.
@@ -41,16 +42,19 @@ our @CALLS;
 }
 
 {
+
     package FakeStream;
-    sub new { bless {}, shift }
+    sub new      { bless {}, shift }
     sub recv_all { my ( $self, $cb ) = @_; $cb->( $self, 'fake-png-bytes' ); return 1 }
     sub finish   { 1 }
 }
 
 {
+
     package FakeConn;
-    sub new { bless {}, shift }
+    sub new        { bless {}, shift }
     sub new_stream { FakeStream->new() }
+
     sub list_all_domains {
         return (
             FakeDomain->new( name => 'alpha', uuid => 'uuid-alpha', active => 1, state => 1 ),
@@ -60,7 +64,7 @@ our @CALLS;
 }
 
 my $connect_fails = 0;
-my $virtmock = Test::MockModule->new('Sys::Virt');
+my $virtmock      = Test::MockModule->new('Sys::Virt');
 $virtmock->redefine(
     new => sub {
         die "libvirt error: nope\n" if $connect_fails;
@@ -85,14 +89,14 @@ subtest 'guests become posts' => sub {
     @CALLS = ();
     my @posts = Trog::DataSource::Virt::posts( $series, { user_acls => ['admin'] } );
 
-    is( scalar @posts, 2, 'one post per guest' );
-    is( $posts[0]{title}, 'alpha',      'named after the guest' );
-    is( $posts[0]{id},    'uuid-alpha', "and identified by the guest's uuid, not ours" );
-    is( $posts[0]{form},  'guests.tx',  "wearing the series' child type" );
-    is( $posts[0]{state}, 'running',    'with a legible state' );
-    is( $posts[1]{state}, 'shut off',   '...for each of libvirt\'s numeric ones' );
-    is( $posts[0]{is_active}, 1, 'active guests are marked so' );
-    is( $posts[1]{is_active}, 0, 'and inactive ones are not' );
+    is( scalar @posts,        2,            'one post per guest' );
+    is( $posts[0]{title},     'alpha',      'named after the guest' );
+    is( $posts[0]{id},        'uuid-alpha', "and identified by the guest's uuid, not ours" );
+    is( $posts[0]{form},      'guests.tx',  "wearing the series' child type" );
+    is( $posts[0]{state},     'running',    'with a legible state' );
+    is( $posts[1]{state},     'shut off',   '...for each of libvirt\'s numeric ones' );
+    is( $posts[0]{is_active}, 1,            'active guests are marked so' );
+    is( $posts[1]{is_active}, 0,            'and inactive ones are not' );
 
     # The listing must not take screenshots: that is a per-guest round trip,
     # and it is the browser's job via the preview route.
@@ -124,11 +128,11 @@ subtest 'a guest is this server when it is named like it' => sub {
     }
 
     my @different = (
-        [ 'beta',               'foo'                => 'a different name' ],
-        [ 'fooling',            'foo'                => 'a name this one is only a prefix of' ],
-        [ 'foo.test.test',      'foo.troglodyne.net' => 'the same label in someone else\'s domain' ],
-        [ '',                   'foo'                => 'a guest with no name at all' ],
-        [ 'foo',                ''                   => 'any guest, when we cannot tell what we are called' ],
+        [ 'beta',          'foo'                => 'a different name' ],
+        [ 'fooling',       'foo'                => 'a name this one is only a prefix of' ],
+        [ 'foo.test.test', 'foo.troglodyne.net' => 'the same label in someone else\'s domain' ],
+        [ '',              'foo'                => 'a guest with no name at all' ],
+        [ 'foo',           ''                   => 'any guest, when we cannot tell what we are called' ],
     );
     foreach my $case (@different) {
         my ( $guest, $host, $why ) = @$case;
@@ -288,7 +292,7 @@ subtest 'the datasource hook only loads what it should' => sub {
     $declared = 'Trog::DataSource::Virt';
     $query->{primary_post}{hypervisors} = [ { id => 'hv-1', title => 'spec-hv', conn_uri => 'test:///default' } ];
     my @got = Trog::Routes::HTML::_datasource_posts( $query, \@stored );
-    is( scalar @got,   2,       'a declared datasource replaces the stored posts' );
+    is( scalar @got,    2,       'a declared datasource replaces the stored posts' );
     is( $got[0]{title}, 'alpha', 'with what it built' );
 };
 
@@ -328,11 +332,11 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
     );
 
     my %post = (
-        form    => 'guests.tx',
-        id      => 'uuid-alpha', title  => 'alpha',  state   => 'running', is_active => 1,
-        preview => '/guest/screenshot/hv-1/alpha',   domain  => 'alpha',
-        hypervisor => 'hv-1', hypervisor_title => 'spec-hv', vcpus => 2,
-        addpost => 0, unreachable => 0,
+        form       => 'guests.tx',
+        id         => 'uuid-alpha',                   title            => 'alpha', state => 'running', is_active => 1,
+        preview    => '/guest/screenshot/hv-1/alpha', domain           => 'alpha',
+        hypervisor => 'hv-1',                         hypervisor_title => 'spec-hv', vcpus => 2,
+        addpost    => 0,                              unreachable      => 0,
     );
 
     my %views = (
@@ -359,7 +363,7 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
 
         # The screenshot route requires the admin acl, so showing the img to
         # anyone else is a broken image and nothing else.
-        is( scalar( () = $out =~ m/<img /g ), $admin ? 1 : 0, "$view: console capture shown only to an admin" );
+        is( scalar( () = $out =~ m/<img /g ),                   $admin ? 1 : 0, "$view: console capture shown only to an admin" );
         is( scalar( () = $out =~ m{href="/guest/screenshot}g ), $admin ? 1 : 0, "$view: and so is the link to it" );
 
         # Powering off, snapshotting and destroying likewise.
@@ -379,20 +383,24 @@ subtest 'the server itself is drawn without the controls that would kill it' => 
     );
 
     my %post = (
-        form    => 'guests.tx',
-        id      => 'uuid-alpha', title => 'alpha', state => 'running', is_active => 1,
-        preview => '/guest/screenshot/hv-1/alpha', domain => 'alpha',
-        hypervisor => 'hv-1', hypervisor_title => 'spec-hv', vcpus => 2,
-        addpost => 0, unreachable => 0,
+        form       => 'guests.tx',
+        id         => 'uuid-alpha',                   title            => 'alpha', state => 'running', is_active => 1,
+        preview    => '/guest/screenshot/hv-1/alpha', domain           => 'alpha',
+        hypervisor => 'hv-1',                         hypervisor_title => 'spec-hv', vcpus => 2,
+        addpost    => 0,                              unreachable      => 0,
     );
 
     foreach my $tiled ( 0, 1 ) {
         my $view = $tiled ? 'tiled' : 'untiled';
 
-        my $me = $tx->render( 'forms/guests.tx',
-            { post => { %post, is_self => 1 }, style => '', route => '/vm', tiled => $tiled, can_edit => 1 } );
-        my $them = $tx->render( 'forms/guests.tx',
-            { post => { %post, is_self => 0 }, style => '', route => '/vm', tiled => $tiled, can_edit => 1 } );
+        my $me = $tx->render(
+            'forms/guests.tx',
+            { post => { %post, is_self => 1 }, style => '', route => '/vm', tiled => $tiled, can_edit => 1 }
+        );
+        my $them = $tx->render(
+            'forms/guests.tx',
+            { post => { %post, is_self => 0 }, style => '', route => '/vm', tiled => $tiled, can_edit => 1 }
+        );
 
         # Said out loud, so an admin knows why this one is different.
         like( $me, qr/dom0/, "$view: the guest we are running in says so" );
@@ -400,8 +408,10 @@ subtest 'the server itself is drawn without the controls that would kill it' => 
     }
 
     # Only the untiled view draws controls at all.
-    my $me = $tx->render( 'forms/guests.tx',
-        { post => { %post, is_self => 1 }, style => '', route => '/vm', tiled => 0, can_edit => 1 } );
+    my $me = $tx->render(
+        'forms/guests.tx',
+        { post => { %post, is_self => 1 }, style => '', route => '/vm', tiled => 0, can_edit => 1 }
+    );
 
     foreach my $action (qw{poweroff destroy}) {
         is( scalar( () = $me =~ m/value="\Q$action\E"/g ), 0, "no $action button for the server itself" );
@@ -411,8 +421,10 @@ subtest 'the server itself is drawn without the controls that would kill it' => 
 
     # A guest that is merely switched off must keep its Power On button -- the
     # is_self guard wraps that branch too.
-    my $off = $tx->render( 'forms/guests.tx',
-        { post => { %post, is_self => 0, is_active => 0, state => 'shut off' }, style => '', route => '/vm', tiled => 0, can_edit => 1 } );
+    my $off = $tx->render(
+        'forms/guests.tx',
+        { post => { %post, is_self => 0, is_active => 0, state => 'shut off' }, style => '', route => '/vm', tiled => 0, can_edit => 1 }
+    );
     is( scalar( () = $off =~ m/value="poweron"/g ), 1, 'an ordinary stopped guest can still be started' );
 };
 
@@ -421,9 +433,9 @@ subtest 'a datasource says whether its posts can be edited' => sub {
 
     my $sources = Trog::Routes::HTML::_get_datasources();
     ok( ( grep { $_ eq 'Trog::DataSource::Virt' } @$sources ), 'the wizard can find this datasource' );
-    ok( !( grep { !m/^Trog::DataSource::\w+$/ } @$sources ), 'and finds nothing that is not one' );
+    ok( !( grep { !m/^Trog::DataSource::\w+$/ } @$sources ),   'and finds nothing that is not one' );
 
-    is( Trog::DataSource::Virt->EDITABLE, 0, 'a guest cannot be edited' );
+    is( Trog::DataSource::Virt->EDITABLE,                                   0, 'a guest cannot be edited' );
     is( Trog::Routes::HTML::_datasource_editable('Trog::DataSource::Virt'), 0, 'so no editor is appropriate' );
 
     # The datastore is the default, and posts in it are written by people.
@@ -440,15 +452,16 @@ subtest 'a datasource says whether its posts can be edited' => sub {
 };
 
 subtest 'the guests type is built by the wizard, from a datasource' => sub {
-    my $sidecar = JSON::MaybeXS::decode_json(
-        Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.json")->slurp_utf8 );
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.json")->slurp_utf8 );
 
     is( $sidecar->{'x-tcms-datasource'}, 'Trog::DataSource::Virt', 'it names its datasource' );
     ok( $sidecar->{'x-tcms-post-type'}{generated}, 'and is wizard generated rather than hand written' );
 
     # The relation is what tells the datasource which hypervisors to ask.
-    is_deeply( $sidecar->{'x-tcms-relations'}, { hypervisors => { form => 'hypervisor.tx' } },
-        'and keeps the relation the datasource reads' );
+    is_deeply(
+        $sidecar->{'x-tcms-relations'}, { hypervisors => { form => 'hypervisor.tx' } },
+        'and keeps the relation the datasource reads'
+    );
 
     # No editor: a guest is built on every view and has nothing to save.
     my $form = Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/guests.tx")->slurp_utf8;
@@ -458,8 +471,10 @@ subtest 'the guests type is built by the wizard, from a datasource' => sub {
 subtest 'the guests type declares its console capture private' => sub {
     require Trog::DataModule;
 
-    is_deeply( Trog::DataModule::private_fields_for('guests.tx'), ['preview'],
-        'so the url to it is withheld rather than guarded in the template' );
+    is_deeply(
+        Trog::DataModule::private_fields_for('guests.tx'), ['preview'],
+        'so the url to it is withheld rather than guarded in the template'
+    );
 };
 
 subtest 'private fields are dropped before a non-editor sees them' => sub {
@@ -478,16 +493,16 @@ subtest 'private fields are dropped before a non-editor sees them' => sub {
         # A relation is a post in its own right, with its own private fields.
         related => { form => 'secretive.tx', title => 'related', hidden => 'another secret' },
         many    => [ { form => 'secretive.tx', hidden => 'a third secret' } ],
-        other   => { form => 'ordinary.tx',   hidden => 'not declared private here' },
+        other   => { form => 'ordinary.tx', hidden => 'not declared private here' },
     };
 
     Trog::Routes::HTML::_redact_private($post);
 
-    ok( !exists $post->{hidden},              'the private field is gone' );
-    is( $post->{shown}, 'not a secret',       'and the public ones are not' );
-    is( $post->{title}, 'a post',             '...including the ones every post has' );
-    ok( !exists $post->{related}{hidden},     'a related post is redacted too' );
-    ok( !exists $post->{many}[0]{hidden},     'and so is one reached through a list' );
+    ok( !exists $post->{hidden}, 'the private field is gone' );
+    is( $post->{shown}, 'not a secret', 'and the public ones are not' );
+    is( $post->{title}, 'a post',       '...including the ones every post has' );
+    ok( !exists $post->{related}{hidden}, 'a related post is redacted too' );
+    ok( !exists $post->{many}[0]{hidden}, 'and so is one reached through a list' );
     is( $post->{other}{hidden}, 'not declared private here', 'a type that declares nothing keeps everything' );
 };
 
@@ -515,8 +530,7 @@ subtest 'a hypervisor does not show its connection uri to everyone' => sub {
     my $private = Trog::DataModule::private_fields_for('hypervisor.tx');
     is_deeply( $private, ['conn_uri'], 'the connection uri is declared private' );
 
-    my $sidecar = JSON::MaybeXS::decode_json(
-        Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/hypervisor.json")->slurp_utf8 );
+    my $sidecar = JSON::MaybeXS::decode_json( Path::Tiny->new("$FindBin::Bin/../www/templates/html/components/forms/hypervisor.json")->slurp_utf8 );
     ok( $sidecar->{properties}{conn_uri}{'x-tcms-private'}, 'and says so in its sidecar' );
 };
 

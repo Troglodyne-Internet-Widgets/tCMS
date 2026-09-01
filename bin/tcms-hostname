@@ -45,7 +45,8 @@ Dies if asked to print a hostname which was never set.
 =cut
 
 my $user;
-GetOptionsFromArray(\@ARGV,
+GetOptionsFromArray(
+    \@ARGV,
     'user' => \$user,
 );
 
@@ -53,7 +54,7 @@ my $hostname = $ARGV[0];
 
 my $conf = Trog::Config->get();
 if ($hostname) {
-    $conf->param('general.hostname', $hostname);
+    $conf->param( 'general.hostname', $hostname );
 
     # write(), not save().  save() writes back to whatever file get() loaded,
     # which is the tracked config/default.cfg until the instance has saved a
@@ -66,7 +67,7 @@ die "Hostname not set in tCMS configuration.  Please set this first by passing t
 
 # Transform the domain name into something maximally compatible with being a username.
 if ($user) {
-    $domain = substr($domain, 0, 32);
+    $domain = substr( $domain, 0, 32 );
     $domain =~ s/\./-/g;
 }
 

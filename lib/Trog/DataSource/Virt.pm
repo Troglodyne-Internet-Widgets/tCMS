@@ -102,7 +102,8 @@ sub _hostname {
 
     # Sys::Hostname croaks rather than returning undef when it cannot tell, and
     # the configured hostname is the next best thing we know about ourselves.
-    $hostname = eval { Sys::Hostname::FQDN::fqdn() }
+    $hostname =
+         eval { Sys::Hostname::FQDN::fqdn() }
       || eval { Trog::Config->get()->param('general.hostname') }
       || '';
 
@@ -260,6 +261,7 @@ sub screenshot ( $hypervisor, $guest_name ) {
 
     my $dir  = "$screenshot_dir/$host";
     my $path = "$dir/$safe.png";
+
     # One stat rather than -f and then a second stat for the mtime.  A missing
     # file gives the empty list, so $mtime is undef and we fall through to a
     # fresh capture.
