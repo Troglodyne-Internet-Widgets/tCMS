@@ -126,12 +126,27 @@ sub flush_batch () {
         1;
     } or do {
         my $error = $@;
-        $failed += scalar(@batch);
+        $error =~ s/\n.*//s;
 
-        # The batch was a transaction, so none of it landed.  Name what was in
-        # it, or the operator has an error and no idea which posts to look at.
-        say STDERR "Could not write a batch of " . scalar(@batch) . " post version(s): $error";
-        say STDERR "  the batch held: " . join( ', ', map { "$_->{id}\@" . ( $_->{version} // 0 ) } @batch );
+        # A batch is one transaction, so one bad post took every other post in
+        # the batch down with it.  Go back over them one at a time: a migration
+        # wants everything that can land to land, and a list naming exactly what
+        # could not -- not five hundred posts rejected on account of one.
+        say STDERR "A batch of " . scalar(@batch) . " failed ($error); retrying it one post at a time.";
+
+        foreach my $post (@batch) {
+            local $@;
+            eval {
+                $to->write( [$post] );
+                $written++;
+                1;
+            } or do {
+                my $why = $@;
+                $why =~ s/\n.*//s;
+                $failed++;
+                say STDERR "  could not write $post->{id} version " . ( $post->{version} // 0 ) . ": $why";
+            };
+        }
     };
 
     @batch = ();

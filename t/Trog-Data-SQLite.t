@@ -325,6 +325,82 @@ subtest 'writing' => sub {
     unlike( $blob, qr/version_max|"modified"|display_name|user_class/, 'derived fields are not stored' );
 };
 
+subtest 'tags a post might really have' => sub {
+    my $dbh = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );
+
+    my $tags_of = sub {
+        my ($id) = @_;
+        my $rows = $dbh->selectall_arrayref(
+            'SELECT tag FROM post_tags t JOIN posts p ON p.id = t.post_id WHERE p.uuid = ? ORDER BY tag',
+            { Slice => {} }, $id
+        );
+        return [ map { $_->{tag} } @$rows ];
+    };
+
+    # A post is storable whatever its tags look like.  Refusing one is refusing
+    # to store the post, which is never the right answer for an index.
+    my %shapes = (
+        'p-tag-missing' => undef,
+        'p-tag-null'    => undef,
+        'p-tag-empty'   => [],
+        'p-tag-normal'  => [qw{blog public}],
+        'p-tag-holed'   => [ 'public', undef ],
+        'p-tag-numeric' => [ 1,        2 ],
+    );
+
+    foreach my $id ( sort keys %shapes ) {
+        my $post = post( id => $id );
+        if   ( $id eq 'p-tag-missing' ) { delete $post->{tags} }
+        else                            { $post->{tags} = $shapes{$id} }
+
+        is( exception { $sqlite->write( [$post] ) }, undef, "a post with $id tags is storable" );
+    }
+
+    # The one that actually bit: Trog::DataModule::_process() pushed a post's
+    # visibility into its tags without defaulting it first, so posts written
+    # before that carry a null there, and a whole site's migration fell over on
+    # the NOT NULL constraint rather than on anything wrong with the post.
+    is_deeply( $tags_of->('p-tag-holed'),   ['public'],        'a null in the array is left out of the index' );
+    is_deeply( $tags_of->('p-tag-normal'),  [qw{blog public}], 'and a normal one is indexed whole' );
+    is_deeply( $tags_of->('p-tag-empty'),   [],                'an empty list indexes nothing' );
+    is_deeply( $tags_of->('p-tag-null'),    [],                'and neither does a null tags field' );
+    is_deeply( $tags_of->('p-tag-missing'), [],                'nor no tags field at all' );
+
+    # A null tag matched nothing in the flat file model either, so leaving it
+    # out of the index changes no answer.
+    my @found = $sqlite->get( limit => 0, acls => ['public'], tags => ['public'] );
+    ok( scalar( grep { $_->{id} eq 'p-tag-holed' } @found ), 'the post is still found by the tag it does have' );
+};
+
+subtest 'the triggers can be fixed after the fact' => sub {
+
+    # Every trigger is dropped and recreated when the schema is applied, rather
+    # than created IF NOT EXISTS.  With IF NOT EXISTS a database that already
+    # had one kept its old copy for good, so fixing a trigger would have fixed
+    # it only for sites that had not run yet -- which is no use at all, since
+    # the site that needs the fix is by definition one that has.
+    my $dbh = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );
+
+    $dbh->do('DROP TRIGGER posts_tags_insert');
+    $dbh->do( 'CREATE TRIGGER posts_tags_insert AFTER INSERT ON posts BEGIN INSERT INTO post_tags (post_id, tag) VALUES (new.id, %s); END;' =~ s/%s/'wrong'/r );
+
+    # What a worker starting up does.
+    Trog::Data::SQLite::_dbh();
+    my $schema = File::Slurper::read_text('schema/sqlite.schema');
+    $dbh->{sqlite_allow_multiple_statements} = 1;
+    $dbh->do($schema);
+    $dbh->{sqlite_allow_multiple_statements} = 0;
+
+    # post() appends the visibility to the tags, so this one carries both.
+    $sqlite->write( [ post( id => 'p-after-fix', tags => ['afterfix'] ) ] );
+    my $rows = $dbh->selectall_arrayref(
+        'SELECT tag FROM post_tags t JOIN posts p ON p.id = t.post_id WHERE p.uuid = ? ORDER BY tag',
+        { Slice => {} }, 'p-after-fix'
+    );
+    is_deeply( [ map { $_->{tag} } @$rows ], [qw{afterfix public}], 'reapplying the schema replaces a stale trigger' );
+    unlike( join( ',', map { $_->{tag} } @$rows ), qr/wrong/, 'and the stale one stops firing' );
+};
+
 subtest 'indexing a custom field' => sub {
 
     # index_fields() logs what it did, and with no logger configured that comes

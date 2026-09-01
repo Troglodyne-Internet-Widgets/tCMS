@@ -62,10 +62,16 @@ CREATE TABLE IF NOT EXISTS post_versions (
 CREATE INDEX IF NOT EXISTS post_versions_created ON post_versions(first_created);
 CREATE INDEX IF NOT EXISTS post_versions_latest  ON post_versions(latest_id);
 
+/* Every trigger below is dropped and recreated rather than created IF NOT       */
+/* EXISTS.  The schema is applied on every connect, and a trigger is code: with   */
+/* IF NOT EXISTS a database that already had one kept its old copy for good, so   */
+/* fixing a trigger would have fixed it only for sites that had not run yet.      */
+
 /* Versions are only ever appended, so an insert can settle this incrementally.  */
 /* Every expression in DO UPDATE sees the row as it was before this statement,   */
 /* which is what makes the comparisons below read the way they do.               */
-CREATE TRIGGER IF NOT EXISTS posts_versions_insert AFTER INSERT ON posts BEGIN
+DROP TRIGGER IF EXISTS posts_versions_insert;
+CREATE TRIGGER posts_versions_insert AFTER INSERT ON posts BEGIN
     INSERT INTO post_versions (uuid, version_min, version_max, first_id, latest_id, first_created)
         VALUES (new.uuid, new.version, new.version, new.id, new.id, new.created)
     ON CONFLICT(uuid) DO UPDATE SET
@@ -78,7 +84,8 @@ END;
 
 /* Deletes take whole posts rather than single versions, and are rare, so this  */
 /* recomputes rather than trying to unpick the increments above.                */
-CREATE TRIGGER IF NOT EXISTS posts_versions_delete AFTER DELETE ON posts BEGIN
+DROP TRIGGER IF EXISTS posts_versions_delete;
+CREATE TRIGGER posts_versions_delete AFTER DELETE ON posts BEGIN
     DELETE FROM post_versions WHERE uuid = old.uuid;
     INSERT INTO post_versions (uuid, version_min, version_max, first_id, latest_id, first_created)
         SELECT old.uuid,
@@ -113,13 +120,23 @@ CREATE TABLE IF NOT EXISTS post_tags (
 CREATE INDEX IF NOT EXISTS post_tags_tag ON post_tags(tag, post_id);
 CREATE INDEX IF NOT EXISTS post_tags_post ON post_tags(post_id);
 
-CREATE TRIGGER IF NOT EXISTS posts_tags_insert AFTER INSERT ON posts BEGIN
+DROP TRIGGER IF EXISTS posts_tags_insert;
+CREATE TRIGGER posts_tags_insert AFTER INSERT ON posts BEGIN
     INSERT INTO post_tags (post_id, tag)
         SELECT new.id, value FROM json_each(json_extract(new.post_data, '$.tags'))
-        WHERE json_type(new.post_data, '$.tags') = 'array';
+        WHERE json_type(new.post_data, '$.tags') = 'array'
+        /* A null in the array is not a tag.  Trog::DataModule::_process() used  */
+        /* to push a post's visibility into its tags without defaulting it       */
+        /* first, so posts written before that carry a null there -- and a null  */
+        /* tag is one no query ever matches, which is exactly what leaving it    */
+        /* out of the index amounts to.  Indexing it instead would refuse to     */
+        /* store the post at all, which is a great deal worse than the           */
+        /* untaggable post it already was.                                       */
+          AND value IS NOT NULL;
 END;
 
-CREATE TRIGGER IF NOT EXISTS posts_tags_delete AFTER DELETE ON posts BEGIN
+DROP TRIGGER IF EXISTS posts_tags_delete;
+CREATE TRIGGER posts_tags_delete AFTER DELETE ON posts BEGIN
     DELETE FROM post_tags WHERE post_id = old.id;
 END;
 
@@ -141,10 +158,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
     tokenize='trigram'
 );
 
-CREATE TRIGGER IF NOT EXISTS posts_fts_insert AFTER INSERT ON posts BEGIN
+DROP TRIGGER IF EXISTS posts_fts_insert;
+CREATE TRIGGER posts_fts_insert AFTER INSERT ON posts BEGIN
     INSERT INTO posts_fts (rowid, title, data) VALUES (new.id, new.title, new.data);
 END;
 
-CREATE TRIGGER IF NOT EXISTS posts_fts_delete AFTER DELETE ON posts BEGIN
+DROP TRIGGER IF EXISTS posts_fts_delete;
+CREATE TRIGGER posts_fts_delete AFTER DELETE ON posts BEGIN
     INSERT INTO posts_fts (posts_fts, rowid, title, data) VALUES ('delete', old.id, old.title, old.data);
 END;
