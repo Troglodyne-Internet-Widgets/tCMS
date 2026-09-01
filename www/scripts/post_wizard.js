@@ -86,6 +86,10 @@ function setField(name, value) {
         el.checked = value ? true : false;
         return;
     }
+    if (el.type === 'textarea') {
+        el.innerText = value;
+        return;
+    }
     el.value = value === null || value === undefined ? '' : value;
 }
 

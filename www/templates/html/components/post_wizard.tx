@@ -16,29 +16,30 @@ selects when you edit a Series.
 : }
 </select>
 <p id="wizard-type-description" class="wizard-type-description"></p>
-<details id="wizard-description-editor">
-    <summary>Description &mdash; what this post type is for</summary>
-    Shown here when somebody picks this type.  It is stored in the sidecar under
-    x-tcms-post-type, which the validator never sees, so it can say whatever is useful.
-    <br />
-    <textarea class="cooltext" name="description" rows="3" form="postTypeWizard"
-              placeholder="A recipe, with its cook time and servings."><: $description :></textarea>
-</details>
-<hr />
-<p class="title">
- Create a new Post Type:
-</p>
-Picking an existing type above fills this form in with what that type was made from,
-so you can change one thing and save it back.  Overwrite is ticked for you when you do,
-since saving it under the same name is the point &mdash; change the name and you get a
-copy instead.
-<br />
-This writes a new template into the forms directory currently in use
-(<code><: $forms_dir :></code>) along with a matching <code>.json</code> sidecar describing
-any custom fields, so that the data model knows to keep them when a post is saved.
-<hr />
 
 <form class="Submissions" id="postTypeWizard" method="post" action="/admin/wyzzerdd/save">
+    <details id="wizard-description-editor">
+        <summary>Description &mdash; what this post type is for</summary>
+        Shown here when somebody picks this type.  It is stored in the sidecar under
+        x-tcms-post-type, which the validator never sees, so it can say whatever is useful.
+        <br />
+        <textarea class="cooltext" name="description" rows="3" form="postTypeWizard"
+                  placeholder="A recipe, with its cook time and servings."><: $description :></textarea>
+    </details>
+    <hr />
+    <p class="title">
+     Create a new Post Type:
+    </p>
+    Picking an existing type above fills this form in with what that type was made from,
+    so you can change one thing and save it back.  Overwrite is ticked for you when you do,
+    since saving it under the same name is the point &mdash; change the name and you get a
+    copy instead.
+    <br />
+    This writes a new template into the forms directory currently in use
+    (<code><: $forms_dir :></code>) along with a matching <code>.json</code> sidecar describing
+    any custom fields, so that the data model knows to keep them when a post is saved.
+    <hr />
+
     Type Name * &mdash; letters, numbers, dash and underscore only<br />
     <input required class="cooltext" type="text" name="name" pattern="[A-Za-z0-9_-]+" placeholder="recipe" value="<: $name :>" />
 
