@@ -251,6 +251,124 @@ subtest 'the log is read back onto the page' => sub {
     is( Trog::DataSource::ProvisionedVirt::_log_tail('../../etc/passwd'),     undef, 'and a name that is not one reads nothing' );
 };
 
+subtest 'the state a reprovision leaves behind' => sub {
+    no warnings qw{once};
+    File::Path::make_path("$ROOT/logs/reprovision");
+
+    my $status = "$ROOT/logs/reprovision/guest.example.com.status";
+    my $write  = sub {
+        open( my $fh, '>', $status ) or die $!;
+        print {$fh} join( '', map { "$_\n" } @_ );
+        close $fh;
+    };
+
+    # Nothing waits on the process which does the work, so this file is the
+    # whole of what it can say for itself.
+    $write->( 'state=ok', 'started=100', 'finished=200', 'exit=0', 'user=admin' );
+    my $got = Trog::DataSource::ProvisionedVirt::status('guest.example.com');
+    is( $got->{state},    'ok',    'a finished run reads back as finished' );
+    is( $got->{exit},     '0',     'with what it exited' );
+    is( $got->{user},     'admin', 'and who asked for it' );
+    is( $got->{finished}, '200',   'and when it stopped' );
+
+    $write->( 'state=failed', 'exit=3', 'failed=/x/bin/provision' );
+    is( Trog::DataSource::ProvisionedVirt::status('guest.example.com')->{state}, 'failed', 'a failed one reads back failed' );
+
+    # A live pid means it really is going on.  Ours is alive by definition.
+    $write->( 'state=running', "pid=$$", 'started=100', 'user=admin' );
+    is( Trog::DataSource::ProvisionedVirt::status('guest.example.com')->{state}, 'running', 'a run whose process is alive is running' );
+
+    # And a dead one means it stopped without saying so, which is the case that
+    # would otherwise leave the page claiming a provision forever.
+    my $dead = 999999;
+    $dead++ while kill( 0, $dead ) && $dead < 4194304;
+    $write->( 'state=running', "pid=$dead", 'started=100' );
+    is(
+        Trog::DataSource::ProvisionedVirt::status('guest.example.com')->{state},
+        'interrupted',
+        'a run whose process is gone reads as interrupted, not as still going'
+    );
+
+    $write->('state=running');
+    is( Trog::DataSource::ProvisionedVirt::status('guest.example.com')->{state}, 'interrupted', 'and so does one with no pid at all' );
+
+    # Half a file is not a status.
+    $write->('garbage');
+    is( Trog::DataSource::ProvisionedVirt::status('guest.example.com'), undef, 'an unparseable status is no status' );
+
+    is( Trog::DataSource::ProvisionedVirt::status('never.example.com'), undef, 'nothing for a guest that has never run' );
+    is( Trog::DataSource::ProvisionedVirt::status('../../etc/passwd'),  undef, 'and a name that is not one reads nothing' );
+
+    unlink($status);
+};
+
+subtest 'the listing says what is going on' => sub {
+    no warnings qw{once};
+    File::Path::make_path("$ROOT/logs/reprovision");
+
+    my $status = "$ROOT/logs/reprovision/guest.example.com.status";
+    open( my $log, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
+    print {$log} "some output\n";
+    close $log;
+
+    $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
+
+    open( my $fh, '>', $status ) or die $!;
+    print {$fh} "state=running\npid=$$\nstarted=100\nuser=admin\n";
+    close $fh;
+
+    my ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, {} );
+    is( $post->{reprovision_state},    'running',                                  'the guest says it is reprovisioning' );
+    is( $post->{reprovision_status},   'reprovisioning',                           'in words a person reads' );
+    is( $post->{is_reprovisioning},    1,                                          'and is flagged as busy' );
+    is( $post->{reprovision_by},       'admin',                                    'naming who started it' );
+    is( $post->{can_reprovision},      0,                                          'and offers no button while one is going on' );
+    is( $post->{reprovision_log_href}, '/guest/reprovision/log/guest.example.com', 'with a link to read the log' );
+
+    # Starting a second one is refused for the same reason.
+    my ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
+    is( $ok, 0, 'and a second run is refused while the first is going' );
+    like( $why, qr/already running/, 'saying so' );
+    is_deeply( \@SPAWNED, [], 'having started nothing' );
+
+    open( $fh, '>', $status ) or die $!;
+    print {$fh} "state=failed\nexit=3\nstarted=100\nfinished=200\nuser=admin\n";
+    close $fh;
+
+    ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, {} );
+    is( $post->{reprovision_state},  'failed',             'a failed run says so' );
+    is( $post->{reprovision_status}, 'reprovision failed', 'in words' );
+    is( $post->{reprovision_exit},   '3',                  'with what it exited' );
+    is( $post->{is_reprovisioning},  0,                    'and is not busy' );
+    is( $post->{can_reprovision},    1,                    'so it may be tried again' );
+
+    unlink($status);
+    ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, {} );
+    ok( !$post->{reprovision_state}, 'a guest which has never been reprovisioned says nothing about it' );
+    is( $post->{can_reprovision}, 1, 'and may be' );
+};
+
+subtest 'reading the log' => sub {
+    no warnings qw{once};
+
+    is( Trog::DataSource::ProvisionedVirt::log_for('never.example.com'), undef, 'nothing when there has been no run' );
+    is( Trog::DataSource::ProvisionedVirt::log_for('../../etc/passwd'),  undef, 'and a name that is not one reads nothing' );
+
+    open( my $fh, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
+    print {$fh} "the whole log\n";
+    close $fh;
+    like( Trog::DataSource::ProvisionedVirt::log_for('guest.example.com'), qr/the whole log/, 'and the whole of it when there has' );
+
+    # A provisioner can be chatty, and this goes out in one response.
+    local $Trog::DataSource::ProvisionedVirt::log_max_bytes = 64;
+    open( $fh, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
+    print {$fh} ( 'x' x 500 ) . "END\n";
+    close $fh;
+    my $capped = Trog::DataSource::ProvisionedVirt::log_for('guest.example.com');
+    like( $capped, qr/truncated/, 'a huge one is truncated' );
+    like( $capped, qr/END/,       'keeping the end, which is where the answer is' );
+};
+
 subtest 'the route' => sub {
     no warnings qw{once};
     require Trog::Routes::HTML;
@@ -267,6 +385,7 @@ subtest 'the route' => sub {
         no warnings qw{once};
         *FakeTPSGI3::see_also  = sub { return [ 303, [ Location => $_[1] ], [''] ] };
         *FakeTPSGI3::forbidden = sub { return [ 403, [], ['no'] ] };
+        *FakeTPSGI3::notfound  = sub { return [ 404, [], ['gone'] ] };
     }
 
     # Admin only, like every other thing that changes a guest.
@@ -285,6 +404,20 @@ subtest 'the route' => sub {
     is( scalar(@SPAWNED),        1,         'an admin gets their run' );
     is( $SPAWNED[0]{passphrase}, 'hunter2', 'the passphrase reaches the lifecycle' );
     ok( !exists $query->{passphrase}, 'and is gone from the query afterwards' );
+
+    # The log route.  It lives in logs/ rather than under www/, and the output
+    # of a provisioner is a fine place for a hostname or an IP plan to turn up.
+    my $logroute = $Trog::Routes::HTML::routes{'/guest/reprovision/log/(.*)'};
+    ok( $logroute, 'the log route is registered' );
+    is( $logroute->{method}, 'GET', 'as a GET, since it only reads' );
+    is( $logroute->{auth},   1,     'behind a login' );
+    is_deeply( $logroute->{captures}, ['guest'], "capturing 'guest', which survives routing" );
+
+    $res = Trog::Routes::HTML::guest_reprovision_log( { user => 'bob', user_acls => ['public'], tpsgi => $tpsgi } );
+    is( $res->[0], 403, 'a non-admin cannot read it' );
+
+    $res = Trog::Routes::HTML::guest_reprovision_log( { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, guest => 'never.example.com' } );
+    is( $res->[0], 404, 'and a guest with no log is a 404 rather than an empty page' );
 };
 
 done_testing();

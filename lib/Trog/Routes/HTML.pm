@@ -185,6 +185,19 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
+    '/guest/reprovision/log/(.*)' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::guest_reprovision_log,
+
+        # 'guest', not 'domain', for the reason the screenshot route captures it
+        # that way -- the router overwrites $query->{domain} with the request's
+        # own host after applying captures.
+        captures   => [qw{guest}],
+        robot_name => '/guest/reprovision/log/',
+        noindex    => 1,
+        nocache    => 1,
+    },
     '/admin/wyzzerdd' => {
         method   => 'GET',
         auth     => 1,
@@ -2350,6 +2363,37 @@ sub guest_reprovision ($query) {
     delete $query->{passphrase};
 
     return _feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
+}
+
+=head2 guest_reprovision_log
+
+Implements GET /guest/reprovision/log/$guest.  Admin only.
+
+The whole log of a guest's last reprovision, which the listing shows only the
+tail of.  Nobody is waiting on the process which writes it, so this is the only
+account of what happened there is.
+
+Admin only and served rather than linked directly, because it lives in logs/
+rather than under www/ -- and because the output of a provisioner is a
+reasonable place for a hostname, an IP plan or a package list to turn up.
+
+=cut
+
+sub guest_reprovision_log ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    require Trog::DataSource::ProvisionedVirt;
+
+    my $log = Trog::DataSource::ProvisionedVirt::log_for( $query->{guest} );
+    return $query->{tpsgi}->notfound($query) unless defined $log;
+
+    return Trog::Renderer->render(
+        template    => 'reprovision_log.tx',
+        contenttype => 'text/plain',
+        code        => 200,
+        data        => { %$query, body => $log },
+    );
 }
 
 # The hypervisor post a guest route was asked about.  Looked up rather than

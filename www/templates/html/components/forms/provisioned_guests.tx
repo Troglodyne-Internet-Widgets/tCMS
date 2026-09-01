@@ -16,6 +16,14 @@
                 : if ( !$post.has_recipe ) {
                 <span class="tag guest-state" title="no recipes.d entry for this guest">unprovisioned</span>
                 : }
+                : # Nothing waits on the process which reprovisions, so its own
+                : # status file is the only account of it there is.
+                : if ( $post.reprovision_state ) {
+                <span class="tag guest-state reprovision-<: $post.reprovision_state :>"
+                      title="<: $post.reprovision_by ? 'asked for by ' ~ $post.reprovision_by : '' :>">
+                    <: $post.reprovision_status :>
+                </span>
+                : }
             </h3>
             <div class="postData responsive-text" id="postData-<: $post.id :>">
                 : # Declared private in the sidecar, so a reader who cannot edit
@@ -37,8 +45,16 @@
 
                 : if ( $can_edit && $post.reprovision_log ) {
                 <details class="guest-reprovision-log">
-                    <summary>Last reprovision</summary>
+                    <summary>
+                        Last reprovision &mdash; <: $post.reprovision_status :>
+                        : if ( $post.reprovision_exit ) {
+                        (exit <: $post.reprovision_exit :>)
+                        : }
+                    </summary>
                     <pre class="guest-recipe-body"><: $post.reprovision_log :></pre>
+                    : if ( $post.reprovision_log_href ) {
+                    <a href="<: $post.reprovision_log_href :>" class="coolbutton" target="_blank" rel="noopener">Read the whole log</a>
+                    : }
                 </details>
                 : }
 
@@ -67,6 +83,19 @@
 
                 : # Separate form, because this one carries a passphrase and has
                 : # no business sharing a submit with the buttons above.
+                : # can_reprovision is false while one is running, so this is
+                : # the only thing drawn for a guest mid-provision.
+                : if ( $post.is_reprovisioning ) {
+                <p class="guest-reprovisioning">
+                    Reprovisioning now
+                    : if ( $post.reprovision_by ) {
+                    &mdash; started by <: $post.reprovision_by :>
+                    : }
+                    : if ( $post.reprovision_log_href ) {
+                    &mdash; <a href="<: $post.reprovision_log_href :>" target="_blank" rel="noopener">watch the log</a>
+                    : }
+                </p>
+                : }
                 : if ( $post.can_reprovision ) {
                 <form class="Submissions guest-reprovision" action="/guest/reprovision" method="POST" autocomplete="off">
                     <input type="hidden" name="guest" value="<: $post.domain :>" />

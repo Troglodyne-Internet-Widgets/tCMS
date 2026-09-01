@@ -164,10 +164,20 @@ Leave those out and it degrades to a plain guest listing.
 Reprovisioning is not recoverable: it destroys the guest and builds it again, and
 whatever the recipe does not describe does not come back.  It is POST and admin
 only, it refuses outright for the guest tCMS is itself running on (as Virt already
-refuses to power that one off), and nothing it runs goes near a shell.  The
-provisioning itself is handed to a detached process and logged to
-logs/reprovision/$domain.log, whose tail is shown back on the page -- a provision
-takes minutes and an HTTP worker does not have minutes.
+refuses to power that one off), and nothing it runs goes near a shell.
+
+A provision takes minutes and an HTTP worker does not have minutes, so the work
+is handed to a detached process.  Nothing waits on it, which means it has to
+report on itself: it writes logs/reprovision/$domain.log and a status beside it,
+and the guest's entry shows which of
+
+    reprovisioning / provisioned / reprovision failed / reprovision interrupted
+
+it is, who asked for it, and a link to read the whole log.  While one is running
+the button is not offered, so a second cannot be started by double clicking.  A
+run whose status still says 'running' but whose process is gone reads as
+interrupted rather than as going on forever -- that is a guess from the only
+evidence there is, and it is the honest one.
 
 bin/new_config asks for your KeePass passphrase on stdin, because every recipe
 inherits secret: values from _base.  The form asks you for it per run and pipes it

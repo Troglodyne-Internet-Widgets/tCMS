@@ -5,11 +5,12 @@ use re '/aa';
 
 use parent qw{Trog::DataSource::Virt};
 
-use Cwd            ();
-use File::Basename ();
-use File::Path     ();
-use File::Slurper  ();
-use POSIX          ();
+use Cwd                 ();
+use File::Basename      ();
+use File::Path          ();
+use File::Slurper       ();
+use File::Slurper::Temp ();
+use POSIX               ();
 
 use Trog::Config     ();
 use Trog::DataSource ();
@@ -57,6 +58,14 @@ shell, so a guest name is an argument and can never be a command.
 our $recipe_dir = 'recipes.d';
 our $log_dir    = 'logs/reprovision';
 
+# What a reprovision can be, in the order it can be it.
+our %states = (
+    running     => 'reprovisioning',
+    ok          => 'provisioned',
+    failed      => 'reprovision failed',
+    interrupted => 'reprovision interrupted',
+);
+
 =head1 FUNCTIONS
 
 =head2 posts($series, $query) = @posts
@@ -64,11 +73,19 @@ our $log_dir    = 'logs/reprovision';
 The guests Trog::DataSource::Virt would have listed, each carrying what we know
 about how it was built:
 
-    recipe            the recipe's YAML, as text, for the page to show
-    recipe_path       where that came from
-    has_recipe        whether there was one at all
-    can_reprovision   whether the button should be drawn
-    reprovision_log   the tail of the last run, when there has been one
+    recipe                the recipe's YAML, as text, for the page to show
+    recipe_path           where that came from
+    has_recipe            whether there was one at all
+    can_reprovision       whether the button should be drawn
+    reprovision_state     running, ok, failed, interrupted, or absent
+    reprovision_status    that, in words a person reads
+    reprovision_started   when the last run began
+    reprovision_finished  when it ended, if it has
+    reprovision_exit      what it exited with, if it has
+    reprovision_by        who asked for it
+    is_reprovisioning     whether one is going on right now
+    reprovision_log       the tail of the last run
+    reprovision_log_href  where to read all of it
 
 A guest with no recipe is still listed.  Plenty of guests on a hypervisor were
 not built by this, and saying nothing about them is better than hiding them.
@@ -106,9 +123,95 @@ sub _with_recipe ( $post, $config ) {
     $post->{can_reprovision} =
       ( $post->{has_recipe} && $config->{provisioners} && $config->{trog_provisioner} && !$post->{is_self} ) ? 1 : 0;
 
-    $post->{reprovision_log} = _log_tail($domain);
+    my $status = status($domain);
+    if ($status) {
+        $post->{reprovision_state}    = $status->{state};
+        $post->{reprovision_status}   = $states{ $status->{state} } // $status->{state};
+        $post->{reprovision_started}  = $status->{started};
+        $post->{reprovision_finished} = $status->{finished};
+        $post->{reprovision_exit}     = $status->{exit};
+        $post->{reprovision_by}       = $status->{user};
+        $post->{is_reprovisioning}    = $status->{state} eq 'running' ? 1 : 0;
+    }
+
+    # One at a time.  Two provisions of the same machine at once is not a thing
+    # anybody wants to have started by double clicking.
+    $post->{can_reprovision} = 0 if $post->{is_reprovisioning};
+
+    $post->{reprovision_log}      = _log_tail($domain);
+    $post->{reprovision_log_href} = $post->{reprovision_log} ? "/guest/reprovision/log/$domain" : undef;
 
     return $post;
+}
+
+=head2 status($domain) = HASHREF or undef
+
+What the last reprovision of this guest is doing, or did.
+
+    state     running, ok, failed or interrupted
+    pid       the process doing it, while one is
+    started   / finished / exit / user
+
+Nothing waits on the process which does the work -- it is deliberately orphaned,
+so that it outlives the worker that started it -- which means its exit status is
+not reported to anybody.  This file is how it says what happened, and the last
+thing the run does is write it.
+
+A run whose status still says 'running' but whose process is gone therefore
+crashed, was killed, or took the machine down with it, and reads as interrupted.
+That is a guess from the one piece of evidence there is, and it is the honest
+one: the alternative is a page that says a provision is in progress forever.
+
+=cut
+
+sub status ($domain) {
+    my $safe = _safe_domain($domain);
+    return undef unless $safe;
+
+    my $path = "$log_dir/$safe.status";
+    return undef unless -f $path;    ## no critic (ProhibitFiletest_f) -- has this ever run
+
+    my $raw = eval { File::Slurper::read_text($path) };
+    return undef unless defined $raw;
+
+    my %status;
+    foreach my $line ( split( "\n", $raw ) ) {
+        my ( $key, $value ) = $line =~ m/^(\w+)=(.*)$/;
+        $status{$key} = $value if defined $key;
+    }
+    return undef unless $status{state};
+
+    # kill 0 rather than trusting the file: the process is orphaned, so nothing
+    # else would ever correct a 'running' that stopped being true.  Same uid, so
+    # this is a real answer.  A recycled pid could fool it, which would show a
+    # finished run as still going rather than the other way about.
+    if ( $status{state} eq 'running' ) {
+        my $alive = $status{pid} && kill( 0, $status{pid} );
+        $status{state} = 'interrupted' unless $alive;
+    }
+
+    return \%status;
+}
+
+# Written by the run itself, at the two moments worth recording.  By rename, so
+# that a page drawn while the run is writing sees the old status or the new one
+# and never half of either -- the reader would ignore a torn file, but ignoring
+# it means the page says nothing was ever run.
+sub _write_status ( $domain, %fields ) {
+    my $path = "$log_dir/$domain.status";
+    my $out  = join( '', map { "$_=" . ( $fields{$_} // '' ) . "\n" } sort keys %fields );
+
+    local $@;
+    eval {
+        # Beside the file it replaces, or the rename is a copy across
+        # filesystems and stops being atomic.
+        local $File::Slurper::Temp::FILE_TEMP_DIR   = $log_dir;
+        local $File::Slurper::Temp::FILE_TEMP_PERMS = oct('644');
+        File::Slurper::Temp::write_text( $path, $out );
+        1;
+    } or WARN("Could not record the reprovision status for '$domain': $@");
+
+    return;
 }
 
 =head2 _config() = HASHREF
@@ -186,6 +289,34 @@ sub _log_tail ($domain) {
     return length($text) > $log_tail_bytes ? substr( $text, -$log_tail_bytes ) : $text;
 }
 
+=head2 log_for($domain) = STRING or undef
+
+The whole reprovision log for a guest, for the route which serves it.
+
+Undef when there has never been a run, or when the name is not a guest name --
+this reaches the filesystem, so it is checked here rather than trusted from the
+route that called it.
+
+=cut
+
+our $log_max_bytes = 1024 * 1024;
+
+sub log_for ($domain) {
+    my $safe = _safe_domain($domain);
+    return undef unless $safe;
+
+    my $path = "$log_dir/$safe.log";
+    return undef unless -f $path;    ## no critic (ProhibitFiletest_f) -- has this ever run
+
+    my $text = eval { File::Slurper::read_text($path) };
+    return undef unless defined $text;
+
+    # A provisioner can be chatty and this goes out in one response.
+    return length($text) > $log_max_bytes
+      ? "[ truncated: showing the last " . int( $log_max_bytes / 1024 ) . "KB ]\n" . substr( $text, -$log_max_bytes )
+      : $text;
+}
+
 =head2 reprovision(%args) = ($ok, $message)
 
 Run the full lifecycle for one guest: bin/new_config in provisioners, and then
@@ -228,6 +359,11 @@ sub reprovision (%args) {
     return ( 0, "there is no recipe for '$safe' in $recipe_dir" ) unless $recipe;
 
     return ( 0, 'a passphrase is required, as new_config asks for one' ) unless length( $args{passphrase} // '' );
+
+    # One at a time.  Two provisions of one machine racing each other is not
+    # something anybody should be able to start by double clicking.
+    my $running = status($safe);
+    return ( 0, 'a reprovision of this guest is already running' ) if $running && $running->{state} eq 'running';
 
     my @lifecycle = (
         [ $config->{provisioners},     "$config->{provisioners}/bin/new_config",    $safe ],
@@ -283,7 +419,13 @@ sub _spawn ( $domain, $passphrase, $lifecycle, $user ) {
     open( my $fh, '>>', $log ) or POSIX::_exit(1);
     $fh->autoflush(1);
 
-    print {$fh} "\n=== reprovision of $domain by " . ( $user // 'somebody' ) . ' at ' . localtime() . " ===\n";
+    my $started = time();
+    print {$fh} "\n=== reprovision of $domain by " . ( $user // 'somebody' ) . ' at ' . localtime($started) . " ===\n";
+
+    # $$ is this process, which is the one that will still be here in ten
+    # minutes -- the two before it have already gone.  status() checks it is
+    # alive, so it has to be the pid of whatever is actually doing the work.
+    _write_status( $domain, state => 'running', pid => $$, started => $started, user => ( $user // '' ) );
 
     foreach my $step (@$lifecycle) {
         my ( $dir, @command ) = @$step;
@@ -317,12 +459,22 @@ sub _spawn ( $domain, $passphrase, $lifecycle, $user ) {
 
         if ($?) {
             my $status = $? >> 8;
-            print {$fh} "\n--- $command[0] exited $status; stopping here\n";
+            print {$fh} "\n--- $command[0] exited $status, stopping here\n";
+            _write_status(
+                $domain,
+                state    => 'failed',
+                started  => $started,
+                finished => time(),
+                exit     => $status,
+                failed   => $command[0],
+                user     => ( $user // '' ),
+            );
             POSIX::_exit($status);
         }
     }
 
     print {$fh} "\n=== finished ===\n";
+    _write_status( $domain, state => 'ok', started => $started, finished => time(), exit => 0, user => ( $user // '' ) );
     POSIX::_exit(0);
 }
 
