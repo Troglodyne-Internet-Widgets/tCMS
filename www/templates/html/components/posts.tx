@@ -56,8 +56,8 @@ document.addEventListener("DOMContentLoaded", function(){
          </div>
     : }
 
-    : if ( $header ) {
-        <: $header | mark_raw :>
+    : if ( !$style && $primary_post.header ) {
+        <: component('PostHeader', { name => $primary_post.header, post => $primary_post, route => $route }) :>
     : }
     : if (!$style) {
     <hr class="divider" />
@@ -103,8 +103,8 @@ document.addEventListener("DOMContentLoaded", function(){
 : include "paginator.tx";
 : }
 
-: if ( $footer ) {
-    <: $footer | mark_raw :>
+: if ( !$style && $primary_post.footer ) {
+    <: component('PostFooter', { name => $primary_post.footer, post => $primary_post, route => $route }) :>
 : }
 
 <script>

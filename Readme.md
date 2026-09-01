@@ -112,6 +112,10 @@ The optional hash is flattened into the component's render(); nullary components
 ignore it.  Output comes back marked raw, so no | mark_raw is needed.  Routes
 don't have to know a component exists -- the template asks for what it wants.
 
+The page furniture is built this way: Header, Footer, HtmlTitle, MidTitle,
+TopBar, LeftBar, RightBar, FootBar and CategoryBar are what index.tx is made of,
+and PostHeader/PostFooter are the per-series header and footer posts.tx pulls in.
+
 Ideas to come:
 =============
 

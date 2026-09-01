@@ -1,21 +1,33 @@
-<: $header | mark_raw :>
+<: component('Header', {
+    title        => $title,
+    route        => $route,
+    lang         => $lang,
+    author       => $author,
+    meta_desc    => $meta_desc,
+    meta_tags    => $meta_tags,
+    default_tags => $default_tags,
+    embed        => $embed,
+    stylesheets  => $stylesheets,
+    print_styles => $print_styles,
+    scripts      => $scripts,
+}) :>
 : if ($is_admin) {
 : include "sysbar.tx";
 : include "jsalert.tx";
 : } else {
 <div id="topkek" <: $is_admin ? "style='display:none'" : "" :>>
     <div id="lefttitle" class="toplel">
-        <: $htmltitle | mark_raw :>
+        <: component('HtmlTitle') :>
     </div>
     <div id="midtitle" class="toplel">
-        <: $midtitle | mark_raw :>
+        <: component('MidTitle') :>
     </div>
     <span title="Menu" id="clickme" onclick="this.focus()">🌐</span>
     <div id="righttitle" class="toplel">
-        <: $categorybar | mark_raw :>
+        <: component('CategoryBar', { categories => $categories, user => $user }) :>
         <span id="common-search">
         <a href="/sitemap" title="Sitemap" class="topbar">🗺️</a>
-        <: $topbar | mark_raw :>
+        <: component('TopBar') :>
         <form action="<: $route :>" method="GET" class="ib">
             <input required type="search" class="coolbutton topform" name="like" autofocus></input>
             <input class="coolbutton topform" type="submit" value="🔎"></input>
@@ -34,22 +46,22 @@
 </div>
 <div id="kontainer">
     <div id="leftbar" class="kontained">
-      <: $leftbar | mark_raw :>
+      <: component('LeftBar') :>
     </div>
     <div id="kontent" class="kontained">
         <: $content | mark_raw :>
     </div>
     <div id="rightbar" class="kontained">
-        <: $rightbar | mark_raw :>
+        <: component('RightBar') :>
     </div>
 </div>
 
 <div id="footbar">
-    <: $footbar | mark_raw :>
+    <: component('FootBar') :>
 </div>
 : if ( $show_madeby ) {
 <a target="_blank" rel="noopener" class="trogged" href="https://tcms.troglodyne.net">
 <img src="/img/icon/favicon.svg" style="height:2rem;" />
 </a>
 : }
-<: $footer | mark_raw :>
+<: component('Footer') :>

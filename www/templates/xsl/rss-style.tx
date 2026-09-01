@@ -2,7 +2,12 @@
 <xsl:stylesheet version="3.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
   <xsl:output method="html" version="1.0" encoding="UTF-8" indent="yes"/>
   <xsl:template match="/">
-    <: $header | mark_raw :>
+    <: component('Header', {
+      title      => $title,
+      route      => $route,
+      lang       => $lang,
+      no_doctype => 1,
+    }) :>
         <a>
           <xsl:attribute name="href">
             <xsl:value-of select="rss/channel/link"/>
@@ -31,6 +36,6 @@
             </div>
           </div>
         </xsl:for-each>
-    <: $footer | mark_raw :>
+    <: component('Footer') :>
   </xsl:template>
 </xsl:stylesheet>

@@ -1,4 +1,16 @@
-<: $header | mark_raw :>
+<: component('Header', {
+    title        => $title,
+    route        => $route,
+    lang         => $lang,
+    author       => $author,
+    meta_desc    => $meta_desc,
+    meta_tags    => $meta_tags,
+    default_tags => $default_tags,
+    embed        => $embed,
+    stylesheets  => $stylesheets,
+    print_styles => $print_styles,
+    scripts      => $scripts,
+}) :>
 :if ($embed_video || $nochrome) {
 <style>
 .divider, .blogtitles, #postData, .post-tags {
@@ -18,5 +30,5 @@ video {
 : if (!$embed_video && !$nochrome) {
 </div>
 : }
-<: $footer | mark_raw :>
+<: component('Footer') :>
 

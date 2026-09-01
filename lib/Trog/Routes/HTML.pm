@@ -39,13 +39,6 @@ use Trog::Renderer;
 use Trog::Email;
 
 our $landing_page = 'default.tx';
-our $htmltitle    = 'title.tx';
-our $midtitle     = 'midtitle.tx';
-our $rightbar     = 'rightbar.tx';
-our $leftbar      = 'leftbar.tx';
-our $topbar       = 'topbar.tx';
-our $footbar      = 'footbar.tx';
-our $categorybar  = 'categories.tx';
 
 # Note to maintainers: never ever remove backends from this list.
 # the auth => 1 is a crucial protection.
@@ -371,22 +364,6 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
     $query->{theme_dir} =~ s/^\/www\///;
 
-    # TO support theming we have to do things like this rather than with an include directive in the templates.
-    my $htmltitle = Trog::Renderer->render( template => $htmltitle, data => $query, component => 1, contenttype => 'text/html' );
-    return $htmltitle if ref $htmltitle eq 'ARRAY';
-    my $midtitle = Trog::Renderer->render( template => $midtitle, data => $query, component => 1, contenttype => 'text/html' );
-    return $midtitle if ref $midtitle eq 'ARRAY';
-    my $rightbar = Trog::Renderer->render( template => $rightbar, data => $query, component => 1, contenttype => 'text/html' );
-    return $rightbar if ref $rightbar eq 'ARRAY';
-    my $leftbar = Trog::Renderer->render( template => $leftbar, data => $query, component => 1, contenttype => 'text/html' );
-    return $leftbar if ref $leftbar eq 'ARRAY';
-    my $topbar = Trog::Renderer->render( template => $topbar, data => $query, component => 1, contenttype => 'text/html' );
-    return $topbar if ref $topbar eq 'ARRAY';
-    my $footbar = Trog::Renderer->render( template => $footbar, data => $query, component => 1, contenttype => 'text/html' );
-    return $footbar if ref $footbar eq 'ARRAY';
-    my $categorybar = Trog::Renderer->render( template => $categorybar, data => { %$query, categories => \@series }, component => 1, contenttype => 'text/html' );
-    return $categorybar if ref $categorybar eq 'ARRAY';
-
     # Grab the avatar class for the logged in user
     if ( $query->{user} ) {
         $query->{user_class} = Trog::Auth::username2classname( $query->{user} );
@@ -404,13 +381,6 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
             theme_dir    => Trog::Themes::td(),
             content      => $content,
             title        => $title,
-            htmltitle    => $htmltitle,
-            midtitle     => $midtitle,
-            rightbar     => $rightbar,
-            leftbar      => $leftbar,
-            topbar       => $topbar,
-            footbar      => $footbar,
-            categorybar  => $categorybar,
             categories   => \@series,
             stylesheets  => \@styles,
             print_styles => \@p_styles,
@@ -1443,23 +1413,6 @@ sub posts ( $query, $direct = 0 ) {
     #XXX Is used by the sitemap, maybe just fix there?
     my @post_aliases = map { $_->{local_href} } _get_series();
 
-    # Allow themes to put in custom headers/footers on posts
-    my ( $header, $footer );
-    $header = Trog::Renderer->render(
-        template    => 'headers/' . $query->{primary_post}{header},
-        data        => { theme_dir => Trog::Themes::td(), %$query },
-        component   => 1,
-        contenttype => 'text/html',
-    ) if $query->{primary_post}{header};
-    return $header if ref $header eq 'ARRAY';
-    $footer = Trog::Renderer->render(
-        template    => 'footers/' . $query->{primary_post}{footer},
-        data        => { theme_dir => Trog::Themes::td(), %$query },
-        component   => 1,
-        contenttype => 'text/html',
-    ) if $query->{primary_post}{footer};
-    return $header if ref $footer eq 'ARRAY';
-
     # List the available headers/footers
     my $headers = Trog::Themes::themed_templates_in_dir( "headers", 'text/html', 1 );
     my $footers = Trog::Themes::themed_templates_in_dir( "footers", 'text/html', 1 );
@@ -1476,12 +1429,6 @@ sub posts ( $query, $direct = 0 ) {
     my $limit       = int( $query->{limit} );
     my $now_year    = ( localtime(time) )[5] + 1900;
     my $oldest_year = $now_year - 20;                  #XXX actually find oldest post year
-
-    # Handle post style.
-    if ( $query->{style} ) {
-        undef $header;
-        undef $footer;
-    }
 
     my $older = !@posts ? 0 : $posts[-1]->{created};
     $query->{failure} //= -1;
@@ -1584,8 +1531,6 @@ sub posts ( $query, $direct = 0 ) {
             tiled             => $tiled,
             category          => $ph,
             subhead           => $query->{subhead},
-            header            => $header,
-            footer            => $footer,
             headers           => $headers,
             footers           => $footers,
             years             => [ reverse( $oldest_year .. $now_year ) ],
@@ -2641,9 +2586,12 @@ sub totp_qr ($query) {
 
 Implements /styles/rss-style.xsl.
 
-The XSL stylesheet which makes the RSS feed legible in a browser.  The header
-and footer are rendered here and passed in as strings because the output is
-XSL rather than HTML, so an include directive isn't available.
+The XSL stylesheet which makes the RSS feed legible in a browser.
+
+rss-style.tx pulls the header and footer in with component(), which works here
+where an include directive would not: the output is XSL rather than HTML, so
+the two are rendered separately and composed, and the header is asked for
+without a doctype.
 
 =cut
 
@@ -2651,10 +2599,6 @@ sub rss_style ($query) {
     $query->{port}       = ":$query->{port}" if $query->{port};
     $query->{title}      = qq{<xsl:value-of select="rss/channel/title"/>};
     $query->{no_doctype} = 1;
-
-    # Due to this being html rather than XML, we can't use an include directive.
-    $query->{header} = Trog::Renderer->render( template => 'header.tx', data => $query, contenttype => 'text/html', component => 1 );
-    $query->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $query, contenttype => 'text/html', component => 1 );
 
     return Trog::Renderer->render(
         template    => 'rss-style.tx',
@@ -2680,8 +2624,11 @@ Render a full page, as opposed to a component.
 
 Fills in the defaults every page needs (lang, title, status code, content type,
 cache control), resolves stylesheet and script names through the theme, makes
-their paths absolute, renders the header and footer, and hands the lot to
-Trog::Renderer.
+their paths absolute, and hands the lot to Trog::Renderer.
+
+The page's own template asks for the header and footer with component(), so the
+resolved stylesheet and script lists are passed on to Trog::Component::Header
+rather than being rendered into a string here.
 
 Just about everything in this module ends up here; index() is the usual way in.
 
@@ -2716,8 +2663,6 @@ sub finish_render ( $template, $vars, %headers ) {
 
     $vars->{code} ||= 200;
     $vars->{theme_dir} =~ s/^\/www\/// if $vars->{theme_dir};
-    $vars->{header} = Trog::Renderer->render( template => 'header.tx', data => $vars, contenttype => 'text/html', component => 1 );
-    $vars->{footer} = Trog::Renderer->render( template => 'footer.tx', data => $vars, contenttype => 'text/html', component => 1 );
 
     return Trog::Renderer->render( template => $template, data => $vars, contenttype => 'text/html', code => $vars->{code} );
 }

@@ -85,3 +85,6 @@ Templates pull them in by name with the component() function, which Trog::Render
 
 The optional hash is flattened into the component's render(), and the output comes back marked raw.
 Only the name is accepted, one flat level under Trog::Component, so a template cannot name its way out of that namespace.
+
+The page furniture works this way: index.tx asks for its own Header, Footer, HtmlTitle, MidTitle, TopBar, LeftBar, RightBar, FootBar and CategoryBar, and posts.tx asks for the PostHeader and PostFooter a series names in its metadata.
+Each of those modules owns the name of the template it renders, so adding a piece of furniture no longer means editing a route.

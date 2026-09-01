@@ -103,6 +103,34 @@ sub _component ( $name, $args ) {
     return Text::Xslate::mark_raw($out);
 }
 
+=head2 render_template($template, $data) = STRING
+
+Render a component template and hand back the body, for the many components
+whose whole job is exactly that.
+
+Dies naming the template if the render fails, rather than answering with the
+PSGI triplet Trog::Renderer::render() produces on failure.
+
+=cut
+
+sub render_template ( $template, $data = {} ) {
+
+    # Required rather than used, for the same reason components are loaded
+    # lazily: Trog::Renderer::Base uses this module, so a compile-time use here
+    # would close the cycle.  By the time anyone calls this it is already loaded.
+    require Trog::Renderer;
+
+    my $out = Trog::Renderer->render(
+        contenttype => 'text/html',
+        component   => 1,
+        template    => $template,
+        data        => $data,
+    );
+
+    die "Could not render component template '$template'\n" if ref $out;
+    return $out;
+}
+
 # Resolved at call time rather than compile time, so that components are free to
 # use Trog::Renderer without cycling back through us.  require() memoizes in
 # %INC; %loaded only saves us the repeat eval and string munging.
