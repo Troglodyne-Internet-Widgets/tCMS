@@ -259,10 +259,19 @@ present to page at all; limit defaults to 25 when computing the offset.
 =cut
 
 sub paginate ( $self, $query, @filtered ) {
+    return @filtered unless $query->{page} && $query->{limit};
+
     my $offset = int( $query->{limit} // 25 );
-    $offset   = @filtered < $offset ? @filtered : $offset;
-    @filtered = splice( @filtered, ( int( $query->{page} ) - 1 ) * $offset, $offset ) if $query->{page} && $query->{limit};
-    return @filtered;
+    $offset = @filtered < $offset ? @filtered : $offset;
+
+    # splice() warns rather than simply returning nothing when the offset is
+    # past the end, and a page past the end is what a stale bookmark or a
+    # walked-off paginator asks for.  Empty is the right answer; the warning is
+    # not part of it.
+    my $start = ( int( $query->{page} ) - 1 ) * $offset;
+    return () if $start > scalar(@filtered);
+
+    return splice( @filtered, $start, $offset );
 }
 
 sub _dedup_versions ( $version = -1, @posts ) {

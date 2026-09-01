@@ -103,8 +103,18 @@ sub read ( $self, $query = {} ) {
         my @filtered = $query->{raw} ? @$parsed : $self->filter( $query, @$parsed );
 
         push( @items, @filtered ) if @filtered;
-        next                      if $query->{limit} == 0;                # 0 = unlimited
-        last                      if scalar(@items) == $query->{limit};
+        next                      if $query->{limit} == 0;    # 0 = unlimited
+
+        # Enough for the page that was asked for, not one page's worth.  get()
+        # paginates *after* this, so stopping at limit meant it had nothing left
+        # to slice for page two and every page but the first came back empty --
+        # offset pagination simply did not work on this model.
+        #
+        # >= rather than ==, because a file holds every version of its post and
+        # one of them can push @items past the mark in a single step, which the
+        # equality test would then never match.
+        my $needed = $query->{limit} * ( $query->{page} || 1 );
+        last if scalar(@items) >= $needed;
     }
 
     return \@items;

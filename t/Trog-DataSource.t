@@ -284,4 +284,127 @@ subtest 'the search box says what it is searching' => sub {
     );
 };
 
+subtest 'ordering is total, so page 2 means something' => sub {
+    my @same = (
+        guest( 'charlie', created => 100 ),
+        guest( 'alpha',   created => 100 ),
+        guest( 'bravo',   created => 100 ),
+        guest( 'delta',   created => 200 ),
+    );
+
+    my @ordered = Trog::DataSource::order( {}, @same );
+    is_deeply( [ map { $_->{title} } @ordered ], [qw{delta alpha bravo charlie}], 'newest first, then by title' );
+
+    # The property that actually matters: same input, same order, every time.
+    is_deeply(
+        [ map { $_->{title} } Trog::DataSource::order( {}, reverse @same ) ],
+        [ map { $_->{title} } @ordered ],
+        'and it does not depend on what order they arrived in'
+    );
+
+    # A source that stamps everything with the time it built them -- which is
+    # every libvirt guest -- falls back to being sorted by name.
+    my @built = map { guest( $_, created => 1700 ) } qw{zulu alpha mike};
+    is_deeply( [ map { $_->{title} } Trog::DataSource::order( {}, @built ) ], [qw{alpha mike zulu}], 'identical timestamps sort by name' );
+
+    # Missing fields must not make it die or shuffle.
+    my @sparse = ( { id => 'b' }, { id => 'a' }, guest('titled') );
+    is( exception { Trog::DataSource::order( {}, @sparse ) }, undef, 'posts missing created and title are still orderable' );
+};
+
+subtest 'offset pagination' => sub {
+    require Trog::Routes::HTML;
+
+    my @ten = map { guest( sprintf( 'g%02d', $_ ), created => 100 + $_ ) } 1 .. 10;
+
+    my ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 4, @ten );
+    is( $page,            1,     'page one is page one' );
+    is( $total,           3,     'ten posts at four a page is three pages' );
+    is( scalar(@slice),   4,     'and a full page' );
+    is( $slice[0]{title}, 'g01', 'starting at the beginning' );
+
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 2 }, 4, @ten );
+    is( $slice[0]{title}, 'g05', 'page two carries on where page one stopped' );
+    is( scalar(@slice),   4,     'and is also full' );
+
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 3 }, 4, @ten );
+    is( scalar(@slice),   2,     'the last page holds the remainder' );
+    is( $slice[0]{title}, 'g09', 'from where page two stopped' );
+
+    # Every post appears exactly once across the pages, which is the whole point.
+    my @walked;
+    push( @walked, ( Trog::Routes::HTML::_paginate_offset( { page => $_ }, 4, @ten ) )[ 2 .. 5 ] ) for 1 .. 3;
+    @walked = grep { defined } @walked;
+    is_deeply( [ sort map { $_->{title} } @walked ], [ sort map { $_->{title} } @ten ], 'walking the pages visits everything, once' );
+
+    # Straight off a query string.
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 99 }, 4, @ten );
+    is( $page, 3, 'a page past the end shows the last one' );
+    ok( scalar(@slice), 'rather than nothing at all' );
+
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 0 }, 4, @ten );
+    is( $page, 1, 'and page zero is page one' );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 'nonsense' }, 4, @ten );
+    is( $page, 1, 'as is a page that is not a number' );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( {}, 4, @ten );
+    is( $page, 1, 'and no page at all' );
+
+    # A limit that would divide by zero.
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 0, @ten );
+    is( $total,         1,  'a limit of zero falls back to the default rather than dividing by it' );
+    is( scalar(@slice), 10, 'and shows everything' );
+
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 4 );
+    is( $total,         1, 'no posts is one empty page' );
+    is( scalar(@slice), 0, 'holding nothing' );
+
+    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 25, @ten );
+    is( $total,         1,  'fewer posts than a page is one page' );
+    is( scalar(@slice), 10, 'holding all of them' );
+};
+
+subtest 'the paginator renders page links for a datasource' => sub {
+    require Trog::Renderer::Base;
+
+    my $render = sub {
+        my (%vars) = @_;
+        return Trog::Renderer::Base::render(
+            template    => 'paginator.tx',
+            contenttype => 'text/html',
+            component   => 1,
+            data        => { limit => 25, sizes => [ 25, 50, 100 ], years => [2024], months => [ 0 .. 11 ], older => 0, newer => 0, %vars },
+        );
+    };
+
+    my $offset = $render->( paginate_offset => 1, pages => 1, page => 2, pages_total => 5, like => 'web' );
+    like( $offset, qr/Page 2 of 5/,             'it says where you are' );
+    like( $offset, qr/href="\?page=1&limit=25/, 'Prev goes back a page' );
+    like( $offset, qr/href="\?page=3&limit=25/, 'Next goes on a page' );
+
+    # &amp; because Xslate escapes what an expression emits, which is what an
+    # ampersand in an attribute is supposed to be.  The cursor branch is the same.
+    like( $offset, qr/like=web/, 'and the search survives the trip' );
+    unlike( $offset, qr/older=|newer=/, 'no cursor, which could not move on such a page anyway' );
+    unlike( $offset, qr/Jump to/,       'and no date jump, since these posts share a date' );
+
+    my $first = $render->( paginate_offset => 1, pages => 1, page => 1, pages_total => 3 );
+    unlike( $first, qr/rel="prev"/, 'the first page offers no Prev' );
+    like( $first, qr/rel="next"/, 'but does offer Next' );
+
+    my $last = $render->( paginate_offset => 1, pages => 1, page => 3, pages_total => 3 );
+    like( $last, qr/rel="prev"/, 'the last page offers Prev' );
+    unlike( $last, qr/rel="next"/, 'and no Next' );
+
+    my $only = $render->( paginate_offset => 1, pages => 0, page => 1, pages_total => 1 );
+    unlike( $only, qr/rel="prev"|rel="next"/, 'a single page offers neither' );
+    like( $only, qr/id="paginator" class="disabled"/, 'and says so' );
+
+    # Stored posts are untouched by any of this.
+    my $cursor = $render->( paginate_offset => 0, pages => 1, older => 1700, newer => 1800, like => 'x' );
+    like( $cursor, qr/href="\?older=1700&limit=25/, 'the cursor paginator still pages by cursor' );
+    like( $cursor, qr/href="\?newer=1800&limit=25/, 'both ways' );
+    like( $cursor, qr/Jump to/,                     'and keeps its date jump' );
+    unlike( $cursor, qr/\?page=/, 'with no page numbers' );
+};
+
 done_testing();

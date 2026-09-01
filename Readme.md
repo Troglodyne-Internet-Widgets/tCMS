@@ -144,12 +144,22 @@ A source has to provide posts($series, $query).  It may also provide:
   with the posts it filtered.  Trog::DataSource::filter is the default, and
   searches a post's title and body; implement your own to search the fields your
   posts actually carry, as Virt does for a guest's name, state and hypervisor.
+* order($query, @posts) - the order they belong in.  Defaults to newest first,
+  then by title, then by id.  Pagination hands out page 2 of an order, so there
+  has to be one and it has to be the same one next time somebody asks.
 * lang() and help() - what the search box on such a page is searching, and where
   to read about it.  The data model's answer describes the datastore, which is
   not what these pages are serving.
 * EDITABLE - whether the wizard should generate an editor for the type.  A source
   building its posts from somewhere else has nothing to edit, and saying nothing
   means no.
+
+Such pages paginate by page number rather than by the created cursor stored posts
+use.  A datasource has already built every post by the time the paginator sees
+them, so there is nothing to save by paging with a cursor -- and it would not
+work anyway for a source that stamps everything with the time it built them, as
+libvirt guests are: every cursor on the page is the same instant, so Prev asks
+for everything older than now and gets nothing.
 
 See lib/Trog/DataSource.pm for the whole contract.
 

@@ -1183,7 +1183,13 @@ sub series ($query) {
     # That will essentially necessitate it *becoming* the ID for real.
 
     #Grab the relevant tag (aclname), then pass that to posts
-    my @posts = _post_helper( $query, ['series'], $query->{user_acls} );
+    #
+    # Deliberately not $query: this is looking up the one series post named by
+    # the route, and handing it the reader's pagination pages *that* lookup.
+    # Asking for page two of a single post gets nothing, so a series carrying a
+    # ?page= in its URL could not find itself and 404'd on its own page.  Latent
+    # until something started emitting page numbers -- see _paginate_offset.
+    my @posts = _post_helper( { %$query, page => 1, limit => 1 }, ['series'], $query->{user_acls} );
 
     # The series post carries its *children's* relations, so that an editor
     # picker rendered on this page has something to populate from -- that is
@@ -1423,6 +1429,14 @@ sub posts ( $query, $direct = 0 ) {
     my $now_year    = ( localtime(time) )[5] + 1900;
     my $oldest_year = $now_year - 20;                  #XXX actually find oldest post year
 
+    # Datasource pages page by offset, everything else by the created cursor.
+    # See _paginate_offset() for why they cannot share.
+    my ( $paginate_offset, $page_of, $pages_total ) = ( 0, 1, 1 );
+    if ( $query->{is_datasource} ) {
+        $paginate_offset = 1;
+        ( $page_of, $pages_total, @posts ) = _paginate_offset( $query, $limit, @posts );
+    }
+
     my $older = !@posts ? 0 : $posts[-1]->{created};
     $query->{failure} //= -1;
     $query->{id}      //= '';
@@ -1516,7 +1530,10 @@ sub posts ( $query, $direct = 0 ) {
             in_series         => exists $query->{in_series} || !!( $query->{route} =~ m/^\/series\// ),
             route             => $query->{route},
             limit             => $limit,
-            pages             => scalar(@posts) == $limit,
+            pages             => $paginate_offset ? $pages_total > 1 : scalar(@posts) == $limit,
+            paginate_offset   => $paginate_offset,
+            page              => $page_of,
+            pages_total       => $pages_total,
             older             => $older,
             newer             => $newer,
             sizes             => [ 25, 50, 100 ],
@@ -1620,10 +1637,62 @@ sub _datasource_posts ( $query, $posts ) {
         my $err = "$@";
         $err =~ s/\n.*//s;
         WARN("Datasource '$source' could not filter its posts: $err");
-        return @synthesized;
+        @filtered = @synthesized;
     }
 
-    return @filtered;
+    # Pagination hands out page 2 of an order, so settle on one.
+    my $order   = $source->can('order') // \&Trog::DataSource::order;
+    my @ordered = eval { $order->( $query, @filtered ) };
+    if ($@) {
+        my $err = "$@";
+        $err =~ s/\n.*//s;
+        WARN("Datasource '$source' could not order its posts: $err");
+        @ordered = @filtered;
+    }
+
+    # Which the paginator below reads, since these page by offset rather than by
+    # the created cursor stored posts use.
+    $query->{is_datasource} = 1;
+
+    return @ordered;
+}
+
+=head2 _paginate_offset($query, $limit, @posts) = ($page, $pages_total, @page_of_posts)
+
+The slice of @posts the reader asked for, by page number.
+
+Stored posts page by a cursor: the datastore is asked for the $limit posts older
+than a timestamp, and the paginator hands back the oldest one on the page as the
+next cursor.  That is the right shape when the alternative is reading the whole
+datastore to skip most of it.
+
+It is the wrong shape for a datasource, which has already built every post by
+the time we see them -- and it does not work at all for one which stamps them
+all with the time it built them, as libvirt guests are.  Every cursor on such a
+page is the same instant, so Prev asks for everything older than now and gets
+nothing.  Offset costs nothing here and moves.
+
+=cut
+
+sub _paginate_offset ( $query, $limit, @posts ) {
+    $limit = 25 if !$limit || $limit < 1;
+
+    my $total       = scalar(@posts);
+    my $pages_total = $total ? int( ( $total + $limit - 1 ) / $limit ) : 1;
+
+    # Straight off a query string, so digits only -- the same coercion older and
+    # newer get, rather than int() warning its way through a word.  Past the end
+    # shows the last page rather than an empty one, which is what a stale
+    # bookmark deserves.
+    ( my $wanted = $query->{page} // '' ) =~ s/[^0-9]//g;
+    my $page = length($wanted) ? int($wanted) : 1;
+    $page = 1            if $page < 1;
+    $page = $pages_total if $page > $pages_total;
+
+    my $offset = ( $page - 1 ) * $limit;
+    my @slice  = $offset < $total ? @posts[ $offset .. List::Util::min( $offset + $limit, $total ) - 1 ] : ();
+
+    return ( $page, $pages_total, @slice );
 }
 
 =head2 _search_language($query)

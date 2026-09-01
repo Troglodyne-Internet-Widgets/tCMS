@@ -526,6 +526,142 @@ subtest 'a datasource-backed type gets no editor' => sub {
     ok( !-e 'www/templates/html/components/forms/spec_bogus.tx', 'and nothing was written' );
 };
 
+subtest 'a datasource-backed series searches and paginates' => sub {
+
+    # The whole point of a datasource is that its posts are built rather than
+    # stored, so nothing the datastore does to a query ever touches them.  Stand
+    # one up with enough guests to page through, and drive it through the real
+    # route rather than calling the helpers.
+    require Test::MockModule;
+    require Trog::DataSource::Virt;
+
+    my ( $code, $body, $err ) = _render(
+        _admin(
+            route          => '/admin/wyzzerdd/save',
+            method         => 'POST',
+            name           => 'spec_guests',
+            datasource     => 'Trog::DataSource::Virt',
+            body_form      => 'form_common.tx',
+            wrapper        => 1,
+            inc_post_title => 1,
+            display        => q{<div class="guest"><: $post.title :> is <: $post.state :></div>},
+        ),
+        \&Trog::Routes::HTML::post_wizard_save,
+    );
+    is( $code, 200, 'the datasource-backed type was created' ) or diag($err);
+
+    _reindex();
+    my $series = _make_series( 'spec_guests', 'specguests', 'spec_guests.tx', 'Spec Guests Series', no_topbar => 1 ) or return;
+
+    # Twelve guests, every one stamped with the same created -- which is what
+    # libvirt guests really are, and precisely what the cursor paginator cannot
+    # page through.
+    my $built = time();
+    my $virt  = Test::MockModule->new('Trog::DataSource::Virt');
+    $virt->redefine(
+        posts => sub {
+            my ( $s, $q ) = @_;
+            return map {
+                {
+                    id         => "guest-$_",
+                    title      => sprintf( 'guest%02d', $_ ),
+                    form       => $s->{child_form},
+                    data       => '',
+                    state      => $_ % 2 ? 'running' : 'shut off',
+                    local_href => "/guest/hv/guest$_",
+                    href       => '',
+                    tags       => $s->{tags}       // [],
+                    visibility => $s->{visibility} // 'private',
+                    created    => $built,
+                    version    => 0,
+                    user       => $s->{user},
+                    method     => 'GET',
+                }
+            } 1 .. 12;
+        }
+    );
+
+    my $page_of = sub {
+        my (%q) = @_;
+        my ( $c, $b, $e ) = _render( _anon( route => '/specguests', %q ), \&Trog::Routes::HTML::series );
+        is( $c, 200, 'guests page renders' ) or diag($e);
+        return $b // '';
+    };
+
+    my $titles = sub {
+        my ($html) = @_;
+        return [ $html =~ m{<div class="guest">(guest\d+) is}g ];
+    };
+
+    my $first = $page_of->( limit => 5 );
+    is_deeply( $titles->($first), [qw{guest01 guest02 guest03 guest04 guest05}], 'the first page holds the first five, in a settled order' );
+    like( $first, qr/Page 1 of 3/,            'and says which page it is' );
+    like( $first, qr{href="\?page=2&limit=5}, 'offering the next one' );
+    unlike( $first, qr/rel="prev"/, 'and no previous one' );
+
+    my $second = $page_of->( limit => 5, page => 2 );
+    is_deeply( $titles->($second), [qw{guest06 guest07 guest08 guest09 guest10}], 'the second page carries on where the first stopped' );
+    like( $second, qr/Page 2 of 3/, 'and says so' );
+
+    my $third = $page_of->( limit => 5, page => 3 );
+    is_deeply( $titles->($third), [qw{guest11 guest12}], 'the last page holds the remainder' );
+    unlike( $third, qr/rel="next"/, 'and offers nothing after it' );
+
+    # The cursor paginator would be worse than useless here: every guest shares
+    # a created, so Prev would ask for everything older than that one instant.
+    unlike( $first, qr/older=$built/, 'no cursor is offered on a page that cannot use one' );
+
+    # Search, which before this reached the datastore and was thrown away along
+    # with the posts it filtered.
+    my $searched = $page_of->( limit => 25, like => 'guest1' );
+    is_deeply( $titles->($searched), [qw{guest10 guest11 guest12}], 'searching a datasource page searches the page' );
+
+    # Virt searches what its posts carry, not just a title and an empty body.
+    my $by_state = $page_of->( limit => 25, like => 'shut' );
+    is_deeply( $titles->($by_state), [qw{guest02 guest04 guest06 guest08 guest10 guest12}], 'including a field only it knows about' );
+
+    # And the two compose, which is what a reader paging through a search does.
+    my $searched_page = $page_of->( limit => 4, like => 'shut', page => 2 );
+    is_deeply( $titles->($searched_page), [qw{guest10 guest12}], 'paging through a search stays inside it' );
+    like( $searched_page, qr/Page 2 of 2/, 'and pages against the matches, not everything' );
+    like( $searched_page, qr/like=shut/,   'carrying the search into the links' );
+};
+
+subtest 'an ordinary series survives a page number in its URL' => sub {
+
+    # series() looks its own post up with the reader's query, so a ?page= meant
+    # for the children used to page the lookup of the series itself -- page two
+    # of one post being nothing, the series could not find itself and 404'd on
+    # its own page.  Latent until the datasource paginator started emitting page
+    # numbers, and it was never about datasources.
+    _reindex();
+    _make_series( 'spec_paged', 'specpaged', 'blog.tx', 'Spec Paged Series', no_topbar => 1 ) or return;
+
+    foreach my $n ( 1, 2 ) {
+        _save_post(
+            "spec_paged child $n",
+            form       => 'blog.tx',
+            title      => "Spec Paged Child $n",
+            data       => "child $n body",
+            visibility => 'public',
+            tags       => ['specpaged'],
+            to         => '/specpaged',
+        ) or return;
+    }
+
+    # One child a page, so page two exists and holds the other one.
+    my ( $code, $body, $err ) = _render( _anon( route => '/specpaged', limit => 1, page => 2 ), \&Trog::Routes::HTML::series );
+    is( $code, 200, 'a series page with ?page=2 still finds its series' ) or diag($err);
+    like( $body, qr/Spec Paged Series/, 'and is the right one' );
+
+    ( $code, $body, $err ) = _render( _anon( route => '/specpaged', limit => 1, page => 1 ), \&Trog::Routes::HTML::series );
+    is( $code, 200, 'as does page one' ) or diag($err);
+
+    # A stored series still pages by cursor, not by number: nothing about this
+    # fix moves it onto the datasource paginator.
+    unlike( $body, qr/Page 1 of/, 'and it still pages by cursor rather than by number' );
+};
+
 subtest 'a field can be declared indexed' => sub {
     my ( $code, $body, $err ) = _render(
         _admin(

@@ -3,6 +3,31 @@
 : } else {
 <div id="paginator" class="disabled">
 : }
+: if ( $paginate_offset ) {
+    <div style="float:left; margin-top:.5rem;">Page <: $page :> of <: $pages_total :></div>
+    <div style="float:right;">
+        : if ( $page > 1 ) {
+        <a rel="prev" href="?page=<: $page - 1 :>&limit=<: $limit :><: if( $like ) { "&like=" ~ $like } :>">Prev</a>
+        : }
+        : if ( $page < $pages_total ) {
+        <a rel="next" href="?page=<: $page + 1 :>&limit=<: $limit :><: if( $like ) { "&like=" ~ $like } :>">Next</a>
+        : }
+        Size:
+        <form style="display:inline;">
+            : if ( $like ) {
+            <input type="hidden" name="like" value="<: $like :>" />
+            : }
+            <!-- Back to the first page: a page number means nothing once the pages are a different size. -->
+            <input type="hidden" name="page" value="1" />
+            <select name="limit" class="coolbutton">
+                : for $sizes -> $size {
+                <option value="<: $size :>"><: $size :></option>
+                : }
+            </select>
+        </form>
+    </div>
+</div>
+: } else {
     : if ( $older || $newer ) {
     <div style="float:left; margin-top:.5rem;"> <: $limit :> most recent posts older than <span id="paginatorTime"><: $older :></span></div>
     : }
@@ -40,6 +65,7 @@
         </form>
     </div>
 </div>
+: }
 <script type="text/javascript">
     function updateOlder () {
         var year  = document.querySelector("#paginator-jump select[name='year']");

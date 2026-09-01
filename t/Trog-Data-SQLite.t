@@ -153,6 +153,30 @@ subtest 'the two models answer the same questions the same way' => sub {
     }
 };
 
+subtest 'both models paginate by offset' => sub {
+
+    # Not compared page for page: the flat file model returns posts in readdir
+    # order and this one by created, so which posts land on page two is allowed
+    # to differ.  What is not allowed to differ is that walking the pages visits
+    # every post, exactly once -- which is the whole of what pagination promises.
+    foreach my $case ( [ flatfile => $flat ], [ sqlite => $sqlite ] ) {
+        my ( $name, $model ) = @$case;
+
+        my @all   = $model->get( limit => 0, acls => ['admin'] );
+        my $limit = 3;
+
+        my ( @walked, %seen );
+        foreach my $page ( 1 .. 5 ) {
+            my @got = $model->get( limit => $limit, page => $page, acls => ['admin'] );
+            ok( scalar(@got) <= $limit, "$name: page $page holds no more than a page" );
+            push( @walked, map { $_->{id} } @got );
+        }
+
+        is_deeply( [ sort @walked ], [ sort map { $_->{id} } @all ], "$name: the pages between them hold every post" );
+        is( scalar( grep { $seen{$_}++ } @walked ), 0, "$name: and none of them twice" );
+    }
+};
+
 subtest 'the id query really does return one post' => sub {
 
     # Guards the comparison above: two empty lists are also "the same".

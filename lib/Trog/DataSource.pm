@@ -37,6 +37,11 @@ saying nothing means no.
 Apply the viewer's search to the synthesized posts.  Defaulted below; implement
 it to search the fields your posts actually carry.
 
+    order($query, @posts) = @posts        optional
+
+The order they belong in.  Defaulted below; implement it if your posts have an
+order of their own that a date and a title don't capture.
+
     lang() = STRING                       optional
     help() = STRING                       optional
 
@@ -57,8 +62,8 @@ its page by holding them, and every synthesized post belongs to that series.
 Applying them again would at best be redundant, and at worst would blank the
 page for a source whose posts carry no tags -- which nothing requires them to.
 
-Nor does it paginate.  A datasource runs before the paginator's own variables
-are worked out, so there is nothing yet to paginate against.
+Nor does it paginate.  That is the route's job and is the same for every source
+-- see order(), which is the part a source does get a say in.
 
 A source with more to search than a title should say so by implementing filter()
 rather than by hoping this one covers it.
@@ -111,6 +116,26 @@ sub searchable_match ( $like, @values ) {
         return 1 if $value =~ m/\Q$like\E/i;
     }
     return 0;
+}
+
+=head2 order($query, @posts) = @posts
+
+The order synthesized posts belong in: newest first, then by title, then by id.
+
+Pagination hands out page 2 of an order, so there had better be one, and it had
+better be the same order next time somebody asks -- a list that comes back
+shuffled makes page 2 a lottery rather than the next page.  Sorting the ties out
+by title and then id is what makes this total rather than merely mostly decided.
+
+Newest-first matches how stored posts are listed.  The tiebreaks carry the
+weight in practice, because a source that builds its posts on the fly tends to
+stamp them all with the time it built them: every libvirt guest comes back with
+the same created, so what this really does for that page is sort it by name.
+
+=cut
+
+sub order ( $query, @posts ) {
+    return sort { ( $b->{created} // 0 ) <=> ( $a->{created} // 0 ) || ( $a->{title} // '' ) cmp ( $b->{title} // '' ) || ( $a->{id} // '' ) cmp ( $b->{id} // '' ) } @posts;
 }
 
 =head2 lang() = STRING
