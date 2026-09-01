@@ -162,9 +162,23 @@ sub acls4user ($username) {
 Enable TOTP 2fa for the specified user, or if already enabled return the existing info.
 Returns a QR code and URI for pasting into authenticator apps.
 
+Refuses a user or domain that would not be safe as a filename, as the QR code
+is written to totp/<user>@<domain>.bmp.
+
 =cut
 
 sub totp ( $user, $domain ) {
+
+    # The QR is written to totp/$user@$domain.bmp, so both halves end up in a
+    # path.  Nothing constrains a username -- tcms-useradd will take whatever
+    # it is given -- so one containing a slash or .. would otherwise write
+    # outside totp/ entirely.  Same whitelist Trog::DataSource::Virt uses for
+    # guest names.
+    my ($safe_user)   = ( $user   // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    my ($safe_domain) = ( $domain // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe username '" . ( $user // '' ) . "'." ) unless $safe_user;
+    return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe domain '" . ( $domain // '' ) . "'." ) unless $safe_domain;
+
     my $totp = _totp();
     my $dbh  = _dbh();
 
@@ -197,7 +211,7 @@ sub totp ( $user, $domain ) {
         secret => $secret,
     );
 
-    my $qr = "$user\@$domain.bmp";
+    my $qr = "$safe_user\@$safe_domain.bmp";
     if ($secret_is_generated) {
 
         # Liquidate the QR code if it's already there.  Unconditional: unlink
@@ -418,7 +432,7 @@ sub audit_log (%opts) {
     }
 
     my $where = @where ? 'WHERE ' . join( ' AND ', @where ) : '';
-    my $rows = $dbh->selectall_arrayref(
+    my $rows  = $dbh->selectall_arrayref(
         ## no critic(ValuesAndExpressions::PreventSQLInjection)
         "SELECT id, event_time, username, session_id, ip_addr, event_type FROM audit_log $where ORDER BY event_time DESC LIMIT ?",
         { Slice => {} }, @bind, $limit
@@ -448,7 +462,7 @@ Return all users and their contact emails, for use in libravatar lookups.
 
 #XXX it may be worth using the sqlite extension to do SHA hashing here to speed up lookups.
 sub users_with_emails {
-    my $dbh = _dbh();
+    my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref(
         "SELECT name, contact_email FROM user WHERE contact_email IS NOT NULL AND contact_email != ''",
         { Slice => {} }
