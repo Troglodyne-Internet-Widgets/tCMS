@@ -88,6 +88,29 @@ Posts are normally stored as a file somewhere.
 
 * DUMMY - A JSON blob.  Used for testing mostly, but could be handy for very small sites.
 * Flat File - Pretty much the tCMS1 data model, but with an SQLite index bolted on.
+* SQLite - The posts themselves in SQLite, blob and all.
+
+Pick one with general.data_model in your config.
+
+The SQLite model stores each version of each post as the same JSON blob the flat
+file model would have written, and projects everything worth querying back out of
+it as GENERATED ALWAYS ... VIRTUAL columns, which cost no storage and cannot drift
+from the post they came from.  Filtering, paging and search are then the
+database's job rather than a grep over every post on disk -- on a 20,000 post
+site, a search goes from about 2.5 seconds to about 3 milliseconds.  Search is an
+FTS5 index built with the trigram tokenizer, so it keeps the case insensitive
+substring matching the search box always had.
+
+Adding a queryable field is one ALTER TABLE and one CREATE INDEX in
+schema/sqlite.schema.  No migration, because the data itself never moves:
+
+    ALTER TABLE posts ADD COLUMN subhead TEXT
+        GENERATED ALWAYS AS (json_extract(post_data, '$.subhead')) VIRTUAL;
+    CREATE INDEX posts_subhead ON posts(subhead);
+
+To move an existing flat file site over, run bin/migrate-to-sqlite.pl from the
+tCMS root and then set data_model=SQLite.  It copies rather than moves, so
+data/files is left alone and the way back is to set data_model back.
 
 Data Sources
 ============

@@ -1,0 +1,150 @@
+/* The SQLite data model: posts live here entire, as the JSON blob they always */
+/* were, with everything worth querying projected out of that blob by the      */
+/* database rather than by Perl.                                              */
+/*                                                                            */
+/* Every column but the blob is GENERATED ALWAYS ... VIRTUAL, so it costs no   */
+/* storage, cannot drift from the post it was drawn from, and can be indexed.  */
+/* Adding a queryable field later is one ALTER TABLE plus one CREATE INDEX --  */
+/* no migration of the data itself, because the data never moves.              */
+
+CREATE TABLE IF NOT EXISTS posts (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_data TEXT NOT NULL,
+
+    /* Identity and history.  A post is a uuid; a row is one version of it. */
+    uuid    TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.id'))      VIRTUAL NOT NULL,
+    /* Coalesced: add() always sets a version, but a post hand-written without */
+    /* one is a version 0 post, not a row the database should refuse.          */
+    version INTEGER GENERATED ALWAYS AS (COALESCE(json_extract(post_data, '$.version'), 0)) VIRTUAL NOT NULL,
+
+    /* The scalars get() filters on. */
+    created    INTEGER GENERATED ALWAYS AS (json_extract(post_data, '$.created'))    VIRTUAL,
+    title      TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.title'))      VIRTUAL,
+    user       TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.user'))       VIRTUAL,
+    author     TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.author'))     VIRTUAL,
+    form       TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.form'))       VIRTUAL,
+    aclname    TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.aclname'))    VIRTUAL,
+    visibility TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.visibility')) VIRTUAL,
+    local_href TEXT    GENERATED ALWAYS AS (json_extract(post_data, '$.local_href')) VIRTUAL,
+
+    /* Free text.  json_extract hands back the string for a scalar and the JSON */
+    /* for an array, which is what a slide deck or an invoice stores -- either  */
+    /* way the words are in there for the tokenizer to find.                    */
+    data TEXT GENERATED ALWAYS AS (json_extract(post_data, '$.data')) VIRTUAL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS posts_version ON posts(uuid, version);
+CREATE INDEX IF NOT EXISTS posts_created    ON posts(created);
+CREATE INDEX IF NOT EXISTS posts_title      ON posts(title);
+CREATE INDEX IF NOT EXISTS posts_user       ON posts(user);
+CREATE INDEX IF NOT EXISTS posts_form       ON posts(form);
+CREATE INDEX IF NOT EXISTS posts_aclname    ON posts(aclname);
+CREATE INDEX IF NOT EXISTS posts_visibility ON posts(visibility);
+CREATE INDEX IF NOT EXISTS posts_local_href ON posts(local_href);
+
+/* A post is a uuid; a row is one version of it, so nearly every query has to    */
+/* know which row is the current one.  Worked out with a GROUP BY that is one    */
+/* pass over every post per query -- which is the scan this whole model exists   */
+/* to stop -- so the triggers keep the answer here instead, one row per post.    */
+/*                                                                              */
+/* first_created is the post's birthday, as opposed to the date of its most      */
+/* recent edit.  It is what get() hands back as created, what older and newer    */
+/* filter on, and what the results are ordered by, so it is indexed.             */
+CREATE TABLE IF NOT EXISTS post_versions (
+    uuid          TEXT PRIMARY KEY,
+    version_min   INTEGER NOT NULL,
+    version_max   INTEGER NOT NULL,
+    first_id      INTEGER NOT NULL,
+    latest_id     INTEGER NOT NULL,
+    first_created INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS post_versions_created ON post_versions(first_created);
+CREATE INDEX IF NOT EXISTS post_versions_latest  ON post_versions(latest_id);
+
+/* Versions are only ever appended, so an insert can settle this incrementally.  */
+/* Every expression in DO UPDATE sees the row as it was before this statement,   */
+/* which is what makes the comparisons below read the way they do.               */
+CREATE TRIGGER IF NOT EXISTS posts_versions_insert AFTER INSERT ON posts BEGIN
+    INSERT INTO post_versions (uuid, version_min, version_max, first_id, latest_id, first_created)
+        VALUES (new.uuid, new.version, new.version, new.id, new.id, new.created)
+    ON CONFLICT(uuid) DO UPDATE SET
+        version_max   = MAX(version_max, new.version),
+        latest_id     = CASE WHEN new.version >= version_max THEN new.id ELSE latest_id END,
+        version_min   = MIN(version_min, new.version),
+        first_id      = CASE WHEN new.version <  version_min THEN new.id      ELSE first_id      END,
+        first_created = CASE WHEN new.version <  version_min THEN new.created ELSE first_created END;
+END;
+
+/* Deletes take whole posts rather than single versions, and are rare, so this  */
+/* recomputes rather than trying to unpick the increments above.                */
+CREATE TRIGGER IF NOT EXISTS posts_versions_delete AFTER DELETE ON posts BEGIN
+    DELETE FROM post_versions WHERE uuid = old.uuid;
+    INSERT INTO post_versions (uuid, version_min, version_max, first_id, latest_id, first_created)
+        SELECT old.uuid,
+               MIN(version),
+               MAX(version),
+               (SELECT id      FROM posts WHERE uuid = old.uuid ORDER BY version ASC  LIMIT 1),
+               (SELECT id      FROM posts WHERE uuid = old.uuid ORDER BY version DESC LIMIT 1),
+               (SELECT created FROM posts WHERE uuid = old.uuid ORDER BY version ASC  LIMIT 1)
+        FROM posts WHERE uuid = old.uuid
+        /* GROUP BY so that deleting a post's last version inserts nothing.  A  */
+        /* bare aggregate over no rows still returns one row, of NULLs, which   */
+        /* the NOT NULL columns above would reject -- taking the DELETE with it. */
+        GROUP BY uuid;
+END;
+
+/* Tags are an array, and an index over the whole array's JSON text would only  */
+/* answer "is this the exact same list".  Membership needs one row per tag, so  */
+/* the trigger below unpacks json_each() into here and the database keeps it in */
+/* step with the blob on its own.                                               */
+/*                                                                              */
+/* Tags only, and deliberately.  A post's acls are folded into its tags by       */
+/* Trog::DataModule::_process(), which then deletes the acls field outright, so  */
+/* tags is the whole truth about who may see a post -- and get() has always      */
+/* answered the acls filter by looking at tags.  Indexing an acls field here as  */
+/* well would let a post carrying one be found by a caller holding that acl even */
+/* though the flat file model would not have shown it.                           */
+CREATE TABLE IF NOT EXISTS post_tags (
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    tag     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS post_tags_tag ON post_tags(tag, post_id);
+CREATE INDEX IF NOT EXISTS post_tags_post ON post_tags(post_id);
+
+CREATE TRIGGER IF NOT EXISTS posts_tags_insert AFTER INSERT ON posts BEGIN
+    INSERT INTO post_tags (post_id, tag)
+        SELECT new.id, value FROM json_each(json_extract(new.post_data, '$.tags'))
+        WHERE json_type(new.post_data, '$.tags') = 'array';
+END;
+
+CREATE TRIGGER IF NOT EXISTS posts_tags_delete AFTER DELETE ON posts BEGIN
+    DELETE FROM post_tags WHERE post_id = old.id;
+END;
+
+/* Full text search for the 'like' filter.                                      */
+/*                                                                              */
+/* The trigram tokenizer rather than the default: 'like' has always meant a     */
+/* case insensitive substring match, and trigram is the one tokenizer that      */
+/* answers substring queries, so search keeps the semantics it had and simply   */
+/* stops being a scan.  A word/stem search would be tokenize='unicode61' here   */
+/* and no other change, but it would quietly stop matching inside words.        */
+/*                                                                              */
+/* Trigram cannot answer a term shorter than 3 characters; Trog::Data::SQLite   */
+/* falls back to LIKE for those.                                                */
+CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
+    title,
+    data,
+    content='posts',
+    content_rowid='id',
+    tokenize='trigram'
+);
+
+CREATE TRIGGER IF NOT EXISTS posts_fts_insert AFTER INSERT ON posts BEGIN
+    INSERT INTO posts_fts (rowid, title, data) VALUES (new.id, new.title, new.data);
+END;
+
+CREATE TRIGGER IF NOT EXISTS posts_fts_delete AFTER DELETE ON posts BEGIN
+    INSERT INTO posts_fts (posts_fts, rowid, title, data) VALUES ('delete', old.id, old.title, old.data);
+END;

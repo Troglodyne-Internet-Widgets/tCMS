@@ -27,9 +27,18 @@ use File::Temp    ();
 use Time::HiRes   ();
 use URI::Escape   ();
 use JSON::MaybeXS ();
+use File::Slurper ();
 
 our ( $REPO, $ROOT, $OLDCWD );
 our %REPO_BEFORE;
+
+# Which data model this run exercises.  Every assertion in this file is about
+# what the app does, not how it stores anything, so all of them have to hold for
+# any of them.
+our $MODEL;
+
+# In BEGIN because the sandbox is built in one, before file scope runs.
+BEGIN { $MODEL = $ENV{TCMS_TEST_DATA_MODEL} || 'FlatFile' }
 
 # name => (size, mtime) for every file under the repo dirs this test could
 # plausibly disturb.  Cheap enough, and it is the only real proof of isolation.
@@ -92,11 +101,16 @@ BEGIN {
     );
 
     # A real fresh install: get() looks for config/main.cfg, doesn't find one,
-    # and falls through to the shipped default.
-    File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
+    # and falls through to the shipped default.  The data model is the shipped
+    # one unless the environment names another, which is how this whole file
+    # gets run against each of them -- the point being that a data model is only
+    # finished when the app cannot tell which one it is talking to.
+    my $stock = File::Slurper::read_text("$REPO/config/default.cfg");
+    $stock =~ s/^(\s*data_model=).*$/$1$MODEL/m or die "could not set the data model in default.cfg";
+    File::Slurper::write_text( "$ROOT/config/default.cfg", $stock );
 
-    # Hardcoded paths in Auth.pm, TagIndex.pm and Log.pm -- not negotiable.
-    File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{auth.schema flatfile.schema log.schema};
+    # Hardcoded paths in Auth.pm, TagIndex.pm, the data models and Log.pm -- not negotiable.
+    File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{auth.schema flatfile.schema sqlite.schema log.schema};
 
     # COPY, don't symlink: post_wizard_save() writes into Trog::Themes::forms_dir(),
     # and a symlink would land the generated post type in the real repo.
@@ -138,7 +152,7 @@ require Trog::Config;
 require Trog::Themes;
 require Trog::Data;
 require Trog::Auth;
-require Trog::SQLite::TagIndex;
+require Trog::SQLite::TagIndex if $MODEL eq 'FlatFile';
 require Trog::Routes::HTML;
 require Trog::Routes::JSON;
 
@@ -262,7 +276,13 @@ sub _render {
 # is deleted from the query, and the filter silently degrades to "every public
 # post".  Production gets away with it because a save HUPs the parent and the
 # worker re-execs.  We have to do it by hand.
+#
+# Nothing to do for a model that asks the database each time, which is the
+# point: this helper exists to paper over a cache, and a model without one
+# needs no paper.
 sub _reindex {
+    return unless $MODEL eq 'FlatFile';
+
     no warnings 'once';
     @Trog::Data::FlatFile::tags         = Trog::SQLite::TagIndex::tags();
     %Trog::Data::FlatFile::posts_by_tag = ();
@@ -348,7 +368,7 @@ subtest 'the sandbox is what we are actually running against' => sub {
     ok( !-f 'config/main.cfg',   'and there is no main.cfg, so we fall through to the default' );
 
     my $conf = Trog::Config::get();
-    is( $conf->param('general.data_model'), 'FlatFile', 'config resolves inside the sandbox' );
+    is( $conf->param('general.data_model'), $MODEL, 'config resolves inside the sandbox' );
 
     like( Trog::Themes::forms_dir(), qr/^www\/templates/, 'forms dir is relative, hence sandboxed' );
     ok( -d Cwd::abs_path( Trog::Themes::forms_dir() ), 'and it exists' );
