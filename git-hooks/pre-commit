@@ -1,14 +1,60 @@
 #!/bin/sh
 
-to_tidy=$(git diff --cached --name-only  | egrep ".p[m|l]$")
+# Auto-tidy staged Perl before it lands.
+#
+# A file qualifies three ways:
+#   - a .pm or .pl extension
+#   - a .PL extension, which is how Makefile.PL gets covered
+#   - executable with perl on its shebang line, which is how the extensionless
+#     scripts in bin/ get covered
+#
+# Note that a .t file matches none of these unless it happens to be +x.
 
 # Redirect output to stderr.
 exec 1>&2
 
-if [ $to_tidy  ]
+if ! command -v perltidy >/dev/null 2>&1
+then
+    echo "pre-commit: perltidy is not on PATH, skipping the tidy pass."
+    exit 0
+fi
+
+# ACMR so that a file deleted in this commit is not handed to perltidy, which
+# would fail on a path that is no longer there.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+to_tidy=''
+for file in $staged
+do
+    test -f "$file" || continue
+
+    case "$file" in
+        *.pm|*.pl|*.PL)
+            to_tidy="$to_tidy $file"
+            continue
+            ;;
+    esac
+
+    if test -x "$file" && head -n 1 "$file" | grep -Eq '^#!.*perl'
+    then
+        to_tidy="$to_tidy $file"
+    fi
+done
+
+# -n and quoted, unlike the version this replaces: bare [ $to_tidy ] is a
+# syntax error the moment there is more than one file, so the hook quietly
+# stopped tidying in exactly the commits that needed it most.
+if [ -n "$to_tidy" ]
 then
     echo "Auto-tidying perl changes..."
-    perltidy -b $to_tidy
+
+    # -bext='/' makes perltidy delete the backup it would otherwise leave
+    # sitting next to the file as <name>.bak.
+    perltidy -b -bext='/' $to_tidy || {
+        echo "pre-commit: perltidy failed, leaving the commit alone."
+        exit 1
+    }
+
     git update-index --add $to_tidy
     echo "Done."
 fi
