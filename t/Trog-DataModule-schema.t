@@ -164,6 +164,95 @@ subtest 'validate() filters, coerces and reports' => sub {
     is_deeply( [ Trog::DataModule::validate( { form => 'recipe.tx', photo => '/assets/x.jpg' } ) ],     [], "so does the href it becomes" );
 };
 
+subtest 'what gets written is checked, not just what was submitted' => sub {
+    set_sidecars();
+
+    # validate() runs on the submitted post.  _process() then builds the shape
+    # that is actually stored, and until it was checked too, a post could be
+    # made wrong on its way to disk and nobody would ever hear about it.
+    my $good = { form => 'blog.tx', title => 'Fine', tags => [qw{blog public}], visibility => 'public' };
+    is_deeply( [ Trog::DataModule::validate_built($good) ], [], 'a well built post passes' );
+
+    my $holed  = { form => 'blog.tx', title => 'Holed', tags => [ 'public', undef ], visibility => 'public' };
+    my @errors = Trog::DataModule::validate_built($holed);
+    ok( scalar(@errors), 'a null in the tags is caught' );
+    like( "$errors[0]", qr{/tags/1}, 'and named by where it is' );
+
+    # It checks rather than filters, unlike validate(): _process() adds fields
+    # the base schema has never heard of, and throwing those away would discard
+    # the work it just did.
+    my $built = {
+        form         => 'blog.tx',
+        title        => 'Built',
+        tags         => ['public'],
+        visibility   => 'public',
+        content_type => 'text/html',
+        is_video     => 1,
+        attachments  => ['/assets/thing.txt'],
+        preview      => '/assets/thumb.png',
+    };
+    is_deeply( [ Trog::DataModule::validate_built($built) ], [], "the fields _process() invents do not fail it" );
+    ok( exists $built->{is_video},    'and are not deleted' );
+    ok( exists $built->{attachments}, 'any of them' );
+};
+
+subtest '_process no longer builds a post wrong' => sub {
+
+    # The bug: a post saved without a visibility had an undef pushed into its
+    # tags, which is a tag no query ever matches -- so the post went invisible
+    # to all but an admin, silently, and the bunk tag was written to disk.
+    my $post = Trog::DataModule::_process( { form => 'blog.tx', title => 'No Visibility', tags => ['blog'] } );
+
+    is_deeply( [ grep { !defined } @{ $post->{tags} } ], [], 'no undef survives into the tags' );
+    is( $post->{visibility}, 'private', 'and the visibility is defaulted where the tag is made' );
+    ok( scalar( grep { $_ eq 'private' } @{ $post->{tags} } ), 'so the tag it produces is a real one' );
+
+    # Which is the same thing validate_built() is there to notice.
+    is_deeply( [ Trog::DataModule::validate_built($post) ], [], 'and the result passes the check' );
+
+    # An undef among the acls of a private post went the same way.
+    my $acled = Trog::DataModule::_process( { form => 'blog.tx', title => 'Acled', tags => ['blog'], visibility => 'private', acls => [ 'members', undef ] } );
+    is_deeply( [ grep { !defined } @{ $acled->{tags} } ], [], 'nor from the acls' );
+    ok( scalar( grep { $_ eq 'members' } @{ $acled->{tags} } ), 'while the real acl still lands' );
+};
+
+subtest 'add() refuses to store a post it built wrong' => sub {
+    set_sidecars();
+
+    # Break _process on purpose: the point is that add() no longer takes its
+    # word for it.  This is the shape the real bug produced.
+    #
+    # One mock object for all three, and unmocked by hand at the end.
+    # Test::MockModule keeps one per package, so a second new() on the same
+    # package hands back the first -- and leaving it to go out of scope left
+    # _process broken for every subtest after this one.
+    my @written;
+    my $mock = Test::MockModule->new('Trog::DataModule');
+    $mock->redefine(
+        '_process',
+        sub ($post) {
+            push( @{ $post->{tags} }, undef );
+            return $post;
+        }
+    );
+    $mock->redefine( 'write', sub { my ( $self, $data ) = @_; push( @written, @$data ); return 1 } );
+    $mock->redefine( 'get',   sub { return () } );
+
+    my $model = bless {}, 'Trog::DataModule';
+    my $err   = exception { $model->add( { form => 'blog.tx', title => 'Doomed', tags => ['blog'], visibility => 'public' } ) };
+
+    $mock->unmock_all();
+
+    ok( $err, 'the save fails' );
+    is( ref $err, 'ARRAY', 'with the errors the submitter is shown' );
+    like( "$err->[0]", qr{/tags/}, 'saying what was wrong' );
+    is_deeply( \@written, [], 'and nothing was written' );
+
+    # The mock really is gone, or every subtest after this one is testing it.
+    my $sane = Trog::DataModule::_process( { form => 'blog.tx', title => 'Sane', tags => ['blog'], visibility => 'public' } );
+    is_deeply( [ grep { !defined } @{ $sane->{tags} } ], [], '_process is itself again afterwards' );
+};
+
 subtest 'empty inputs are treated as absent, except for strings' => sub {
     set_sidecars( 'recipe.json' => sidecar( properties => { servings => { type => 'integer' } } ) );
 

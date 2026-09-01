@@ -630,9 +630,14 @@ meant to round-trip.
 
 =cut
 
-sub validate ($post) {
+sub _validator {
     state $validator;
     $validator //= JSON::Validator::Schema::Troglodyne->new();
+    return $validator;
+}
+
+sub validate ($post) {
+    my $validator = _validator();
 
     my $schema = schema_for( $post->{form} );
 
@@ -659,6 +664,34 @@ sub validate ($post) {
     # OpenAPIv3 coerces as it goes, so "4" lands in the datastore as 4 and
     # checkbox values land as real booleans.
     return $validator->validate( $post, $schema );
+}
+
+=head2 validate_built($post)
+
+Check the post that is actually about to be written.
+
+validate() runs on what was submitted.  _process() then builds the shape that
+gets stored -- it turns a visibility into a tag, folds the acls in, resolves
+uploads into hrefs -- and until now nothing looked at the result.  That is how
+every post saved without a visibility came to carry a null in its tags: the
+schema describes tags as an array of strings and would have rejected it on the
+spot, but it was never asked.
+
+Checks rather than filters, unlike validate().  _process() adds fields the base
+schema has never heard of -- content_type, is_video, attachments -- and dropping
+what it does not recognise would throw away the work it just did.  So this looks
+only at the fields the schema actually describes, on a copy, and changes nothing.
+
+Returns the list of validation errors, empty when the post is fit to store.
+
+=cut
+
+sub validate_built ($post) {
+    my $schema = schema_for( $post->{form} );
+
+    my %described = map { $_ => $post->{$_} } grep { exists $schema->{properties}{$_} } keys(%$post);
+
+    return _validator()->validate( \%described, $schema );
 }
 
 sub add ( $self, @posts ) {
@@ -719,6 +752,17 @@ sub add ( $self, @posts ) {
 
         $post = _process($post);
 
+        # And check what _process() built, not just what arrived.  A post that
+        # fails here is one this code has made wrong on its way to disk, so it
+        # is a bug rather than bad input -- but the answer is still to refuse to
+        # write it, because the alternative is what we did before, which was to
+        # write it and find out years later.
+        my @built = validate_built($post);
+        if (@built) {
+            WARN( "Refusing to store a post this built wrong: " . join( ', ', map { "$_" } @built ) );
+            die [ map { "$_" } @built ];
+        }
+
         push @to_write, $post;
     }
     $self->write( \@to_write );
@@ -729,6 +773,12 @@ sub add ( $self, @posts ) {
 #XXX this level of post-processing seems gross, but may be unavoidable
 # Not actually a subprocess, kek
 sub _process ($post) {
+
+    # Here as well as in add(), because this is the sub that turns a visibility
+    # into a tag: without one it pushed an undef into tags, which is a tag no
+    # query ever matches, so the post went invisible to everyone but an admin.
+    # Nothing complained, and the bunk tag was written to disk and stayed there.
+    $post->{visibility} //= 'private';
 
     # If the post is private, make sure it's associated assets are too.
     my $is_private_post = $post->{visibility} eq 'private';
@@ -754,7 +804,7 @@ sub _process ($post) {
         my $subj = $_;
         !grep { $_ eq $subj } qw{public private unlisted}
     } @{ $post->{tags} };
-    push( @{ $post->{tags} }, @{ $post->{acls} } ) if $is_private_post;
+    push( @{ $post->{tags} }, grep { defined } @{ $post->{acls} } ) if $is_private_post;
     delete $post->{acls};
     push( @{ $post->{tags} }, $post->{visibility} );
 
@@ -764,9 +814,11 @@ sub _process ($post) {
         push( @{ $post->{tags} }, $post->{series} );
     }
 
-    #Filter adding the same acl twice
-    @{ $post->{tags} }    = List::Util::uniq( @{ $post->{tags} } );
-    @{ $post->{aliases} } = List::Util::uniq( @{ $post->{aliases} } );
+    #Filter adding the same acl twice, and anything that isn't a tag at all --
+    # an undef here is what every query below compares against, and it warns
+    # its way through the lot before matching nothing.
+    @{ $post->{tags} }    = List::Util::uniq( grep { defined && length } @{ $post->{tags} } );
+    @{ $post->{aliases} } = List::Util::uniq( grep { defined && length } @{ $post->{aliases} } );
 
     # Handle multimedia content types
     $post->{content_type}       = Trog::Utils::mime_type("www/$post->{href}")       if $post->{href};
