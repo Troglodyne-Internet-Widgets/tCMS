@@ -8,6 +8,7 @@ use Sys::Hostname::FQDN();
 use Sys::Virt();
 
 use Trog::Config();
+use Trog::DataSource();
 
 use Trog::Log qw{WARN INFO};
 
@@ -174,6 +175,50 @@ sub posts ( $series, $query ) {
 
     return @out;
 }
+
+=head2 filter($query, @posts) = @posts
+
+Apply the reader's search to the guest list.
+
+A guest post's body is empty -- everything about it is in named fields -- so the
+default, which searches a post's title and body, would only ever match the guest
+name.  Search what the page actually shows instead: the guest name, its state,
+and the hypervisor it is on.  Searching 'shut' for the stopped guests, or a
+hypervisor's title for everything on it, is the thing somebody typing in that
+box on this page is trying to do.
+
+Everything else about the query means what it does elsewhere, so it is left to
+Trog::DataSource::filter.
+
+=cut
+
+sub filter ( $query, @posts ) {
+    $query //= {};
+
+    if ( length( $query->{like} // '' ) ) {
+        my $like = $query->{like};
+        @posts = grep {
+            Trog::DataSource::searchable_match(
+                $like,
+                $_->{title}, $_->{domain}, $_->{state}, $_->{hypervisor_title}, $_->{hypervisor},
+            )
+        } @posts;
+    }
+
+    # Without like, since that one is answered above.
+    return Trog::DataSource::filter( { %$query, like => undef }, @posts );
+}
+
+=head2 lang() = STRING
+
+=head2 help() = STRING
+
+What the search box searches on a page of guests.
+
+=cut
+
+sub lang { 'Case insensitive substring of a guest name, state or hypervisor' }
+sub help { 'https://en.wikipedia.org/wiki/Substring' }
 
 sub _post_for ( $domain, $hypervisor, $series, $form ) {
     my $name = $domain->get_name();

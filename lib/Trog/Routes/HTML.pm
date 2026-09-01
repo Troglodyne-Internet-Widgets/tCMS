@@ -37,6 +37,7 @@ use Trog::FileHandler;
 use Trog::Themes;
 use Trog::Renderer;
 use Trog::Email;
+use Trog::DataSource;
 
 our $landing_page = 'default.tx';
 
@@ -372,12 +373,14 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
 
+    my ( $search_lang, $search_help ) = _search_language($query);
+
     return finish_render(
         $tmpl,
         {
             %$query,
-            search_lang  => $data->lang(),
-            search_help  => $data->help(),
+            search_lang  => $search_lang,
+            search_help  => $search_help,
             theme_dir    => Trog::Themes::td(),
             content      => $content,
             title        => $title,
@@ -867,17 +870,7 @@ to be.
 
 sub _datasource_editable ($module) {
     return 1 unless $module;
-
-    my $modpath = $module;
-    $modpath =~ s{::}{/}g;
-    $modpath .= '.pm';
-
-    local $@;
-    eval { require $modpath; 1 } or do {
-        WARN("Datasource '$module' will not load: $@");
-        return 1;
-    };
-
+    return 1 unless Trog::DataSource::load($module);
     return 1 unless $module->can('EDITABLE');
     return $module->EDITABLE ? 1 : 0;
 }
@@ -1597,38 +1590,18 @@ sub _datasource_posts ( $query, $posts ) {
     my $series = $query->{primary_post};
     return @$posts unless Ref::Util::is_hashref($series) && $series->{child_form};
 
-    my $meta   = Trog::DataModule::type_meta_for( $series->{child_form} );
-    my $source = $meta->{'x-tcms-datasource'};
-    return @$posts unless $source && !ref $source;
+    my $source = Trog::DataSource::for_type( $series->{child_form} );
+    return @$posts unless $source;
+    return @$posts unless Trog::DataSource::load($source);
 
-    # Named in a sidecar, so check it rather than requiring whatever we were
-    # told to.  The namespace restriction is the point: a sidecar cannot make
-    # us load an arbitrary module.
-    if ( $source !~ m/^Trog::DataSource::\w+$/ ) {
-        WARN("Post type '$series->{child_form}' names a datasource '$source' which isn't one");
-        return @$posts;
-    }
-
-    my $modpath = $source;
-    $modpath =~ s{::}{/}g;
-    $modpath .= '.pm';
-
-    local $@;
-    eval { require $modpath; 1 } or do {
-        WARN("Datasource '$source' will not load: $@");
-        return @$posts;
-    };
-
-    no strict 'refs';
-    my $sub = "${source}::posts";
-    if ( !defined &{$sub} ) {
+    my $builder = $source->can('posts');
+    if ( !$builder ) {
         WARN("Datasource '$source' has no posts() to call");
         return @$posts;
     }
 
-    my @synthesized = eval { &{$sub}( $series, $query ) };
-    use strict;
-
+    local $@;
+    my @synthesized = eval { $builder->( $series, $query ) };
     if ($@) {
         my $err = "$@";
         $err =~ s/\n.*//s;
@@ -1636,7 +1609,47 @@ sub _datasource_posts ( $query, $posts ) {
         return @$posts;
     }
 
-    return @synthesized;
+    # The search the reader typed was applied to the datastore by get(), and
+    # then thrown away with the posts it filtered -- these are built fresh and
+    # have never been near it.  Ask the source to apply it, or apply the default
+    # on its behalf, so that searching a datasource page searches the page.
+    my $filter = $source->can('filter') // \&Trog::DataSource::filter;
+
+    my @filtered = eval { $filter->( $query, @synthesized ) };
+    if ($@) {
+        my $err = "$@";
+        $err =~ s/\n.*//s;
+        WARN("Datasource '$source' could not filter its posts: $err");
+        return @synthesized;
+    }
+
+    return @filtered;
+}
+
+=head2 _search_language($query)
+
+What to tell the reader the search box searches, as (language, help link).
+
+The data model's answer describes what it can do to the datastore, which is the
+right answer for nearly every page.  It is the wrong one for a page whose posts
+are built by a datasource rather than read out of the datastore, so such a page
+gets to say so.
+
+=cut
+
+sub _search_language ($query) {
+    state $data;
+    $data //= Trog::Data->new( Trog::Config::get() );
+
+    my $series = $query->{primary_post};
+    my $source = Ref::Util::is_hashref($series) && $series->{child_form} ? Trog::DataSource::for_type( $series->{child_form} ) : undef;
+
+    return ( $data->lang(), $data->help() ) unless $source && Trog::DataSource::load($source);
+
+    my $lang = $source->can('lang') // \&Trog::DataSource::lang;
+    my $help = $source->can('help') // \&Trog::DataSource::help;
+
+    return ( scalar $lang->(), scalar $help->() );
 }
 
 sub _post_helper ( $query, $tags, $acls ) {

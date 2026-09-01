@@ -131,6 +131,28 @@ Sometimes you want to consider something else authoritative that isn't a datamod
 
 * Virt - Talk to a libvirt HV to list guests.
 
+A post type names one in its sidecar with x-tcms-datasource, and a series of that
+type then lists whatever the source builds instead of posts somebody wrote.  The
+series is still an ordinary post; only its children are synthesized, and they are
+rebuilt on every view rather than stored.
+
+A source has to provide posts($series, $query).  It may also provide:
+
+* filter($query, @posts) - apply the reader's search to the posts it built.
+  Those posts have never been near the datastore, so the search the reader typed
+  would otherwise be answered against the datastore and then thrown away along
+  with the posts it filtered.  Trog::DataSource::filter is the default, and
+  searches a post's title and body; implement your own to search the fields your
+  posts actually carry, as Virt does for a guest's name, state and hypervisor.
+* lang() and help() - what the search box on such a page is searching, and where
+  to read about it.  The data model's answer describes the datastore, which is
+  not what these pages are serving.
+* EDITABLE - whether the wizard should generate an editor for the type.  A source
+  building its posts from somewhere else has nothing to edit, and saying nothing
+  means no.
+
+See lib/Trog/DataSource.pm for the whole contract.
+
 Components
 ==========
 Sometimes you re-use a template a lot. Sometimes it also needs special handling.
