@@ -55,8 +55,23 @@ sub render ( $class, %options ) {
     return _yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
 
     #TODO future - save the components too and then compose them?
-    my $data      = $options{data};
-    my $skip_save = $options{component} || $options{nocache} || !$data->{route} || $data->{has_query} || $data->{user} || ( $options{code} // 0 ) != 200 || Trog::Log::is_debug();
+    my $data = $options{data};
+
+    # $data->{nocache} as well as $options{nocache}: TCMS::build_routes puts a
+    # route's nocache flag on the query, and exactly one caller (login) has ever
+    # forwarded it here as an option.  Every other nocache route was relying on
+    # being auth-gated, so that the $data->{user} test below caught it -- which
+    # says nothing about a route that is nocache and public, and there is now
+    # one: a datasource whose posts go stale asks for it this way.
+    my $skip_save =
+         $options{component}
+      || $options{nocache}
+      || $data->{nocache}
+      || !$data->{route}
+      || $data->{has_query}
+      || $data->{user}
+      || ( $options{code} // 0 ) != 200
+      || Trog::Log::is_debug();
 
     my $ret;
     local $@;

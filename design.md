@@ -133,6 +133,11 @@ variants and editing chrome, and caching those would serve one user's view to
 another. Anonymous readers get files off disk; editors get live renders. Saving a
 post invalidates the cache.
 
+`nocache` is read off both the render options and the page data, so a route's
+`nocache` flag -- which `TCMS::build_routes` puts on the query -- reaches it
+whether or not the route thought to forward it. That is also how a datasource
+which cannot say when its posts go stale keeps its pages out of the cache.
+
 Post types
 ==========
 
@@ -263,12 +268,16 @@ both are places the obvious implementation is wrong:
   along with the posts it filtered. `filter()` is how the search reaches your
   posts, and you should implement it if your posts carry anything worth
   searching beyond a title.
-- **Nothing else will invalidate your page's static render.** Datasource pages
-  are cached like any other, and a post being saved does not invalidate them,
-  because no post was saved -- the thing you depend on changed instead. If you
-  can name what you depend on, register a `$tpsgi->add_watch` for it with a
-  stable `key` and invalidate through the tPSGI object your callback is *handed*,
-  not the one it closed over. `DirIndex::_watch` is four lines of this.
+- **Nothing else will invalidate your page's static render.** A post being saved
+  does not invalidate it, because no post was saved -- the thing you depend on
+  changed instead. So you must answer one of two ways. Either you can name what
+  you depend on, in which case register a `$tpsgi->add_watch` for it with a
+  stable `key`, invalidate through the tPSGI object your callback is *handed*
+  rather than the one it closed over, and declare `CACHEABLE`
+  (`DirIndex::_watch` is four lines of this). Or you cannot, in which case say
+  nothing and your pages are never cached -- which is the default, because a
+  page that is merely slow beats one that is wrong with no way of becoming
+  right.
 - **Your posts probably all share a timestamp**, because you stamped them with
   the time you built them. Stored posts paginate by a `created` cursor, which on
   such a page cannot move -- every cursor is the same instant. Datasource pages

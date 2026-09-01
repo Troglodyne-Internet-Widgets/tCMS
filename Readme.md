@@ -182,11 +182,23 @@ A source has to provide posts($series, $query).  It may also provide:
 * EDITABLE - whether the wizard should generate an editor for the type.  A source
   building its posts from somewhere else has nothing to edit, and saying nothing
   means no.
+* CACHEABLE - whether its pages may be saved as static renders.  Saying nothing
+  means no; see below.
 
-Datasource pages are cached as statics exactly like any other page, which raises
-the question of what throws that cache away -- saving a post will not, because no
-post was saved when somebody dropped a file in a directory.  A source which knows
-what it depends on should say so with tPSGI's watch facility, as DirIndex does:
+Datasource pages would be cached as statics exactly like any other page, which
+raises the question of what throws that cache away -- saving a post will not,
+because no post was saved when somebody dropped a file in a directory.  So a
+source has to say which of the two it is:
+
+* CACHEABLE - it knows what it depends on and says when that changes, so its
+  pages may be cached.  Saying nothing means no, and that is the safe way round:
+  a source whose author has not thought about invalidation gets the answer that
+  is merely slow rather than the one that is wrong.  DirIndex says yes because it
+  watches the directory; Virt says no, because a guest's state is the point of
+  the page and nothing could ever tell us it changed.
+
+A source declaring CACHEABLE should say when it changes, using tPSGI's watch
+facility, as DirIndex does:
 
     $tpsgi->add_watch( $directory, sub {
         my ( $watcher, $change ) = @_;

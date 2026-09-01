@@ -118,6 +118,81 @@ subtest 'for_type' => sub {
     is( Trog::DataSource::for_type('blog.tx'), undef, 'a type with no datasource names none' );
 };
 
+subtest 'cacheable' => sub {
+
+    # A datasource page is cached like any other unless something says not to,
+    # and nothing else ever invalidates it: saving a post does not, because no
+    # post was saved.  A source that cannot say when its posts go stale would
+    # therefore be cached forever wrong.
+    is( Trog::DataSource::cacheable('Trog::DataSource::TestPlain'), 0, 'a source which says nothing is not cacheable' );
+    is( Trog::DataSource::cacheable(undef),                         0, 'and neither is no source at all' );
+
+    require Trog::DataSource::Virt;
+    is( Trog::DataSource::cacheable('Trog::DataSource::Virt'), 0, 'Virt is not: a guest\'s state is the point of the page' );
+
+    require Trog::DataSource::DirIndex;
+    is( Trog::DataSource::cacheable('Trog::DataSource::DirIndex'), 1, 'DirIndex is, because it watches the directory' );
+};
+
+subtest 'the route marks an uncacheable page nocache' => sub {
+    require Trog::Routes::HTML;
+    require Test::MockModule;
+
+    my $meta = Test::MockModule->new('Trog::DataModule');
+    my $source;
+    $meta->redefine( type_meta_for => sub { return $source ? { 'x-tcms-datasource' => $source } : {} } );
+
+    my $query = sub { return { primary_post => { child_form => 'fake.tx' } } };
+
+    # An ordinary page is left alone.
+    $source = undef;
+    my $ordinary = $query->();
+    Trog::Routes::HTML::_datasource_posts( $ordinary, [ guest('stored') ] );
+    ok( !$ordinary->{nocache}, 'an ordinary page is not marked' );
+
+    $source = 'Trog::DataSource::TestPlain';
+    my $uncacheable = $query->();
+    Trog::Routes::HTML::_datasource_posts( $uncacheable, [] );
+    is( $uncacheable->{nocache}, 1, 'a source which has not said is marked nocache' );
+
+    $source = 'Trog::DataSource::TestCached';
+    my $cacheable = $query->();
+    Trog::Routes::HTML::_datasource_posts( $cacheable, [] );
+    ok( !$cacheable->{nocache}, 'and one which has said so is not' );
+};
+
+subtest 'nocache on the query reaches the renderer' => sub {
+    require Trog::Renderer;
+
+    # TCMS::build_routes puts a route's nocache flag on the query, and exactly
+    # one caller has ever forwarded it to render() as an option.  Everything
+    # else was relying on being auth-gated, which says nothing about a route
+    # that is nocache and public -- which is what an uncacheable datasource
+    # page is.
+    my @saved;
+    my $tpsgi = bless {}, 'FakeTPSGI2';
+    {
+        no warnings qw{once};
+        *FakeTPSGI2::add_post_close_callback = sub { $_[1]->();             return 1 };
+        *FakeTPSGI2::save_render             = sub { push( @saved, $_[1] ); return 1 };
+    }
+
+    # The dispatch table holds a code ref taken at load time, so redefining the
+    # sub it came from leaves the table pointing at the original.  Localise the
+    # entry instead.
+    no warnings qw{once};
+    local $Trog::Renderer::renderers{html} = sub { return [ 200, [], ['a page'] ] };
+
+    my %common = ( contenttype => 'text/html', template => 'whatever.tx', code => 200 );
+
+    Trog::Renderer->render( %common, data => { route => '/cacheable', tpsgi => $tpsgi } );
+    is_deeply( \@saved, ['/cacheable'], 'an ordinary page is saved as a static' );
+
+    @saved = ();
+    Trog::Renderer->render( %common, data => { route => '/live', tpsgi => $tpsgi, nocache => 1 } );
+    is_deeply( \@saved, [], 'one whose query says nocache is not' );
+};
+
 subtest 'the defaults are advertised' => sub {
     ok( length Trog::DataSource::lang(), 'there is a language to advertise' );
     like( Trog::DataSource::help(), qr{^https?://}, 'and somewhere to read about it' );
@@ -149,12 +224,18 @@ BEGIN {
     $INC{'Trog/DataSource/TestPlain.pm'}  = 1;
     $INC{'Trog/DataSource/TestPicky.pm'}  = 1;
     $INC{'Trog/DataSource/TestBroken.pm'} = 1;
+    $INC{'Trog/DataSource/TestCached.pm'} = 1;
 }
 
 {
     # A source with no filter() of its own: the default has to be applied for it.
     package Trog::DataSource::TestPlain;
     sub posts { return ( main::guest('alpha'), main::guest('beta') ) }
+
+    # One which can say when its posts go stale, and so may be cached.
+    package Trog::DataSource::TestCached;
+    use constant CACHEABLE => 1;
+    sub posts { return ( main::guest('cached') ) }
 
     # One with opinions, including its own search language.
     package Trog::DataSource::TestPicky;

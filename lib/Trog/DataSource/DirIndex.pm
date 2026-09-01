@@ -40,6 +40,20 @@ collide with, the synthesized ones.  Put files in the directory instead.
 
 use constant EDITABLE => 0;
 
+=head2 CACHEABLE
+
+True, which is only defensible because of the watch _watch() registers.  A
+listing is cheap to build but there is no reason to build it per request, and the
+one thing that would make a cached copy wrong -- the directory changing -- is
+exactly the thing inotify tells us about.
+
+Take that watch away and this has to become false, or the page is stale with no
+way of ever becoming right again.
+
+=cut
+
+use constant CACHEABLE => 1;
+
 =head1 WHAT MAY BE INDEXED
 
 Only directories under C<www/>, and never C<www/assets/private>.

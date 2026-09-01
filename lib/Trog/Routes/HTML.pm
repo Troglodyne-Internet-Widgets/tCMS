@@ -1654,6 +1654,11 @@ sub _datasource_posts ( $query, $posts ) {
     # the created cursor stored posts use.
     $query->{is_datasource} = 1;
 
+    # A source which cannot say when its posts go stale must not have its pages
+    # saved as statics: nothing else would ever invalidate them, so the cached
+    # copy could never become right again.  See Trog::DataSource::cacheable.
+    $query->{nocache} = 1 unless Trog::DataSource::cacheable($source);
+
     return @ordered;
 }
 

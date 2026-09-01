@@ -36,6 +36,21 @@ would then sit alongside, and collide with, the synthesized ones.
 
 use constant EDITABLE => 0;
 
+=head2 CACHEABLE
+
+False.  A guest's state is the whole point of the page: whether it is running,
+how much memory it has, what its console looks like right now.  A static render
+of that is a photograph of a machine, and the reader wants the machine.
+
+There is also nothing that could invalidate it.  A guest starting or stopping is
+not a post being saved, and libvirt is not going to tell us about it -- so a
+cached listing would not merely be stale, it would have no way of ever becoming
+right again.
+
+=cut
+
+use constant CACHEABLE => 0;
+
 =head2 A NOTE ON SAFETY
 
 libvirt forbids virDomainScreenshot on a read-only connection, so the read path

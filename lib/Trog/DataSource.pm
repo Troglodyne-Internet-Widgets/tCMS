@@ -32,6 +32,11 @@ Whether the wizard should generate an editor for a type drawn from this source.
 A source which builds its posts from somewhere else has nothing to edit, and
 saying nothing means no.
 
+    CACHEABLE                             optional constant
+
+Whether a page drawn from this source may be saved as a static render.  Saying
+nothing means no -- see cacheable() for why that is the safe way round.
+
     filter($query, @posts) = @posts       optional
 
 Apply the viewer's search to the synthesized posts.  Defaulted below; implement
@@ -179,6 +184,32 @@ Where to read about it.
 =cut
 
 sub help { 'https://en.wikipedia.org/wiki/Substring' }
+
+=head2 cacheable($source) = BOOL
+
+Whether pages drawn from $source may be cached as static renders.
+
+A datasource page is cached like any other unless something says not to, and
+nothing else ever invalidates it: saving a post does not, because no post was
+saved -- whatever the source draws on changed instead.  So a source has to
+answer one of two questions, and it has to answer deliberately.
+
+Either it knows what it depends on and can say when that changes, in which case
+it should register a watch (Trog::DataSource::DirIndex::_watch is the worked
+example) and declare CACHEABLE.  Or it doesn't, in which case its pages must not
+be cached at all, because the cached copy has no way of ever becoming right
+again.
+
+Absent means not cacheable, which is the same way round as EDITABLE: a source
+whose author has not thought about invalidation gets the answer that is merely
+slow rather than the one that is wrong.
+
+=cut
+
+sub cacheable ($source) {
+    return 0 unless $source && $source->can('CACHEABLE');
+    return $source->CACHEABLE ? 1 : 0;
+}
 
 =head2 for_type($form) = STRING or undef
 

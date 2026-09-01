@@ -626,6 +626,13 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     is_deeply( $titles->($third), [qw{guest11 guest12}], 'the last page holds the remainder' );
     unlike( $third, qr/rel="next"/, 'and offers nothing after it' );
 
+    # A guest's state is the point of the page, and nothing could invalidate a
+    # cached copy: a guest starting is not a post being saved, and libvirt is
+    # not going to tell us about it.
+    my $vtpsgi = Test::TPSGI->new( run_callbacks => 1 );
+    _render( _anon( route => '/specguests', tpsgi => $vtpsgi ), \&Trog::Routes::HTML::series );
+    is_deeply( [ keys %{ $vtpsgi->{renders} } ], [], 'a guests page is never saved as a static' );
+
     # The cursor paginator would be worse than useless here: every guest shares
     # a created, so Prev would ask for everything older than that one instant.
     unlike( $first, qr/older=$built/, 'no cursor is offered on a page that cannot use one' );
@@ -749,7 +756,8 @@ subtest 'a directory index series' => sub {
 
     # And it really is cached, rather than merely being cacheable in principle:
     # the renderer hands anonymous, unparameterised, successful renders to tPSGI
-    # to save, and a directory listing is one.
+    # to save, and a directory listing is one.  Which it may be, unlike the
+    # guests page above, precisely because it registers the watch below.
     ok( scalar( keys %{ $tpsgi->{renders} } ),                    'the listing was handed to tPSGI to save as a static' );
     ok( ( grep { m{^/specfiles:} } keys %{ $tpsgi->{renders} } ), 'under its own route' );
 
