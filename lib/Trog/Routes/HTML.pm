@@ -178,6 +178,13 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
+    '/guest/reprovision' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::guest_reprovision,
+        noindex  => 1,
+        nocache  => 1,
+    },
     '/admin/wyzzerdd' => {
         method   => 'GET',
         auth     => 1,
@@ -2305,6 +2312,44 @@ sub guest_act ($query) {
     );
 
     return _feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{guest}: $message" );
+}
+
+=head2 guest_reprovision
+
+Implements POST /guest/reprovision.  Admin only.
+
+Rebuilding a guest from the recipe it was provisioned with: bin/new_config in
+the provisioners repository, and then bin/provision in trog-provisioner.  The
+only route which reaches Trog::DataSource::ProvisionedVirt::reprovision.
+
+This is not a recoverable operation, so read that function before changing
+anything here.  It refuses for the guest tCMS is itself running on, and the
+passphrase new_config asks for arrives with the request and is not stored.
+
+=cut
+
+sub guest_reprovision ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    my $to = $query->{to} || '/';
+
+    require Trog::DataSource::ProvisionedVirt;
+
+    # 'guest' rather than 'domain', for the reason the screenshot route captures
+    # it that way: the router overwrites $query->{domain} with the request's own
+    # host, so a form field by that name never arrives.
+    my ( $ok, $message ) = Trog::DataSource::ProvisionedVirt::reprovision(
+        domain     => $query->{guest},
+        passphrase => $query->{passphrase},
+        user       => $query->{user},
+    );
+
+    # Deleted rather than merely unused: this hash is cloned, logged around and
+    # handed to renderers, and the passphrase has no business in any of that.
+    delete $query->{passphrase};
+
+    return _feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
 }
 
 # The hypervisor post a guest route was asked about.  Looked up rather than

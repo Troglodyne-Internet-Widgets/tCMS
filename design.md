@@ -400,6 +400,7 @@ The contractor's cheat-sheet.
 | A reusable chunk of UI | `Trog::Component::Whatever` with `render(%args)` | a little |
 | A page listing a directory of files | a series with a directory + a wizard type using `DirIndex` | none |
 | Content from an external system | `Trog::DataSource::Whatever` with `posts($series,$query)` | some |
+| To extend one that exists | subclass it; `can()` resolves through `@ISA`, so override only what differs (`ProvisionedVirt` does this to `Virt`) | some |
 | A computed field on a type | an enrich sub, as `Trog::Enrich::Invoice` does | some |
 | A route that is not a post | add to `%Trog::Routes::HTML::routes`, or a theme's `routes.pm` | some |
 | A different place to keep posts | subclass `Trog::DataModule` | most |

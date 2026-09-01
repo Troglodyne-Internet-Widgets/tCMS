@@ -1,0 +1,39 @@
+{
+   "properties": {
+      "preview": {
+         "type": "string",
+         "x-tcms-input": "text",
+         "x-tcms-label": "Console capture",
+         "x-tcms-private": true
+      },
+      "recipe": {
+         "type": "string",
+         "x-tcms-input": "textarea",
+         "x-tcms-label": "Provisioning recipe",
+         "x-tcms-private": true
+      },
+      "reprovision_log": {
+         "type": "string",
+         "x-tcms-input": "textarea",
+         "x-tcms-label": "Last reprovision",
+         "x-tcms-private": true
+      }
+   },
+   "type": "object",
+   "x-tcms-datasource": "Trog::DataSource::ProvisionedVirt",
+   "x-tcms-post-type": {
+      "body_form": "form_common.tx",
+      "generated": true,
+      "generator": "Trog::Routes::HTML::post_wizard_save",
+      "includes": [
+         "visibility.tx",
+         "acls.tx"
+      ],
+      "name": "provisioned_guests"
+   },
+   "x-tcms-relations": {
+      "hypervisors": {
+         "form": "hypervisor.tx"
+      }
+   }
+}

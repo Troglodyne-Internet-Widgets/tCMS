@@ -144,7 +144,36 @@ Data Sources
 Sometimes you want to consider something else authoritative that isn't a datamodel under our control.
 
 * Virt - Talk to a libvirt HV to list guests.
+* ProvisionedVirt - Virt, plus the recipe each guest was built from and a button to build it again.
 * DirIndex - List the contents of a directory.
+
+ProvisionedVirt is a subclass of Virt, and shows what subclassing one is for: it
+inherits the libvirt half unchanged and adds the other half of the story, which is
+that a guest on a Troglodyne hypervisor was provisioned from a recipe on disk.
+Tell it where the two repositories are and it shows each guest's
+recipes.d/$domain.yaml and offers a Reprovision button running the full
+lifecycle -- bin/new_config in provisioners, then bin/provision in
+trog-provisioner:
+
+    [provisioner]
+        provisioners     = /home/you/Code/provisioners
+        trog_provisioner = /home/you/Code/trog-provisioner
+
+Leave those out and it degrades to a plain guest listing.
+
+Reprovisioning is not recoverable: it destroys the guest and builds it again, and
+whatever the recipe does not describe does not come back.  It is POST and admin
+only, it refuses outright for the guest tCMS is itself running on (as Virt already
+refuses to power that one off), and nothing it runs goes near a shell.  The
+provisioning itself is handed to a detached process and logged to
+logs/reprovision/$domain.log, whose tail is shown back on the page -- a provision
+takes minutes and an HTTP worker does not have minutes.
+
+bin/new_config asks for your KeePass passphrase on stdin, because every recipe
+inherits secret: values from _base.  The form asks you for it per run and pipes it
+to that one process; it is not written to the config, the log, or the process
+table.  The alternative would be keeping the master password for every secret you
+hold in a file the webserver can read.
 
 DirIndex is the one to copy if you are writing your own.  Point a series at a
 directory with its "Directory to index" field, build a child type in the wizard
