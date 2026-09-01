@@ -2,7 +2,7 @@
     <script type="text/javascript" src="/scripts/post.js"></script>
     <script type="text/javascript" src="/scripts/post_relations.js"></script>
     <div id="emoji_picker_modal" class="modal" style="display:none;">
-    <: $emoji_picker | mark_raw :>
+    <: component('EmojiPicker') :>
     </div>
     : if (!$direct) {
         : if ($failure != -1) {

@@ -7,6 +7,7 @@ use Encode qw{encode_utf8};
 use IO::Compress::Gzip;
 
 use Text::Xslate;
+use Trog::Component ();
 use Trog::Themes;
 use Trog::Config;
 use Time::HiRes qw{tv_interval};
@@ -15,7 +16,7 @@ use Time::HiRes qw{tv_interval};
 
 Basic rendering structure, subclass me.
 
-Sets up the methods which must be present for all templates, e.g. render_it for rendering dynamic template strings coming from a post.
+Sets up the functions which must be present for all templates: render_it, for rendering dynamic template strings coming from a post, and component, for pulling in a Trog::Component by name.
 
 =cut
 
@@ -72,6 +73,11 @@ sub render (%options) {
         path     => \@template_dirs,
         function => {
             render_it => $options{child_renderer},
+
+            # A plain package sub rather than a closure, so the \%renderers
+            # memoization here cannot bake in whatever the first caller for this
+            # path happened to pass -- which it can, and does, for render_it.
+            component => \&Trog::Component::component,
         },
     );
 
@@ -85,7 +91,18 @@ sub render (%options) {
     # a good theme template existed.  And the condition itself, -f $t || -s $t,
     # short-circuited on -f, so an empty file passed, while a *directory* passed
     # on -s returning its size.
-    my $body = eval { encode_utf8( $renderers{$renderer_key}->render( $options{template}, $options{data} ) ) };
+    #
+    # $Trog::Component::error is how a failed component() call reaches us at all:
+    # Xslate catches an exception thrown out of a template function, warns, and
+    # renders on with an empty string in its place, so the render below succeeds
+    # with a hole in it.  Localised here so that a nested render (a component
+    # rendering its own template) doesn't answer for its parent's failure.
+    my $body = eval {
+        local $Trog::Component::error;
+        my $out = encode_utf8( $renderers{$renderer_key}->render( $options{template}, $options{data} ) );
+        die $Trog::Component::error if $Trog::Component::error;
+        $out;
+    };
     die "Could not render template '$options{template}' (searched @template_dirs): $@" unless defined $body;
 
     # Users can supply a post_processor to futz with the output (such as with minifiers) if they wish.

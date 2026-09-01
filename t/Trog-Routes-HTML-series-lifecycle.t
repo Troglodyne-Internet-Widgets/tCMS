@@ -102,8 +102,8 @@ BEGIN {
     # and a symlink would land the generated post type in the real repo.
     _copy_tree( "$REPO/www/templates", "$ROOT/www/templates" );
 
-    # posts() renders the emoji picker unconditionally, and EmojiPicker dies
-    # outright if this file is missing.  Only category and emoji are read.
+    # posts.tx pulls in the EmojiPicker component for an editor, and EmojiPicker
+    # dies outright if this file is missing.  Only category and emoji are read.
     open( my $fh, '>', "$ROOT/www/scripts/list.min.json" ) or die $!;
     print {$fh} '{"emojis":[{"category":"Smileys","emoji":"X"}]}';
     close $fh;

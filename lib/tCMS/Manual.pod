@@ -75,4 +75,13 @@ Within that we have a components subdirectory for UI components intended to be i
 The idea is that these are not dynamic, but can be statically compiled to strings for faster template builds.
 Things like emoji pickers, modals and other stuff you might populate later with an XHR are good candidates for being a component.
 Each component will have it's own module encapsulating it in the Trog::Component namespace.
-They must have a render() method which returns a string processed by Trog::Renderer->render().
+They must have a render(%args) method which returns a string processed by Trog::Renderer->render().
+On failure they die rather than returning a PSGI triplet, as there is nowhere to put one halfway through a page.
+
+Templates pull them in by name with the component() function, which Trog::Renderer::Base injects into the template processor alongside render_it():
+
+    <: component('EmojiPicker') :>
+    <: component('Gallery', { album => $post.id, cols => 3 }) :>
+
+The optional hash is flattened into the component's render(), and the output comes back marked raw.
+Only the name is accepted, one flat level under Trog::Component, so a template cannot name its way out of that namespace.

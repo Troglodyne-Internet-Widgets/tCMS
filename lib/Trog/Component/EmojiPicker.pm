@@ -3,6 +3,7 @@ package Trog::Component::EmojiPicker;
 use v5.36;
 use re '/aa';
 
+use File::Slurper ();
 use JSON::MaybeXS;
 use Trog::Renderer;
 
@@ -18,9 +19,11 @@ puts it there.
 
 =head1 FUNCTIONS
 
-=head2 render() = STRING
+=head2 render(%args) = STRING
 
-Render the picker as an HTML component.
+Render the picker as an HTML component.  Reached from templates as
+C<< <: component('EmojiPicker') :> >>; takes no arguments, and ignores any it
+is handed.
 
 The emoji list ships as a flat array, which is no use to a picker with tabs, so
 it gets bucketed by category on the first call and memoized thereafter -- the
@@ -31,7 +34,7 @@ to be composed into a page by their caller.
 
 =cut
 
-sub render () {
+sub render (%args) {
     state %categorized;
 
     if ( !%categorized ) {

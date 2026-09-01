@@ -48,17 +48,20 @@ Content templates are modular.
 Add in a template to www/templates/html/components/forms which describe the content *and* how to edit it.
 Our post data storage being JSON allows us the flexibility to have any kind of meta associated with posts, so go hog wild.
 
+You describe the type of data provided in a sidecar JSON file alongside the form's template.
+There's a wizard you can use to build these!
+
+From there you make Series of the content type you want; tag the series with 'topbar' if you want it to show up in the top links.
+
 Currently supported:
 * Microblogs
 * Blogs
 * Files (Video/Audio/Images/Other)
 * About Pages
-* Post Series
 * Presentations
-
-Planned development:
-* LaTeX
-* Test Plans / Issues (crossover with App::Prove::Elasticsearch)
+Virtualization Data:
+* Hypervisors
+* Guests
 
 Embedding Posts within other Posts
 ==================================
@@ -81,12 +84,33 @@ These will be added as classes to the embedded post, so you can theme this appro
 
 Data Models
 ===========
-* DUMMY - A JSON blob.  Used for testing mostly, but could be handy for very small sites.
-* Flat File - Pretty much the tCMS1 data model; a migration script is forthcoming
+Posts are normally stored as a file somewhere.
 
-Planned Development:
-* Elasticsearch - Documents are ideally indexed in a search engine, should be nice and fast too.
-* Git - More for the APE crossover
+* DUMMY - A JSON blob.  Used for testing mostly, but could be handy for very small sites.
+* Flat File - Pretty much the tCMS1 data model, but with an SQLite index bolted on.
+
+Data Sources
+============
+Sometimes you want to consider something else authoritative that isn't a datamodel under our control.
+
+* Virt - Talk to a libvirt HV to list guests.
+
+Components
+==========
+Sometimes you re-use a template a lot. Sometimes it also needs special handling.
+This is when you write a 'component'.  Example:
+
+Trog::Component::EmojiPicker -> renders www/templates/html/components/emojis.tx
+
+A component is a module in the Trog::Component namespace with a render(%args)
+method returning a string.  Templates call it by name:
+
+    <: component('EmojiPicker') :>
+    <: component('Gallery', { album => $post.id, cols => 3 }) :>
+
+The optional hash is flattened into the component's render(); nullary components
+ignore it.  Output comes back marked raw, so no | mark_raw is needed.  Routes
+don't have to know a component exists -- the template asks for what it wants.
 
 Ideas to come:
 =============

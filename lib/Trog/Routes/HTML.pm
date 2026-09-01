@@ -38,8 +38,6 @@ use Trog::Themes;
 use Trog::Renderer;
 use Trog::Email;
 
-use Trog::Component::EmojiPicker;
-
 our $landing_page = 'default.tx';
 our $htmltitle    = 'title.tx';
 our $midtitle     = 'midtitle.tx';
@@ -1540,9 +1538,6 @@ sub posts ( $query, $direct = 0 ) {
 
     $query->{author} = $query->{primary_post}{user} // $posts[0]{user};
 
-    my $picker = Trog::Component::EmojiPicker::render();
-    return $picker if ref $picker eq 'ARRAY';
-
     # Resolve each post's declared relations.  One cache for the whole page, so
     # 25 invoices don't mean 25 scans of every entities post.
     my %relation_cache;
@@ -1595,7 +1590,6 @@ sub posts ( $query, $direct = 0 ) {
             footers           => $footers,
             years             => [ reverse( $oldest_year .. $now_year ) ],
             months            => [ 0 .. 11 ],
-            emoji_picker      => $picker,
             embed             => $query->{embed},
             nochrome          => $query->{nochrome},
         },
