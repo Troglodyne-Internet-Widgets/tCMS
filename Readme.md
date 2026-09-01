@@ -151,9 +151,14 @@ directory with its "Directory to index" field, build a child type in the wizard
 with DirIndex as its datasource, and every file in there becomes a post carrying
 its name, path, size, mtime, extension and content type -- so a downloads page, a
 gallery or a release listing is a template and nothing else.  It will only index
-directories under www/ (which the webserver already serves, so a listing
-discloses nothing a guessed URL would not), and never www/assets/private (whose
-files are gated, so its names are too).
+directories under www/ -- which the webserver already serves, so a listing
+discloses nothing a guessed URL would not -- and never www/assets/private.
+
+That last is a guard rail rather than a protection: nginx gates those files by
+auth_requesting the /authenticated route, so a listing of them would not hand the
+files out, only the names.  Sharing that directory is operator error, and
+refusing it turns a mistake in a text field into a line in the log.  See the POD
+in lib/Trog/DataSource/DirIndex.pm.
 
 A post type names one in its sidecar with x-tcms-datasource, and a series of that
 type then lists whatever the source builds instead of posts somebody wrote.  The

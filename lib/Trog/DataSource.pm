@@ -48,6 +48,29 @@ order of their own that a date and a title don't capture.
 What the search box is searching, and where to read about it, for a page drawn
 from this source.  Defaulted below.
 
+=head1 A NOTE ON WHAT A LISTING DISCLOSES
+
+A datasource turns something into a list, and a list of names is itself
+information.  Two things follow that are worth thinking about before you write
+one.
+
+The first is that the names may be more sensitive than the things.  A file whose
+contents the webserver will refuse to serve still has a name, and publishing that
+name publishes the fact of it.  Decide deliberately what your source is willing
+to enumerate, rather than enumerating whatever it can reach and relying on
+whatever gates the contents.
+
+The second is that the webserver is part of the security model and you cannot see
+it from here.  On a correctly provisioned site nginx auth_requests the
+/authenticated route -- which answers 200 for a request carrying a live session
+and 403 otherwise -- and gates www/assets/private on the result.  That protection
+is real, it is why that route exists, and it is also invisible to this code and
+absent on a site provisioned some other way.  Do not lean on it, and do not
+duplicate it either: your job is to decide what to put in the list.
+
+Trog::DataSource::DirIndex is the worked example, and documents where it drew
+that line and why.
+
 =head1 FUNCTIONS
 
 =head2 filter($query, @posts) = @posts

@@ -47,14 +47,35 @@ Only directories under C<www/>, and never C<www/assets/private>.
 That is not arbitrary caution.  Everything under www/ is already served to
 anybody who asks, so listing it discloses nothing that a guessed URL would not --
 whereas a listing of anywhere else hands out the names of files the webserver
-would refuse to serve, and names are frequently the interesting part.  The one
-exception is the private asset directory, which is under www/ but gated by the
-webserver rather than by us: its files are protected, so its filenames should be
-too.
+would refuse to serve, and names are frequently the interesting part.
 
-Symlinks are resolved before that check, and entries which point outside the
-tree are left out of the listing rather than shown with a link that will not
-work.
+=head2 A NOTE ON www/assets/private
+
+The refusal is a guard rail against an operator mistake, and not the thing that
+makes private assets private.
+
+Private uploads live under www/assets/private, and on a correctly provisioned
+site nginx is what protects them: it auth_requests the /authenticated route,
+which answers 200 for a request carrying a live session and 403 for one that
+isn't, and serves the file or refuses it accordingly.  That is the entire reason
+that route exists.  So pointing a listing at that directory does not hand the
+files out -- a reader who follows one of the links still gets asked to log in.
+
+What it would hand out is the names, which the site owner probably did not mean
+to publish either, and which nothing else would stop.  Sharing that directory is
+operator error; refusing it here is cheap, and turns a mistake made in a text
+field into an error in the log rather than a disclosure nobody notices.  If you
+genuinely want to publish a listing of it, put the files somewhere public instead
+-- that is what the distinction between the two directories is for.
+
+None of this holds if the site is served without that nginx configuration.  See
+the nginxproxy recipe referenced in the Readme; several features besides this one
+assume it.
+
+=head2 SYMLINKS
+
+Resolved before the containment check, so entries pointing outside the tree are
+left out of the listing rather than shown with a link that will not work.
 
 =cut
 
@@ -292,9 +313,11 @@ sub order ( $query, @posts ) {
 
 =head2 lang() = STRING
 
+What the search box searches on a directory listing.
+
 =head2 help() = STRING
 
-What the search box searches on a directory listing.
+Where to read about it.
 
 =cut
 

@@ -347,6 +347,13 @@ Identity, configuration, operations
 
 **Auth** (`Trog::Auth`) is an SQLite database at `config/auth.db` holding hashed
 and salted passwords, ACLs and sessions. A session is the `tcmslogin` cookie.
+
+The webserver participates. `/authenticated` answers 200 for a request carrying a
+live session and 403 otherwise, and exists so that nginx can `auth_request`
+against it -- which is how private uploads under `www/assets/private` are gated
+without tCMS being in the path of the file itself. That protection is real and it
+is invisible from inside the application, so code that reasons about what is
+reachable should not assume it and should not try to replace it.
 TOTP two-factor is supported. The first user to register becomes the
 administrator and registration then closes; further users are made by an admin
 through the `about` post type -- because a user *is* their profile page.

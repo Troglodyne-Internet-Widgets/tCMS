@@ -211,9 +211,11 @@ sub filter ( $query, @posts ) {
 
 =head2 lang() = STRING
 
+What the search box searches on a page of guests.
+
 =head2 help() = STRING
 
-What the search box searches on a page of guests.
+Where to read about it.
 
 =cut
 
