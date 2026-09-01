@@ -158,7 +158,11 @@ sub _log {
 
     #XXX Log lines must start as an ISO8601 date, anything else breaks fail2ban's beautiful mind
     my $tstamp = strftime "%Y-%m-%dT%H:%M:%SZ", gmtime;
-    my $uuid   = uuid();
+
+    # Undef until the server stamps one, or log_init() sets INIT.  Anything
+    # logged before that still deserves a line rather than an uninitialized
+    # value warning glued into the middle of it.
+    my $uuid = uuid() // 'NONE';
 
     return "$tstamp [$level]: RequestId $uuid From $Trog::Log::ip |$Trog::Log::user| $msg\n";
 }
@@ -173,22 +177,35 @@ timestamp -- fail2ban parses these.
 
 FATAL logs and then dies, so it never returns.
 
+All four work before log_init() has run, falling back to stderr.  Logging is
+the thing you reach for when something has already gone wrong, so a logger that
+dies because it wasn't set up first turns a diagnostic into an outage -- and
+plenty of callers legitimately run uninitialized, such as the scripts in bin/
+and the test suite.
+
 =cut
 
-sub DEBUG {
-    $log->debug( _log( shift, 'DEBUG' ) );
+# One path for every level so the uninitialized fallback only exists once.
+sub _emit ( $level, $method, $msg ) {
+    my $line = _log( $msg, $level );
+    return $log->$method($line) if $log;
+
+    warn $line;
+    return 1;
 }
 
-sub INFO {
-    $log->info( _log( shift, 'INFO' ) );
-}
+sub DEBUG { return _emit( 'DEBUG', 'debug', shift ) }
 
-sub WARN {
-    $log->warning( _log( shift, 'WARN' ) );
-}
+sub INFO { return _emit( 'INFO', 'info', shift ) }
+
+sub WARN { return _emit( 'WARN', 'warning', shift ) }
 
 sub FATAL {
-    $log->log_and_die( level => 'error', message => _log( shift, 'FATAL' ) );
+    my $line = _log( shift, 'FATAL' );
+    $log->log_and_die( level => 'error', message => $line ) if $log;
+
+    # Still fatal with no logger, or the caller's error handling vanishes.
+    die $line;
 }
 
 1;

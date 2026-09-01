@@ -15,6 +15,7 @@ use Path::Tiny();
 use Capture::Tiny qw{capture_merged};
 
 use lib 'lib';
+use Trog::Log qw{:all};
 use Trog::SQLite::TagIndex;
 
 use parent qw{Trog::DataModule};
@@ -43,7 +44,15 @@ sub read ( $self, $query = {} ) {
     #Optimize direct ID
     my @index;
     if ( $query->{id} ) {
-        @index = ("$datastore/$query->{id}");
+
+        # Only when it's actually there.  A miss here is the ordinary answer to
+        # "is there a post with this id", which is what add() asks before every
+        # single insert to decide between version 0 and a bump -- naming the
+        # file regardless meant every new post reported itself as a failed read.
+        # The other branch gets its paths from _index(), which greps -f, so this
+        # is the only way a path that isn't there can reach the loop below.
+        my $path = "$datastore/$query->{id}";
+        @index = ($path) if -f $path;    ## no critic (ProhibitFiletest_f) -- a missing post is a miss, not an error
     }
     else {
         # Remove tags which we don't care about and sort to keep memoized memory usage down
@@ -66,9 +75,13 @@ sub read ( $self, $query = {} ) {
 
     my @items;
     foreach my $item (@index) {
+
+        # Checked with defined() rather than truthiness so that an empty file
+        # falls through to the JSON parser, which will say what is actually
+        # wrong with it rather than blaming the read.
         my $slurped = eval { File::Slurper::read_text($item) };
-        if ( !$slurped ) {
-            print "Failed to Read $item:\n$@\n";
+        if ( !defined $slurped ) {
+            WARN("Could not read post '$item': $@");
             next;
         }
         my $parsed;
@@ -81,7 +94,7 @@ sub read ( $self, $query = {} ) {
             $slurped = eval { File::Slurper::read_binary($item) };
             $parsed  = eval { $parser->decode($slurped) };
             if ( !$parsed ) {
-                print "JSON Decode error on $item:\n$@\n";
+                WARN("Could not decode post '$item': $@");
                 next;
             }
         }
