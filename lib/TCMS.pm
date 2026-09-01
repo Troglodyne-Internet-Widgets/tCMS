@@ -73,7 +73,7 @@ sub build_routes {
             log_init("$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info');
 
             # Let's open up our default route if needed before we bother thinking any harder
-            return $default_route->($query) unless -f "config/setup";
+            return $default_route->($query) unless -f "config/setup";    ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
 
             # Set the urchin parameters if necessary.
             %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};

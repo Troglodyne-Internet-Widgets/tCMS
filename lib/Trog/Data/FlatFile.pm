@@ -53,7 +53,7 @@ sub read ( $self, $query = {} ) {
         $posts_by_tag{$tagkey} //= [];
         @index = @{ $posts_by_tag{$tagkey} } if @{ $posts_by_tag{$tagkey} };
 
-        if ( !@index && -f 'data/posts.db' ) {
+        if ( !@index && -f 'data/posts.db' ) {    ## no critic (ProhibitFiletest_f) -- use the tag index, else fall back to _index()
             @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags( @{ $query->{tags} } );
             $posts_by_tag{$tagkey} = \@index;
         }
@@ -62,7 +62,6 @@ sub read ( $self, $query = {} ) {
 
     my @items;
     foreach my $item (@index) {
-        next unless -f $item;
         my $slurped = eval { File::Slurper::read_text($item) };
         if ( !$slurped ) {
             print "Failed to Read $item:\n$@\n";
@@ -97,7 +96,7 @@ sub read ( $self, $query = {} ) {
 sub _index ($self) {
     confess "Can't find datastore in $datastore !" unless -d $datastore;
     opendir( my $dh, $datastore ) or confess;
-    my @index = grep { -f } map { "$datastore/$_" } readdir $dh;
+    my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
     closedir $dh;
     return sort { $b cmp $a } @index;
 }

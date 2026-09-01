@@ -511,7 +511,10 @@ sub schema_for ( $form = '' ) {
 }
 
 sub _read_sidecar ($path) {
-    return undef unless -f $path;
+    # -e, not -f: the question is whether a sidecar exists at all, and most
+    # post types have none.  Letting the read below fail instead would WARN
+    # about every type that simply does not have one.
+    return undef unless -e $path;
 
     local $@;
     my $spec = eval { JSON::MaybeXS::decode_json( File::Slurper::read_text($path) ) };

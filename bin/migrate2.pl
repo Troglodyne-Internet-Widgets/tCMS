@@ -118,7 +118,7 @@ foreach my $timestamp ( keys(%posts) ) {
         }
 
         $search_info->write( [$post] );
-        unlink $file_to_kill if -f $file_to_kill;
+        unlink $file_to_kill;
     }
 }
 

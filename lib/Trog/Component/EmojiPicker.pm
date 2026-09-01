@@ -36,9 +36,13 @@ sub render () {
 
     if ( !%categorized ) {
         my $file = 'www/scripts/list.min.json';
-        die "Run make prereq-frontend first" unless -f $file;
 
-        my $raw    = File::Slurper::read_binary($file);
+        # One operation rather than a test and then a read, which also catches
+        # the unreadable case the test missed.  Checked with defined() rather
+        # than truthiness so that an empty file falls through to the JSON
+        # parser, which will say what is actually wrong with it.
+        my $raw = eval { File::Slurper::read_binary($file) };
+        die "Could not read $file ($@) -- run make prereq-frontend first" unless defined $raw;
         my $emojis = JSON::MaybeXS::decode_json($raw);
         foreach my $emoji ( @{ $emojis->{emojis} } ) {
             $categorized{ $emoji->{category} } //= [];

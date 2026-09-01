@@ -275,7 +275,7 @@ my $theme_dir = Trog::Themes::get_dir();
 if ($theme_dir) {
 
     my $theme_mod = "$theme_dir/routes.pm";
-    if ( -f $theme_mod ) {
+    if ( -f $theme_mod ) {    ## no critic (ProhibitFiletest_f) -- theme routes, else the default theme
         use lib '.';
         require $theme_mod;
         @routes{ keys(%Theme::routes) } = values(%Theme::routes);
@@ -308,7 +308,7 @@ sub _feedback_redirect ( $query, $to, $failure, $message ) {
     $message =~ s/\s*\n+\s*/; /g;
     $message =~ s/;\s*$//;
 
-    my $sep = $to =~ m/\?/ ? '&' : '?';
+    my $sep = index( $to, '?' ) != -1 ? '&' : '?';
     my $key = $failure     ? 'savefailed' : 'saved';
     return $query->{tpsgi}->see_also( $to . $sep . $key . '=' . URI::Escape::uri_escape($message) );
 }
@@ -558,7 +558,7 @@ sub login ($query) {
     }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
-    my $hasusers = -f "config/has_users";
+    my $hasusers = -f "config/has_users";    ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
     my $btnmsg   = $hasusers ? "Log In" : "Register";
 
     my $headers;
@@ -855,7 +855,7 @@ sub _get_data_models {
         my $dir = "$incdir/Trog/Data";
         next unless -d $dir;
         opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
-        my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);
+        my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building a menu of module names
         closedir $dh;
         return \@dmods;
     }
@@ -879,7 +879,7 @@ sub _get_datasources {
         my $dir = "$incdir/Trog/DataSource";
         next unless -d $dir;
         opendir( my $dh, $dir ) or next;
-        $found{"Trog::DataSource::$_"} = 1 foreach map { s/\.pm$//r } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);
+        $found{"Trog::DataSource::$_"} = 1 foreach map { s/\.pm$//r } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building an allowlist of names
         closedir $dh;
     }
     return [ sort keys(%found) ];
@@ -1202,7 +1202,7 @@ sub series ($query) {
     $query->{route} =~ s|^/secure||;
 
     #we are either viewed one of two ways, /post/$id or /$aclname
-    my ( undef, $aclname, $id ) = split( /\//, $query->{route} );
+    my ( undef, $aclname, $id ) = split( '/', $query->{route} );
     $query->{aclname} = $aclname if !$id;
     $query->{id}      = $id      if $id;
 
@@ -1331,7 +1331,7 @@ sub users ($query) {
     $query->{route} =~ s|^/secure||;
 
     # Capture the username
-    my ( undef, undef, $display_name ) = split( /\//, $query->{route} );
+    my ( undef, undef, $display_name ) = split( '/', $query->{route} );
     $display_name = URI::Escape::uri_unescape($display_name);
 
     my $username = Trog::Auth::display2username($display_name);
@@ -1376,7 +1376,7 @@ sub posts ( $query, $direct = 0 ) {
     # rip away /secure if present
     $query->{route} =~ s|^/secure||;
 
-    my ( undef, undef, $id ) = split( /\//, $query->{route} );
+    my ( undef, undef, $id ) = split( '/', $query->{route} );
 
     my $tags = Trog::Utils::coerce_array( $query->{tag} );
     $query->{id} = $id if $id && !$query->{in_series};
@@ -1963,7 +1963,7 @@ sub manual ($query) {
     my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
     my $found = 0;
     foreach my $libdir (@INC) {
-        $found = $libdir if -f "$libdir/$infile";
+        $found = $libdir if -f "$libdir/$infile";    ## no critic (ProhibitFiletest_f) -- which @INC dir supplies the pod
         last if $found;
     }
     return $query->{tpsgi}->notfound($query) unless $found;
@@ -2282,7 +2282,11 @@ sub post_wizard_save ($query) {
     # otherwise.  Never mkdir it -- silently conjuring a forms/ dir inside a
     # theme is not something an admin asked for by pressing this button.
     my $dir = Trog::Themes::forms_dir();
-    return _wizard_fail( $query, "Forms directory '$dir' does not exist, or is not writable." ) unless -d $dir && -w $dir;
+    # -d only.  A -w here would check mode bits against our uid, which says
+    # nothing about read-only mounts, ACLs or immutable flags -- and it is the
+    # files, not the directory, that get written.  The eval around the two
+    # spew_utf8 calls below reports the real errno when a write actually fails.
+    return _wizard_fail( $query, "Forms directory '$dir' does not exist." ) unless -d $dir;
 
     my $tx_file   = "$dir/$name.tx";
     my $json_file = "$dir/$name.json";

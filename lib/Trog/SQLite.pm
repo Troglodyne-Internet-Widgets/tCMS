@@ -48,7 +48,9 @@ sub dbh {
     my $db = DBI->connect( "dbi:SQLite:dbname=$dbname", "", "" );
 
     if ($schema) {
-        die "No such schema file '$schema' !" unless -f $schema;
+
+        # No pre-flight test: read_text dies with "Cannot open <path>: <errno>",
+        # which says more than the guard did and covers unreadable as well as absent.
         my $qq = File::Slurper::read_text($schema);
         $db->{sqlite_allow_multiple_statements} = 1;
         $db->do($qq) or die "Could not ensure database consistency: " . $db->errstr;

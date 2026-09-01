@@ -61,11 +61,13 @@ foreach my $day (@days) {
     my @times = grep { !/^\./ } readdir $dht;
     closedir $dht;
 
-    my ( $month, $date, $year ) = split( /\./, $day );
+    # Escaped on purpose: split compiles a string argument as a regex, so a
+    # bare '.' would match any character and hand back an empty list.
+    my ( $month, $date, $year ) = split( '\.', $day );
 
     foreach my $time (@times) {
 
-        my ( $hour, $min, $sec ) = split( /:/, $time );
+        my ( $hour, $min, $sec ) = split( ':', $time );
 
         my $data;
         my $file = "$dir/$day/$time";
@@ -102,7 +104,7 @@ foreach my $day (@days) {
 $dir = "$docroot/blog";
 
 opendir( my $bh, $dir ) or die;
-my @blogs = grep { -f "$dir/$_" } readdir $bh;
+my @blogs = grep { -f "$dir/$_" } readdir $bh;    ## no critic (ProhibitFiletest_f) -- picking which entries to read
 closedir $bh;
 
 my $offset = 0;
@@ -145,7 +147,7 @@ foreach my $post (
 exit 0;
 my $vdir = "$docroot/fileshare/video";
 opendir( my $vh, $vdir ) or die;
-my @vidyas = grep { -f "$vdir/$_" && $_ =~ m/\.m4v$/ } readdir $vh;
+my @vidyas = grep { -f "$vdir/$_" && $_ =~ m/\.m4v$/ } readdir $vh;    ## no critic (ProhibitFiletest_f) -- picking which entries to read
 closedir $vh;
 
 foreach my $vid (@vidyas) {

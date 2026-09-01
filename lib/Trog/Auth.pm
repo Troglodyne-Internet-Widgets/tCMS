@@ -200,26 +200,28 @@ sub totp ( $user, $domain ) {
     my $qr = "$user\@$domain.bmp";
     if ($secret_is_generated) {
 
-        # Liquidate the QR code if it's already there
-        unlink "totp/$qr" if -f "totp/$qr";
+        # Liquidate the QR code if it's already there.  Unconditional: unlink
+        # returns 0 for a file that was never there, it does not warn or die.
+        unlink "totp/$qr";
 
         $dbh->do( "UPDATE user SET totp_secret=? WHERE name=?", undef, $secret, $user ) or return ( undef, undef, 1, "Failed to store TOTP secret." );
     }
 
-    # This is subsequently served via authenticated _serve() in TCMS.pm
-    if ( !-f "totp/$qr" ) {
-        my $qrcode = Imager::QRCode->new(
-            size          => 4,
-            margin        => 3,
-            level         => 'L',
-            casesensitive => 1,
-            lightcolor    => Imager::Color->new( 255, 255, 255 ),
-            darkcolor     => Imager::Color->new( 0,   0,   0 ),
-        );
+    # This is subsequently served via authenticated _serve() in TCMS.pm.
+    # Plotted every time rather than only when the file is missing: the QR is a
+    # pure function of the secret, so rewriting it produces the same bytes, and
+    # the file was just unlinked above whenever the secret changed.
+    my $qrcode = Imager::QRCode->new(
+        size          => 4,
+        margin        => 3,
+        level         => 'L',
+        casesensitive => 1,
+        lightcolor    => Imager::Color->new( 255, 255, 255 ),
+        darkcolor     => Imager::Color->new( 0,   0,   0 ),
+    );
 
-        my $img = $qrcode->plot($uri);
-        $img->write( file => "totp/$qr", type => "bmp" ) or return ( undef, undef, 1, "Could not write totp/$qr: " . $img->errstr );
-    }
+    my $img = $qrcode->plot($uri);
+    $img->write( file => "totp/$qr", type => "bmp" ) or return ( undef, undef, 1, "Could not write totp/$qr: " . $img->errstr );
     return ( $uri, $qr, $failure, $message, $totp );
 }
 

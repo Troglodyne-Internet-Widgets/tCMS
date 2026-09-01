@@ -34,7 +34,7 @@ sub get {
     state $cf;
     return $cf if $cf;
     foreach my $cfg2try ($home_cfg, $default) {
-        next unless -f $cfg2try;
+        next unless -f $cfg2try;    ## no critic (ProhibitFiletest_f) -- the instance config, else the shipped default
         $cf = Config::Simple->new($cfg2try);
         last;
     }

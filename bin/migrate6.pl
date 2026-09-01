@@ -63,7 +63,7 @@ my $global_changes;
 opendir( my $dh, 'data/files' );
 while ( my $entry = readdir $dh ) {
     my $fname = "data/files/$entry";
-    next unless -f $fname;
+    next unless -f $fname;    ## no critic (ProhibitFiletest_f) -- skipping . and .. and any subdirs
     my $contents = File::Slurper::read_binary($fname);
     my $decoded  = JSON::MaybeXS::decode_json($contents);
     next unless List::Util::any { $_->{is_profile} } @$decoded;

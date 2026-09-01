@@ -4,6 +4,8 @@ use v5.36;
 use re '/aa';
 
 use Carp qw{confess};
+use Errno();
+use Fcntl qw{O_WRONLY O_CREAT O_EXCL};
 use JSON::MaybeXS;
 use File::Slurper;
 use List::Util qw{uniq};
@@ -23,10 +25,18 @@ sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
 our $posts;
 
 sub read ( $self, $query = {} ) {
-    if ( !-f $datastore ) {
-        open( my $fh, '>', $datastore );
-        print $fh '[]';
+
+    # Seed an empty datastore, as one operation rather than a test followed by
+    # a create.  O_EXCL means a file that appeared in between is left alone
+    # rather than truncated, and unlike the previous unchecked open, a failure
+    # that is not EEXIST is reported here instead of surfacing as a confusing
+    # 'print on closed filehandle' followed by a die inside read_text.
+    if ( sysopen( my $fh, $datastore, O_WRONLY | O_CREAT | O_EXCL ) ) {
+        print {$fh} '[]';
         close $fh;
+    }
+    elsif ( $! != Errno::EEXIST ) {
+        confess "Could not create $datastore: $!";
     }
     my $slurped = File::Slurper::read_text($datastore);
     $posts = JSON::MaybeXS::decode_json($slurped);

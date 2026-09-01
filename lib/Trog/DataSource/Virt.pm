@@ -260,7 +260,11 @@ sub screenshot ( $hypervisor, $guest_name ) {
 
     my $dir  = "$screenshot_dir/$host";
     my $path = "$dir/$safe.png";
-    return ( $path, undef ) if -f $path && ( time() - ( stat($path) )[9] ) < $screenshot_ttl;
+    # One stat rather than -f and then a second stat for the mtime.  A missing
+    # file gives the empty list, so $mtime is undef and we fall through to a
+    # fresh capture.
+    my $mtime = ( stat($path) )[9];
+    return ( $path, undef ) if $mtime && ( time() - $mtime ) < $screenshot_ttl;
 
     my ( $conn, $why ) = _connect($conn_uri);
     return ( undef, $why ) unless $conn;

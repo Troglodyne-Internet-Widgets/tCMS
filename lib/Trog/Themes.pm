@@ -29,7 +29,7 @@ serving a site with half its routes missing is worse than not starting.
 
 sub routes {
     my $rdir = get_dir();
-    return () unless -f "$rdir/routes.pm";
+    return () unless -f "$rdir/routes.pm";    ## no critic (ProhibitFiletest_f) -- theme ships routes, or it does not
 
     local $@;
     eval { require "$rdir/routes.pm"; 1; } or do {
@@ -120,13 +120,13 @@ sub template_dir ( $template, $content_type, $is_component = 0, $is_dir = 0 ) {
     if ($is_dir) {
         return $mtd && -d "$mtd/$template" ? $mtd : $mtemp;
     }
-    return $mtd && -f "$mtd/$template" ? $mtd : $mtemp;
+    return $mtd && -f "$mtd/$template" ? $mtd : $mtemp;    ## no critic (ProhibitFiletest_f) -- which dir owns the template
 }
 
 # Pick appropriate dir based on whether theme override exists
 sub _dir_for_resource ($resource) {
     my $theme_dir = get_dir();
-    return $theme_dir && -f "$theme_dir/$resource" ? $theme_dir : '';
+    return $theme_dir && -f "$theme_dir/$resource" ? $theme_dir : '';    ## no critic (ProhibitFiletest_f) -- theme override, else stock
 }
 
 =head2 themed($resource)
@@ -216,7 +216,7 @@ sub _read_dir ( $dir, $ext ) {
     return $files unless -d $dir;
     opendir( my $dh, $dir ) or return $files;
     while ( my $file = readdir($dh) ) {
-        push( @$files, $file ) if -f "$dir/$file" && $file =~ m/\.\Q$ext\E$/;
+        push( @$files, $file ) if -f "$dir/$file" && $file =~ m/\.\Q$ext\E$/;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
     }
     closedir($dh);
     return $files;
@@ -274,7 +274,7 @@ theme's copy.  Returns undef when neither has it.
 
 sub themed_file_in_dir ( $path, $file, $ct, $is_component = 0 ) {
     foreach my $dir ( grep { $_ } _template_dirs( $ct, $is_component ) ) {
-        return "$dir/$path/$file" if -f "$dir/$path/$file";
+        return "$dir/$path/$file" if -f "$dir/$path/$file";    ## no critic (ProhibitFiletest_f) -- search path, first hit wins
     }
     return undef;
 }
