@@ -395,15 +395,21 @@ Sidecars live beside their templates (blog.tx has blog.json) and are written
 either by hand or by the Post Type Wizard.  A post with no form, or a form with
 no sidecar, just gets the base schema.
 
+The canned editor blocks a type includes are merged in too, since a form which
+splices in preview.tx collects a preview image no matter what its own sidecar
+says -- see includes_for() and include_schema_for().  A type's own declaration
+of a field beats the block's, and the base schema beats both.
+
 Cached, but keyed on the mtimes of the component dirs rather than memoized
 outright: adding or editing a sidecar bumps one of them, so every forked worker
 picks the change up on its very next add() with no restart needed.
 
 =cut
 
-# Stat the forms dirs, not their parents -- writing blog.json bumps the mtime
-# of forms/, and nothing above it.  Both candidates, since either one gaining a
-# sidecar changes the answer.
+# Stat the forms dirs, and the components dirs holding them: writing blog.json
+# bumps the mtime of forms/ and nothing above it, while the sidecar beside a
+# canned include (preview.json) lives in components/ itself.  Both candidates of
+# each, since either one gaining a sidecar changes the answer.
 #
 # Time::HiRes::stat, because core stat truncates mtime to the second: the post
 # type wizard writes a sidecar and something reads it back moments later, and at
@@ -413,7 +419,7 @@ picks the change up on its very next add() with no restart needed.
 # had a moment ago.  Falls back to whatever stat gives where the filesystem
 # carries no sub-second timestamps.
 sub _sidecar_generation {
-    return join( ':', map { ( Time::HiRes::stat("$_/forms") )[9] // 0 } Trog::Themes::template_dirs( 'text/html', 1 ) );
+    return join( ':', map { ( ( Time::HiRes::stat("$_/forms") )[9] // 0, ( Time::HiRes::stat($_) )[9] // 0 ) } Trog::Themes::template_dirs( 'text/html', 1 ) );
 }
 
 # A signature default only covers an absent arg, and plenty of posts have an
@@ -454,6 +460,92 @@ sub type_meta_for ( $form = '' ) {
 
     $cache{$generation}{$type} = \%meta;
     return $cache{$generation}{$type};
+}
+
+=head2 include_schema_for($include)
+
+The schema fragment describing what a canned include collects, read from the
+JSON sidecar beside it: preview.tx has preview.json, exactly as blog.tx has
+blog.json.
+
+A canned include is a block of editor markup which several post types splice in,
+and the fields it collects belong to every type which does.  Nothing said so
+until this existed, which cost twice over: a hand-written type had to repeat the
+declaration in its own sidecar, where the Post Type Wizard could no longer tell
+it apart from a field somebody had typed in; and a generated type had no
+declaration at all, so validate() dropped the preview image its own editor had
+just collected.
+
+Returns an empty hashref for an include which has no sidecar -- which is most of
+them, since edit_head.tx and friends collect nothing.
+
+=cut
+
+sub include_schema_for ( $include = '' ) {
+    state %cache;
+
+    my $generation = _sidecar_generation();
+    %cache = () unless exists $cache{$generation};
+
+    # Same shape as a post type, so the same check: a name and nothing else,
+    # since it is about to be turned into a path.
+    my $name = _type_of($include);
+    return {} unless $name;
+    return $cache{$generation}{$name} if exists $cache{$generation}{$name};
+
+    my $path    = Trog::Themes::themed_component("$name.json");
+    my $sidecar = $path ? _read_sidecar($path) : undef;
+
+    $cache{$generation}{$name} = $sidecar // {};
+    return $cache{$generation}{$name};
+}
+
+=head2 includes_for($form)
+
+The canned includes a post type splices into its editor, as an arrayref of
+template names in the order they appear.
+
+Read out of the template rather than out of the sidecar, because the template is
+what actually renders: a hand-written type never recorded the list anywhere, and
+a generated one can still be edited by hand afterwards.  The list the wizard
+recorded is the fallback for a type whose template cannot be read at all.
+
+Everything the template includes is returned, not just the blocks the wizard
+offers -- it is include_schema_for() which decides whether a given one collects
+anything.
+
+=cut
+
+sub includes_for ( $form = '' ) {
+    state %cache;
+
+    my $generation = _sidecar_generation();
+    %cache = () unless exists $cache{$generation};
+
+    my $type = _type_of($form);
+    return [] unless $type;
+    return $cache{$generation}{$type} if exists $cache{$generation}{$type};
+
+    $cache{$generation}{$type} = _includes_of($type);
+    return $cache{$generation}{$type};
+}
+
+sub _includes_of ($type) {
+    my $path     = Trog::Themes::themed_file_in_dir( 'forms', "$type.tx", 'text/html', 1 );
+    my $template = $path ? eval { File::Slurper::read_text($path) } : undef;
+
+    if ( !defined $template ) {
+        my $meta     = type_meta_for("$type.tx")->{'x-tcms-post-type'};
+        my $recorded = Ref::Util::is_hashref($meta) ? $meta->{includes} : undef;
+        return [] unless Ref::Util::is_arrayref($recorded);
+        return [ grep { defined && !ref } @$recorded ];
+    }
+
+    # Kolon's line syntax, which is how every include in the tree is written --
+    # including the ones the wizard generates.  Deduped, since a template is
+    # free to splice the same block in twice.
+    my %seen;
+    return [ grep { !$seen{$_}++ } $template =~ m/^\s*:\s*include\s+"([A-Za-z0-9_-]+\.tx)"/gm ];
 }
 
 =head2 private_fields_for($form)
@@ -558,6 +650,22 @@ sub schema_for ( $form = '' ) {
 
         # An empty required list isn't legal OpenAPI, so don't emit one.
         $merged{required} = \@required if @required;
+    }
+
+    # And what the canned blocks this type's editor splices in collect.  A form
+    # which includes preview.tx collects a preview image whether or not anybody
+    # wrote that down in its sidecar, and validate() drops every field the schema
+    # does not describe -- so until this was merged in, a post type generated by
+    # the wizard threw its own preview upload away on the way to the datastore.
+    #
+    # Merged under both of the above: only the properties, since it is the type
+    # rather than a block it borrows which gets to say what it insists on, and
+    # last of the three in precedence, so a type declaring one of these itself
+    # still wins.
+    foreach my $include ( @{ includes_for($form) } ) {
+        my $properties = include_schema_for($include)->{properties};
+        next unless Ref::Util::is_hashref($properties);
+        %{ $merged{properties} } = ( %$properties, %{ $merged{properties} } );
     }
 
     $cache{$generation}{$type} = \%merged;

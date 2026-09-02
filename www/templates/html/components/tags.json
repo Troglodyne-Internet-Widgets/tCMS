@@ -1,0 +1,14 @@
+{
+   "x-tcms-include" : {
+      "name" : "tags",
+      "description" : "The tag editor.  'tags' is a base post field, declared here so that the wizard can tell it apart from a field somebody typed in."
+   },
+   "type" : "object",
+   "properties" : {
+      "tags" : {
+         "type" : "array",
+         "items" : { "type" : "string" },
+         "x-tcms-label" : "Tags"
+      }
+   }
+}

@@ -1,0 +1,14 @@
+{
+   "x-tcms-include" : {
+      "name" : "attachments",
+      "description" : "Assets a post refers to by index, uploaded alongside it."
+   },
+   "type" : "object",
+   "properties" : {
+      "attachments" : {
+         "type" : "array",
+         "items" : { "type" : "upload" },
+         "x-tcms-label" : "Attachments"
+      }
+   }
+}

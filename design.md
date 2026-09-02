@@ -188,6 +188,36 @@ records everything the wizard was told -- the description, the display template,
 the checkboxes, the placeholder -- and `schema_for` strips that whole key before
 validation, so none of it can affect whether a post saves.
 
+Canned blocks
+-------------
+
+Most of an editor is not the type's own: `preview.tx`, `tags.tx`, `aliases.tx`,
+`visibility.tx`, `acls.tx` and `attachments.tx` are blocks every form splices in,
+and the wizard's "Canned Fields" checkboxes are which of them to include.
+
+Each has a sidecar of its own beside it, in the components dir rather than in
+`forms/`:
+
+    preview.tx     the block: the markup an editor splices in
+    preview.json   the sidecar: an OpenAPIv3 fragment for what it collects
+
+`Trog::DataModule::includes_for` reads a type's `: include` lines back out of its
+template -- the only account there is for a hand-written type -- and
+`include_schema_for` turns each one into the fields it collects. Two things
+follow from one declaration:
+
+- `schema_for` merges them in, so a generated type keeps the preview image its
+  own editor collected. `validate` drops every field the schema does not
+  describe, and nothing described those.
+- The wizard tells a canned field apart from one somebody typed in, so ticking
+  "Preview image upload" and listing `preview` as a custom text field are no
+  longer the same thing said twice.
+
+A block never overrules the type that borrows it, and the base schema still
+overrules both: the merge order is base, then the type's own sidecar, then the
+blocks it includes. A block with no sidecar collects nothing, which is right for
+`edit_head.tx` and the rest of the furniture.
+
 Series, and how content is organised
 ------------------------------------
 
@@ -406,6 +436,7 @@ The contractor's cheat-sheet.
 | To restrict a section | give the series an ACL; grant it to users | none |
 | A different look | a theme directory; override the templates you care about | none |
 | A reusable chunk of UI | `Trog::Component::Whatever` with `render(%args)` | a little |
+| A canned editor block forms can include | `foo.tx` in `components/`, plus `foo.json` saying what it collects; add it to `%wizard_includes` to get a checkbox | a little |
 | A page listing a directory of files | a series with a directory + a wizard type using `DirIndex` | none |
 | Content from an external system | `Trog::DataSource::Whatever` with `posts($series,$query)` | some |
 | To extend one that exists | subclass it; `can()` resolves through `@ISA`, so override only what differs (`ProvisionedVirt` does this to `Virt`) | some |

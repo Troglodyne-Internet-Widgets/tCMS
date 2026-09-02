@@ -40,8 +40,18 @@ $thememock->redefine(
 my $logmock = Test::MockModule->new('Trog::DataModule');
 $logmock->redefine( 'WARN', sub { note(shift) } );
 
+# The canned editor blocks and their sidecars, which live in the components dir
+# itself rather than in forms/ -- preview.json beside preview.tx.
+my %components;
+
 my $slurpmock = Test::MockModule->new('File::Slurper');
-$slurpmock->redefine( 'read_text', sub { $sidecars{ Path::Tiny::path(shift)->basename } } );
+$slurpmock->redefine(
+    'read_text',
+    sub {
+        my $name = Path::Tiny::path(shift)->basename;
+        return exists $sidecars{$name} ? $sidecars{$name} : $components{$name};
+    }
+);
 
 # -f has to agree with %sidecars, and the dir mtime has to move, or the
 # mtime-keyed cache will hand back a stale answer.
@@ -53,6 +63,17 @@ sub set_sidecars {
     $formsdir->child($_)->spew_utf8('{}') foreach keys %sidecars;
     $generation++;
     utime( time() + $generation, time() + $generation, "$formsdir" );
+    return;
+}
+
+# The same, one directory up.  forms/ is a child of this one, so only the files
+# get cleared out.
+sub set_components {
+    %components = @_;
+    $_->remove foreach grep { !$_->is_dir } $tempdir->children();
+    $tempdir->child($_)->spew_utf8('{}') foreach keys %components;
+    $generation++;
+    utime( time() + $generation, time() + $generation, "$tempdir" );
     return;
 }
 
@@ -547,6 +568,111 @@ subtest 'the types are handed to the page as JSON it cannot break out of' => sub
     ok( length($long) <= $Trog::Routes::HTML::wizard_description_max, 'a very long description is capped' );
     is( Trog::Routes::HTML::_wizard_description(),                    '', 'and no description at all is empty rather than undef' );
     is( Trog::Routes::HTML::_wizard_description( [ 'an', 'array' ] ), '', 'as is one that is not a string' );
+};
+
+subtest 'a canned block declares what it collects, and the types including it get it' => sub {
+    set_components(
+        'preview.json' => sidecar(
+            properties => {
+                preview      => { type => 'string', 'x-tcms-label' => 'Preview Image' },
+                preview_file => { type => 'upload', 'x-tcms-label' => 'Preview Image', 'x-tcms-input' => 'file' },
+            }
+        )
+    );
+
+    # What the wizard writes for a type with 'Preview image upload' ticked: the
+    # block spliced into the template, and a sidecar naming only the field
+    # somebody actually typed into the form.
+    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+        'recipe',
+        [
+            {
+                name     => 'cook_time', type => 'number', label => 'Cook Time', placeholder => '45',
+                required => 0, private => 0, indexed => 0, relation_form => '', relation_mode => 'one',
+            },
+        ],
+        [qw{inc_preview inc_visibility inc_acls}],
+        'form_common.tx',
+        '',
+        { description => 'What it is for.', display => '', title_placeholder => '' },
+    );
+
+    set_sidecars(
+        'recipe.json' => JSON::MaybeXS::encode_json($spec),
+        'recipe.tx'   => qq|            : include "preview.tx";\n            : include "form_common.tx";\n|,
+    );
+
+    is_deeply(
+        Trog::DataModule::includes_for('recipe.tx'),
+        [qw{preview.tx form_common.tx}],
+        "the blocks a type splices in are read out of the template it renders"
+    );
+
+    my $schema = Trog::DataModule::schema_for('recipe.tx');
+    ok( exists $schema->{properties}{preview_file}, "a block's fields land in the schema of every type that includes it" );
+    ok( exists $schema->{properties}{cook_time},    "alongside the ones the type declares itself" );
+
+    # The whole point: validate() drops every field the schema doesn't describe,
+    # so until the block said what it collects, a generated type threw away the
+    # preview image its own editor had just uploaded.
+    my $post = {
+        form         => 'recipe.tx',
+        title        => 'Bread',
+        preview_file => { tempname => '/tmp/nope', filename => 'loaf.jpg' },
+    };
+    is_deeply( [ Trog::DataModule::validate($post) ], [], "a post carrying one still validates" );
+    ok( exists $post->{preview_file}, "and keeps it rather than having it filtered away" );
+
+    # A block never gets to overrule the type that borrows it, nor the base
+    # schema -- see the merge order in schema_for().
+    set_components( 'preview.json' => sidecar( properties => { preview => { type => 'integer' }, title => { type => 'integer' } } ) );
+    $schema = Trog::DataModule::schema_for('recipe.tx');
+    is( $schema->{properties}{title}{type}, 'string', "and it cannot redefine a base post field" );
+};
+
+subtest 'the wizard tells a canned field apart from one somebody typed in' => sub {
+    set_components(
+        'preview.json' => sidecar(
+            properties => {
+                preview      => { type => 'string' },
+                preview_file => { type => 'upload' },
+            }
+        )
+    );
+
+    # A hand-written type: it declares the block's fields itself, the way every
+    # stock form does, and records nothing about which blocks it includes.
+    set_sidecars(
+        'blog.json' => sidecar(
+            properties => {
+                preview      => { type => 'string' },
+                preview_file => { type => 'upload' },
+                video_href   => { type => 'string', 'x-tcms-input' => 'url', 'x-tcms-label' => 'Video' },
+            }
+        ),
+        'blog.tx' => qq|        : include "preview.tx";\n        : include "form_common.tx";\n|,
+
+        # And one which declares a field of the same name without including the
+        # block -- a datasource fills this one in, so it really is the type's.
+        'guests.json' => sidecar( properties => { preview => { type => 'string', 'x-tcms-label' => 'Console capture' } } ),
+        'guests.tx'   => qq|        : include "post_title.tx";\n|,
+    );
+
+    my $types = Trog::Routes::HTML::_wizard_types( [ 'blog.tx', 'guests.tx' ] );
+
+    is( $types->{'blog.tx'}{inc_preview}, 1, "the box for a block the template includes comes back ticked" );
+    is_deeply(
+        [ map { $_->{name} } @{ $types->{'blog.tx'}{fields} } ],
+        ['video_href'],
+        "and what that block collects is not offered back as a custom field"
+    );
+
+    is( $types->{'guests.tx'}{inc_preview}, 0, "a type which does not include the block has the box clear" );
+    is_deeply(
+        [ map { $_->{name} } @{ $types->{'guests.tx'}{fields} } ],
+        ['preview'],
+        "and keeps the field of that name, which is its own rather than the block's"
+    );
 };
 
 subtest '_kolon_safe defuses template syntax' => sub {

@@ -1,0 +1,14 @@
+{
+   "x-tcms-include" : {
+      "name" : "visibility",
+      "description" : "The visibility selector.  'visibility' is a base post field, declared here so that the wizard can tell it apart from a field somebody typed in."
+   },
+   "type" : "object",
+   "properties" : {
+      "visibility" : {
+         "type" : "string",
+         "enum" : [ "public", "unlisted", "private" ],
+         "x-tcms-label" : "Visibility"
+      }
+   }
+}

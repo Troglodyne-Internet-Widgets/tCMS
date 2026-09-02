@@ -1,0 +1,18 @@
+{
+   "x-tcms-include" : {
+      "name" : "preview",
+      "description" : "The preview image: the upload itself, and the href it turned into on the last save."
+   },
+   "type" : "object",
+   "properties" : {
+      "preview" : {
+         "type" : "string",
+         "x-tcms-label" : "Preview Image"
+      },
+      "preview_file" : {
+         "type" : "upload",
+         "x-tcms-label" : "Preview Image",
+         "x-tcms-input" : "file"
+      }
+   }
+}

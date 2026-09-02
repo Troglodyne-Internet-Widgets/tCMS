@@ -1,0 +1,14 @@
+{
+   "x-tcms-include" : {
+      "name" : "acls",
+      "description" : "The ACL selector.  'acls' is a base post field, declared here so that the wizard can tell it apart from a field somebody typed in."
+   },
+   "type" : "object",
+   "properties" : {
+      "acls" : {
+         "type" : "array",
+         "items" : { "type" : "string" },
+         "x-tcms-label" : "ACLs"
+      }
+   }
+}

@@ -1,0 +1,14 @@
+{
+   "x-tcms-include" : {
+      "name" : "aliases",
+      "description" : "The alias URL editor.  'aliases' is a base post field, declared here so that the wizard can tell it apart from a field somebody typed in."
+   },
+   "type" : "object",
+   "properties" : {
+      "aliases" : {
+         "type" : "array",
+         "items" : { "type" : "string" },
+         "x-tcms-label" : "Post Alias URLs"
+      }
+   }
+}

@@ -86,6 +86,10 @@ selects when you edit a Series.
     as <code>&lt;: $post.your_field_name :&gt;</code>.
     Uploads aren't supported here &mdash; use the Attachment uploader above for those.
     <br />
+    Whatever a canned block already collects isn't listed here &mdash; each one has a sidecar
+    beside it saying so (preview.tx has preview.json), so a preview image is that box being
+    ticked rather than a field you have to add.
+    <br />
     A field set to <em>editors only</em> is dropped before the page is rendered for anyone who
     cannot edit it, so it is safe to refer to in the display template below without guarding it
     yourself &mdash; useful for a connection string or anything else that shouldn't be public.

@@ -2644,11 +2644,18 @@ This is the other direction from _wizard_sidecar: it reads a type back out and
 says what the wizard would have had to be told to produce it, so that picking one
 from the dropdown can put the form into that state.
 
-Everything but the display template comes out of the sidecar.  The display comes
-out of the sidecar too for anything written since it started being recorded
-there, and is read back out of the template itself otherwise -- see
-_wizard_display_from_template, and note that a hand-written type will often
-yield nothing, which is honest: there is no wizard form that produces it.
+Everything but the display template and the canned includes comes out of the
+sidecar.  The display comes out of the sidecar too for anything written since it
+started being recorded there, and is read back out of the template itself
+otherwise -- see _wizard_display_from_template, and note that a hand-written type
+will often yield nothing, which is honest: there is no wizard form that produces
+it.
+
+The includes always come out of the template, via
+Trog::DataModule::includes_for(), since only a generated sidecar ever recorded
+them.  That is also what tells the field list apart from the checkboxes: a
+preview image is a field of every type which includes preview.tx, so it is that
+box being ticked rather than a custom field somebody added.
 
 =cut
 
@@ -2661,7 +2668,11 @@ sub _wizard_types ($forms) {
         my $type   = $meta->{'x-tcms-post-type'};
         $type = {} unless Ref::Util::is_hashref($type);
 
-        my %includes = map { $_ => 1 } @{ Ref::Util::is_arrayref( $type->{includes} ) ? $type->{includes} : [] };
+        # What the editor actually splices in, which for a hand-written type is
+        # the only account there is -- nothing but a generated sidecar records
+        # the list.  Keyed on the template name, which is what %wizard_includes
+        # maps a checkbox to.
+        my %includes = map { $_ => 1 } @{ Trog::DataModule::includes_for($form) };
 
         my $display = $type->{display};
         $display = _wizard_display_from_template($form) unless length( $display // '' );
@@ -2683,7 +2694,7 @@ sub _wizard_types ($forms) {
             inc_post_tags  => $type->{inc_post_tags}  ? 1 : 0,
             ( map { $_ => $includes{ $wizard_includes{$_} } ? 1 : 0 } @wizard_optional_includes ),
 
-            fields => _wizard_fields_of( $schema, $meta ),
+            fields => _wizard_fields_of( $schema, $meta, \%includes ),
         };
     }
 
@@ -2691,18 +2702,32 @@ sub _wizard_types ($forms) {
 }
 
 # The custom fields of a type, as rows the wizard would have submitted.
-sub _wizard_fields_of ( $schema, $meta ) {
+sub _wizard_fields_of ( $schema, $meta, $includes = {} ) {
     my $properties = $schema->{properties} // {};
     my %required   = map { $_ => 1 } @{ $schema->{required} // [] };
     my $relations  = $meta->{'x-tcms-relations'};
     $relations = {} unless Ref::Util::is_hashref($relations);
 
+    # Whatever the canned blocks this type includes already collect.  These are
+    # real fields of the type and really are in its schema, but nobody typed
+    # them into the wizard, and offering them back as custom fields is how
+    # ticking 'Preview image upload' and listing 'preview' as a text field came
+    # to be the same thing said twice.
+    my %canned;
+    foreach my $include ( keys(%$includes) ) {
+        my $collects = Trog::DataModule::include_schema_for($include)->{properties};
+        next unless Ref::Util::is_hashref($collects);
+        $canned{$_} = 1 foreach keys(%$collects);
+    }
+
     my @fields;
     foreach my $name ( sort keys(%$properties) ) {
 
         # Only what this type added.  Everything in the base post schema belongs
-        # to every post and was never a wizard field.
+        # to every post and was never a wizard field, and everything a canned
+        # block collects belongs to the block rather than to the type.
         next if exists $Trog::DataModule::post_schema{properties}{$name};
+        next if $canned{$name};
 
         my $property = $properties->{$name};
         next unless Ref::Util::is_hashref($property);

@@ -279,4 +279,23 @@ sub themed_file_in_dir ( $path, $file, $ct, $is_component = 0 ) {
     return undef;
 }
 
+=head2 themed_component($file, $content_type)
+
+The path to a file sitting directly in the components dir rather than in one of
+its subdirectories, preferring the theme's copy.  Returns undef when neither has
+it.
+
+This is themed_file_in_dir() for the components which are not post types: the
+canned editor blocks every form splices in, and the JSON sidecars beside them
+which say what each one collects -- see Trog::DataModule::include_schema_for().
+
+=cut
+
+sub themed_component ( $file, $ct = 'text/html' ) {
+    foreach my $dir ( template_dirs( $ct, 1 ) ) {
+        return "$dir/$file" if -f "$dir/$file";    ## no critic (ProhibitFiletest_f) -- search path, first hit wins
+    }
+    return undef;
+}
+
 1;

@@ -70,6 +70,12 @@ form in from its sidecar so you can change one thing and save it back.  Each typ
 carries a description saying what it is for, which the dropdown shows and a
 collapsed textarea lets you edit.
 
+The canned blocks an editor reuses -- preview.tx, tags.tx, attachments.tx and the
+rest -- have sidecars of their own beside them in components/, saying which fields
+each one collects.  That is how the wizard knows a preview image is a box to tick
+rather than a custom field to list, and how a type built by the wizard keeps the
+preview image its editor uploaded.
+
 From there you make Series of the content type you want; tag the series with 'topbar' if you want it to show up in the top links.
 
 Currently supported:
