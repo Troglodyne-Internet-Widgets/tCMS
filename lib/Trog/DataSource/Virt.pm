@@ -142,7 +142,6 @@ Returns false otherwise.
 sub _is_self ($name) {
     my $me = lc( _hostname() );
     $name = lc( $name // '' );
-    print("Name comp: $me $name\n");
 
     return 1 if $name eq $me;
     return 0;
