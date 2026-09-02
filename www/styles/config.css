@@ -49,3 +49,33 @@ a.topbar {
 #posttype, #subtitle {
     display: none;
 }
+
+/* The configuration form, one <details> per section of config/default.cfg. */
+.config-section {
+    margin: .5rem 0;
+    padding: .25rem .5rem;
+    border: 1px solid #CCC;
+    border-radius: .25rem;
+}
+.config-section > summary {
+    cursor: pointer;
+    font-weight: bold;
+    padding: .25rem;
+}
+.config-field {
+    margin: .75rem .25rem;
+}
+.config-field > label {
+    display: block;
+    font-weight: bold;
+}
+.config-field > .config-help {
+    margin: .125rem 0 .25rem 0;
+    font-size: .875rem;
+    color: #555;
+}
+.config-field > input, .config-field > select, .config-field > textarea {
+    width: 100%;
+    max-width: 40rem;
+    box-sizing: border-box;
+}

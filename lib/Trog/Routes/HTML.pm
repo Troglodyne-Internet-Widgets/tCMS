@@ -784,38 +784,117 @@ sub config ( $query = {} ) {
 
     $query->{failure} //= -1;
 
-    #XXX ACHTUNG config::simple has this brain damaged behavior of returning a multiple element array when you access something that does not exist.
-    #XXX straight up dying would be preferrable.
-    #XXX anyways, this means you can NEVER NEVER NEVER access a param from within a hash directly.  YOU HAVE BEEN WARNED!
-    my $conf = Trog::Config::get();
-    state $theme    = $conf->param('general.theme')              // '';
-    state $dm       = $conf->param('general.data_model')         // 'DUMMY';
-    state $embeds   = $conf->param('security.allow_embeds_from') // '';
-    state $hostname = $conf->param('general.hostname')           // '';
-
     return Trog::Routes::HTML::index(
         {
-            title              => 'Configure tCMS',
-            theme_dir          => Trog::Themes::td(),
-            stylesheets        => [qw{config.css}],
-            scripts            => [qw{post.js}],
-            themes             => _get_themes() || [],
-            data_models        => _get_data_models(),
-            current_theme      => $theme,
-            current_data_model => $dm,
-            message            => $query->{message},
-            failure            => $query->{failure},
-            to                 => '/config',
-            scheme             => $query->{scheme},
-            embeds             => $embeds,
-            is_admin           => 1,
-            template           => 'config.tx',
+            title           => 'Configure tCMS',
+            theme_dir       => Trog::Themes::td(),
+            stylesheets     => [qw{config.css}],
+            scripts         => [qw{post.js}],
+            themes          => _get_themes() || [],
+            config_sections => _config_sections(),
+            message         => $query->{message},
+            failure         => $query->{failure},
+            to              => '/config',
+            scheme          => $query->{scheme},
+            is_admin        => 1,
+            template        => 'config.tx',
             %$query,
-            hostname => $hostname,
         },
         undef,
         [qw{config.css}],
     );
+}
+
+# The settings which are a choice among what this instance actually has
+# installed rather than free text.  default.cfg can say a key exists, but not
+# that it has to be one of the themes on disk, so that part lives here.
+my %config_choices = (
+    'general.theme'      => sub { return [ '', @{ _get_themes() || [] } ] },
+    'general.data_model' => \&_get_data_models,
+);
+
+=head2 _config_sections() = ARRAYREF
+
+The configuration editor's form, one entry per section of config/default.cfg,
+each holding the fields that section describes:
+
+    { section => 'general', title => 'General', fields => [ { name, key, title, comment, value, options, multiline } ] }
+
+Fields carry the value this instance is running with, defaulting to what
+default.cfg ships.  A field with 'options' renders as a menu, one with
+'multiline' as a textarea -- a list of embed sources is not something to edit
+through a one line input.
+
+=cut
+
+sub _config_sections {
+    my %configured = Trog::Config::get()->vars();
+
+    my @sections;
+    foreach my $section ( @{ Trog::Config::schema() } ) {
+        my @fields;
+        foreach my $field ( @{ $section->{fields} } ) {
+            my $value = _config_value( \%configured, $field->{name} );
+            $value = $field->{default} unless defined $value;
+
+            my %rendered = (
+                %$field,
+                title => _config_title( $field->{key} ),
+                value => $value,
+            );
+
+            if ( my $choices = $config_choices{ $field->{name} } ) {
+                $rendered{options} = [
+                    map {
+                        {
+                            value    => $_,
+                            label    => length($_)   ? $_ : 'default',
+                            selected => $_ eq $value ? 1  : 0,
+                        }
+                    } @{ $choices->() }
+                ];
+            }
+            else {
+                # Long values (an embed allowlist, a list of paths) are miserable
+                # to edit in a box you can only see the end of.
+                $rendered{multiline} = length($value) > 60 ? 1 : 0;
+            }
+
+            push( @fields, \%rendered );
+        }
+        push(
+            @sections,
+            {
+                section => $section->{section},
+                title   => _config_title( $section->{section} ),
+                fields  => \@fields,
+            }
+        );
+    }
+    return \@sections;
+}
+
+# What this instance has configured a setting as, or undef if it never has --
+# which is not the same thing as having set it to nothing, or the editor would
+# hand back the shipped default to anyone who deliberately cleared a setting,
+# and quietly restore it on the next save.
+#
+# XXX ACHTUNG config::simple's param() answers a key which does not exist with a
+# multi element array, so it can never tell you those two apart; vars() can, and
+# is the only reason this does not just ask for the one key.  A key holding
+# commas comes back as an arrayref too, hence the join.
+sub _config_value ( $configured, $name ) {
+    return undef unless exists $configured->{$name};    ## no critic (ProhibitExplicitReturnUndef) -- 'never configured' has to be distinguishable from ''
+
+    my $value = $configured->{$name};
+    return '' unless defined $value;
+    return join( ', ', @$value ) if ref $value eq 'ARRAY';
+    return ref $value ? '' : $value;
+}
+
+sub _config_title ($name) {
+    $name =~ s/[_-]/ /g;
+    return join( ' ', map { ucfirst } split( ' ', $name ) );
 }
 
 =head2 resetpass
@@ -980,7 +1059,11 @@ sub _datasource_editable ($module) {
 
 =head2 config_save
 
-Implements /config/save route.  Saves what little configuration we actually use to config/main.cfg
+Implements /config/save route.  Saves the configuration to config/main.cfg.
+
+Only the keys config/default.cfg describes are saved, so a form which posts
+something the defaults never heard of writes nothing -- the schema is what is
+editable, not whatever turned up in the request.
 
 =cut
 
@@ -989,10 +1072,7 @@ sub config_save ($query) {
     return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $conf = Trog::Config::get();
-    $conf->param( 'general.theme',              $query->{theme} )      if defined $query->{theme};
-    $conf->param( 'general.data_model',         $query->{data_model} ) if $query->{data_model};
-    $conf->param( 'security.allow_embeds_from', $query->{embeds} )     if $query->{embeds};
-    $conf->param( 'general.hostname',           $query->{hostname} )   if $query->{hostname};
+    _config_apply( $conf, $query );
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
@@ -1005,6 +1085,35 @@ sub config_save ($query) {
     $query->{tpsgi}->signal_restart_parent();
 
     return config($query);
+}
+
+=head2 _config_apply( Config::Simple conf, HASHREF query )
+
+Copy whatever settings the form posted onto $conf, keyed by their full
+'section.key' name.
+
+The schema is the allowlist: a request naming something config/default.cfg does
+not describe writes nothing, so a stray form field cannot invent configuration.
+Values are taken as posted, empty string included -- clearing a setting is how
+you go back to having none.
+
+=cut
+
+sub _config_apply ( $conf, $query ) {
+    foreach my $section ( @{ Trog::Config::schema() } ) {
+        foreach my $field ( @{ $section->{fields} } ) {
+            my $value = $query->{ $field->{name} };
+            next unless defined $value;
+
+            # Duplicate inputs arrive as an array; the last one wins, same as
+            # the browser's own idea of which field you filled in last.
+            $value = $value->[-1] if ref $value eq 'ARRAY';
+            next                  if ref $value;
+
+            $conf->param( $field->{name}, $value );
+        }
+    }
+    return;
 }
 
 =head2 themeclone

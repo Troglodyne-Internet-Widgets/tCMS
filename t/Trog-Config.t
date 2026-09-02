@@ -74,4 +74,34 @@ subtest 'the shipped defaults are left alone' => sub {
     );
 };
 
+subtest 'the defaults describe what is editable' => sub {
+
+    # The /config editor is built out of this, so the parse has to keep the
+    # comments (they are the help text) and the file order (they are the form).
+    Path::Tiny->new('config/schema.cfg')->spew_utf8(<<'CFG');
+[general]
+    # FlatFile or SQLite.
+    # Pick one.
+    data_model=FlatFile
+    title=Stock
+[security]
+    # Where embeds may come from.
+    allow_embeds_from=vimeo.com *.vimeo.com
+CFG
+
+    my $schema = Trog::Config::schema('config/schema.cfg');
+
+    is_deeply( [ map { $_->{section} } @$schema ], [qw{general security}], 'the sections come back in file order' );
+
+    my $general = $schema->[0]{fields};
+    is_deeply( [ map { $_->{key} } @$general ], [qw{data_model title}], 'and so do the keys in them' );
+
+    is( $general->[0]{name},    'general.data_model',            'a field knows its full name' );
+    is( $general->[0]{default}, 'FlatFile',                      'and what the defaults ship' );
+    is( $general->[0]{comment}, 'FlatFile or SQLite. Pick one.', 'a comment block above a key is that key\'s help' );
+    is( $general->[1]{comment}, '',                              'and does not leak onto the key after it' );
+
+    is( $schema->[1]{fields}[0]{default}, 'vimeo.com *.vimeo.com', 'values with spaces survive intact' );
+};
+
 done_testing();

@@ -2,34 +2,38 @@
 <p class="title">
  General settings:
 </p>
-This controls your Theme and Data Model used.
+Everything tCMS reads out of its configuration file lives here, grouped the way
+config/default.cfg groups it.  Open the section you care about and leave the
+rest folded up.
+<br />
 The Data Model <em>must</em> be 0-configuration.
 If for example, you use mysql it will have to rely on either a local server, valid config file or connection proxy/pooler locally.
 <hr />
 <form class="Submissions Config" id="mainConfig" method="post" action="/config/save">
-    Theme:
-    <select class="cooltext" name="theme">
-        <option value="" <: if ( $current_theme == '' ) { :>selected<: } :> >default</option>
-        : for $themes -> $theme {
-        <option value="<: $theme :>" <: if ( $current_theme == $theme ) { :>selected<: } :> ><: $theme :></option>
+    : for $config_sections -> $section {
+    <details class="config-section">
+        <summary><: $section.title :></summary>
+        : for $section.fields -> $field {
+        <div class="config-field">
+            <label for="config-<: $field.name :>"><: $field.title :></label>
+            : if ( $field.comment ) {
+            <p class="config-help"><: $field.comment :></p>
+            : }
+            : if ( $field.options ) {
+            <select class="cooltext" id="config-<: $field.name :>" name="<: $field.name :>">
+                : for $field.options -> $option {
+                <option value="<: $option.value :>" <: if ( $option.selected ) { :>selected<: } :> ><: $option.label :></option>
+                : }
+            </select>
+            : } else if ( $field.multiline ) {
+            <textarea class="cooltext" id="config-<: $field.name :>" name="<: $field.name :>" rows="3" form="mainConfig"><: $field.value :></textarea>
+            : } else {
+            <input class="cooltext" type="text" id="config-<: $field.name :>" name="<: $field.name :>" value="<: $field.value :>" />
+            : }
+        </div>
         : }
-    </select>
-    <div>
-    Data Model:
-    <select class="cooltext" name="data_model">
-        : for $data_models -> $dm {
-        <option value="<: $dm :>" <: if ( $current_data_model == $dm ) { :>selected<: } :> ><: $dm :></option>
-        : }
-    </select>
-    </div>
-    <div>
-    Allow Embeds from:
-    <input class="cooltext" type="textarea" name="embeds" value="<: $embeds :>" />
-    </div>
-    <div>
-    Hostname:
-    <input class="cooltext" type="textarea" name="hostname" value="<: $hostname :>" />
-    </div>
+    </details>
+    : }
     <br />
     <input type="submit" class="coolbutton" value="Commit Changes" />
 
