@@ -100,13 +100,40 @@
                 <form class="Submissions guest-reprovision" action="/guest/reprovision" method="POST" autocomplete="off">
                     <input type="hidden" name="guest" value="<: $post.domain :>" />
                     <input type="hidden" name="to" value="<: $route :>" />
-                    <label>
-                        Secrets passphrase
-                        <input required class="cooltext" type="password" name="passphrase" autocomplete="off"
-                               title="new_config asks for this on stdin; it is used for this run and not stored" />
-                    </label>
-                    <button class="coolbutton guest-destroy" type="submit"
-                            onclick="return confirm('Reprovision <: $post.title :>?  This destroys the guest and builds it again from its recipe.  Anything on it the recipe does not describe will not come back.');">Reprovision</button>
+                    : # The passphrase is asked for in the popover rather than
+                    : # sat in the page, so nothing is typed until Reprovision is
+                    : # pressed, and the confirmation is a button you have to hit
+                    : # rather than a confirm() nobody reads.  The popover stays
+                    : # inside the form, so the passphrase is submitted with it.
+                    : # popovertarget as well as the command attributes, since a
+                    : # browser which has popover but not invoker commands would
+                    : # otherwise have no way to open this at all.  Where both are
+                    : # understood the command wins and the target is ignored, so
+                    : # they do not fight.
+                    <button class="coolbutton guest-destroy" type="button"
+                            command="show-popover" commandfor="reprovision-<: $post.id :>"
+                            popovertarget="reprovision-<: $post.id :>" popovertargetaction="show">Reprovision</button>
+                    : # A browser old enough to have neither draws this inline and
+                    : # submits it, which is the form this replaced, minus the
+                    : # confirmation.
+                    <div popover id="reprovision-<: $post.id :>" class="guest-reprovision-popover">
+                        <p class="guest-reprovision-warning">
+                            Reprovision <: $post.title :>?
+                            This destroys the guest and builds it again from its recipe.
+                            Anything on it the recipe does not describe will not come back.
+                        </p>
+                        <label>
+                            Secrets passphrase
+                            <input required autofocus class="cooltext" type="password" name="passphrase" autocomplete="off"
+                                   title="new_config asks for this on stdin; it is used for this run and not stored" />
+                        </label>
+                        <div class="guest-reprovision-actions">
+                            <button class="coolbutton" type="button"
+                                    command="hide-popover" commandfor="reprovision-<: $post.id :>"
+                                    popovertarget="reprovision-<: $post.id :>" popovertargetaction="hide">Cancel</button>
+                            <button class="coolbutton guest-destroy" type="submit">Reprovision it</button>
+                        </div>
+                    </div>
                 </form>
                 : }
                 : }

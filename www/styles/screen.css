@@ -512,3 +512,27 @@ pre {
 .bg-red {
     background-color: red;
 }
+
+/* The reprovision confirmation -- see forms/provisioned_guests.tx.  The
+   passphrase lives in here rather than in the page, so it is asked for at the
+   point of confirming rather than sitting in a box nobody meant to fill in.
+   A browser with no popover support ignores the attribute and draws this
+   inline, where it still works as a form. */
+.guest-reprovision-popover {
+    max-width: 32rem;
+    padding: 1rem;
+    background: #e4e4e4;
+    border: 1px solid grey;
+    border-radius: .5rem;
+}
+.guest-reprovision-popover::backdrop {
+    background: rgba( 0, 0, 0, .5 );
+}
+.guest-reprovision-warning {
+    margin-top: 0;
+}
+.guest-reprovision-actions {
+    margin-top: .75rem;
+    display: flex;
+    gap: .5rem;
+}
