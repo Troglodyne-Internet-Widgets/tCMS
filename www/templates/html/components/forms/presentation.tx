@@ -5,7 +5,7 @@
 
         : if ( !$nochrome ) {
         : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
-            <img src="<: $post.preview :>" class="responsive-img" />
+            <img src="<: $post.preview :>" class="responsive-img" loading="lazy" />
         : }
         : }
 

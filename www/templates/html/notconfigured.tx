@@ -4,7 +4,7 @@
 </nav>
 <section>
     <div id="notice">
-        <img alt="Icon indicating a missing file" src="/img/mime/missing.gif" />
+        <img alt="Icon indicating a missing file" src="/img/mime/missing.gif" loading="lazy" />
         <span>
             [INFO] This page is being displayed because the main configuration file is missing
             (or corrupted).

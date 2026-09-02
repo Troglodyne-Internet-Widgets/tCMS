@@ -7,7 +7,7 @@
                     Your browser does not support the video tag.
                 </video>
             : } else {
-                <img src="<: $post.preview :>" class="responsive-img" />
+                <img src="<: $post.preview :>" class="responsive-img" loading="lazy" />
             : }
             <p class="midtitle"><: $post.title :></p>
         </a>
@@ -30,7 +30,7 @@
         : }
 
         : if ( $post.is_image ) {
-            <img src="<: $post.preview :>" class="responsive-img" />
+            <img src="<: $post.preview :>" class="responsive-img" loading="lazy" />
         : }
 
         : if( $post.data ) {
