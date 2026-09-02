@@ -547,6 +547,43 @@ subtest 'a type reads back as the form that made it' => sub {
     ok( !exists $by_name{visibility}, 'any of them' );
 };
 
+subtest 'the checkboxes outside the editor come back from the template too' => sub {
+    set_components();
+
+    # A hand-written type: a wrapper div, both display blocks, and the
+    # multi-page body form.  Its sidecar records none of that, because nothing
+    # but a generated one ever did.
+    set_sidecars(
+        'deck.json' => sidecar(),
+        'deck.tx'   => <<'TEMPLATE',
+<div class="post <: $style :>">
+    :if ( !$post.addpost ) {
+        : include "post_title.tx";
+        : include "post_tags.tx";
+    : }
+        : include "form_multi.tx";
+</div>
+TEMPLATE
+
+        # And one which opens with its own markup instead of the wrapper, and
+        # shows neither block -- as file.tx and profile.tx really do.
+        'bare.json' => sidecar(),
+        'bare.tx'   => qq|<!-- a comment first, which is not the wrapper -->\n:if ( !\$post.addpost ) {\n: }\n        : include "form_common.tx";\n|,
+    );
+
+    my $types = Trog::Routes::HTML::_wizard_types( [ 'deck.tx', 'bare.tx' ] );
+
+    is( $types->{'deck.tx'}{wrapper},        1,               "the wrapper div is seen where a type opens with one" );
+    is( $types->{'deck.tx'}{inc_post_title}, 1,               "as is the post title block" );
+    is( $types->{'deck.tx'}{inc_post_tags},  1,               "and the post tag block" );
+    is( $types->{'deck.tx'}{body_form},      'form_multi.tx', "and which body form carries the post" );
+
+    is( $types->{'bare.tx'}{wrapper},        0,                'a type which opens with its own markup has the box clear' );
+    is( $types->{'bare.tx'}{inc_post_title}, 0,                'and the blocks it does not include are clear' );
+    is( $types->{'bare.tx'}{inc_post_tags},  0,                'both of them' );
+    is( $types->{'bare.tx'}{body_form},      'form_common.tx', 'and a single page body form is read back as one' );
+};
+
 subtest 'the types are handed to the page as JSON it cannot break out of' => sub {
     no warnings qw{once};
 

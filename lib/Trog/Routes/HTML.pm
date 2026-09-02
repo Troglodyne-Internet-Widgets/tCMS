@@ -2246,7 +2246,13 @@ our @wizard_optional_includes = grep {
     !grep { $include eq $_ } @wizard_mandatory
 } @wizard_include_order;
 
-our @wizard_checkboxes         = ( qw{wrapper inc_post_title inc_post_tags}, @wizard_optional_includes, 'overwrite' );
+# The checkboxes which are not editor includes: the wrapper div, and the two
+# canned blocks a type splices into its display half.  Read back out of the
+# template by _wizard_display_of(), since %wizard_includes covers only the
+# blocks that go into the editor.
+our @wizard_display_checkboxes = qw{wrapper inc_post_title inc_post_tags};
+
+our @wizard_checkboxes         = ( @wizard_display_checkboxes, @wizard_optional_includes, 'overwrite' );
 our %wizard_checked_by_default = map { $_ => 1 } qw{wrapper inc_post_title inc_post_tags inc_preview inc_tags inc_aliases};
 
 # Which HTML input the wizard emits, and what that field is in the sidecar's
@@ -2677,21 +2683,24 @@ sub _wizard_types ($forms) {
         my $display = $type->{display};
         $display = _wizard_display_from_template($form) unless length( $display // '' );
 
+        # The wrapper div and the two blocks which belong to a type's display
+        # half rather than to its editor.  Same reading as the includes, and for
+        # the same reason: a hand-written type recorded none of it, and the
+        # generated ones written before these were recorded did not either.
+        my $shown = _wizard_display_of($form) // { map { $_ => $type->{$_} ? 1 : 0 } @wizard_display_checkboxes };
+
         $types{$form} = {
             name              => ( $form =~ s/\.tx$//r ),
-            description       => $type->{description}         // '',
-            display           => $display                     // '',
-            body_form         => $type->{body_form}           // 'form_common.tx',
+            description       => $type->{description} // '',
+            display           => $display             // '',
+            body_form         => _wizard_body_form_of( \%includes, $type ),
             datasource        => $meta->{'x-tcms-datasource'} // '',
             title_placeholder => $type->{title_placeholder}   // '',
             generated         => $type->{generated} ? 1 : 0,
 
-            # The wizard's own checkboxes.  The includes are a list in the
-            # sidecar; the other three are recorded individually because nothing
-            # else would say whether they were ticked.
-            wrapper        => $type->{wrapper}        ? 1 : 0,
-            inc_post_title => $type->{inc_post_title} ? 1 : 0,
-            inc_post_tags  => $type->{inc_post_tags}  ? 1 : 0,
+            # The wizard's own checkboxes, every one of them an answer about
+            # what the template does rather than about what the sidecar says.
+            %$shown,
             ( map { $_ => $includes{ $wizard_includes{$_} } ? 1 : 0 } @wizard_optional_includes ),
 
             fields => _wizard_fields_of( $schema, $meta, \%includes ),
@@ -2699,6 +2708,51 @@ sub _wizard_types ($forms) {
     }
 
     return \%types;
+}
+
+# Which body form a type carries, which is an include like any other -- see the
+# bottom of _wizard_template.  The sidecar is the fallback for a type whose
+# template says nothing, which is what a datasource type with no editor at all
+# looks like.
+sub _wizard_body_form_of ( $includes, $type ) {
+    return 'form_multi.tx'  if $includes->{'form_multi.tx'};
+    return 'form_common.tx' if $includes->{'form_common.tx'};
+    return $type->{body_form} // 'form_common.tx';
+}
+
+# What a type's template says about the parts of it the wizard emits itself
+# rather than through %wizard_includes: the wrapper div, and the two canned
+# blocks which go in the display half rather than in the editor.
+#
+# Undef when the template cannot be read at all, which is what leaves the
+# sidecar as the fallback rather than making it a second opinion.  The template
+# is what actually renders, so where the two disagree it is the template which
+# is telling the truth.
+sub _wizard_display_of ($form) {
+    my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
+    return undef unless $path;
+
+    my $template = eval { File::Slurper::read_text($path) };
+    return undef unless defined $template;
+
+    my %shown = (
+        inc_post_title => $template =~ m/^\s*:\s*include\s+"post_title\.tx"/m ? 1 : 0,
+        inc_post_tags  => $template =~ m/^\s*:\s*include\s+"post_tags\.tx"/m  ? 1 : 0,
+        wrapper        => 0,
+    );
+
+    # The wrapper is the first thing a type that has one emits, ahead of any
+    # Kolon at all -- see _wizard_template.  So only the first line with
+    # anything on it is asked, and a type which opens with its own markup or its
+    # own directive is one that ticked the box off.
+    foreach my $line ( split( "\n", $template ) ) {
+        next                if $line =~ m/^\s*$/;
+        next                if $line =~ m/^\s*<!--/;
+        $shown{wrapper} = 1 if $line =~ m/^\s*<div\s+class="post\b/;
+        last;
+    }
+
+    return \%shown;
 }
 
 # The custom fields of a type, as rows the wizard would have submitted.
