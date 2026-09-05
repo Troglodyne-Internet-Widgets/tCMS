@@ -25,6 +25,8 @@ WriteMakefile(
         'Capture::Tiny'                       => '0',
         'Carp'                                => '0',
         'Config::Simple'                      => '0',
+        'Crypt::Argon2'                       => '0',
+        'CryptX'                              => '0',
         'DBD::SQLite'                         => '0',
         'DBI'                                 => '0',
         'Date::Format'                        => '0',

@@ -7,6 +7,7 @@ use FindBin::libs;
 
 use Ref::Util qw{is_arrayref};
 use Digest::SHA 'sha256';
+use Crypt::Argon2 qw{argon2id_pass argon2id_verify argon2_needs_rehash};
 use Trog::TOTP;
 use Imager::QRCode;
 
@@ -271,6 +272,146 @@ sub has_totp ($user) {
     return $rows->[0]{totp_secret} ? 1 : 0;
 }
 
+=head2 spend_totp(user, code) = ($ok, $why)
+
+Check a TOTP code and spend it.  A code that has been spent, or that is older
+than one this user has already spent, is refused however valid the arithmetic
+says it is.
+
+This is the difference between a second factor at the door and a second factor
+that authorizes a particular thing.  A code read over somebody's shoulder, or
+left in a proxy log, is good for the rest of its window otherwise -- and what it
+would be good for is releasing a stored password, which is not a window anybody
+should be relaxed about.
+
+The cost is that a code is worth one action.  Logging in and then immediately
+asking for a secret means waiting for the next one, which is thirty seconds and
+is the point.
+
+Tolerance is one step either way, for clocks that disagree a little.  It used to
+be three, which was ninety seconds of a code staying good, and there is no
+reason for that once a code cannot be used twice anyway.
+
+=cut
+
+our $totp_tolerance = 1;
+our $totp_period    = 30;
+our $totp_digits    = 6;
+
+sub spend_totp ( $user, $code ) {
+    return ( 0, 'no code given' ) unless defined $code && $code =~ m/^[0-9]{$totp_digits}$/;
+
+    my $dbh    = _dbh();
+    my $rows   = $dbh->selectall_arrayref( "SELECT totp_secret FROM user WHERE name=?", { Slice => {} }, $user );
+    my $secret = ref $rows eq 'ARRAY' && @$rows ? $rows->[0]{totp_secret} : undef;
+    return ( 0, 'this user has no second factor enrolled' ) unless $secret;
+
+    # Forced in rather than passed: expected_totp_code reads the object, and
+    # the object generates a secret of its own if it has not got one.
+    my $totp = _totp();
+    $totp->{secret} = $secret;
+    $totp->{period} = $totp_period;
+    $totp->{digits} = $totp_digits;
+
+    my $now = time();
+    my $matched;
+    foreach my $offset ( -$totp_tolerance .. $totp_tolerance ) {
+        my $when = $now + ( $offset * $totp_period );
+        next unless $totp->expected_totp_code($when) eq $code;
+        $matched = int( $when / $totp_period );
+        last;
+    }
+
+    if ( !defined $matched ) {
+        log_event( 'totp_failure', $user );
+        return ( 0, 'that code is not right' );
+    }
+
+    my $spent = $dbh->selectall_arrayref( "SELECT step FROM totp_spent WHERE username=?", { Slice => {} }, $user );
+    my $last  = ref $spent eq 'ARRAY' && @$spent ? $spent->[0]{step} : 0;
+    if ( $matched <= $last ) {
+        log_event( 'totp_replay', $user );
+        return ( 0, 'that code has already been used; wait for the next one' );
+    }
+
+    $dbh->do( "INSERT OR REPLACE INTO totp_spent (username, step) VALUES (?,?)", undef, $user, $matched )
+      or return ( 0, 'could not record the code as used, so it is refused' );
+
+    return ( 1, '' );
+}
+
+=head2 check_password(user, pass) = BOOL
+
+Whether this is the user's password, upgrading how it is stored if it is.
+
+Passwords were kept as a single unstretched sha256 of the password and a salt,
+which is a hash built to be fast over a thing built to be guessed: a commodity
+GPU walks a list of them at billions a second.  They are Argon2id now, which is
+built to be slow and to want memory, so the same list costs real hardware and
+real time.
+
+Both live in the same column.  An Argon2 hash says what it is in its first few
+characters, so a row that does not is the old kind: it is checked the old way,
+and then, having just been handed a correct password in plaintext for the only
+moment anyone ever will be, rewritten as the new kind.  Nobody is logged out and
+nobody has to be told, and the old hashes leave as their owners come back.
+
+The same rewrite happens when the parameters here are raised, which is what
+makes raising them later a one-line change rather than a migration.
+
+=cut
+
+# OWASP's minimum acceptable Argon2id configuration.  Deliberately not their
+# generous one: /auth takes a password from anybody who asks, so what is on the
+# other side of it is a memory allocation an unauthenticated request can ask
+# for, times however many workers are listening.
+our $argon2_time    = 2;
+our $argon2_memory  = '19456k';
+our $argon2_lanes   = 1;
+our $argon2_tag     = 32;
+our $argon2_saltlen = 16;
+
+sub check_password ( $user, $pass ) {
+    return 0 unless defined $pass && length($pass);
+
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT hash, salt FROM user WHERE name = ?", { Slice => {} }, $user );
+    return 0 unless ref $rows eq 'ARRAY' && @$rows;
+
+    my ( $hash, $salt ) = ( $rows->[0]{hash}, $rows->[0]{salt} );
+    return 0 unless defined $hash && length($hash);
+
+    if ( index( $hash, '$argon2' ) == 0 ) {
+        return 0 unless eval { argon2id_verify( $hash, $pass ) };
+
+        # Cheap, and it is the only time we hold the password, so it is the only
+        # time the cost of a stronger hash can be paid.
+        _store_password( $user, $pass )
+          if argon2_needs_rehash( $hash, 'argon2id', $argon2_time, $argon2_memory, $argon2_lanes, $argon2_tag, $argon2_saltlen );
+        return 1;
+    }
+
+    return 0 unless sha256( $pass . ( $salt // '' ) ) eq $hash;
+    INFO("Upgrading the stored password for $user from sha256 to argon2id");
+    _store_password( $user, $pass );
+    return 1;
+}
+
+# The hash and the salt that goes with it.  Argon2 carries the salt in its own
+# encoding as well; the column keeps it because the rows which have not been
+# upgraded yet are still using it for what it was for.
+sub _hash_password ($pass) {
+    my $salt = Trog::Utils::uuid();
+    $salt = substr( $salt, 0, $argon2_saltlen );
+    return ( argon2id_pass( $pass, $salt, $argon2_time, $argon2_memory, $argon2_lanes, $argon2_tag ), $salt );
+}
+
+sub _store_password ( $user, $pass ) {
+    my ( $hash, $salt ) = _hash_password($pass);
+    my $dbh = _dbh();
+    return $dbh->do( "UPDATE user SET hash=?, salt=? WHERE name=?", undef, $hash, $salt, $user ) ? 1 : 0;
+}
+
 =head2 mksession(user, pass, token) = STRING
 
 Create a session for the user and waste all other sessions.
@@ -280,37 +421,26 @@ Returns a session ID, or blank string in the event the user does not exist or in
 =cut
 
 sub mksession ( $user, $pass, $token, $ip_addr = '' ) {
-    my $dbh  = _dbh();
-    my $totp = _totp();
+    my $dbh = _dbh();
 
-    # Check the password
-    my $records = $dbh->selectall_arrayref( "SELECT salt FROM user WHERE name = ?", { Slice => {} }, $user );
-    return '' unless ref $records eq 'ARRAY' && @$records;
-    my $salt   = $records->[0]->{salt};
-    my $hash   = sha256( $pass . $salt );
-    my $worked = $dbh->selectall_arrayref( "SELECT name, totp_secret FROM user WHERE hash=? AND name = ?", { Slice => {} }, $hash, $user );
-    if ( !( ref $worked eq 'ARRAY' && @$worked ) ) {
+    my $records = $dbh->selectall_arrayref( "SELECT name, hash, salt, totp_secret FROM user WHERE name = ?", { Slice => {} }, $user );
+    if ( !( ref $records eq 'ARRAY' && @$records ) || !check_password( $user, $pass ) ) {
         INFO("Failed login for user $user");
-        _log_event( 'login_failure', $user, $ip_addr );
+        log_event( 'login_failure', $user, $ip_addr );
         return '';
     }
-    my $uid    = $worked->[0]{name};
-    my $secret = $worked->[0]{totp_secret};
+    my $uid    = $records->[0]{name};
+    my $secret = $records->[0]{totp_secret};
 
-    # Validate the 2FA Token.  If we have no secret, allow login so they can see their QR code, and subsequently re-auth.
+    # No secret means they have not enrolled yet, and letting them in is how
+    # they get to -- the enrolment page is behind a login, since the QR on it is
+    # the secret.  TCMS::needs_enrolment is what stops that being a way to have
+    # an account with no second factor: it is the only page they can reach.
     if ($secret) {
-        if ( !$token ) {
-            _log_event( 'totp_failure', $user, $ip_addr );
-            return '';
-        }
-        DEBUG( "TOTP Auth: Sent code $token, expect " . $totp->expected_totp_code(time) );
-
-        #XXX we have to force the secret into compliance, otherwise it generates one on the fly, oof
-        $totp->{secret} = $secret;
-        my $rc = $totp->validate_otp( otp => $token, secret => $secret, tolerance => 3, period => 30, digits => 6 );
-        if ( !$rc ) {
-            INFO("TOTP Auth failed for user $user");
-            _log_event( 'totp_failure', $user, $ip_addr );
+        my ( $ok, $why ) = spend_totp( $user, $token );
+        if ( !$ok ) {
+            INFO("TOTP auth failed for user $user: $why");
+            log_event( 'totp_failure', $user, $ip_addr );
             return '';
         }
     }
@@ -318,7 +448,7 @@ sub mksession ( $user, $pass, $token, $ip_addr = '' ) {
     # Issue cookie
     my $uuid = Trog::Utils::uuid();
     $dbh->do( "INSERT OR REPLACE INTO session (id,username) VALUES (?,?)", undef, $uuid, $uid ) or return '';
-    _log_event( 'login_success', $user, $ip_addr, $uuid );
+    log_event( 'login_success', $user, $ip_addr, $uuid );
     return $uuid;
 }
 
@@ -331,7 +461,7 @@ Delete the provided user's session from the auth db.
 sub killsession ( $user, $ip_addr = '' ) {
     my $dbh = _dbh();
     $dbh->do( "DELETE FROM session WHERE username=?", undef, $user );
-    _log_event( 'logout', $user, $ip_addr );
+    log_event( 'logout', $user, $ip_addr );
     return 1;
 }
 
@@ -359,10 +489,7 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     die "No contact email set for user!" unless $contactemail;
 
     my $dbh = _dbh();
-    if ($pass) {
-        $salt = Trog::Utils::uuid();
-        $hash = sha256( $pass . $salt );
-    }
+    ( $hash, $salt ) = _hash_password($pass) if $pass;
     my $res = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
     return unless $res && ref $acls eq 'ARRAY';
 
@@ -443,8 +570,19 @@ sub audit_log (%opts) {
     return $rows;
 }
 
-# Write one event row; silently swallows errors so logging never breaks auth flow.
-sub _log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
+=head2 log_event($event_type, $username, $ip_addr, $session_id)
+
+Write one row to the audit log.
+
+Public because the vault writes to it too: reading somebody's stored password is
+the same kind of event as logging in as them, and it belongs in the same list.
+
+Swallows its own errors.  A login that fails because the audit table is unhappy
+would be a worse outcome than a login nobody wrote down.
+
+=cut
+
+sub log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
     eval {
         my $dbh = _dbh();
         $dbh->do(

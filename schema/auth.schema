@@ -42,3 +42,26 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS audit_log_time_idx ON audit_log(event_time);
 CREATE INDEX IF NOT EXISTS audit_log_user_idx ON audit_log(username);
+
+-- What a user asked us to remember for them, sealed with the installation's
+-- master key.  See Trog::Vault: the key is not in this file and not in this
+-- database, so these rows are ciphertext to anybody who only has the db.
+CREATE TABLE IF NOT EXISTS user_secret (
+    username   TEXT    NOT NULL REFERENCES user(name) ON DELETE CASCADE,
+    name       TEXT    NOT NULL,
+    key_id     TEXT    NOT NULL,
+    salt       BLOB    NOT NULL,
+    ciphertext BLOB    NOT NULL,
+    tag        BLOB    NOT NULL,
+    created    INTEGER NOT NULL,
+    last_used  INTEGER DEFAULT NULL,
+    PRIMARY KEY (username, name)
+);
+
+-- The last TOTP timestep this user spent.  A code authorizes things now, so it
+-- is worth exactly one thing rather than everything you can do inside its
+-- window.
+CREATE TABLE IF NOT EXISTS totp_spent (
+    username TEXT    NOT NULL UNIQUE REFERENCES user(name) ON DELETE CASCADE,
+    step     INTEGER NOT NULL
+);
