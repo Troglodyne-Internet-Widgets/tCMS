@@ -13,13 +13,10 @@
 </form>
 
 <br /><br />
-<h3>Turn off TOTP 2fa</h3>
-<form id="resettotp" action="/request_totp_clear" method="POST">
-: if ($user) {
-    <input type="hidden" name="username" value="<: $user :>" />
-: } else {
-    <label for="username">Username:</label>
-    <input type="text" class="cooltext" name="username" placeholder="WhoWasPhone" />
-: }
-    <input type="submit" value="Reset TOTP">
-</form>
+<h3>Lost your authenticator?</h3>
+<p>
+    TOTP cannot be turned off &mdash; losing a phone is not a reason to stop
+    having a second factor.  Your enrolment is still on the server, so ask
+    whoever runs this site to read it back to you with <code>bin/totp</code>,
+    and scan it into a new authenticator.
+</p>

@@ -401,9 +401,14 @@ against it -- which is how private uploads under `www/assets/private` are gated
 without tCMS being in the path of the file itself. That protection is real and it
 is invisible from inside the application, so code that reasons about what is
 reachable should not assume it and should not try to replace it.
-TOTP two-factor is supported. The first user to register becomes the
-administrator and registration then closes; further users are made by an admin
-through the `about` post type -- because a user *is* their profile page.
+TOTP two-factor is mandatory. A login without an enrolment gets a session and is
+sent to `/totp`, and the dispatcher refuses every other route behind a login
+until they have one -- that window exists at all because the QR *is* the shared
+secret, so a login is what you have to present to be shown it. There is no way to
+turn it back off; `bin/totp` reads a user their existing enrolment back out of
+band, which is what covers a lost authenticator. The first user to register
+becomes the administrator and registration then closes; further users are made by
+an admin through the `about` post type -- because a user *is* their profile page.
 
 **Config** (`Trog::Config`) is a thin wrapper over `Config::Simple` reading
 `config/main.cfg` and falling back to the shipped `config/default.cfg`. It is

@@ -249,16 +249,26 @@ sub _totp {
     return $totp;
 }
 
-=head2 clear_totp
+=head2 has_totp(user) = BOOL
 
-Clear the totp codes for provided user
+Whether this user has enrolled in TOTP yet.
+
+Everybody has to, so this is the question the dispatcher asks on the way to
+every page a login can reach: a user who has not is sent to /totp and can go
+nowhere else until they have.
+
+There is no way to turn it back off.  Losing an authenticator is not a reason to
+stop having a second factor, and the answer to it is bin/totp, which re-reads a
+user their enrolment out of band -- the secret is still in the database, so it
+is the same enrolment rather than a new one.
 
 =cut
 
-sub clear_totp ($user) {
-    my $dbh = _dbh();
-    my $res = $dbh->do( "UPDATE user SET totp_secret=null WHERE name=?", undef, $user ) or die "Could not clear user TOTP secrets";
-    return !!$res;
+sub has_totp ($user) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT totp_secret FROM user WHERE name=?", { Slice => {} }, $user );
+    return 0 unless ref $rows eq 'ARRAY' && @$rows;
+    return $rows->[0]{totp_secret} ? 1 : 0;
 }
 
 =head2 mksession(user, pass, token) = STRING
@@ -392,14 +402,6 @@ sub process_change_request ($token) {
             };
             killsession($user);
             return "Password set to $pass for $user";
-        },
-        clear_totp => sub {
-            my ($user) = @_;
-            clear_totp($user) or do {
-                return '';
-            };
-            killsession($user);
-            return "TOTP auth turned off for $user";
         },
     );
     my $res = $dispatch{$type}->( $user, $secret );

@@ -78,9 +78,12 @@ our %routes = (
         noindex  => 1,
     },
     '/totp' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::totp,
+        method => 'GET',
+        auth   => 1,
+
+        # The one page a user who has not enrolled yet is allowed to reach.
+        totp_exempt => 1,
+        callback    => \&Trog::Routes::HTML::totp,
     },
     '/post/save' => {
         method   => 'POST',
@@ -133,12 +136,6 @@ our %routes = (
     '/request_password_reset' => {
         method   => 'POST',
         callback => \&Trog::Routes::HTML::do_resetpass,
-        noindex  => 1,
-        nocache  => 1,
-    },
-    '/request_totp_clear' => {
-        method   => 'POST',
-        callback => \&Trog::Routes::HTML::do_totp_clear,
         noindex  => 1,
         nocache  => 1,
     },
@@ -275,9 +272,12 @@ our %routes = (
         callback => \&Trog::Routes::HTML::icon,
     },
     '/totp_qr/(.*)' => {
-        auth     => 1,
-        method   => 'GET',
-        callback => \&Trog::Routes::HTML::totp_qr,
+        auth   => 1,
+        method => 'GET',
+
+        # The QR on that page, so it has to be reachable from it.
+        totp_exempt => 1,
+        callback    => \&Trog::Routes::HTML::totp_qr,
     },
     '/styles/rss-style.xsl' => {
         method   => 'GET',
@@ -586,6 +586,11 @@ sub setup ($query) {
 Enable 2 factor auth via TOTP for the currently authenticated user.
 Returns a page with a QR code & TOTP uri for pasting into your authenticator app of choice.
 
+Every user has to enrol, so this is where a login without one lands and the only
+page it can reach until it has one.  Showing the same enrolment again is the
+point rather than a fallback: a user who lost their authenticator scans it again
+and is back where they were.
+
 =cut
 
 sub totp ($query) {
@@ -656,6 +661,12 @@ sub login ($query) {
         $query->{failed} = 1;
         my $cookie = Trog::Auth::mksession( $query->{username}, $query->{password}, $query->{token}, $query->{ip} // '' );
         if ($cookie) {
+
+            # A login is how you get to enrol, since the QR is not something to
+            # hand out to whoever asks for it -- so a user with no enrolment yet
+            # gets a session and goes straight there rather than where they were
+            # headed.  The dispatcher keeps them there until they have one.
+            $query->{to} = '/totp' unless Trog::Auth::has_totp( $query->{username} );
 
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
             my $secure = '';
@@ -901,9 +912,12 @@ sub _config_title ($name) {
 
 =head2 do_resetpass
 
-=head2 do_totp_clear
-
 Routes for user service of their authentication details.
+
+There is no route here for turning TOTP off.  Everybody has it, and losing an
+authenticator is not a reason to stop having a second factor -- bin/totp reads a
+user their existing enrolment back out of band, which is the same enrolment
+rather than a new one.
 
 =cut
 
@@ -953,32 +967,6 @@ sub do_resetpass ($query) {
         "root\@$query->{domain}",
         "$query->{domain}: Password reset URL for $user",
         { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'password_reset.tx' }
-    );
-    return $query->{tpsgi}->see_also("/processed");
-}
-
-sub do_totp_clear ($query) {
-    my $user = $query->{username};
-
-    # User Does not exist
-    return $query->{tpsgi}->forbidden($query) if !Trog::Auth::user_exists($user);
-
-    # User exists, but is not logged in this session
-    return $query->{tpsgi}->forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
-
-    my $token = Trog::Utils::uuid();
-    my $res   = Trog::Auth::add_change_request( type => 'clear_totp', user => $user, token => $token );
-    die "Could not add auth change request!" unless $res;
-
-    # If the user is logged in, just do the deed, otherwise send them the token in an email
-    if ( $query->{user} ) {
-        return $query->{tpsgi}->see_also("/api/auth_change_request/$token");
-    }
-    Trog::Email::contact(
-        $user,
-        "root\@$query->{domain}",
-        "$query->{domain}: Password reset URL for $user",
-        { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'totp_reset.tx' }
     );
     return $query->{tpsgi}->see_also("/processed");
 }

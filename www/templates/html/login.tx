@@ -26,7 +26,7 @@
       </div>
       <br />
 : if ($has_users) {
-      TOTP 2FA code <a style="cursor:help" title="only needed if 2FA enabled">ℹ️ </a><br />
+      TOTP 2FA code <a style="cursor:help" title="from your authenticator app; leave this blank only on the login where you enrol">ℹ️ </a><br />
       <div class="input-group">
         <label for="token">🔒</label>
         <input name="token" id="token" placeholder="7779311" value="" type="password"></input>

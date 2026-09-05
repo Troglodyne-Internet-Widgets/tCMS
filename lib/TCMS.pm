@@ -126,6 +126,11 @@ sub build_routes {
             # Now that we have firmed up the actual routing, let's validate.
             return $tpsgi->forbidden($query) if exists $query->{dispatcher}{auth} && !$active_user;
 
+            if ( needs_enrolment( $active_user, $query->{dispatcher} ) ) {
+                INFO("$active_user has no TOTP enrolment; sending them to /totp");
+                return $tpsgi->see_also('/totp');
+            }
+
             no strict 'refs';
             $callback->($query);
             use strict;
@@ -139,6 +144,28 @@ sub build_routes {
     }
 
     return [%routes_adj];
+}
+
+=head2 needs_enrolment($user, $dispatcher) = BOOL
+
+Whether this request should be turned around and sent to /totp.
+
+Two factors or nothing.  A login is what gets you to the enrolment page -- the QR
+is the shared secret, so it cannot be handed to whoever asks for it -- which
+leaves a window where somebody is logged in and has no second factor yet.  This
+is what makes that window one page wide: every route a login can reach, and no
+route a logged out visitor can, is refused until they have enrolled.
+
+The enrolment page and the QR on it say so themselves, with totp_exempt, because
+the exemption belongs next to the route rather than in a list over here that the
+routing table knows nothing about.
+
+=cut
+
+sub needs_enrolment ( $user, $dispatcher ) {
+    return 0 unless $user;
+    return 0 unless $dispatcher && $dispatcher->{auth} && !$dispatcher->{totp_exempt};
+    return Trog::Auth::has_totp($user) ? 0 : 1;
 }
 
 # Override the generic error handler to look spiffy

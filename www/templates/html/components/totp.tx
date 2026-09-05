@@ -1,4 +1,9 @@
 <div id="backoffice">
+    <p>
+        Two factor auth is required here, and this is your enrolment.  It does
+        not change, so if you lose your authenticator you scan this same code
+        into the next one.
+    </p>
     Use the following URI, or scan the below QR code into your authenticator Application of choice:<br />
     <: $uri :>
     <br />
