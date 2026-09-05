@@ -43,9 +43,9 @@ or hack on tCMS itself.
 Production Deployment
 ====================
 
-See trog-provisioner & related provisioners repository.
+See the trog-provisioner repository.
 
-In the latter you will be interested particularly in:
+You will be interested particularly in:
 
 - Provisioner::Recipe::tcms
 - Provisioner::Recipe::tpsgi
@@ -161,16 +161,17 @@ Sometimes you want to consider something else authoritative that isn't a datamod
 ProvisionedVirt is a subclass of Virt, and shows what subclassing one is for: it
 inherits the libvirt half unchanged and adds the other half of the story, which is
 that a guest on a Troglodyne hypervisor was provisioned from a recipe on disk.
-Tell it where the two repositories are and it shows each guest's
-recipes.d/$domain.yaml and offers a Reprovision button running the full
-lifecycle -- bin/new_config in provisioners, then bin/provision in
-trog-provisioner:
+Tell it where trog-provisioner is checked out and it shows each guest's
+recipes.d/$domain.yaml and offers a Reprovision button running bin/provision,
+which generates the guest's configuration from that recipe and then builds it:
 
     [provisioner]
-        provisioners     = /home/you/Code/provisioners
         trog_provisioner = /home/you/Code/trog-provisioner
 
-Leave those out and it degrades to a plain guest listing.
+Leave that out and it degrades to a plain guest listing.  The recipes themselves
+are not in the checkout -- they describe an installation rather than the software,
+so trog-provisioner keeps them in /etc/trog-provisioner, or wherever
+TROG_PROVISIONER_CONFIG says, and we read them from the same place.
 
 Reprovisioning is not recoverable: it destroys the guest and builds it again, and
 whatever the recipe does not describe does not come back.  It is POST and admin
@@ -190,7 +191,7 @@ run whose status still says 'running' but whose process is gone reads as
 interrupted rather than as going on forever -- that is a guess from the only
 evidence there is, and it is the honest one.
 
-bin/new_config asks for your KeePass passphrase on stdin, because every recipe
+bin/provision asks for your KeePass passphrase on stdin, because every recipe
 inherits secret: values from _base.  The form asks you for it per run and pipes it
 to that one process; it is not written to the config, the log, or the process
 table.  The alternative would be keeping the master password for every secret you

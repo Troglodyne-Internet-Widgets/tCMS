@@ -29,19 +29,22 @@ BEGIN {
     $ENV{HOME} = $ROOT;
     File::Path::make_path("$ROOT/$_") for qw{config logs www/assets};
 
-    # Stand-ins for the two repositories, with the two programs the lifecycle
-    # runs.  Never executed -- _spawn is mocked -- but they have to be there and
+    # A stand-in for the checkout, with the one program a reprovision runs.
+    # Never executed -- _spawn is mocked -- but it has to be there and
     # executable, because reprovision() checks that before it commits to
     # anything.
-    File::Path::make_path("$ROOT/provisioners/$_") for qw{bin recipes.d};
     File::Path::make_path("$ROOT/trog-provisioner/bin");
-    foreach my $program ( "$ROOT/provisioners/bin/new_config", "$ROOT/trog-provisioner/bin/provision" ) {
-        open( my $fh, '>', $program ) or die $!;
-        print {$fh} "#!/bin/sh\nexit 0\n";
-        close $fh;
-        chmod( 0755, $program );
-    }
-    open( my $recipe, '>', "$ROOT/provisioners/recipes.d/guest.example.com.yaml" ) or die $!;
+    my $program = "$ROOT/trog-provisioner/bin/provision";
+    open( my $fh, '>', $program ) or die $!;
+    print {$fh} "#!/bin/sh\nexit 0\n";
+    close $fh;
+    chmod( 0755, $program );
+
+    # And a stand-in for the installation's own files, which live where the
+    # provisioner keeps them rather than anywhere tCMS is told about.
+    $ENV{TROG_PROVISIONER_CONFIG} = "$ROOT/etc";
+    File::Path::make_path("$ROOT/etc/recipes.d");
+    open( my $recipe, '>', "$ROOT/etc/recipes.d/guest.example.com.yaml" ) or die $!;
     print {$recipe} "---\n_global:\n  registrar: secret:x/y/z\n";
     close $recipe;
 
@@ -79,8 +82,8 @@ $log->redefine( INFO => sub { note(shift) } );
 our @SPAWNED;
 $log->redefine(
     _spawn => sub {
-        my ( $domain, $passphrase, $lifecycle, $user ) = @_;
-        push( @SPAWNED, { domain => $domain, passphrase => $passphrase, lifecycle => $lifecycle, user => $user } );
+        my ( $domain, $passphrase, $dir, $command, $user ) = @_;
+        push( @SPAWNED, { domain => $domain, passphrase => $passphrase, dir => $dir, command => $command, user => $user } );
         return ( 1, 'started' );
     }
 );
@@ -89,10 +92,7 @@ $log->redefine(
 my $virt = Test::MockModule->new('Trog::DataSource::Virt');
 $virt->redefine( _is_self => sub { return $_[0] eq 'thisserver.example.com' ? 1 : 0 } );
 
-write_config(
-    provisioners     => "$ROOT/provisioners",
-    trog_provisioner => "$ROOT/trog-provisioner",
-);
+write_config( trog_provisioner => "$ROOT/trog-provisioner" );
 
 sub reprovision {
     @SPAWNED = ();
@@ -169,7 +169,7 @@ subtest 'what it refuses to reprovision' => sub {
     like( $why, qr/no recipe/, 'and says why' );
 
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => '' );
-    is( $ok, 0, 'a run with no passphrase, which new_config would just hang waiting for' );
+    is( $ok, 0, 'a run with no passphrase, which the provisioner would just hang waiting for' );
     like( $why, qr/passphrase/, 'and says why' );
 
     # The name reaches the filesystem and an argument list.
@@ -182,7 +182,7 @@ subtest 'what it refuses to reprovision' => sub {
     is_deeply( \@SPAWNED, [], 'and none of that ran a provisioner' );
 };
 
-subtest 'the lifecycle it would run' => sub {
+subtest 'what it would run' => sub {
     my ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
     is( $ok, 1, 'a guest with a recipe is accepted' ) or diag($why);
     like( $why, qr/started/, 'and reports that it started rather than that it finished' );
@@ -192,25 +192,18 @@ subtest 'the lifecycle it would run' => sub {
     is( $run->{domain}, 'guest.example.com', 'for the guest asked about' );
     is( $run->{user},   'admin',             'recording who asked' );
 
-    # new_config in provisioners, then provision in trog-provisioner, each in
-    # its own repository.
-    is( scalar( @{ $run->{lifecycle} } ), 2, 'two steps' );
-    my ( $first, $second ) = @{ $run->{lifecycle} };
-    is( $first->[0], "$ROOT/provisioners", 'the first runs in provisioners' );
-    like( $first->[1], qr{/bin/new_config$}, 'and is new_config' );
-    is( $first->[2],  'guest.example.com',      'passed the guest as an argument' );
-    is( $second->[0], "$ROOT/trog-provisioner", 'the second runs in trog-provisioner' );
-    like( $second->[1], qr{/bin/provision$}, 'and is provision' );
-    is( $second->[2], 'guest.example.com', 'passed the same' );
+    # One program does the whole of it now: bin/provision generates the guest's
+    # configuration from its recipe and then builds the machine.
+    is( $run->{dir}, "$ROOT/trog-provisioner", 'run from the checkout' );
+    like( $run->{command}[0], qr{/bin/provision$}, 'and it is bin/provision' );
+    is( $run->{command}[1], 'guest.example.com', 'passed the guest as an argument' );
 
-    # Arguments, not a command line: there is no shell between us and these, so
-    # a guest name can never be read as one.
-    foreach my $step ( @{ $run->{lifecycle} } ) {
-        is( scalar(@$step), 3, 'a directory, a program and one argument -- nothing to be parsed' );
-    }
+    # Arguments, not a command line: there is no shell between us and this, so a
+    # guest name can never be read as one.
+    is( scalar( @{ $run->{command} } ), 2, 'a program and one argument -- nothing to be parsed' );
 };
 
-subtest 'without the repositories configured it is just Virt' => sub {
+subtest 'without the provisioner configured it is just Virt' => sub {
     write_config();
 
     my ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
@@ -225,14 +218,12 @@ subtest 'without the repositories configured it is just Virt' => sub {
 
     # A path that is not there is a typo, and better found here than halfway
     # through a reprovision.
-    write_config( provisioners => "$ROOT/nonesuch", trog_provisioner => "$ROOT/trog-provisioner" );
+    write_config( trog_provisioner => "$ROOT/nonesuch" );
     ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
     is( $ok, 0, 'a configured path which is not there is refused' );
+    like( $why, qr/not configured/, 'the same as never having configured one' );
 
-    write_config(
-        provisioners     => "$ROOT/provisioners",
-        trog_provisioner => "$ROOT/trog-provisioner",
-    );
+    write_config( trog_provisioner => "$ROOT/trog-provisioner" );
 };
 
 subtest 'the log is read back onto the page' => sub {
@@ -402,7 +393,7 @@ subtest 'the route' => sub {
     my $query = { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, guest => 'guest.example.com', passphrase => 'hunter2', to => '/vms' };
     Trog::Routes::HTML::guest_reprovision($query);
     is( scalar(@SPAWNED),        1,         'an admin gets their run' );
-    is( $SPAWNED[0]{passphrase}, 'hunter2', 'the passphrase reaches the lifecycle' );
+    is( $SPAWNED[0]{passphrase}, 'hunter2', 'the passphrase reaches the provisioner' );
     ok( !exists $query->{passphrase}, 'and is gone from the query afterwards' );
 
     # The log route.  It lives in logs/ rather than under www/, and the output

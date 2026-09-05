@@ -29,18 +29,22 @@ cached.  What it adds is the other half of the story: a guest on a Troglodyne
 hypervisor was provisioned from a recipe, and the recipe is on disk next to the
 hypervisor rather than anywhere libvirt can tell you about.
 
-Two repositories between them own that lifecycle:
+One repository owns that lifecycle.  trog-provisioner's bin/provision generates
+a guest's configuration from its recipe and then builds the machine out of it.
+The generator used to be a second repository and a second run; the two had to
+become one program once which hypervisor a guest lands on became a choice rather
+than whichever machine you happened to be sat at.
 
-    provisioners        recipes.d/$domain.yaml, and bin/new_config which turns
-                        a recipe into a configuration package
-    trog-provisioner    bin/provision, which turns that package into a machine
-
-Say where they are in the tCMS configuration and this becomes useful; leave them
-out and it degrades to plain Virt, which is what it is.
+Say where that checkout is and this becomes useful; leave it out and it degrades
+to plain Virt, which is what it is.
 
     [provisioner]
-        provisioners     = /home/you/Code/provisioners
         trog_provisioner = /home/you/Code/trog-provisioner
+
+The recipes are not in the checkout.  They describe an installation rather than
+the software, so trog-provisioner keeps them in /etc/trog-provisioner, or
+wherever TROG_PROVISIONER_CONFIG says instead.  We find them by that same rule,
+which is one fewer thing to tell tCMS and one fewer thing to disagree about.
 
 =head1 A NOTE ON SAFETY
 
@@ -57,6 +61,10 @@ shell, so a guest name is an argument and can never be a command.
 
 our $recipe_dir = 'recipes.d';
 our $log_dir    = 'logs/reprovision';
+
+# Where an installation's own files live, which is trog-provisioner's rule
+# rather than ours -- see its Trog::Config.
+our $provisioner_config = '/etc/trog-provisioner';
 
 # What a reprovision can be, in the order it can be it.
 our %states = (
@@ -117,11 +125,11 @@ sub _with_recipe ( $post, $config ) {
         }
     }
 
-    # Both halves have to be there to run the lifecycle, and we will not rebuild
-    # the machine we are answering the request from -- see act() in the parent,
+    # There has to be something to run it with, and we will not rebuild the
+    # machine we are answering the request from -- see act() in the parent,
     # which refuses to power that one off for the same reason.
     $post->{can_reprovision} =
-      ( $post->{has_recipe} && $config->{provisioners} && $config->{trog_provisioner} && !$post->{is_self} ) ? 1 : 0;
+      ( $post->{has_recipe} && $config->{trog_provisioner} && !$post->{is_self} ) ? 1 : 0;
 
     my $status = status($domain);
     if ($status) {
@@ -216,33 +224,38 @@ sub _write_status ( $domain, %fields ) {
 
 =head2 _config() = HASHREF
 
-Where the two repositories are, from the tCMS configuration.
+Where the provisioner is checked out, from the tCMS configuration, and where the
+recipes it reads are, from trog-provisioner's own rule for that.
 
-Undef for either means the feature is off rather than broken: a site which has
-not configured them gets a plain guest listing, which is what it asked for.
+    trog_provisioner    the checkout, or undef
+    recipes             the directory the guests' recipes are in
+
+Undef for the checkout means the feature is off rather than broken: a site which
+has not configured it gets a plain guest listing, which is what it asked for.
 
 =cut
 
 sub _config {
     my $conf = Trog::Config::get();
 
-    my %config;
-    foreach my $key (qw{provisioners trog_provisioner}) {
-        my $dir = $conf->param("provisioner.$key");
-        next unless $dir && !ref $dir;
+    # Nothing to configure here: the provisioner reads this env var or that
+    # directory, so a recipe we showed from anywhere else would be a recipe it
+    # is not going to build from.
+    my %config = ( recipes => ( $ENV{TROG_PROVISIONER_CONFIG} // $provisioner_config ) . "/$recipe_dir" );
 
-        # Resolved, and checked to be there.  A path in a config file which does
-        # not exist is a typo, and finding that out here beats finding it out
-        # halfway through a reprovision.
-        my $absolute = Cwd::abs_path($dir);
-        if ( !$absolute || !-d $absolute ) {
-            WARN("provisioner.$key is set to '$dir', which is not a directory here");
-            next;
-        }
+    my $dir = $conf->param('provisioner.trog_provisioner');
+    return \%config unless $dir && !ref $dir;
 
-        $config{$key} = $absolute;
+    # Resolved, and checked to be there.  A path in a config file which does not
+    # exist is a typo, and finding that out here beats finding it out halfway
+    # through a reprovision.
+    my $absolute = Cwd::abs_path($dir);
+    if ( !$absolute || !-d $absolute ) {
+        WARN("provisioner.trog_provisioner is set to '$dir', which is not a directory here");
+        return \%config;
     }
 
+    $config{trog_provisioner} = $absolute;
     return \%config;
 }
 
@@ -255,13 +268,15 @@ sub _safe_domain ($domain) {
     return $safe;
 }
 
+# An installation's recipes are where they are whether tCMS knows about the
+# provisioner or not, but reading them is the feature, so it is off with it.
 sub _recipe_path ( $config, $domain ) {
-    return undef unless $config->{provisioners};
+    return undef unless $config->{trog_provisioner};
 
     my $safe = _safe_domain($domain);
     return undef unless $safe;
 
-    my $path = "$config->{provisioners}/$recipe_dir/$safe.yaml";
+    my $path = "$config->{recipes}/$safe.yaml";
     return -f $path ? $path : undef;    ## no critic (ProhibitFiletest_f) -- is there a recipe for this guest
 }
 
@@ -319,11 +334,11 @@ sub log_for ($domain) {
 
 =head2 reprovision(%args) = ($ok, $message)
 
-Run the full lifecycle for one guest: bin/new_config in provisioners, and then
-bin/provision in trog-provisioner.
+Run bin/provision for one guest, which generates its configuration from its
+recipe and then builds the machine.
 
     domain      which guest.  Required, and validated as a hostname.
-    passphrase  the KeePass passphrase new_config asks for on stdin.
+    passphrase  the KeePass passphrase the recipe's secrets need, on stdin.
     user        who asked, for the log.
 
 Returns immediately.  Provisioning a machine takes minutes and an HTTP worker
@@ -332,10 +347,10 @@ caller is told it started rather than told it finished.  What happened is in
 logs/reprovision/$domain.log, which is what _log_tail reads back onto the page.
 
 The passphrase is passed down the child's stdin and is never written anywhere:
-not to the log, not to the process table, not to the configuration.  new_config
-prompts for it because every recipe inherits secret: values from _base, and the
-alternative to asking each time is keeping the master password for every secret
-the operator holds in a file the webserver can read.
+not to the log, not to the process table, not to the configuration.  It is asked
+for because every recipe inherits secret: values from _base, and the alternative
+to asking each time is keeping the master password for every secret the operator
+holds in a file the webserver can read.
 
 =cut
 
@@ -352,53 +367,45 @@ sub reprovision (%args) {
     }
 
     my $config = _config();
-    return ( 0, 'provisioner.provisioners is not configured' )     unless $config->{provisioners};
     return ( 0, 'provisioner.trog_provisioner is not configured' ) unless $config->{trog_provisioner};
 
     my $recipe = _recipe_path( $config, $safe );
-    return ( 0, "there is no recipe for '$safe' in $recipe_dir" ) unless $recipe;
+    return ( 0, "there is no recipe for '$safe' in $config->{recipes}" ) unless $recipe;
 
-    return ( 0, 'a passphrase is required, as new_config asks for one' ) unless length( $args{passphrase} // '' );
+    return ( 0, 'a passphrase is required, as the provisioner asks for one' ) unless length( $args{passphrase} // '' );
 
     # One at a time.  Two provisions of one machine racing each other is not
     # something anybody should be able to start by double clicking.
     my $running = status($safe);
     return ( 0, 'a reprovision of this guest is already running' ) if $running && $running->{state} eq 'running';
 
-    my @lifecycle = (
-        [ $config->{provisioners},     "$config->{provisioners}/bin/new_config",    $safe ],
-        [ $config->{trog_provisioner}, "$config->{trog_provisioner}/bin/provision", $safe ],
-    );
-
-    foreach my $step (@lifecycle) {
-        my ( undef, $program ) = @$step;
-        return ( 0, "$program is not there to run" ) unless -x $program;    ## no critic (ProhibitFiletest_rwxRWX) -- refusing early beats finding out mid-lifecycle
-    }
+    my @command = ( "$config->{trog_provisioner}/bin/provision", $safe );
+    return ( 0, "$command[0] is not there to run" ) unless -x $command[0];    ## no critic (ProhibitFiletest_rwxRWX) -- refusing early beats finding out mid-provision
 
     INFO( "Reprovision of '$safe' requested by " . ( $args{user} // 'somebody' ) );
 
-    my ( $ok, $why ) = _spawn( $safe, $args{passphrase}, \@lifecycle, $args{user} );
+    my ( $ok, $why ) = _spawn( $safe, $args{passphrase}, $config->{trog_provisioner}, \@command, $args{user} );
     return ( 0, $why ) unless $ok;
 
     return ( 1, "reprovision started; watch $log_dir/$safe.log" );
 }
 
-=head2 _spawn($domain, $passphrase, $lifecycle, $user)
+=head2 _spawn($domain, $passphrase, $dir, $command, $user)
 
-Fork the lifecycle off where nothing is waiting for it.
+Fork the provisioner off where nothing is waiting for it.
 
 Double forked and setsid'd on purpose: a save signals the parent to reload the
 routing table, and a provision which died because a worker was recycled halfway
 through would leave a half-built machine.  This has to outlive the request, the
 worker, and a restart.
 
-Each step runs through open() with a list, so there is no shell between us and
-the program, and the guest name is an argument rather than a thing that could be
+It runs through open() with a list, so there is no shell between us and the
+program, and the guest name is an argument rather than a thing that could be
 read as one.
 
 =cut
 
-sub _spawn ( $domain, $passphrase, $lifecycle, $user ) {
+sub _spawn ( $domain, $passphrase, $dir, $command, $user ) {
     my $log = "$log_dir/$domain.log";
 
     local $@;
@@ -427,50 +434,48 @@ sub _spawn ( $domain, $passphrase, $lifecycle, $user ) {
     # alive, so it has to be the pid of whatever is actually doing the work.
     _write_status( $domain, state => 'running', pid => $$, started => $started, user => ( $user // '' ) );
 
-    foreach my $step (@$lifecycle) {
-        my ( $dir, @command ) = @$step;
+    print {$fh} "\n--- $command->[0] $command->[1] (in $dir)\n";
 
-        print {$fh} "\n--- $command[0] $command[1] (in $dir)\n";
+    # In the checkout, so that anything the provisioner writes relative to where
+    # it was run lands there rather than in the middle of the website.
+    if ( !chdir($dir) ) {
+        print {$fh} "could not chdir to $dir: $!\n";
+        POSIX::_exit(1);
+    }
 
-        if ( !chdir($dir) ) {
-            print {$fh} "could not chdir to $dir: $!\n";
-            POSIX::_exit(1);
-        }
+    # The child's own stdout and stderr are the log, so whatever the program
+    # says lands there without a shell redirect to get wrong.
+    open( STDOUT, '>&', $fh ) or POSIX::_exit(1);
+    open( STDERR, '>&', $fh ) or POSIX::_exit(1);
 
-        # The child's own stdout and stderr are the log, so whatever the program
-        # says lands there without a shell redirect to get wrong.
-        open( STDOUT, '>&', $fh ) or POSIX::_exit(1);
-        open( STDERR, '>&', $fh ) or POSIX::_exit(1);
+    # List form on purpose, and the reason the whole thing is shaped this way: a
+    # piped open with a list never involves a shell, so the guest name is an
+    # argument and cannot be read as a command.  The single argument form of
+    # this would be the bug.
+    my $ok = open( my $stdin, '|-', @$command );    ## no critic (ProhibitPipeOpen) -- list form, so no shell
+    if ( !$ok ) {
+        print {$fh} "could not run $command->[0]: $!\n";
+        POSIX::_exit(1);
+    }
 
-        # List form on purpose, and the reason the whole thing is shaped this
-        # way: a piped open with a list never involves a shell, so the guest
-        # name is an argument and cannot be read as a command.  The single
-        # argument form of this would be the bug.
-        my $ok = open( my $stdin, '|-', @command );    ## no critic (ProhibitPipeOpen) -- list form, so no shell
-        if ( !$ok ) {
-            print {$fh} "could not run $command[0]: $!\n";
-            POSIX::_exit(1);
-        }
+    # What the provisioner prompts for on its way to the secrets database.
+    # Closing this instead would make anything that asks hang forever.
+    print {$stdin} "$passphrase\n";
+    close($stdin);
 
-        # What new_config prompts for.  The second step ignores it, and giving
-        # it a closed stdin instead would make anything that asks hang forever.
-        print {$stdin} "$passphrase\n";
-        close($stdin);
-
-        if ($?) {
-            my $status = $? >> 8;
-            print {$fh} "\n--- $command[0] exited $status, stopping here\n";
-            _write_status(
-                $domain,
-                state    => 'failed',
-                started  => $started,
-                finished => time(),
-                exit     => $status,
-                failed   => $command[0],
-                user     => ( $user // '' ),
-            );
-            POSIX::_exit($status);
-        }
+    if ($?) {
+        my $status = $? >> 8;
+        print {$fh} "\n--- $command->[0] exited $status\n";
+        _write_status(
+            $domain,
+            state    => 'failed',
+            started  => $started,
+            finished => time(),
+            exit     => $status,
+            failed   => $command->[0],
+            user     => ( $user // '' ),
+        );
+        POSIX::_exit($status);
     }
 
     print {$fh} "\n=== finished ===\n";

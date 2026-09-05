@@ -125,7 +125,7 @@
                         <label>
                             Secrets passphrase
                             <input required autofocus class="cooltext" type="password" name="passphrase" autocomplete="off"
-                                   title="new_config asks for this on stdin; it is used for this run and not stored" />
+                                   title="the provisioner asks for this on stdin; it is used for this run and not stored" />
                         </label>
                         <div class="guest-reprovision-actions">
                             <button class="coolbutton" type="button"

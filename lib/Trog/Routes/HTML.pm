@@ -2446,13 +2446,13 @@ sub guest_act ($query) {
 
 Implements POST /guest/reprovision.  Admin only.
 
-Rebuilding a guest from the recipe it was provisioned with: bin/new_config in
-the provisioners repository, and then bin/provision in trog-provisioner.  The
-only route which reaches Trog::DataSource::ProvisionedVirt::reprovision.
+Rebuilding a guest from the recipe it was provisioned with: bin/provision in
+trog-provisioner.  The only route which reaches
+Trog::DataSource::ProvisionedVirt::reprovision.
 
 This is not a recoverable operation, so read that function before changing
 anything here.  It refuses for the guest tCMS is itself running on, and the
-passphrase new_config asks for arrives with the request and is not stored.
+passphrase the provisioner asks for arrives with the request and is not stored.
 
 =cut
 
