@@ -191,17 +191,25 @@ run whose status still says 'running' but whose process is gone reads as
 interrupted rather than as going on forever -- that is a guess from the only
 evidence there is, and it is the honest one.
 
-bin/provision asks for your KeePass passphrase on stdin, because every recipe
-inherits secret: values from _base.  The form asks you for it per run and pipes it
-to that one process; it is not written to the config, the log, or the process
-table.  The alternative would be keeping the master password for every secret you
-hold in a file the webserver can read.
+The button asks for two passwords, and neither is written to the config, the log,
+or the process table -- they go down the provisioner's stdin as a credentials
+block and nowhere else.
 
-Typing it every time has its own cost -- a passphrase you have to have to hand is
-one you write down somewhere -- so you can tick "remember it" and have it stored
-in your vault instead.  After that the button asks for a TOTP code, which is
-spent on that one reprovision and exchanged for the passphrase.  See Stored
-Secrets, below.
+The first is your KeePass passphrase, because every recipe inherits secret: values
+from _base.  The alternative would be keeping the master password for every secret
+you hold in a file the webserver can read.
+
+The second is your sudo password on the hypervisor, and it is optional because it
+is usually unnecessary: give that login passwordless sudo and there is nothing to
+ask for.  Where you cannot, sudo over ssh has no terminal to ask at, so a run that
+needs one and was not given one dies several minutes in on a prompt nobody will
+ever see.  Leave the field empty if this does not apply to you.
+
+Typing them every time has its own cost -- a passphrase you have to have to hand
+is one you write down somewhere -- so you can tick "remember these" and have them
+stored in your vault instead.  After that the button asks for a TOTP code, which
+is spent on that one reprovision and exchanged for both.  See Stored Secrets,
+below.
 
 Stored Secrets
 ==============
@@ -209,6 +217,9 @@ Stored Secrets
 Some of what tCMS does for you needs a password that is not tCMS's.  /secrets is
 where each user keeps those, and what is kept there is sealed with a key the
 database does not contain, so a stolen `config/auth.db` is ciphertext.
+
+Reprovisioning uses two of them, `provisioner` and `provisioner_sudo`, and the
+reprovision dialog is the easy way to put them there.
 
 AES-256-GCM per row, under a key derived for that row from a fresh random salt,
 with the username and the secret's name bound in as associated data -- so a row

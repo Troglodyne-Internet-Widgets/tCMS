@@ -536,3 +536,8 @@ pre {
     display: flex;
     gap: .5rem;
 }
+/* Says a field can be left empty, without it reading as a second question. */
+.guest-reprovision-optional {
+    font-weight: normal;
+    opacity: .7;
+}

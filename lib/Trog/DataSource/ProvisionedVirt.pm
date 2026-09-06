@@ -64,10 +64,12 @@ shell, so a guest name is an argument and can never be a command.
 our $recipe_dir = 'recipes.d';
 our $log_dir    = 'logs/reprovision';
 
-# What a stored provisioning passphrase is called in a user's vault.  One name
-# per person rather than one per guest: it is the passphrase to their secrets
-# database, and there is one of those.
+# What the provisioner's two passwords are called in a user's vault.  One name
+# per person rather than one per guest: the passphrase is to their own secrets
+# database, and the sudo password is theirs on the hypervisor rather than
+# anything to do with a particular guest.
 our $secret_name = 'provisioner';
+our $sudo_name   = 'provisioner_sudo';
 
 # Where an installation's own files live, which is trog-provisioner's rule
 # rather than ours -- see its Trog::Config.
@@ -114,8 +116,9 @@ sub posts ( $series, $query ) {
     # Asked once for the page rather than once per guest, and asked rather than
     # opened: what the form needs to know is which box to draw.
     my $user = $query->{user} // '';
-    $config->{can_remember} = ( $user                   && Trog::Vault::has_key() )                  ? 1 : 0;
-    $config->{remembered}   = ( $config->{can_remember} && Trog::Vault::has( $user, $secret_name ) ) ? 1 : 0;
+    $config->{can_remember}    = ( $user                   && Trog::Vault::has_key() )                  ? 1 : 0;
+    $config->{remembered}      = ( $config->{can_remember} && Trog::Vault::has( $user, $secret_name ) ) ? 1 : 0;
+    $config->{sudo_remembered} = ( $config->{can_remember} && Trog::Vault::has( $user, $sudo_name ) )   ? 1 : 0;
 
     return map { _with_recipe( $_, $config ) } @guests;
 }
@@ -144,8 +147,9 @@ sub _with_recipe ( $post, $config ) {
     $post->{can_reprovision} =
       ( $post->{has_recipe} && $config->{trog_provisioner} && !$post->{is_self} ) ? 1 : 0;
 
-    # Which of the two things the button has to ask for.
+    # Which of the things the button has to ask for.
     $post->{passphrase_remembered} = $config->{remembered};
+    $post->{sudo_remembered}       = $config->{sudo_remembered};
     $post->{can_remember}          = $config->{can_remember};
 
     my $status = status($domain);
@@ -356,9 +360,10 @@ recipe and then builds the machine.
 
     domain      which guest.  Required, and validated as a hostname.
     user        who asked.  For the log, and whose vault to look in.
-    passphrase  the KeePass passphrase the recipe's secrets need, on stdin.
-    totp        a code, instead of the passphrase, when they have stored one.
-    remember    store the passphrase they just typed, so that next time is a code.
+    passphrase  the KeePass passphrase the recipe's secrets need.
+    sudo        their sudo password on the hypervisor, if it wants one.
+    totp        a code, instead of those, when they have been stored.
+    remember    store what they just typed, so that next time is a code.
 
 Returns immediately.  Provisioning a machine takes minutes and an HTTP worker
 does not have minutes, so the work is handed to a detached process and the
@@ -367,10 +372,19 @@ logs/reprovision/$domain.log, which is what _log_tail reads back onto the page.
 
 =head3 WHY IT ASKS FOR ANYTHING AT ALL
 
+Two passwords, for two different reasons.
+
 Every recipe inherits secret: values from _base, so the provisioner opens a
-KeePass database on its way past and wants the passphrase to it on stdin.  The
+KeePass database on its way past and wants the passphrase to it.  The
 alternative to asking is keeping the master password for every secret an
 operator holds in a file the webserver can read, which is worse than asking.
+
+And almost everything it does on the hypervisor needs root.  Where the login
+there has passwordless sudo -- which is how ours are set up, and what we would
+recommend -- there is nothing to ask for.  Where it does not, sudo over ssh has
+no terminal to ask at, and a run that finds that out dies several minutes in on
+a prompt nobody will ever see.  So it is asked for here instead, and left empty
+by anybody who does not need it.
 
 Asking every time has its own cost, though: a passphrase somebody has to have to
 hand is a passphrase that gets written down, and then it is in a text file
@@ -382,8 +396,9 @@ without their having to be holding anything.
 The code is spent either way, so it authorizes this one reprovision rather than
 every reprovision inside its window.
 
-Whichever it arrives as, the passphrase goes down the child's stdin and is
-written nowhere: not the log, not the process table, not the configuration.
+However they arrive, they go down the child's stdin as a credentials block --
+see Trog::Credentials in trog-provisioner -- and are written nowhere: not the
+log, not the process table, not the configuration.
 
 =cut
 
@@ -405,43 +420,59 @@ sub reprovision (%args) {
     my $recipe = _recipe_path( $config, $safe );
     return ( 0, "there is no recipe for '$safe' in $config->{recipes}" ) unless $recipe;
 
-    my ( $passphrase, $why ) = _passphrase(%args);
-    return ( 0, $why ) unless defined $passphrase;
+    my ( $credentials, $why ) = _credentials(%args);
+    return ( 0, $why ) unless $credentials;
+
+    my $unsendable = _sendable($credentials);
+    return ( 0, $unsendable ) if $unsendable;
 
     # One at a time.  Two provisions of one machine racing each other is not
     # something anybody should be able to start by double clicking.
     my $running = status($safe);
     return ( 0, 'a reprovision of this guest is already running' ) if $running && $running->{state} eq 'running';
 
-    my @command = ( "$config->{trog_provisioner}/bin/provision", $safe );
+    # --credentials, because nothing in there reads stdin unless it is told to.
+    my @command = ( "$config->{trog_provisioner}/bin/provision", '--credentials', $safe );
     return ( 0, "$command[0] is not there to run" ) unless -x $command[0];    ## no critic (ProhibitFiletest_rwxRWX) -- refusing early beats finding out mid-provision
 
     INFO( "Reprovision of '$safe' requested by " . ( $args{user} // 'somebody' ) );
 
-    my ( $ok, $failed ) = _spawn( $safe, $passphrase, $config->{trog_provisioner}, \@command, $args{user} );
+    my ( $ok, $failed ) = _spawn( $safe, $credentials, $config->{trog_provisioner}, \@command, $args{user} );
     return ( 0, $failed ) unless $ok;
 
     return ( 1, "reprovision started; watch $log_dir/$safe.log" );
 }
 
-=head2 _passphrase(%args) = ($passphrase, $why)
+=head2 _credentials(%args) = ($credentials, $why)
 
-The passphrase to hand the provisioner, out of whichever of the two things the
-form sent.
+What to hand the provisioner, out of whatever the form sent: a hashref of the
+names Trog::Credentials knows, or undef and a reason.
 
-A code is only ever exchanged for a passphrase that is already stored -- it is
-proof of presence, not a password, and there is nothing to derive from it.  A
-typed passphrase is used as it is, and stored on the way past if they asked for
-it to be, so that the next run is a code.
+A code is only ever exchanged for passwords that are already stored -- it is
+proof of presence, not a password, and there is nothing to derive from six
+digits.  Typed passwords are used as they are, and stored on the way past if
+they asked for that, so the next run is a code.
 
-Undef with a reason for anything else, and the reason is what the person sees:
-this is the message that has to distinguish 'that code is stale' from 'there is
-nothing stored to unlock'.
+The two are independent.  A sudo password typed into the form wins over a stored
+one, because somebody typing it has a reason to; and a hypervisor with
+passwordless sudo simply never has one, in the form or the vault, which is the
+ordinary case and not a missing answer.
+
+The reason, when there is one, is what the person reads -- so it has to tell
+'that code is stale' apart from 'there is nothing stored to unlock'.
 
 =cut
 
-sub _passphrase (%args) {
+sub _credentials (%args) {
     my $user = $args{user} // '';
+
+    my %credentials;
+
+    # What they typed, as opposed to what came back out of the vault.  Only the
+    # typed ones are worth filing away, and only they can be: a value fetched
+    # from the vault is already in it.
+    my %typed;
+    $typed{sudo} = $args{sudo} if length( $args{sudo} // '' );
 
     if ( length( $args{totp} // '' ) ) {
         return ( undef, 'a code identifies somebody, and nobody is logged in' ) unless $user;
@@ -460,25 +491,56 @@ sub _passphrase (%args) {
         return ( undef, $why ) unless $ok;
 
         my $stored = Trog::Vault::get( $user, $secret_name );
-        return ( undef,   "the stored provisioning passphrase for $user could not be read" ) unless defined $stored && length($stored);
-        return ( $stored, '' );
+        return ( undef, "the stored provisioning passphrase for $user could not be read" ) unless defined $stored && length($stored);
+        $credentials{keepass} = $stored;
+    }
+    else {
+        return ( undef, 'a passphrase is required, as the provisioner asks for one' ) unless length( $args{passphrase} // '' );
+        $credentials{keepass} = $args{passphrase};
+        $typed{keepass}       = $args{passphrase};
     }
 
-    return ( undef, 'a passphrase is required, as the provisioner asks for one' ) unless length( $args{passphrase} // '' );
+    # A typed sudo password beats a stored one -- somebody typing it has a
+    # reason to -- and no sudo password at all is the ordinary answer, for a
+    # hypervisor whose login has passwordless sudo.
+    my $sudo = $typed{sudo} // ( $user ? Trog::Vault::get( $user, $sudo_name ) : undef );
+    $credentials{sudo} = $sudo if defined $sudo && length($sudo);
 
-    if ( $args{remember} && $user ) {
-        my ( $ok, $why ) = Trog::Vault::set( $user, $secret_name, $args{passphrase} );
+    _remember( $user, \%typed ) if $args{remember} && $user && %typed;
 
-        # Said rather than refused: they asked for a reprovision and gave us
-        # what it needs, and failing to file the passphrase away is not a
-        # reason not to do the thing they asked for.
-        WARN("Could not remember the provisioning passphrase for $user: $why") unless $ok;
-    }
-
-    return ( $args{passphrase}, '' );
+    return ( \%credentials, '' );
 }
 
-=head2 _spawn($domain, $passphrase, $dir, $command, $user)
+# One 'name: value' per line is the format, so a value with a newline in it is
+# two lines -- and the second one could name a credential nobody asked us to
+# send.  Refused rather than escaped or trimmed: no password anybody meant to
+# type has a newline in the middle of it, and quietly changing what somebody
+# typed into their own password field is worse than saying no.
+sub _sendable ($credentials) {
+    foreach my $name ( sort keys %$credentials ) {
+        next unless $credentials->{$name} =~ m/[\r\n]/;
+        return "the $name has a line break in it, which is not something this can send";
+    }
+    return '';
+}
+
+# File away what they typed, so the next run is a code.
+#
+# Said rather than refused when it does not work: they asked for a reprovision
+# and gave us what it needs, and failing to keep a copy is not a reason to not do
+# the thing they asked for.
+sub _remember ( $user, $credentials ) {
+    my %vault_name = ( keepass => $secret_name, sudo => $sudo_name );
+
+    foreach my $name ( sort keys %$credentials ) {
+        my ( $ok, $why ) = Trog::Vault::set( $user, $vault_name{$name}, $credentials->{$name} );
+        WARN("Could not remember the provisioner's $name for $user: $why") unless $ok;
+    }
+
+    return;
+}
+
+=head2 _spawn($domain, $credentials, $dir, $command, $user)
 
 Fork the provisioner off where nothing is waiting for it.
 
@@ -491,9 +553,16 @@ It runs through open() with a list, so there is no shell between us and the
 program, and the guest name is an argument rather than a thing that could be
 read as one.
 
+The passwords go down its stdin as a credentials block, which is
+Trog::Credentials' format over there: one C<name: value> per line, and a blank
+line to say that is all of them.  A value with a newline in it would be two
+lines, and the second could name a credential we were not asked to send, so one
+is refused rather than escaped -- there is no password anybody meant to type
+that has a newline in the middle of it.
+
 =cut
 
-sub _spawn ( $domain, $passphrase, $dir, $command, $user ) {
+sub _spawn ( $domain, $credentials, $dir, $command, $user ) {
     my $log = "$log_dir/$domain.log";
 
     local $@;
@@ -546,9 +615,10 @@ sub _spawn ( $domain, $passphrase, $dir, $command, $user ) {
         POSIX::_exit(1);
     }
 
-    # What the provisioner prompts for on its way to the secrets database.
-    # Closing this instead would make anything that asks hang forever.
-    print {$stdin} "$passphrase\n";
+    # What the provisioner would otherwise have nobody to ask for.  Closed
+    # afterwards, so the read on the far side ends rather than waiting on us.
+    print {$stdin} "$_: $credentials->{$_}\n" foreach sort keys %$credentials;
+    print {$stdin} "\n";
     close($stdin);
 
     if ($?) {

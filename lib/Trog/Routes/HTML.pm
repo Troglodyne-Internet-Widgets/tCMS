@@ -2537,10 +2537,10 @@ Trog::DataSource::ProvisionedVirt::reprovision.
 This is not a recoverable operation, so read that function before changing
 anything here.  It refuses for the guest tCMS is itself running on.
 
-What the provisioner needs to open its secrets database arrives with the request
-and never lands in this hash: either a passphrase, which is used and forgotten
-unless they asked for it to be kept, or a TOTP code, which is spent and
-exchanged for the passphrase they kept last time.
+What the provisioner needs arrives with the request and never lands in this hash:
+the passphrase to its secrets database, the sudo password on the hypervisor if
+that login has no passwordless sudo, or a TOTP code which is spent and exchanged
+for whichever of those they kept last time.
 
 =cut
 
@@ -2559,6 +2559,7 @@ sub guest_reprovision ($query) {
         domain     => $query->{guest},
         user       => $query->{user},
         passphrase => $query->{passphrase},
+        sudo       => $query->{sudo},
         totp       => $query->{totp},
         remember   => $query->{remember},
     );
@@ -2567,7 +2568,7 @@ sub guest_reprovision ($query) {
     # handed to renderers, and neither of these has any business in any of that.
     # The code as much as the passphrase -- it is spent by now, but a spent code
     # in a log is still a code somebody wrote down.
-    delete $query->{$_} foreach qw{passphrase totp};
+    delete $query->{$_} foreach qw{passphrase sudo totp};
 
     return _feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
 }

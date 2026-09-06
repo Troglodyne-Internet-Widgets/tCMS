@@ -94,8 +94,8 @@ $log->redefine( INFO => sub { note(shift) } );
 our @SPAWNED;
 $log->redefine(
     _spawn => sub {
-        my ( $domain, $passphrase, $dir, $command, $user ) = @_;
-        push( @SPAWNED, { domain => $domain, passphrase => $passphrase, dir => $dir, command => $command, user => $user } );
+        my ( $domain, $credentials, $dir, $command, $user ) = @_;
+        push( @SPAWNED, { domain => $domain, credentials => $credentials, dir => $dir, command => $command, user => $user } );
         return ( 1, 'started' );
     }
 );
@@ -211,11 +211,12 @@ subtest 'what it would run' => sub {
     # configuration from its recipe and then builds the machine.
     is( $run->{dir}, "$ROOT/trog-provisioner", 'run from the checkout' );
     like( $run->{command}[0], qr{/bin/provision$}, 'and it is bin/provision' );
-    is( $run->{command}[1], 'guest.example.com', 'passed the guest as an argument' );
+    is( $run->{command}[1], '--credentials',     'told that its passwords are coming on stdin' );
+    is( $run->{command}[2], 'guest.example.com', 'and passed the guest as an argument' );
 
     # Arguments, not a command line: there is no shell between us and this, so a
     # guest name can never be read as one.
-    is( scalar( @{ $run->{command} } ), 2, 'a program and one argument -- nothing to be parsed' );
+    is( scalar( @{ $run->{command} } ), 3, 'a program, a flag and one argument -- nothing to be parsed' );
 };
 
 subtest 'a stored passphrase, and a code instead of one' => sub {
@@ -236,8 +237,8 @@ subtest 'a stored passphrase, and a code instead of one' => sub {
 
     # Reprovision the old way, and ask for it to be kept.
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse', remember => 1 );
-    is( $ok,                     1,               'a typed passphrase still provisions' ) or diag($why);
-    is( $SPAWNED[0]{passphrase}, 'correct horse', 'and is what reaches the provisioner' );
+    is( $ok,                               1,               'a typed passphrase still provisions' ) or diag($why);
+    is( $SPAWNED[0]{credentials}{keepass}, 'correct horse', 'and is what reaches the provisioner' );
 
     ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
     is( $post->{passphrase_remembered}, 1, 'after which the form asks for a code instead' );
@@ -249,8 +250,8 @@ subtest 'a stored passphrase, and a code instead of one' => sub {
     my $code = $totp->expected_totp_code( time() );
 
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $code );
-    is( $ok,                     1,               'a code provisions' ) or diag($why);
-    is( $SPAWNED[0]{passphrase}, 'correct horse', 'handing the provisioner the passphrase that was stored' );
+    is( $ok,                               1,               'a code provisions' ) or diag($why);
+    is( $SPAWNED[0]{credentials}{keepass}, 'correct horse', 'handing the provisioner the passphrase that was stored' );
 
     # Spent, so it is worth this one reprovision and not every reprovision
     # somebody can click inside the window.
@@ -260,6 +261,72 @@ subtest 'a stored passphrase, and a code instead of one' => sub {
     is_deeply( \@SPAWNED, [], 'without running a second one' );
 
     Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name );
+};
+
+subtest 'the sudo password on the hypervisor' => sub {
+    no warnings qw{once};
+
+    $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
+    Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name );
+    Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::sudo_name );
+
+    my ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{sudo_remembered}, 0, 'with none stored the form asks for one' );
+
+    # The ordinary case, and the reason the field is not required: the login on
+    # the hypervisor has passwordless sudo, so there is nothing to send.
+    my ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse' );
+    is( $ok, 1, 'a reprovision with no sudo password still runs' ) or diag($why);
+    ok( !exists $SPAWNED[0]{credentials}{sudo}, 'and sends none, rather than sending an empty one' );
+
+    # And the case this is for: a hypervisor that wants one.  sudo over ssh has
+    # no terminal to ask at, so the run would otherwise die minutes in.
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse', sudo => 'hunter2' );
+    is( $ok,                               1,               'one with a sudo password runs too' ) or diag($why);
+    is( $SPAWNED[0]{credentials}{sudo},    'hunter2',       'and it reaches the provisioner' );
+    is( $SPAWNED[0]{credentials}{keepass}, 'correct horse', 'alongside the passphrase, not instead of it' );
+
+    # Kept, so the next run is a code and neither has to be typed again.
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse', sudo => 'hunter2', remember => 1 );
+    is( $ok, 1, 'both can be remembered' ) or diag($why);
+    ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{passphrase_remembered}, 1, 'after which the passphrase is stored' );
+    is( $post->{sudo_remembered},       1, 'and so is the sudo password' );
+
+    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
+    require Trog::SQLite;
+    Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' )->do("DELETE FROM totp_spent WHERE username='admin'");
+
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $totp->expected_totp_code( time() ) );
+    is( $ok,                               1,               'a code unlocks the pair' ) or diag($why);
+    is( $SPAWNED[0]{credentials}{keepass}, 'correct horse', 'the passphrase' );
+    is( $SPAWNED[0]{credentials}{sudo},    'hunter2',       'and the sudo password' );
+
+    # Typed beats stored: somebody typing it has a reason to, and it is usually
+    # that the stored one stopped working.
+    Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' )->do("DELETE FROM totp_spent WHERE username='admin'");
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, sudo => 'changed it', totp => $totp->expected_totp_code( time() ) );
+    is( $ok,                            1,            'a code and a typed sudo password together' ) or diag($why);
+    is( $SPAWNED[0]{credentials}{sudo}, 'changed it', 'send what was typed' );
+
+    Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name );
+    Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::sudo_name );
+};
+
+subtest 'a password with a line break in it is refused' => sub {
+
+    # One 'name: value' per line is the format on the far side, so a newline in
+    # a value is a second line -- and the second line could name a credential
+    # nobody asked us to send.
+    my ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => "correct horse\nsudo: injected" );
+    is( $ok, 0, 'a passphrase carrying a line break does not run' );
+    like( $why, qr/line break/, 'saying so' );
+    is_deeply( \@SPAWNED, [], 'having run nothing' );
+
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse', sudo => "hunter2\nkeepass: not this" );
+    is( $ok, 0, 'and neither does a sudo password carrying one' );
+    like( $why, qr/line break/, 'saying so too' );
+    is_deeply( \@SPAWNED, [], 'having run nothing' );
 };
 
 subtest 'and when the vault key has gone' => sub {
@@ -303,8 +370,8 @@ subtest 'and when the vault key has gone' => sub {
     is( $ok, 1, 'the code was not spent on being told no' ) or diag($why);
 
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'typed it again', remember => 1 );
-    is( $ok,                     1,                'and the passphrase still provisions' ) or diag($why);
-    is( $SPAWNED[0]{passphrase}, 'typed it again', 'with what was typed' );
+    is( $ok,                               1,                'and the passphrase still provisions' ) or diag($why);
+    is( $SPAWNED[0]{credentials}{keepass}, 'typed it again', 'with what was typed' );
 
     ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
     is( $post->{passphrase_remembered}, 1, 'stored again under the key that is here now' );
@@ -497,11 +564,14 @@ subtest 'the route' => sub {
     # The passphrase must not survive the request: this hash gets cloned, logged
     # around and handed to renderers.
     @SPAWNED = ();
-    my $query = { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, guest => 'guest.example.com', passphrase => 'hunter2', to => '/vms' };
+    my $query = { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, guest => 'guest.example.com', passphrase => 'hunter2', sudo => 'letmein', to => '/vms' };
     Trog::Routes::HTML::guest_reprovision($query);
-    is( scalar(@SPAWNED),        1,         'an admin gets their run' );
-    is( $SPAWNED[0]{passphrase}, 'hunter2', 'the passphrase reaches the provisioner' );
-    ok( !exists $query->{passphrase}, 'and is gone from the query afterwards' );
+    is( scalar(@SPAWNED),                  1,         'an admin gets their run' );
+    is( $SPAWNED[0]{credentials}{keepass}, 'hunter2', 'the passphrase reaches the provisioner' );
+    is( $SPAWNED[0]{credentials}{sudo},    'letmein', 'and so does the sudo password' );
+
+    # This hash is cloned, logged around and handed to renderers.
+    ok( !exists $query->{$_}, "the $_ is gone from the query afterwards" ) foreach qw{passphrase sudo totp};
 
     # The log route.  It lives in logs/ rather than under www/, and the output
     # of a provisioner is a fine place for a hostname or an IP plan to turn up.

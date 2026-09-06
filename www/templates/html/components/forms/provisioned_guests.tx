@@ -132,20 +132,32 @@
                             TOTP code
                             <input required autofocus class="cooltext" type="password" name="totp" autocomplete="off"
                                    inputmode="numeric" pattern="[0-9]{6}"
-                                   title="unlocks the provisioning passphrase you stored; spent on this run, so wait for the next code if you just used one" />
+                                   title="unlocks the provisioning passwords you stored; spent on this run, so wait for the next code if you just used one" />
                         </label>
                         : } else {
                         <label>
                             Secrets passphrase
                             <input required autofocus class="cooltext" type="password" name="passphrase" autocomplete="off"
-                                   title="the provisioner asks for this on stdin" />
-                        </label>
-                        : if ( $post.can_remember ) {
-                        <label class="guest-reprovision-remember">
-                            <input type="checkbox" name="remember" value="1" />
-                            Remember it, and ask me for a TOTP code next time
+                                   title="the passphrase to the KeePass database the recipes take their secrets from" />
                         </label>
                         : }
+                        : # Asked for separately, and only when there is not one
+                        : # stored: sudo on the hypervisor has no terminal to ask
+                        : # at, so a run that needs it and was not given it dies
+                        : # minutes in.  Empty is the ordinary answer, since the
+                        : # login there usually has passwordless sudo.
+                        : if ( !$post.sudo_remembered ) {
+                        <label>
+                            Hypervisor sudo password <span class="guest-reprovision-optional">&mdash; leave empty for passwordless sudo</span>
+                            <input class="cooltext" type="password" name="sudo" autocomplete="off"
+                                   title="your sudo password on the hypervisor.  Only needed where that login has not been given passwordless sudo." />
+                        </label>
+                        : }
+                        : if ( $post.can_remember && ( !$post.passphrase_remembered || !$post.sudo_remembered ) ) {
+                        <label class="guest-reprovision-remember">
+                            <input type="checkbox" name="remember" value="1" />
+                            Remember these, and ask me for a TOTP code next time
+                        </label>
                         : }
                         <div class="guest-reprovision-actions">
                             <button class="coolbutton" type="button"
