@@ -32,6 +32,11 @@ use Trog::Log::DBI;
 
 use Trog::Auth;
 use Trog::Config;
+
+# Loaded here rather than where it is used, so that the vault key comes out of
+# the environment once, in the parent, before there is a worker to fork -- see
+# Trog::Vault.
+use Trog::Vault;
 use Trog::Data;
 use Trog::Themes;
 
