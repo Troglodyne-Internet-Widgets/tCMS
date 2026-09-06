@@ -197,6 +197,38 @@ to that one process; it is not written to the config, the log, or the process
 table.  The alternative would be keeping the master password for every secret you
 hold in a file the webserver can read.
 
+Typing it every time has its own cost -- a passphrase you have to have to hand is
+one you write down somewhere -- so you can tick "remember it" and have it stored
+in your vault instead.  After that the button asks for a TOTP code, which is
+spent on that one reprovision and exchanged for the passphrase.  See Stored
+Secrets, below.
+
+Stored Secrets
+==============
+
+Some of what tCMS does for you needs a password that is not tCMS's.  /secrets is
+where each user keeps those, and what is kept there is sealed with a key the
+database does not contain, so a stolen `config/auth.db` is ciphertext.
+
+AES-256-GCM per row, under a key derived for that row from a fresh random salt,
+with the username and the secret's name bound in as associated data -- so a row
+cannot be lifted into somebody else's account or renamed into being the answer to
+a different question.  Nothing renders a value back; if you have forgotten one,
+replace it.
+
+The master key is looked for in `TCMS_VAULT_KEY`, then
+`$CREDENTIALS_DIRECTORY/tcms-vault`, then `config/secrets.key`.  Use the first:
+tPSGI's unit takes it as a systemd credential and service/tpsgi.sh puts it in the
+environment before the chroot, so it never touches a disk.  tCMS deletes it from
+the environment as it loads, because one of the things it forks is a provisioner
+it hands a decrypted password to.  With no key there is no vault, and everything
+that would have used one goes on asking for the password directly.
+
+What unlocks a secret is a TOTP code, and a code is spent when it is used -- a
+code authorizes one thing rather than everything you can do in its window.
+That includes logging in, so if you have just logged in you will be waiting for
+the next code.  That is the cost, and it is thirty seconds.
+
 DirIndex is the one to copy if you are writing your own.  Point a series at a
 directory with its "Directory to index" field, build a child type in the wizard
 with DirIndex as its datasource, and every file in there becomes a post carrying

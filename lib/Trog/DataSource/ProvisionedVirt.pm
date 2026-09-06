@@ -15,6 +15,8 @@ use POSIX               ();
 use Trog::Config     ();
 use Trog::DataSource ();
 use Trog::DataSource::Virt();
+use Trog::Auth  ();
+use Trog::Vault ();
 
 use Trog::Log qw{WARN INFO};
 
@@ -62,6 +64,11 @@ shell, so a guest name is an argument and can never be a command.
 our $recipe_dir = 'recipes.d';
 our $log_dir    = 'logs/reprovision';
 
+# What a stored provisioning passphrase is called in a user's vault.  One name
+# per person rather than one per guest: it is the passphrase to their secrets
+# database, and there is one of those.
+our $secret_name = 'provisioner';
+
 # Where an installation's own files live, which is trog-provisioner's rule
 # rather than ours -- see its Trog::Config.
 our $provisioner_config = '/etc/trog-provisioner';
@@ -104,6 +111,12 @@ sub posts ( $series, $query ) {
     my @guests = Trog::DataSource::Virt::posts( $series, $query );
     my $config = _config();
 
+    # Asked once for the page rather than once per guest, and asked rather than
+    # opened: what the form needs to know is which box to draw.
+    my $user = $query->{user} // '';
+    $config->{can_remember} = ( $user                   && Trog::Vault::has_key() )                  ? 1 : 0;
+    $config->{remembered}   = ( $config->{can_remember} && Trog::Vault::has( $user, $secret_name ) ) ? 1 : 0;
+
     return map { _with_recipe( $_, $config ) } @guests;
 }
 
@@ -130,6 +143,10 @@ sub _with_recipe ( $post, $config ) {
     # which refuses to power that one off for the same reason.
     $post->{can_reprovision} =
       ( $post->{has_recipe} && $config->{trog_provisioner} && !$post->{is_self} ) ? 1 : 0;
+
+    # Which of the two things the button has to ask for.
+    $post->{passphrase_remembered} = $config->{remembered};
+    $post->{can_remember}          = $config->{can_remember};
 
     my $status = status($domain);
     if ($status) {
@@ -338,19 +355,35 @@ Run bin/provision for one guest, which generates its configuration from its
 recipe and then builds the machine.
 
     domain      which guest.  Required, and validated as a hostname.
+    user        who asked.  For the log, and whose vault to look in.
     passphrase  the KeePass passphrase the recipe's secrets need, on stdin.
-    user        who asked, for the log.
+    totp        a code, instead of the passphrase, when they have stored one.
+    remember    store the passphrase they just typed, so that next time is a code.
 
 Returns immediately.  Provisioning a machine takes minutes and an HTTP worker
 does not have minutes, so the work is handed to a detached process and the
 caller is told it started rather than told it finished.  What happened is in
 logs/reprovision/$domain.log, which is what _log_tail reads back onto the page.
 
-The passphrase is passed down the child's stdin and is never written anywhere:
-not to the log, not to the process table, not to the configuration.  It is asked
-for because every recipe inherits secret: values from _base, and the alternative
-to asking each time is keeping the master password for every secret the operator
-holds in a file the webserver can read.
+=head3 WHY IT ASKS FOR ANYTHING AT ALL
+
+Every recipe inherits secret: values from _base, so the provisioner opens a
+KeePass database on its way past and wants the passphrase to it on stdin.  The
+alternative to asking is keeping the master password for every secret an
+operator holds in a file the webserver can read, which is worse than asking.
+
+Asking every time has its own cost, though: a passphrase somebody has to have to
+hand is a passphrase that gets written down, and then it is in a text file
+instead of a config file, which is not an improvement.  So it can be stored --
+see Trog::Vault, where it is sealed under a key the database does not contain --
+and then what this asks for is a TOTP code, which proves the person is here
+without their having to be holding anything.
+
+The code is spent either way, so it authorizes this one reprovision rather than
+every reprovision inside its window.
+
+Whichever it arrives as, the passphrase goes down the child's stdin and is
+written nowhere: not the log, not the process table, not the configuration.
 
 =cut
 
@@ -372,7 +405,8 @@ sub reprovision (%args) {
     my $recipe = _recipe_path( $config, $safe );
     return ( 0, "there is no recipe for '$safe' in $config->{recipes}" ) unless $recipe;
 
-    return ( 0, 'a passphrase is required, as the provisioner asks for one' ) unless length( $args{passphrase} // '' );
+    my ( $passphrase, $why ) = _passphrase(%args);
+    return ( 0, $why ) unless defined $passphrase;
 
     # One at a time.  Two provisions of one machine racing each other is not
     # something anybody should be able to start by double clicking.
@@ -384,10 +418,54 @@ sub reprovision (%args) {
 
     INFO( "Reprovision of '$safe' requested by " . ( $args{user} // 'somebody' ) );
 
-    my ( $ok, $why ) = _spawn( $safe, $args{passphrase}, $config->{trog_provisioner}, \@command, $args{user} );
-    return ( 0, $why ) unless $ok;
+    my ( $ok, $failed ) = _spawn( $safe, $passphrase, $config->{trog_provisioner}, \@command, $args{user} );
+    return ( 0, $failed ) unless $ok;
 
     return ( 1, "reprovision started; watch $log_dir/$safe.log" );
+}
+
+=head2 _passphrase(%args) = ($passphrase, $why)
+
+The passphrase to hand the provisioner, out of whichever of the two things the
+form sent.
+
+A code is only ever exchanged for a passphrase that is already stored -- it is
+proof of presence, not a password, and there is nothing to derive from it.  A
+typed passphrase is used as it is, and stored on the way past if they asked for
+it to be, so that the next run is a code.
+
+Undef with a reason for anything else, and the reason is what the person sees:
+this is the message that has to distinguish 'that code is stale' from 'there is
+nothing stored to unlock'.
+
+=cut
+
+sub _passphrase (%args) {
+    my $user = $args{user} // '';
+
+    if ( length( $args{totp} // '' ) ) {
+        return ( undef, 'a code identifies somebody, and nobody is logged in' ) unless $user;
+
+        my ( $ok, $why ) = Trog::Auth::spend_totp( $user, $args{totp} );
+        return ( undef, $why ) unless $ok;
+
+        my $stored = Trog::Vault::get( $user, $secret_name );
+        return ( undef,   "there is no provisioning passphrase stored for $user" ) unless defined $stored && length($stored);
+        return ( $stored, '' );
+    }
+
+    return ( undef, 'a passphrase is required, as the provisioner asks for one' ) unless length( $args{passphrase} // '' );
+
+    if ( $args{remember} && $user ) {
+        my ( $ok, $why ) = Trog::Vault::set( $user, $secret_name, $args{passphrase} );
+
+        # Said rather than refused: they asked for a reprovision and gave us
+        # what it needs, and failing to file the passphrase away is not a
+        # reason not to do the thing they asked for.
+        WARN("Could not remember the provisioning passphrase for $user: $why") unless $ok;
+    }
+
+    return ( $args{passphrase}, '' );
 }
 
 =head2 _spawn($domain, $passphrase, $dir, $command, $user)

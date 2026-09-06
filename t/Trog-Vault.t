@@ -255,4 +255,52 @@ subtest 'logging in spends a code' => sub {
     is( Trog::Auth::mksession( 'bob', 'hunter2', $code ), '', 'and that code cannot be replayed into a second one' );
 };
 
+subtest 'the page a user manages them from' => sub {
+    require Trog::Routes::HTML;
+
+    my $tpsgi = bless {}, 'FakeTPSGI';
+    {
+        no warnings qw{once};
+        *FakeTPSGI::see_also  = sub { return [ 303, [ Location => $_[1] ], [''] ] };
+        *FakeTPSGI::forbidden = sub { return [ 403, [], ['no'] ] };
+    }
+
+    my $route = $Trog::Routes::HTML::routes{'/secrets'};
+    ok( $route,                 'the page is a route' );
+    ok( $route->{auth},         'behind a login' );
+    ok( $route->{nocache},      'and never cached, since it is about who is asking' );
+    ok( !$route->{totp_exempt}, 'and not somewhere an unenrolled login can get to' );
+
+    my $rendered;
+    my $index = Test::MockModule->new('Trog::Routes::HTML');
+    $index->redefine( index => sub { $rendered = $_[0]; return [ 200, [], [''] ] } );
+
+    Trog::Routes::HTML::secrets( { user => 'bob', user_acls => ['admin'], tpsgi => $tpsgi } );
+    ok( $rendered->{has_vault}, 'the page knows there is a vault' );
+    my ($keepass) = grep { $_->{name} eq 'keepass' } @{ $rendered->{secrets} };
+    ok( $keepass,                       "bob's own secret is listed" );
+    ok( !exists $keepass->{ciphertext}, 'without its ciphertext' );
+    ok( $keepass->{stored},             'with when it was stored' );
+
+    # The username comes off the session, so there is no field to put somebody
+    # else's in.
+    Trog::Routes::HTML::secrets( { user => 'eve', user_acls => ['public'], tpsgi => $tpsgi } );
+    is_deeply( $rendered->{secrets}, [], "and eve sees none of bob's" );
+
+    # Storing, and the thing stored not surviving the request that stored it.
+    my $query = { user => 'eve', tpsgi => $tpsgi, name => 'ssh', secret => 'a passphrase' };
+    my $res   = Trog::Routes::HTML::secrets_save($query);
+    is( $res->[0], 303, 'saving redirects back to the page' );
+    ok( !exists $query->{secret}, 'and the secret is gone from the query afterwards' );
+    is( Trog::Vault::get( 'eve', 'ssh' ), 'a passphrase', 'having been stored' );
+
+    $res = Trog::Routes::HTML::secrets_forget( { user => 'eve', tpsgi => $tpsgi, name => 'ssh' } );
+    is( $res->[0],                        303,   'forgetting redirects too' );
+    is( Trog::Vault::get( 'eve', 'ssh' ), undef, 'and it is gone' );
+
+    # One user cannot reach into another's, whatever they post.
+    Trog::Routes::HTML::secrets_forget( { user => 'eve', tpsgi => $tpsgi, name => 'keepass' } );
+    is( Trog::Vault::get( 'bob', 'keepass' ), 'correct horse battery staple', "bob's is untouched by eve asking to forget it" );
+};
+
 done_testing();

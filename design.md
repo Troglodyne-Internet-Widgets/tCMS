@@ -410,6 +410,17 @@ band, which is what covers a lost authenticator. The first user to register
 becomes the administrator and registration then closes; further users are made by
 an admin through the `about` post type -- because a user *is* their profile page.
 
+**Secrets** (`Trog::Vault`) keeps the passwords that are not tCMS's -- the
+provisioner's KeePass passphrase to begin with -- in `user_secret`, sealed with
+AES-256-GCM under a key derived per row from the installation's master key. That
+key is not in the database and not in the checkout: it arrives as a systemd
+credential, through the environment, and is deleted from the environment at load
+because this process forks a provisioner it hands decrypted passwords to. A TOTP
+code is what authorizes opening one, and `Trog::Auth::spend_totp` walks a
+per-user counter forwards so a code buys one thing rather than everything inside
+its window. No key means no vault, and the things that would have used one ask
+for the password directly.
+
 **Config** (`Trog::Config`) is a thin wrapper over `Config::Simple` reading
 `config/main.cfg` and falling back to the shipped `config/default.cfg`. It is
 memoised, so a config change signals the workers to restart.

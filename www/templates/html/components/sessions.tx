@@ -5,7 +5,7 @@
         <label>Event:
             <select class="cooltext" name="filter_event">
                 <option value="">All</option>
-                : for ['login_success','login_failure','totp_failure','logout'] -> $ev {
+                : for ['login_success','login_failure','totp_failure','totp_replay','logout','secret_read','secret_write','secret_delete'] -> $ev {
                 <option value="<: $ev :>" <: $ev == $filter_event ? 'selected' : '' | mark_raw :>><: $ev :></option>
                 : }
             </select>

@@ -277,6 +277,23 @@ sub list ($user) {
     return $rows;
 }
 
+=head2 has($user, $name) = BOOL
+
+Whether there is something stored under that name, without opening it.
+
+Separate from get() on purpose: a page that wants to know whether to draw a
+passphrase box or a code box is asking a different question from a request that
+is about to hand a password to a provisioner, and only the second one belongs in
+the audit log.
+
+=cut
+
+sub has ( $user, $name ) {
+    my $dbh  = _dbh();
+    my $rows = $dbh->selectall_arrayref( "SELECT name FROM user_secret WHERE username=? AND name=? AND key_id=?", { Slice => {} }, $user, $name, key_id() );
+    return ref $rows eq 'ARRAY' && @$rows ? 1 : 0;
+}
+
 =head2 forget($user, $name) = BOOL
 
 =cut

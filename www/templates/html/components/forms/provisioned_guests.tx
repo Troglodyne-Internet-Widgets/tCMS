@@ -122,11 +122,31 @@
                             This destroys the guest and builds it again from its recipe.
                             Anything on it the recipe does not describe will not come back.
                         </p>
+                        : # Either the passphrase, or a code standing in for the
+                        : # passphrase they already stored.  See _passphrase() in
+                        : # ProvisionedVirt: a code is proof they are here, and is
+                        : # exchanged for the stored one rather than being any part
+                        : # of it.
+                        : if ( $post.passphrase_remembered ) {
+                        <label>
+                            TOTP code
+                            <input required autofocus class="cooltext" type="password" name="totp" autocomplete="off"
+                                   inputmode="numeric" pattern="[0-9]{6}"
+                                   title="unlocks the provisioning passphrase you stored; spent on this run, so wait for the next code if you just used one" />
+                        </label>
+                        : } else {
                         <label>
                             Secrets passphrase
                             <input required autofocus class="cooltext" type="password" name="passphrase" autocomplete="off"
-                                   title="the provisioner asks for this on stdin; it is used for this run and not stored" />
+                                   title="the provisioner asks for this on stdin" />
                         </label>
+                        : if ( $post.can_remember ) {
+                        <label class="guest-reprovision-remember">
+                            <input type="checkbox" name="remember" value="1" />
+                            Remember it, and ask me for a TOTP code next time
+                        </label>
+                        : }
+                        : }
                         <div class="guest-reprovision-actions">
                             <button class="coolbutton" type="button"
                                     command="hide-popover" commandfor="reprovision-<: $post.id :>"

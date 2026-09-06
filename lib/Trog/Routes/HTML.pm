@@ -85,6 +85,27 @@ our %routes = (
         totp_exempt => 1,
         callback    => \&Trog::Routes::HTML::totp,
     },
+    '/secrets' => {
+        method   => 'GET',
+        auth     => 1,
+        nocache  => 1,
+        noindex  => 1,
+        callback => \&Trog::Routes::HTML::secrets,
+    },
+    '/secrets/save' => {
+        method   => 'POST',
+        auth     => 1,
+        nocache  => 1,
+        noindex  => 1,
+        callback => \&Trog::Routes::HTML::secrets_save,
+    },
+    '/secrets/forget' => {
+        method   => 'POST',
+        auth     => 1,
+        nocache  => 1,
+        noindex  => 1,
+        callback => \&Trog::Routes::HTML::secrets_forget,
+    },
     '/post/save' => {
         method   => 'POST',
         auth     => 1,
@@ -920,6 +941,81 @@ user their existing enrolment back out of band, which is the same enrolment
 rather than a new one.
 
 =cut
+
+=head2 secrets
+
+=head2 secrets_save
+
+=head2 secrets_forget
+
+Implements /secrets, where a user manages what tCMS remembers on their behalf.
+
+These are passwords that are not tCMS's -- the KeePass passphrase a provisioning
+recipe's secret: values are behind, to begin with.  Storing one means the next
+thing that needs it asks for a TOTP code instead, which is a thing you have on
+you rather than a thing you have to have written down somewhere.
+
+Everything here is that user's own.  There is no route by which one person's
+secrets are listed, opened or deleted by another, admin included: the username
+is taken from the session and never from the request, and it is bound into the
+ciphertext, so a row is not readable as anybody but its owner.
+
+Nothing ever renders a value back.  A secret you can read off a screen is one
+you did not need us to keep -- if they have forgotten it, the answer is to
+replace it, not to be shown it.
+
+=cut
+
+sub secrets ($query) {
+    require Trog::Vault;
+
+    my @secrets = map {
+        my $secret = {%$_};
+        $secret->{stored} = _stamp( $secret->{created} );
+        $secret->{used}   = $secret->{last_used} ? _stamp( $secret->{last_used} ) : 'never';
+        $secret
+    } @{ Trog::Vault::list( $query->{user} ) };
+
+    return Trog::Routes::HTML::index(
+        {
+            title       => 'Stored Secrets',
+            theme_dir   => Trog::Themes::td(),
+            template    => 'secrets.tx',
+            stylesheets => [qw{config.css}],
+            secrets     => \@secrets,
+            has_vault   => Trog::Vault::has_key(),
+            failure     => $query->{failure} // -1,
+            %$query,
+        },
+        undef,
+        [qw{config.css}],
+    );
+}
+
+sub _stamp ($epoch) {
+    my @t = localtime($epoch);
+    return sprintf( '%04d-%02d-%02d %02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1] );
+}
+
+sub secrets_save ($query) {
+    require Trog::Vault;
+
+    my ( $ok, $message ) = Trog::Vault::set( $query->{user}, $query->{name} // '', $query->{secret} // '' );
+
+    # This hash is cloned, logged around and handed to renderers.
+    delete $query->{secret};
+
+    return _feedback_redirect( $query, '/secrets', $ok ? 0 : 1, $message );
+}
+
+sub secrets_forget ($query) {
+    require Trog::Vault;
+
+    my $name = $query->{name} // '';
+    my $gone = Trog::Vault::forget( $query->{user}, $name );
+
+    return _feedback_redirect( $query, '/secrets', $gone ? 0 : 1, $gone ? "'$name' forgotten" : "there was nothing stored as '$name'" );
+}
 
 sub resetpass ($query) {
     $query->{failure} //= -1;
@@ -2439,8 +2535,12 @@ trog-provisioner.  The only route which reaches
 Trog::DataSource::ProvisionedVirt::reprovision.
 
 This is not a recoverable operation, so read that function before changing
-anything here.  It refuses for the guest tCMS is itself running on, and the
-passphrase the provisioner asks for arrives with the request and is not stored.
+anything here.  It refuses for the guest tCMS is itself running on.
+
+What the provisioner needs to open its secrets database arrives with the request
+and never lands in this hash: either a passphrase, which is used and forgotten
+unless they asked for it to be kept, or a TOTP code, which is spent and
+exchanged for the passphrase they kept last time.
 
 =cut
 
@@ -2457,13 +2557,17 @@ sub guest_reprovision ($query) {
     # host, so a form field by that name never arrives.
     my ( $ok, $message ) = Trog::DataSource::ProvisionedVirt::reprovision(
         domain     => $query->{guest},
-        passphrase => $query->{passphrase},
         user       => $query->{user},
+        passphrase => $query->{passphrase},
+        totp       => $query->{totp},
+        remember   => $query->{remember},
     );
 
     # Deleted rather than merely unused: this hash is cloned, logged around and
-    # handed to renderers, and the passphrase has no business in any of that.
-    delete $query->{passphrase};
+    # handed to renderers, and neither of these has any business in any of that.
+    # The code as much as the passphrase -- it is spent by now, but a spent code
+    # in a log is still a code somebody wrote down.
+    delete $query->{$_} foreach qw{passphrase totp};
 
     return _feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
 }

@@ -8,6 +8,7 @@
         <a href="/admin/sessions"  title="Session Audit Log" class="topbar">Sessions</a>
         <a href="/admin/wyzzerdd"  title="Post Type wizard" class="topbar">Post Types</a>
         <a href="/totp"        title="TOTP"          class="topbar">View TOTP 2fa</a>
+        <a href="/secrets"     title="Stored Secrets" class="topbar">Secrets</a>
         <a href="/password_reset" title="Reset Password" class="topbar">Reset Password</a>
         <a href="/logout"      title="Logout"        class="topbar">🚪</a>
     </span>

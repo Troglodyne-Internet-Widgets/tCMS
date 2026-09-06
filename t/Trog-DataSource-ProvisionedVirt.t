@@ -27,7 +27,16 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-provisioned-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    File::Path::make_path("$ROOT/$_") for qw{config logs www/assets};
+    File::Path::make_path("$ROOT/$_") for qw{config schema logs totp www/assets};
+
+    # A vault, so that the half of this which is about not having to type a
+    # passphrase every time has somewhere to keep one.  The key arrives the way
+    # a deployment hands one over, and Trog::Vault takes it out of %ENV as it
+    # loads -- so this has to be set before the SUT is required, below.
+    File::Copy::copy( "$REPO/schema/auth.schema", "$ROOT/schema/auth.schema" ) or die $!;
+    require Crypt::Misc;
+    require Crypt::PRNG;
+    $ENV{TCMS_VAULT_KEY} = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
 
     # A stand-in for the checkout, with the one program a reprovision runs.
     # Never executed -- _spawn is mocked -- but it has to be there and
@@ -74,6 +83,9 @@ sub write_config {
 
 require_ok('Trog::DataSource::ProvisionedVirt') or BAIL_OUT("Can't find SUT");
 
+Trog::Auth::useradd( 'admin', 'The Admin', 'hunter2', ['admin'], 'admin@example.com' )
+  or BAIL_OUT('could not make a user to test with');
+
 my $log = Test::MockModule->new('Trog::DataSource::ProvisionedVirt');
 $log->redefine( WARN => sub { note(shift) } );
 $log->redefine( INFO => sub { note(shift) } );
@@ -98,6 +110,9 @@ sub reprovision {
     @SPAWNED = ();
     return Trog::DataSource::ProvisionedVirt::reprovision( passphrase => 'hunter2', user => 'admin', @_ );
 }
+
+require Trog::Auth;
+require Trog::Vault;
 
 subtest 'it is Virt, with more' => sub {
     ok( Trog::DataSource::ProvisionedVirt->isa('Trog::DataSource::Virt'), 'it is a Virt' );
@@ -201,6 +216,50 @@ subtest 'what it would run' => sub {
     # Arguments, not a command line: there is no shell between us and this, so a
     # guest name can never be read as one.
     is( scalar( @{ $run->{command} } ), 2, 'a program and one argument -- nothing to be parsed' );
+};
+
+subtest 'a stored passphrase, and a code instead of one' => sub {
+    no warnings qw{once};
+
+    # Nothing stored yet, so the form asks for the passphrase and offers to keep
+    # it -- there is a vault key in this sandbox, so keeping it is on the table.
+    $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
+    my ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{passphrase_remembered}, 0, 'with nothing stored the form asks for the passphrase' );
+    is( $post->{can_remember},          1, 'and can offer to remember it' );
+
+    # A code is worth nothing when there is nothing stored to unlock: it is
+    # proof somebody is here, not a password.
+    my ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => '123456' );
+    is( $ok, 0, 'a code with nothing stored behind it does not provision' );
+    is_deeply( \@SPAWNED, [], 'having run nothing' );
+
+    # Reprovision the old way, and ask for it to be kept.
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse', remember => 1 );
+    is( $ok,                     1,               'a typed passphrase still provisions' ) or diag($why);
+    is( $SPAWNED[0]{passphrase}, 'correct horse', 'and is what reaches the provisioner' );
+
+    ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{passphrase_remembered}, 1, 'after which the form asks for a code instead' );
+
+    # And now the point of all of it: a code, spent, exchanged for what was
+    # stored.  Enrol first -- a code is only meaningful for somebody enrolled.
+    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
+    ok( $uri, 'the user is enrolled' ) or diag($message);
+    my $code = $totp->expected_totp_code( time() );
+
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $code );
+    is( $ok,                     1,               'a code provisions' ) or diag($why);
+    is( $SPAWNED[0]{passphrase}, 'correct horse', 'handing the provisioner the passphrase that was stored' );
+
+    # Spent, so it is worth this one reprovision and not every reprovision
+    # somebody can click inside the window.
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $code );
+    is( $ok, 0, 'and cannot be used again' );
+    like( $why, qr/already been used/, 'saying so' );
+    is_deeply( \@SPAWNED, [], 'without running a second one' );
+
+    Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name );
 };
 
 subtest 'without the provisioner configured it is just Virt' => sub {
