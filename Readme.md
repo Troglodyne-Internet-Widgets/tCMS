@@ -40,6 +40,19 @@ Then:
 You won't want to run like this in production, but this is probably how you want to develop your themes
 or hack on tCMS itself.
 
+Nothing hands a vault key to a tPSGI you started yourself: the systemd credential
+and the unit that imports it are not in the picture, and `service/tpsgi.sh`, which
+is what would have put it in the environment, never ran.  So if you want /secrets
+to work while developing, mint one into the checkout:
+
+    bin/tcms-vault-key --file
+
+That writes `config/secrets.key`, which is the last place Trog::Vault looks.  It
+is the right thing for development and testing and the wrong thing for a
+production host, for the reason under Stored Secrets: it sits next to the database
+it protects, so anything that backs up one backs up the other.  `.gitignore` keeps
+it out of the repository; keeping it out of your backups is on you.
+
 Production Deployment
 ====================
 
@@ -233,7 +246,12 @@ tPSGI's `bin/build_service` mints it and puts it in systemd's credential store,
 sealed to this machine's TPM if it has one, and its unit hands it over before it
 chroots -- so it never touches a disk here.  It is named for tPSGI rather than
 tCMS because tPSGI owns the unit and runs whatever is in the directory.
-`bin/tcms-vault-key --file` is the fallback for a machine with no systemd at all.
+`bin/tcms-vault-key --file` writes one to `config/secrets.key` instead.  That is
+what to use when you are running tPSGI by hand rather than under systemd, which
+is the ordinary way to develop against this and to debug it -- see Development
+above.  It is also the answer on a machine with no systemd at all, and there it
+is the weaker choice: a key beside the database it protects is a key in the same
+backup as the database it protects.
 
 tCMS deletes the key from its environment as it loads, because one of the things
 it forks is a provisioner it hands a decrypted password to.  With no key there is

@@ -19,6 +19,10 @@ www/styles/reveal-white.css
 www/.well_known
 config/auth.db
 config/has_users
+# The vault key, when bin/tcms-vault-key --file put one here rather than the
+# service handing one over.  Committing it would put the key in the same place
+# as everything it protects, which is the one thing it exists not to be.
+config/secrets.key
 config/main.cfg
 config/setup
 Makefile

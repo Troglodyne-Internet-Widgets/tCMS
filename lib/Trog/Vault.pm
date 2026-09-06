@@ -67,9 +67,17 @@ that we are handing a decrypted password to on its stdin.  Read once, in the
 parent, before there are any workers; the workers inherit the key as a variable
 and an environment without it.
 
-The second is for a service that is not chrooted.  The third is for a machine
-that is not running systemd at all, and it is the weakest of the three: a file
-next to the database it protects is a file that goes into the same backup.
+The second is for a service that is not chrooted.
+
+The third is for a tCMS nothing is handing a key to, which is what you get from
+running tPSGI by hand -- the ordinary way to develop against this, since it is
+easier to watch and to restart.  There is no unit and no service/tpsgi.sh in that
+path, so nothing put a key in the environment, and bin/tcms-vault-key --file
+writes one here instead.
+
+It is the weakest of the three and the only one you should not be running in
+production: a file next to the database it protects is a file that goes into the
+same backup.
 
 No key means no vault.  Nothing is stored and nothing is offered, and the parts
 of tCMS which would have used one ask for the password directly, as they did

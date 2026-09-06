@@ -13,23 +13,37 @@ use Trog::Vault ();
 
 =head1 SYNOPSIS
 
-Write a vault key into config/secrets.key, for an installation that is not run
-by systemd.
+Write a vault key into config/secrets.key, for a tCMS that is not being handed
+one by the service that starts it.
 
 =head2 USAGE
 
     bin/tcms-vault-key --file
 
-=head2 YOU PROBABLY DO NOT WANT THIS
+=head2 WHEN YOU WANT THIS
 
-tPSGI's bin/build_service makes the key and puts it in systemd's credential
-store, sealed to this machine if it has a TPM to seal it to, and its unit hands
-it to tCMS before it chroots.  That is the way to do this, and it needs nothing
-from here.
+Developing, mostly.  Running tPSGI by hand -- HOME=. bin/tpsgi -p 5001, in a
+tmux, so you can watch it and restart it -- is the ordinary way to work on tCMS,
+and nothing in that path hands over a vault key: there is no unit importing a
+systemd credential, and service/tpsgi.sh, which is what would have put it in the
+environment, never ran.  So /secrets does not work until you put a key where
+Trog::Vault can find one, and this is how.
 
-This is the fallback for a machine with no systemd, and it is genuinely weaker:
-a key file beside the database it protects is a key file in the same backup as
-the database it protects.  Take the trade knowingly or not at all.
+The other time is a machine with no systemd at all, and there it is a compromise
+rather than a convenience.
+
+=head2 WHEN YOU DO NOT
+
+On a production host.  tPSGI's bin/build_service makes the key and puts it in
+systemd's credential store, sealed to this machine if it has a TPM to seal it to,
+and its unit hands it to tCMS before it chroots -- so the key is never on a disk
+that tCMS can see, and never in a backup of tCMS.
+
+A key file in the checkout gives up exactly that.  It sits next to the database
+it protects, so whatever copies one copies the other, and the encryption stops
+being worth anything the moment both are somewhere they should not be.
+.gitignore keeps it out of the repository; keeping it out of your backups is on
+you.
 
 =head2 WHAT THE KEY IS
 
@@ -57,8 +71,10 @@ GetOptions(
 
 if ( $help || !$file ) {
     print "Usage: bin/tcms-vault-key --file\n\n";
-    print "Writes $Trog::Vault::key_file for an installation with no systemd.\n";
-    print "Under systemd, tPSGI's bin/build_service does this properly; see perldoc bin/tcms-vault-key.\n";
+    print "Writes $Trog::Vault::key_file, for a tCMS nothing is handing a vault key to:\n";
+    print "running tPSGI by hand while developing, or a machine with no systemd.\n";
+    print "On a production host tPSGI's bin/build_service does this properly, and better;\n";
+    print "see perldoc bin/tcms-vault-key.\n";
     exit( $help ? 0 : 2 );
 }
 
@@ -75,4 +91,5 @@ close($fh);
 chmod( oct('600'), $Trog::Vault::key_file ) or die "Could not chmod $Trog::Vault::key_file: $!\n";
 
 print "Wrote $Trog::Vault::key_file.  Restart tCMS to pick it up.\n";
-print "Back it up somewhere that is not where you back up config/auth.db, or do not back it up at all.\n";
+print "Fine for development.  On a production host, let tPSGI's bin/build_service hand one\n";
+print "over instead, so the key is not sitting next to the database it protects.\n";
