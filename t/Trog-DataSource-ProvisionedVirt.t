@@ -36,7 +36,7 @@ BEGIN {
     File::Copy::copy( "$REPO/schema/auth.schema", "$ROOT/schema/auth.schema" ) or die $!;
     require Crypt::Misc;
     require Crypt::PRNG;
-    $ENV{TCMS_VAULT_KEY} = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
+    $ENV{TPSGI_VAULT_KEY} = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
 
     # A stand-in for the checkout, with the one program a reprovision runs.
     # Never executed -- _spawn is mocked -- but it has to be there and
@@ -260,6 +260,54 @@ subtest 'a stored passphrase, and a code instead of one' => sub {
     is_deeply( \@SPAWNED, [], 'without running a second one' );
 
     Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name );
+};
+
+subtest 'and when the vault key has gone' => sub {
+    no warnings qw{once};
+
+    # The key lives and dies with the machine, so this is the ordinary
+    # consequence of rebuilding one rather than a disaster.  What must not
+    # happen is the page going on asking for a code it cannot honour.
+    Trog::Vault::set( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name, 'correct horse' );
+    $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
+
+    my ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{passphrase_remembered}, 1, 'with the key here, the form asks for a code' );
+
+    local $Trog::Vault::master = Crypt::PRNG::random_bytes(32);
+
+    ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{passphrase_remembered}, 0, 'and with it gone, back to asking for the passphrase' );
+    is( $post->{can_reprovision},       1, 'the button is still offered, since it still works that way' );
+
+    # Posted at directly, as somebody would from a page drawn a moment before
+    # the key went away.
+    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
+
+    # The subtest above spent this window's codes.  Standing here for thirty
+    # seconds would say the same thing and cost thirty seconds.
+    require Trog::SQLite;
+    Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' )->do("DELETE FROM totp_spent WHERE username='admin'");
+
+    my $code = $totp->expected_totp_code( time() );
+    my ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $code );
+    is( $ok, 0, 'a code is refused rather than exploding' );
+    like( $why, qr/can open/, 'saying the passphrase cannot be opened' );
+    like( $why, qr{/secrets}, 'and where to go about it' );
+    is_deeply( \@SPAWNED, [], 'having provisioned nothing' );
+
+    # And the refusal came before the code was spent, so the same code is still
+    # good for the thing that does work.  Being told to go and re-store a
+    # passphrase should not also cost somebody thirty seconds.
+    ( $ok, $why ) = Trog::Auth::spend_totp( 'admin', $code );
+    is( $ok, 1, 'the code was not spent on being told no' ) or diag($why);
+
+    ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'typed it again', remember => 1 );
+    is( $ok,                     1,                'and the passphrase still provisions' ) or diag($why);
+    is( $SPAWNED[0]{passphrase}, 'typed it again', 'with what was typed' );
+
+    ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, { user => 'admin' } );
+    is( $post->{passphrase_remembered}, 1, 'stored again under the key that is here now' );
 };
 
 subtest 'without the provisioner configured it is just Virt' => sub {

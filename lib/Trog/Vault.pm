@@ -47,8 +47,8 @@ The key is elsewhere.
 An installation has one master key, and it is not in the database, so the
 database on its own is ciphertext.  It is looked for in this order:
 
-    TCMS_VAULT_KEY              base64, in the environment
-    $CREDENTIALS_DIRECTORY/tcms-vault
+    TPSGI_VAULT_KEY             base64, in the environment
+    $CREDENTIALS_DIRECTORY/tpsgi-vault
     config/secrets.key          base64, in a file
 
 The first is how a real deployment does it, and the reason it is first is the
@@ -56,6 +56,10 @@ chroot: tPSGI runs the workers chrooted into the installation, and systemd's
 credential store is a ramdisk at /run/credentials which is outside it.  So the
 unit takes the credential, service/tpsgi.sh reads it before the chroot happens
 and puts it in the environment, and the key never touches a disk anywhere.
+
+It is named for tPSGI rather than for tCMS because tPSGI is what owns the unit
+and runs whatever is in the directory, and tCMS is only one of the things that
+can be.  One service, one key.
 
 It is taken out of the environment at load, so nothing we fork afterwards
 inherits it -- which matters, because one of the things we fork is a provisioner
@@ -96,15 +100,15 @@ so, rather than presenting as corruption.
 # 32 raw bytes.  Read at load: see WHERE THE KEY IS -- this is the moment the
 # environment is scrubbed, and it has to be before anything forks.
 our $key_file       = 'config/secrets.key';
-our $credential     = 'tcms-vault';
+our $credential     = 'tpsgi-vault';
 our $key_bytes      = 32;
 our $master         = _from_env();
 our $looked_further = 0;
 
 sub _from_env {
-    my $raw = delete $ENV{TCMS_VAULT_KEY};
+    my $raw = delete $ENV{TPSGI_VAULT_KEY};
     return undef unless defined $raw && length($raw);
-    return _decode( $raw, 'TCMS_VAULT_KEY' );
+    return _decode( $raw, 'TPSGI_VAULT_KEY' );
 }
 
 sub _decode ( $raw, $whence ) {
@@ -222,6 +226,27 @@ event here, not writing one.
 =cut
 
 sub get ( $user, $name ) {
+    my $secret = _stored( $user, $name );
+    return undef unless defined $secret;
+
+    my $dbh = _dbh();
+    $dbh->do( "UPDATE user_secret SET last_used=? WHERE username=? AND name=?", undef, time(), $user, $name );
+    Trog::Auth::log_event( 'secret_read', $user );
+    return $secret;
+}
+
+# What is in one row, or nothing.
+#
+# Every question anybody asks about a stored secret comes through here, get()
+# and has() alike, and they all get the same answer -- which is the point.  A
+# page that says a secret is there and a request that finds it will not open are
+# a way to send somebody round a loop typing codes at a row that was never going
+# to work.  Opening it is the only way to know, and it is microseconds.
+#
+# What get() adds is that reading a secret is an event: it moves last_used and
+# writes to the audit log.  Asking whether one is usable is not an event, and
+# does not.
+sub _stored ( $user, $name ) {
     return undef unless has_key();
 
     my $dbh  = _dbh();
@@ -230,8 +255,14 @@ sub get ( $user, $name ) {
         { Slice => {} }, $user, $name
     );
     return undef unless ref $rows eq 'ARRAY' && @$rows;
-    my $row = $rows->[0];
 
+    return _open( $rows->[0], $user, $name );
+}
+
+# The plaintext, or undef with a reason in the log.  Never dies: a row that will
+# not open is a thing to report to somebody who can store it again, not an
+# exception halfway through drawing a page.
+sub _open ( $row, $user, $name ) {
     if ( $row->{key_id} ne key_id() ) {
         WARN( "'$name' for $user was sealed under vault key $row->{key_id}, and this installation has " . key_id() );
         return undef;
@@ -249,8 +280,6 @@ sub get ( $user, $name ) {
         return undef;
     }
 
-    $dbh->do( "UPDATE user_secret SET last_used=? WHERE username=? AND name=?", undef, time(), $user, $name );
-    Trog::Auth::log_event( 'secret_read', $user );
     return $secret;
 }
 
@@ -265,34 +294,38 @@ you can read off a screen is one you did not need us to keep.
 sub list ($user) {
     my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref(
-        "SELECT name, created, last_used, key_id FROM user_secret WHERE username=? ORDER BY name",
+        "SELECT name, created, last_used, key_id, salt, ciphertext, tag FROM user_secret WHERE username=? ORDER BY name",
         { Slice => {} }, $user
     );
     return [] unless ref $rows eq 'ARRAY';
 
-    # A row we cannot open is worth saying so about rather than listing as
-    # though it were usable.
-    my $id = key_id();
-    $_->{readable} = ( $id && $_->{key_id} eq $id ) ? 1 : 0 foreach @$rows;
+    # Opened rather than guessed at from the key fingerprint, so that a row this
+    # page calls readable is one that will actually open when something asks for
+    # it.  This is the page somebody comes to when a secret has stopped working,
+    # and it is no use to them if it agrees that everything looks fine.
+    foreach my $row (@$rows) {
+        $row->{readable} = ( has_key() && defined _open( $row, $user, $row->{name} ) ) ? 1 : 0;
+        delete $row->{$_} foreach qw{salt ciphertext tag};
+    }
     return $rows;
 }
 
 =head2 has($user, $name) = BOOL
 
-Whether there is something stored under that name, without opening it.
+Whether there is something stored under that name that this installation can
+actually open.
 
-Separate from get() on purpose: a page that wants to know whether to draw a
-passphrase box or a code box is asking a different question from a request that
-is about to hand a password to a provisioner, and only the second one belongs in
-the audit log.
+Not "is there a row": a row sealed under a key that is gone is a row that will
+never open again, and answering yes to this would have somebody typing codes at
+it.  The question this is really being asked is whether to draw a passphrase box
+or a code box, and the honest answer to that is the one where the code works.
+
+Separate from get() because reading a secret is an event and asking about one is
+not.  This moves nothing and writes nothing to the audit log.
 
 =cut
 
-sub has ( $user, $name ) {
-    my $dbh  = _dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT name FROM user_secret WHERE username=? AND name=? AND key_id=?", { Slice => {} }, $user, $name, key_id() );
-    return ref $rows eq 'ARRAY' && @$rows ? 1 : 0;
-}
+sub has ( $user, $name ) { return defined _stored( $user, $name ) ? 1 : 0 }
 
 =head2 forget($user, $name) = BOOL
 

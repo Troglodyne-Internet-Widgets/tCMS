@@ -446,11 +446,21 @@ sub _passphrase (%args) {
     if ( length( $args{totp} // '' ) ) {
         return ( undef, 'a code identifies somebody, and nobody is logged in' ) unless $user;
 
+        # Asked before the code is spent, and the reason is that a code is
+        # spent whether or not the thing it authorized worked.  Somebody whose
+        # key has gone would otherwise burn a code to be told there is nothing
+        # to unlock, then wait thirty seconds to be told it again.  has() opens
+        # the row to answer, so this is the same answer get() is about to give.
+        return (
+            undef,
+            "there is no provisioning passphrase this installation can open for $user." . "  Store it again under /secrets, or reprovision with the passphrase itself."
+        ) unless Trog::Vault::has( $user, $secret_name );
+
         my ( $ok, $why ) = Trog::Auth::spend_totp( $user, $args{totp} );
         return ( undef, $why ) unless $ok;
 
         my $stored = Trog::Vault::get( $user, $secret_name );
-        return ( undef,   "there is no provisioning passphrase stored for $user" ) unless defined $stored && length($stored);
+        return ( undef,   "the stored provisioning passphrase for $user could not be read" ) unless defined $stored && length($stored);
         return ( $stored, '' );
     }
 

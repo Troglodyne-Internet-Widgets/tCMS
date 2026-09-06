@@ -38,7 +38,7 @@ BEGIN {
     # out of %ENV as it loads, which is the behaviour tested below.
     require Crypt::PRNG;
     require Crypt::Misc;
-    $ENV{TCMS_VAULT_KEY} = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
+    $ENV{TPSGI_VAULT_KEY} = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }
@@ -56,8 +56,8 @@ Trog::Auth::useradd( 'eve', 'Eve Evilson', 'letmein', ['public'], 'eve@example.c
   or BAIL_OUT('could not make a second user');
 
 subtest 'the key is taken out of the environment' => sub {
-    ok( Trog::Vault::has_key(),       'the key was read' );
-    ok( !exists $ENV{TCMS_VAULT_KEY}, 'and is gone from the environment, so nothing we fork inherits it' );
+    ok( Trog::Vault::has_key(),        'the key was read' );
+    ok( !exists $ENV{TPSGI_VAULT_KEY}, 'and is gone from the environment, so nothing we fork inherits it' );
     like( Trog::Vault::key_id(), qr/^[0-9a-f]{16}$/, 'and fingerprints to something a row can name' );
 };
 
@@ -186,7 +186,7 @@ subtest 'the other two places a key can be' => sub {
     # systemd hands over, for a service that is not chrooted away from it.
     my $in_store = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
     File::Path::make_path('creds');
-    open( $fh, '>', 'creds/tcms-vault' ) or die $!;
+    open( $fh, '>', 'creds/tpsgi-vault' ) or die $!;
     print {$fh} $in_store;
     close $fh;
 
@@ -298,6 +298,64 @@ subtest 'logging in spends a code' => sub {
     # past, or a wrong guess would cost the person their next thirty seconds.
     ok( Trog::Auth::mksession( 'bob', 'hunter2', $code ), 'the right password and a live code get a session' );
     is( Trog::Auth::mksession( 'bob', 'hunter2', $code ), '', 'and that code cannot be replayed into a second one' );
+};
+
+subtest 'when the key is gone' => sub {
+    no warnings qw{once};
+    require Trog::Routes::HTML;
+
+    my $tpsgi = bless {}, 'FakeTPSGI2';
+    {
+        no warnings qw{once};
+        *FakeTPSGI2::see_also = sub { return [ 303, [ Location => $_[1] ], [''] ] };
+    }
+    my $rendered;
+    my $index = Test::MockModule->new('Trog::Routes::HTML');
+    $index->redefine( index => sub { $rendered = $_[0]; return [ 200, [], [''] ] } );
+
+    Trog::Vault::set( 'bob', 'keepass', 'correct horse battery staple' );
+
+    # The machine was rebuilt and the credential went with it.  A key lives and
+    # dies with its machine on purpose, so this is the ordinary case rather than
+    # a disaster: everything sealed under the old one is gone, and the users
+    # store theirs again.
+    foreach my $gone (
+        [ 'no key at all',   sub { $Trog::Vault::master = undef; $Trog::Vault::looked_further = 1 } ],
+        [ 'a different key', sub { $Trog::Vault::master = Crypt::PRNG::random_bytes(32) } ],
+    ) {
+        my ( $what, $break ) = @$gone;
+        local $Trog::Vault::master         = Trog::Vault::key();
+        local $Trog::Vault::looked_further = 1;
+        $break->();
+
+        # Nothing explodes, and nothing claims a secret is usable.
+        is( Trog::Vault::has( 'bob', 'keepass' ), 0,     "$what: nothing reads as usable" );
+        is( Trog::Vault::get( 'bob', 'keepass' ), undef, "$what: and nothing opens" );
+
+        Trog::Routes::HTML::secrets( { user => 'bob', user_acls => ['admin'], tpsgi => $tpsgi } );
+        my ($listed) = grep { $_->{name} eq 'keepass' } @{ $rendered->{secrets} };
+        ok( $listed, "$what: the row is still listed rather than vanishing" );
+        is( $listed->{readable}, 0, "$what: marked as one that will not open" );
+
+        # And a page which knows storing cannot work does not draw the form for
+        # it -- has_vault is what the template hangs that on.
+        is( $rendered->{has_vault}, ( $what eq 'no key at all' ? 0 : 1 ), "$what: the page knows whether there is a vault to store into" );
+
+        my ( $stored, $why ) = Trog::Vault::set( 'bob', 'replacement', 'a new one' );
+        if ( $what eq 'no key at all' ) {
+            is( $stored, 0, "$what: storing is refused rather than silently lost" );
+            like( $why, qr/no vault key/, "$what: saying why" );
+        }
+        else {
+            is( $stored,                                  1,           "$what: a new key stores new secrets fine" );
+            is( Trog::Vault::get( 'bob', 'replacement' ), 'a new one', "$what: and opens them" );
+            Trog::Vault::forget( 'bob', 'replacement' );
+        }
+    }
+
+    # The key came back: what was sealed under it was never damaged, only
+    # unreadable while it was away.
+    is( Trog::Vault::get( 'bob', 'keepass' ), 'correct horse battery staple', 'and the original key still opens the original row' );
 };
 
 subtest 'the page a user manages them from' => sub {

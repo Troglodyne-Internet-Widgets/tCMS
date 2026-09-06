@@ -216,14 +216,25 @@ cannot be lifted into somebody else's account or renamed into being the answer t
 a different question.  Nothing renders a value back; if you have forgotten one,
 replace it.
 
-`bin/tcms-vault-key` mints one and tells you where to put it.  The master key is
-looked for in `TCMS_VAULT_KEY`, then `$CREDENTIALS_DIRECTORY/tcms-vault`, then
-`config/secrets.key`.  Use the first:
-tPSGI's unit takes it as a systemd credential and service/tpsgi.sh puts it in the
-environment before the chroot, so it never touches a disk.  tCMS deletes it from
-the environment as it loads, because one of the things it forks is a provisioner
-it hands a decrypted password to.  With no key there is no vault, and everything
+The master key is looked for in `TPSGI_VAULT_KEY`, then
+`$CREDENTIALS_DIRECTORY/tpsgi-vault`, then `config/secrets.key`.  Use the first:
+tPSGI's `bin/build_service` mints it and puts it in systemd's credential store,
+sealed to this machine's TPM if it has one, and its unit hands it over before it
+chroots -- so it never touches a disk here.  It is named for tPSGI rather than
+tCMS because tPSGI owns the unit and runs whatever is in the directory.
+`bin/tcms-vault-key --file` is the fallback for a machine with no systemd at all.
+
+tCMS deletes the key from its environment as it loads, because one of the things
+it forks is a provisioner it hands a decrypted password to.  With no key there is
+no vault: nothing is stored, nothing already stored is offered, and everything
 that would have used one goes on asking for the password directly.
+
+The key lives and dies with the machine.  It is deliberately not in any backup,
+not in the checkout, and not something trog-provisioner carries onto a rebuilt
+guest -- so rebuilding the host means every stored secret is gone and each user
+stores theirs again.  That is the intended cost.  Nothing breaks in the meantime:
+a row that will not open says so on /secrets, the reprovision button goes back to
+asking for the passphrase, and no code is spent finding out.
 
 What unlocks a secret is a TOTP code, and a code is spent when it is used -- a
 code authorizes one thing rather than everything you can do in its window.
