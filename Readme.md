@@ -216,8 +216,9 @@ cannot be lifted into somebody else's account or renamed into being the answer t
 a different question.  Nothing renders a value back; if you have forgotten one,
 replace it.
 
-The master key is looked for in `TCMS_VAULT_KEY`, then
-`$CREDENTIALS_DIRECTORY/tcms-vault`, then `config/secrets.key`.  Use the first:
+`bin/tcms-vault-key` mints one and tells you where to put it.  The master key is
+looked for in `TCMS_VAULT_KEY`, then `$CREDENTIALS_DIRECTORY/tcms-vault`, then
+`config/secrets.key`.  Use the first:
 tPSGI's unit takes it as a systemd credential and service/tpsgi.sh puts it in the
 environment before the chroot, so it never touches a disk.  tCMS deletes it from
 the environment as it loads, because one of the things it forks is a provisioner

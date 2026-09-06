@@ -1,0 +1,104 @@
+#!/usr/bin/env perl
+
+use v5.36;
+use re '/aa';
+
+use FindBin::libs;
+
+use Crypt::Misc  ();
+use Crypt::PRNG  ();
+use Getopt::Long qw{GetOptions};
+
+use Trog::Vault ();
+
+=head1 SYNOPSIS
+
+Make the key that seals this installation's stored secrets, and say where to put
+it.
+
+=head2 USAGE
+
+    bin/tcms-vault-key                  # print a key and the commands to install it
+    bin/tcms-vault-key --file           # write config/secrets.key instead
+
+=head2 WHAT THIS IS
+
+Every secret a user stores through /secrets is encrypted under a key derived
+from this one.  It is not in the database, which is the whole point: without it
+config/auth.db is ciphertext.  Losing it loses every stored secret, and there is
+no way around that -- they go back to typing the password, which is what they
+did before.
+
+There is one key per installation, and it does not need rotating on a schedule.
+If you do replace it, everything sealed under the old one stops opening and says
+so rather than presenting as corruption; the fix is for each user to store
+theirs again.
+
+=head2 WHERE TO PUT IT
+
+In systemd's credential store, which is what the default output tells you how to
+do.  tPSGI's unit imports it from there and hands it to tCMS in the environment,
+tCMS takes it back out of the environment as it loads, and it never touches a
+disk anywhere on the way.  Encrypted with systemd-creds it is also sealed to
+this machine, so the file is useless if it walks.
+
+--file is the fallback for a machine that is not running systemd.  It writes
+config/secrets.key, mode 600, and that is genuinely weaker: a key beside the
+database it protects is a key in the same backup as the database it protects.
+
+=head2 CAVEATS
+
+Prints a key to your terminal, which is a place keys end up in scrollback.  The
+default output is meant to be piped rather than read.
+
+=cut
+
+my ( $file, $help );
+GetOptions(
+    'file' => \$file,
+    'help' => \$help,
+) or exit 2;
+
+if ($help) {
+    print "Usage: bin/tcms-vault-key [--file]\n";
+    exit 0;
+}
+
+my $key = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
+
+if ($file) {
+
+    # Printed and exited rather than died: Carp::Always is in the dependency
+    # chain, and refusing to clobber a key is not a crash.
+    if ( -e $Trog::Vault::key_file ) {    ## no critic (ProhibitFiletest_e) -- refusing to overwrite the one thing that cannot be regenerated
+        print STDERR "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";
+        exit 2;
+    }
+
+    open( my $fh, '>', $Trog::Vault::key_file ) or die "Could not write $Trog::Vault::key_file: $!\n";
+    print {$fh} "$key\n";
+    close($fh);
+    chmod( oct('600'), $Trog::Vault::key_file ) or die "Could not chmod $Trog::Vault::key_file: $!\n";
+
+    print "Wrote $Trog::Vault::key_file.  Restart tCMS to pick it up.\n";
+    print "This is the weaker of the two places to keep it: see perldoc bin/tcms-vault-key.\n";
+    exit 0;
+}
+
+print <<"COMMANDS";
+A new vault key.  Put it in systemd's credential store, sealed to this machine:
+
+    echo '$key' | sudo systemd-creds encrypt --name=tcms-vault - /etc/credstore.encrypted/tcms-vault
+
+...or unsealed, if this machine has no TPM:
+
+    echo '$key' | sudo tee /etc/credstore/tcms-vault > /dev/null
+    sudo chmod 600 /etc/credstore/tcms-vault
+
+Then restart the service.  tPSGI's unit imports it and hands it over before it
+chroots; see the Service configuration section of its Readme.
+
+Losing this key loses every secret stored under it, and it is not in any backup
+you take of tCMS, which is the point.  Keep it wherever you keep the things you
+cannot regenerate.
+COMMANDS

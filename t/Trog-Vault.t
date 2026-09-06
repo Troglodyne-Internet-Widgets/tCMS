@@ -164,6 +164,51 @@ subtest 'no key, no vault' => sub {
     is( Trog::Vault::get( 'bob', 'keepass' ), undef, 'and nothing already stored is offered' );
 };
 
+subtest 'the other two places a key can be' => sub {
+    no warnings qw{once};
+    require Crypt::Misc;
+
+    # A key file, for a machine not running systemd.  bin/tcms-vault-key --file
+    # writes exactly this: base64 and a newline.
+    my $on_disk = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
+    open( my $fh, '>', 'config/secrets.key' ) or die $!;
+    print {$fh} "$on_disk\n";
+    close $fh;
+    chmod( oct('600'), 'config/secrets.key' );
+
+    {
+        local $Trog::Vault::master         = undef;
+        local $Trog::Vault::looked_further = 0;
+        is( Crypt::Misc::encode_b64( Trog::Vault::key() ), $on_disk, 'a key file is found, newline and all' );
+    }
+
+    # And systemd's credential store, which is where it should be: the directory
+    # systemd hands over, for a service that is not chrooted away from it.
+    my $in_store = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
+    File::Path::make_path('creds');
+    open( $fh, '>', 'creds/tcms-vault' ) or die $!;
+    print {$fh} $in_store;
+    close $fh;
+
+    {
+        local $ENV{CREDENTIALS_DIRECTORY}  = 'creds';
+        local $Trog::Vault::master         = undef;
+        local $Trog::Vault::looked_further = 0;
+        is( Crypt::Misc::encode_b64( Trog::Vault::key() ), $in_store, 'the credential store wins over the file beside the database' );
+    }
+
+    # Something that is not a key is not quietly used as one.
+    open( $fh, '>', 'config/secrets.key' ) or die $!;
+    print {$fh} "hunter2\n";
+    close $fh;
+    {
+        local $Trog::Vault::master         = undef;
+        local $Trog::Vault::looked_further = 0;
+        is( Trog::Vault::key(), undef, 'a key that is not 32 bytes of base64 is refused' );
+    }
+    unlink('config/secrets.key');
+};
+
 subtest 'a code is worth one thing' => sub {
     my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
     ok( $uri, 'bob is enrolled' ) or diag($message);
