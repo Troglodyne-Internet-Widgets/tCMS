@@ -20,7 +20,7 @@ WriteMakefile(
         },
     },
     PREREQ_PM => {
-        'Trog::TOTP'                          => '0',
+        'Trog::TOTP'                          => '1.007',
         'CGI::Cookie'                         => '0',
         'Capture::Tiny'                       => '0',
         'Carp'                                => '0',
@@ -71,7 +71,6 @@ WriteMakefile(
         'Log::Dispatch'                       => '0',
         'Log::Dispatch::FileRotate'           => '0',
         'Digest::SHA'                         => '0',
-        'MIME::Base32::XS'                    => '0',
         'URI'                                 => '0',
         'FindBin::libs'                       => '0',
         'Carp::Always'                        => '0',
