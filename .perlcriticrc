@@ -46,6 +46,7 @@ formats = #!/usr/bin/env perl
 [logicLAB::ProhibitShellDispatch]
 [ProhibitPipeOpen]
 [Performance::ProhibitRegexForSimpleSubstring]
+[RegularExpressions::ProhibitRegexToChomp]
 # Extensions to perl -c
 [CompileTime]
 # Good idea, but module doesn't install due to bad testsuite...we'll have to fork
