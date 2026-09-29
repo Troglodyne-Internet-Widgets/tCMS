@@ -79,6 +79,8 @@ WriteMakefile(
         'Email::Sender::Simple'               => '0',
         'POSIX::strptime'                     => '0',
         'Log::Dispatch::DBI'                  => '0',
+        'Log::Syslog::Fast'                   => '0',
+        'Module::Runtime'                     => '0',
         'Email::MIME'                         => '0',
         'Email::Sender::Simple'               => '0',
         'Net::IP'                             => '0',

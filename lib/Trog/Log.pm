@@ -4,6 +4,7 @@ use v5.36;
 use re '/aa';
 
 use POSIX qw{strftime};
+use Module::Runtime();
 use Log::Dispatch;
 use Log::Dispatch::DBI;
 use Log::Dispatch::Screen;
@@ -61,7 +62,7 @@ Where the current request came from, same deal.  Defaults to '0.0.0.0'.
 
 =head1 FUNCTIONS
 
-=head2 log_init(STRING logname, STRING level) = BOOL
+=head2 log_init(STRING logname, STRING level, [ARRAYREF loggers]) = BOOL
 
 Build the logger.  Must be called before anything tries to log.
 
@@ -69,12 +70,17 @@ $logname is the path to the log file; its directory is also where the metrics
 database gets put.  $level is a Log::Dispatch level, generally 'info' or
 'debug'.
 
+$loggers names more Log::Dispatch outputs to add, by class, and each gets
+C<min_level> and C<log_dir> as tPSGI gives them.  The server passes the
+C<loggers> of tpsgi.ini, so that one setting sends the lines of tPSGI and of
+tCMS to the same places.  See Trog::Log::Syslog.
+
 Returns 1.
 
 =cut
 
 sub log_init {
-    my ( $LOGNAME, $LEVEL ) = @_;
+    my ( $LOGNAME, $LEVEL, $loggers ) = @_;
 
     die "Cannot initialize logs without log name and log level" unless $LOGNAME && $LEVEL;
 
@@ -111,6 +117,10 @@ sub log_init {
     $log->add($rotate);
     $log->add($screen);
     $log->add($dblog);
+
+    foreach my $logger ( @{ $loggers // [] } ) {
+        $log->add( Module::Runtime::use_module($logger)->new( min_level => $LEVEL, log_dir => $LOGDIR ) );
+    }
 
     uuid("INIT");
     return 1;

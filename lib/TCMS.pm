@@ -75,7 +75,7 @@ sub build_routes {
             confess "Cannot determine directory for logs!" unless $tpsgi->{log_dir};
 
             # Make sure the tCMS logs live in the same dir as the tpsgi logs.
-            log_init( "$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info' );
+            log_init( "$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info', $tpsgi->{loggers} );
 
             # Let's open up our default route if needed before we bother thinking any harder
             return $default_route->($query) unless -f "config/setup";    ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
