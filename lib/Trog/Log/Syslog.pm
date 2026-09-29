@@ -73,7 +73,7 @@ sub log_message ( $self, %p ) {
 
     # Trog::Log ends every line with a newline, which a syslog message does
     # not carry.
-    my $message = $p{message} =~ s/\n+\z//r;
+    chomp( my $message = $p{message} );
 
     local $@;
     eval {

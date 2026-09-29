@@ -36,9 +36,9 @@ subtest 'a line arrives as the syslog of this machine reads it' => sub {
     my $got = received();
 
     # daemon is facility 3 and info is severity 6, so the priority is 3*8+6.
-    like( $got, qr/^<30>/,                                                                                            'as daemon.info' );
-    like( $got, qr/\btcms\[$$\]: /,                                                                                   'tagged with the program name and the pid' );
-    like( $got, qr/: 2026-09-29T12:00:00Z \[INFO\]: RequestId x From 192\.0\.2\.1 \|nobody\| Failed login for user$/, 'with the line that the file gets, and no newline' );
+    like( $got, qr/^<30>/,                                                                                             'as daemon.info' );
+    like( $got, qr/\btcms\[$$\]: /,                                                                                    'tagged with the program name and the pid' );
+    like( $got, qr/: 2026-09-29T12:00:00Z \[INFO\]: RequestId x From 192\.0\.2\.1 \|nobody\| Failed login for user\z/, 'with the line that the file gets, and no newline' );
 };
 
 subtest 'each level keeps its severity' => sub {
