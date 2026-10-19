@@ -71,7 +71,8 @@ my %buffer;
 Record one log line.
 
 Returns the request insert's result for a request line, 1 for a message that
-got buffered, and undef for a line we couldn't make sense of.
+got buffered, and undef for a line we couldn't make sense of or could not write.
+A write that fails is a warning on stderr, and never dies.
 
 =cut
 
@@ -113,22 +114,29 @@ sub log_message {
     $ua      //= 'none';
     $urchin  //= {};
 
-    # TODO track bytes in the DB
-    my $res = $self->{sth}->execute( $uuid, $epoch, $ip, $user, $method, $route, $referer, $ua, $code );
+    # The handle raises, and this runs inside every log call, so a failed write warns rather than dies.
+    my $messages = delete $buffer{$uuid};
+    my $res;
+    eval {
+        # TODO track bytes in the DB
+        $res = $self->{sth}->execute( $uuid, $epoch, $ip, $user, $method, $route, $referer, $ua, $code );
 
-    # Dump in the accumulated messages
-    if ( is_arrayref( $buffer{$uuid} ) && @{ $buffer{$uuid} } ) {
-        $self->{sth2}->bind_param_array( 1, $uuid );
-        $self->{sth2}->bind_param_array( 2, $buffer{$uuid} );
-        $self->{sth2}->execute_array( {} );
-        delete $buffer{$uuid};
+        # Dump in the accumulated messages
+        if ( is_arrayref($messages) && @$messages ) {
+            $self->{sth2}->bind_param_array( 1, $uuid );
+            $self->{sth2}->bind_param_array( 2, $messages );
+            $self->{sth2}->execute_array( {} );
+        }
 
-    }
-
-    # Record urchin data if there is any.
-    if ( %$urchin && $urchin->{utm_source} ) {
-        $self->{sth3}->execute( $uuid, $urchin->{utm_source}, $urchin->{utm_medium}, $urchin->{utm_campaign}, $urchin->{utm_term}, $urchin->{utm_content} );
-    }
+        # Record urchin data if there is any.
+        if ( %$urchin && $urchin->{utm_source} ) {
+            $self->{sth3}->execute( $uuid, $urchin->{utm_source}, $urchin->{utm_medium}, $urchin->{utm_campaign}, $urchin->{utm_term}, $urchin->{utm_content} );
+        }
+        1;
+    } or do {
+        warn "Could not record request $uuid in the metrics database: $@";
+        return;
+    };
 
     return $res;
 }

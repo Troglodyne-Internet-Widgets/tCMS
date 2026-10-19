@@ -406,4 +406,23 @@ subtest 'the page a user manages them from' => sub {
     is( Trog::Vault::get( 'bob', 'keepass' ), 'correct horse battery staple', "bob's is untouched by eve asking to forget it" );
 };
 
+# The handle raises on every error, so these two are the writes whose failure
+# must still come back as an answer rather than as a die.
+subtest 'a write the database refuses is an answer, not a crash' => sub {
+    my ( $ok, $why ) = Trog::Vault::set( 'nobody', 'thing', 'a secret for a user who does not exist' );
+    is( $ok,  0,                    'a secret for a user the foreign key does not know is refused' );
+    is( $why, 'could not store it', 'with the message the page shows' );
+
+    my $dbh = Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' );
+    $dbh->do("DELETE FROM totp_spent WHERE username='bob'");
+    $dbh->do("CREATE TEMP TRIGGER refuse_spend BEFORE INSERT ON totp_spent BEGIN SELECT RAISE(ABORT, 'refused for the test'); END");
+
+    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
+    ( $ok, $why ) = Trog::Auth::spend_totp( 'bob', $totp->expected_totp_code( time() ) );
+    $dbh->do("DROP TRIGGER temp.refuse_spend");
+
+    is( $ok, 0, 'a right code that cannot be recorded as spent is refused' );
+    like( $why, qr/could not record the code/, 'saying why' );
+};
+
 done_testing();

@@ -21,6 +21,7 @@ WriteMakefile(
     },
     PREREQ_PM => {
         'Trog::TOTP'                          => '1.007',
+        'Trog::SQLite'                        => '0.001',
         'CGI::Cookie'                         => '0',
         'Capture::Tiny'                       => '0',
         'Carp'                                => '0',

@@ -36,8 +36,12 @@ What that buys is get(): the filtering Trog::DataModule::filter() does in Perl
 over every post on disk happens here in one indexed query.  See _where() for
 the mapping, which is filter() clause for clause.
 
-Adding a queryable field is one ALTER TABLE and one CREATE INDEX in
-schema/sqlite.schema, with no migration, because the data itself never moves.
+Adding a queryable field is one ALTER TABLE and one CREATE INDEX, with no
+migration of the data, because the data itself never moves.  They go in the
+next update file beside the schema, such as
+schema/sqlite.schema.v1.update.sql, and not in schema/sqlite.schema itself.
+Trog::SQLite applies the schema on every new handle, and an ALTER TABLE fails
+the second time.  It runs each update file once per database, in order.
 
 =head1 Termination Conditions
 
@@ -348,12 +352,11 @@ sub _insert ( $dbh, $data ) {
         delete @stored{qw{version_max modified display_name user_class post_id}};
         $stored{version} //= 0;
 
-        # Checked rather than fired and forgotten: DBI is not in RaiseError mode
-        # here, so a rejected write -- the unique index catching two workers on
-        # the same version, most of all -- would otherwise be a warning on
-        # stderr and a save the user was told had succeeded.
-        $insert->execute( $parser->encode( \%stored ) )
-          or confess "Could not write post '$post->{id}' version $stored{version}: " . $dbh->errstr;
+        # Caught to name the post: a rejected write -- the unique index catching
+        # two workers on the same version, most of all -- otherwise dies with
+        # the message of DBI alone, which does not say which post it was.
+        eval { $insert->execute( $parser->encode( \%stored ) ); 1 }
+          or confess "Could not write post '$post->{id}' version $stored{version}: $@";
     }
 
     return 1;
@@ -466,13 +469,13 @@ sub index_fields ( $self, @fields ) {
     foreach my $field ( sort keys %want ) {
         if ( !$have{$field} ) {
             ## no critic(ValuesAndExpressions::PreventSQLInjection) -- $field is the anchored capture above
-            $dbh->do("ALTER TABLE posts ADD COLUMN $field TEXT GENERATED ALWAYS AS (json_extract(post_data, '\$.$field')) VIRTUAL")
-              or confess "Could not add a column for '$field': " . $dbh->errstr;
+            eval { $dbh->do("ALTER TABLE posts ADD COLUMN $field TEXT GENERATED ALWAYS AS (json_extract(post_data, '\$.$field')) VIRTUAL"); 1 }
+              or confess "Could not add a column for '$field': $@";
         }
 
         ## no critic(ValuesAndExpressions::PreventSQLInjection) -- as above
-        $dbh->do("CREATE INDEX IF NOT EXISTS $index_prefix$field ON posts($field)")
-          or confess "Could not index '$field': " . $dbh->errstr;
+        eval { $dbh->do("CREATE INDEX IF NOT EXISTS $index_prefix$field ON posts($field)"); 1 }
+          or confess "Could not index '$field': $@";
         $built++;
     }
 
@@ -489,7 +492,7 @@ sub index_fields ( $self, @fields ) {
         next if $want{$field};
 
         ## no critic(ValuesAndExpressions::PreventSQLInjection) -- $index came out of sqlite_master
-        $dbh->do("DROP INDEX IF EXISTS $index") or confess "Could not drop the index on '$field': " . $dbh->errstr;
+        eval { $dbh->do("DROP INDEX IF EXISTS $index"); 1 } or confess "Could not drop the index on '$field': $@";
         $dropped++;
     }
 

@@ -139,8 +139,10 @@ site, a search goes from about 2.5 seconds to about 3 milliseconds.  Search is a
 FTS5 index built with the trigram tokenizer, so it keeps the case insensitive
 substring matching the search box always had.
 
-Adding a queryable field is one ALTER TABLE and one CREATE INDEX in
-schema/sqlite.schema.  No migration, because the data itself never moves:
+Adding a queryable field is one ALTER TABLE and one CREATE INDEX in the next
+update file beside the schema, such as schema/sqlite.schema.v1.update.sql.
+Trog::SQLite runs each update file once per database, in order.  No migration of
+the data, because the data itself never moves:
 
     ALTER TABLE posts ADD COLUMN subhead TEXT
         GENERATED ALWAYS AS (json_extract(post_data, '$.subhead')) VIRTUAL;
