@@ -219,7 +219,10 @@ sub totp ( $user, $domain ) {
         # returns 0 for a file that was never there, it does not warn or die.
         unlink "totp/$qr";
 
-        $dbh->do( "UPDATE user SET totp_secret=? WHERE name=?", undef, $secret, $user ) or return ( undef, undef, 1, "Failed to store TOTP secret." );
+        eval { $dbh->do( "UPDATE user SET totp_secret=? WHERE name=?", undef, $secret, $user ); 1 } or do {
+            WARN("Could not store the TOTP secret of $user: $@");
+            return ( undef, undef, 1, "Failed to store TOTP secret." );
+        };
     }
 
     # This is subsequently served via authenticated _serve() in TCMS.pm.
@@ -334,8 +337,10 @@ sub spend_totp ( $user, $code ) {
         return ( 0, 'that code has already been used; wait for the next one' );
     }
 
-    $dbh->do( "INSERT OR REPLACE INTO totp_spent (username, step) VALUES (?,?)", undef, $user, $matched )
-      or return ( 0, 'could not record the code as used, so it is refused' );
+    eval { $dbh->do( "INSERT OR REPLACE INTO totp_spent (username, step) VALUES (?,?)", undef, $user, $matched ); 1 } or do {
+        WARN("Could not record the TOTP step of $user as spent: $@");
+        return ( 0, 'could not record the code as used, so it is refused' );
+    };
 
     return ( 1, '' );
 }
@@ -409,7 +414,8 @@ sub _hash_password ($pass) {
 sub _store_password ( $user, $pass ) {
     my ( $hash, $salt ) = _hash_password($pass);
     my $dbh = _dbh();
-    return $dbh->do( "UPDATE user SET hash=?, salt=? WHERE name=?", undef, $hash, $salt, $user ) ? 1 : 0;
+    $dbh->do( "UPDATE user SET hash=?, salt=? WHERE name=?", undef, $hash, $salt, $user );
+    return 1;
 }
 
 =head2 mksession(user, pass, token) = STRING
@@ -447,7 +453,7 @@ sub mksession ( $user, $pass, $token, $ip_addr = '' ) {
 
     # Issue cookie
     my $uuid = Trog::Utils::uuid();
-    $dbh->do( "INSERT OR REPLACE INTO session (id,username) VALUES (?,?)", undef, $uuid, $uid ) or return '';
+    $dbh->do( "INSERT OR REPLACE INTO session (id,username) VALUES (?,?)", undef, $uuid, $uid );
     log_event( 'login_success', $user, $ip_addr, $uuid );
     return $uuid;
 }
@@ -470,7 +476,8 @@ sub killsession ( $user, $ip_addr = '' ) {
 Adds a user identified by the provided password into the auth DB.
 Also used to alter users.
 
-Returns True or False (likely false when user already exists).
+Returns true.  Dies if the user cannot be stored, as the rest of this module
+does when the auth database fails.
 
 =cut
 
@@ -490,20 +497,19 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
 
     my $dbh = _dbh();
     ( $hash, $salt ) = _hash_password($pass) if $pass;
-    my $res = $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
-    return unless $res && ref $acls eq 'ARRAY';
+    $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
     foreach my $acl (@$acls) {
-        return unless $dbh->do( "INSERT OR REPLACE INTO user_acl (username,acl) VALUES (?,?)", undef, $user, $acl );
+        $dbh->do( "INSERT OR REPLACE INTO user_acl (username,acl) VALUES (?,?)", undef, $user, $acl );
     }
     return 1;
 }
 
 sub add_change_request (%args) {
     my $dbh = _dbh();
-    my $res = $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
-    return !!$res;
+    $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
+    return 1;
 }
 
 sub process_change_request ($token) {
@@ -524,16 +530,14 @@ sub process_change_request ($token) {
             #XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
             # This is also why we have to snag the user's ACLs or they will be wiped.
             my @acls = acls4user($user);
-            useradd( $user, $display, $pass, \@acls, $contactemail ) or do {
-                return '';
-            };
+            useradd( $user, $display, $pass, \@acls, $contactemail );
             killsession($user);
             return "Password set to $pass for $user";
         },
     );
     my $res = $dispatch{$type}->( $user, $secret );
-    $dbh->do( "UPDATE change_request SET processed=1 WHERE token=?", undef, $token ) or do {
-        FATAL("Could not set job with token $token to completed!");
+    eval { $dbh->do( "UPDATE change_request SET processed=1 WHERE token=?", undef, $token ); 1 } or do {
+        FATAL("Could not set job with token $token to completed: $@");
     };
     return $res;
 }

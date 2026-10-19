@@ -5,7 +5,9 @@
 /* Every column but the blob is GENERATED ALWAYS ... VIRTUAL, so it costs no   */
 /* storage, cannot drift from the post it was drawn from, and can be indexed.  */
 /* Adding a queryable field later is one ALTER TABLE plus one CREATE INDEX --  */
-/* no migration of the data itself, because the data never moves.              */
+/* no migration of the data itself, because the data never moves.  They go in  */
+/* the next update file, sqlite.schema.vN.update.sql, and not in this file:    */
+/* Trog::SQLite runs this file on every new handle, and each update only once. */
 
 CREATE TABLE IF NOT EXISTS posts (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,

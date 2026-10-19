@@ -214,10 +214,16 @@ sub set ( $user, $name, $secret ) {
     my $tag        = $gcm->encrypt_done();
 
     my $dbh = _dbh();
-    $dbh->do(
-        "INSERT OR REPLACE INTO user_secret (username, name, key_id, salt, ciphertext, tag, created) VALUES (?,?,?,?,?,?,?)",
-        undef, $user, $name, key_id(), $salt, $ciphertext, $tag, time()
-    ) or return ( 0, 'could not store it' );
+    eval {
+        $dbh->do(
+            "INSERT OR REPLACE INTO user_secret (username, name, key_id, salt, ciphertext, tag, created) VALUES (?,?,?,?,?,?,?)",
+            undef, $user, $name, key_id(), $salt, $ciphertext, $tag, time()
+        );
+        1;
+    } or do {
+        WARN("Could not store the secret '$name' of $user: $@");
+        return ( 0, 'could not store it' );
+    };
 
     Trog::Auth::log_event( 'secret_write', $user );
     return ( 1, "'$name' stored" );
