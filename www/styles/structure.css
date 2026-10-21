@@ -161,3 +161,9 @@ iframe.responsive {
 		display: none;
 	}
 }
+
+.invoice .table-cell {
+    padding: .5rem .25rem;
+    line-height: 1.5;
+    vertical-align: top;
+}
