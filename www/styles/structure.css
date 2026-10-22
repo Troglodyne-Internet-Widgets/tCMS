@@ -161,3 +161,15 @@ iframe.responsive {
 		display: none;
 	}
 }
+
+/* Fixed, so the two columns split the width evenly instead of by content. */
+.invoice {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.invoice .table-cell, .invoice-items > div {
+    padding: .5rem .25rem;
+    line-height: 1.5;
+    vertical-align: top;
+}

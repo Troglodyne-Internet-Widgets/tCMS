@@ -1,14 +1,17 @@
 <div class="post <: $style :>">
     :if ( !$post.addpost ) {
+        <div class="noprint">
         : include "post_title.tx";
         : include "post_tags.tx";
+        </div>
+        <h3 class="blogtitles printonly"><: $post.title :></h3>
 
         : if ( !$post.video_href && !$post.is_image && !$post.is_video && !$post.is_profile && $post.preview ) {
             <img src="<: $post.preview :>" class="responsive-img" loading="lazy" />
         : }
 
         <div class="postData responsive-text" id="postData-<: $post.id :>">
-            <div class="table">
+            <div class="table invoice">
                 <div class="table-row">
                     <div class="table-cell">
                         Invoice ID# <: $post.id :><br />
@@ -43,20 +46,15 @@
                         <: $post.payee_entity.payment_details :>
                     </div>
                 </div>
+            </div>
+            <div class="invoice-items">
                 : for $post.data -> $poast {
-                    <div class="table-row">
-                    <div class="table-cell">
+                    <div>
                     <: render_it($poast) | mark_raw  :>
                     </div>
-                    <div class="table-cell">
-                    </div>
-                    </div>
                 : }
-                <div class="table-row">
-                    <div class="table-cell overline">
-                        Total: <: $post.total :>
-                    </div>
-                    <div class="table-cell overline"></div>
+                <div class="overline">
+                    Total: <: $post.total :>
                 </div>
             </div>
         </div>
