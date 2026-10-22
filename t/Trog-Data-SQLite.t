@@ -122,27 +122,34 @@ sub ids_of {
 
 subtest 'the two models answer the same questions the same way' => sub {
     my @queries = (
-        [ 'everything an admin can see'  => { limit => 0, acls    => ['admin'] } ],
-        [ 'everything a visitor can see' => { limit => 0, acls    => ['public'] } ],
-        [ 'a visitor plus unlisted'      => { limit => 0, acls    => [qw{public unlisted}] } ],
-        [ 'no acls at all'               => { limit => 0, acls    => [] } ],
-        [ 'one tag'                      => { limit => 0, acls    => ['admin'], tags         => ['topbar'] } ],
-        [ 'several tags'                 => { limit => 0, acls    => ['admin'], tags         => [qw{topbar series}] } ],
-        [ 'a tag nothing has'            => { limit => 0, acls    => ['admin'], tags         => ['nonesuch'] } ],
-        [ 'excluding a tag'              => { limit => 0, acls    => ['admin'], exclude_tags => ['topbar'] } ],
-        [ 'tags and exclude together'    => { limit => 0, acls    => ['admin'], tags         => ['blog'], exclude_tags => ['topbar'] } ],
-        [ 'by form'                      => { limit => 0, acls    => ['admin'], form         => 'microblog.tx' } ],
-        [ 'by a form nothing has'        => { limit => 0, acls    => ['admin'], form         => 'nonesuch.tx' } ],
-        [ 'by author'                    => { limit => 0, acls    => ['admin'], author       => 'ann' } ],
-        [ 'by id'                        => { limit => 0, id      => 'p-series' } ],
-        [ 'by an id nothing has'         => { limit => 0, id      => 'p-nonesuch' } ],
-        [ 'by title'                     => { limit => 0, title   => 'A Deck' } ],
-        [ 'by aclname'                   => { limit => 0, aclname => 'aseries' } ],
-        [ 'by acl membership'            => { limit => 0, acls    => ['aseries'] } ],
-        [ 'older than'                   => { limit => 0, acls    => ['admin'],  older   => $corpus[4]{created} } ],
-        [ 'newer than'                   => { limit => 0, acls    => ['admin'],  newer   => $corpus[4]{created} } ],
-        [ 'a specific version'           => { limit => 0, id      => 'p-public', version => 0 } ],
-        [ 'the other version'            => { limit => 0, id      => 'p-public', version => 1 } ],
+        [ 'everything an admin can see'    => { limit => 0, acls => ['admin'] } ],
+        [ 'everything a visitor can see'   => { limit => 0, acls => ['public'] } ],
+        [ 'a visitor plus unlisted'        => { limit => 0, acls => [qw{public unlisted}] } ],
+        [ 'no acls at all'                 => { limit => 0, acls => [] } ],
+        [ 'one tag'                        => { limit => 0, acls => ['admin'],   tags         => ['topbar'] } ],
+        [ 'several tags'                   => { limit => 0, acls => ['admin'],   tags         => [qw{topbar series}] } ],
+        [ 'a tag nothing has'              => { limit => 0, acls => ['admin'],   tags         => ['nonesuch'] } ],
+        [ 'excluding a tag'                => { limit => 0, acls => ['admin'],   exclude_tags => ['topbar'] } ],
+        [ 'tags and exclude together'      => { limit => 0, acls => ['admin'],   tags         => ['blog'], exclude_tags => ['topbar'] } ],
+        [ 'by form'                        => { limit => 0, acls => ['admin'],   form         => 'microblog.tx' } ],
+        [ 'by a form nothing has'          => { limit => 0, acls => ['admin'],   form         => 'nonesuch.tx' } ],
+        [ 'by author'                      => { limit => 0, acls => ['admin'],   author       => 'ann' } ],
+        [ 'by id'                          => { limit => 0, acls => [qw{admin}], id           => 'p-series' } ],
+        [ 'by an id nothing has'           => { limit => 0, acls => [qw{admin}], id           => 'p-nonesuch' } ],
+        [ 'by title'                       => { limit => 0, acls => [qw{admin}], title        => 'A Deck' } ],
+        [ 'by aclname'                     => { limit => 0, acls => [qw{admin}], aclname      => 'aseries' } ],
+        [ 'by acl membership'              => { limit => 0, acls => ['aseries'] } ],
+        [ 'a private id, as a visitor'     => { limit => 0, acls => ['public'],            id      => 'p-private' } ],
+        [ 'a private title, as a visitor'  => { limit => 0, acls => ['public'],            title   => 'Members Only' } ],
+        [ 'a private id, holding its acl'  => { limit => 0, acls => ['aseries'],           id      => 'p-acl' } ],
+        [ 'an unlisted id, as a visitor'   => { limit => 0, acls => ['public'],            id      => 'p-unlisted' } ],
+        [ 'an unlisted id, by its link'    => { limit => 0, acls => [qw{public unlisted}], id      => 'p-unlisted' } ],
+        [ 'a public aclname, as a visitor' => { limit => 0, acls => ['public'],            aclname => 'aseries' } ],
+        [ 'an id with no acls at all'      => { limit => 0, acls => [],                    id      => 'p-public' } ],
+        [ 'older than'                     => { limit => 0, acls => ['admin'],             older   => $corpus[4]{created} } ],
+        [ 'newer than'                     => { limit => 0, acls => ['admin'],             newer   => $corpus[4]{created} } ],
+        [ 'a specific version'             => { limit => 0, acls => [qw{admin}],           id      => 'p-public', version => 0 } ],
+        [ 'the other version'              => { limit => 0, acls => [qw{admin}],           id      => 'p-public', version => 1 } ],
     );
 
     foreach my $case (@queries) {
@@ -180,7 +187,7 @@ subtest 'both models paginate by offset' => sub {
 subtest 'the id query really does return one post' => sub {
 
     # Guards the comparison above: two empty lists are also "the same".
-    my @found = $sqlite->get( limit => 0, id => 'p-series' );
+    my @found = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-series' );
     is( scalar(@found),  1,           'exactly one' );
     is( $found[0]{id},   'p-series',  'and the right one' );
     is( $found[0]{form}, 'series.tx', 'decoded whole, not just its id' );
@@ -198,15 +205,33 @@ subtest 'the id query really does return one post' => sub {
     is( scalar(@plus), 6, 'and the unlisted one once they hold that too' );
 };
 
+subtest 'a direct lookup still answers only to the acls' => sub {
+    foreach my $case ( [ flatfile => $flat ], [ sqlite => $sqlite ] ) {
+        my ( $name, $model ) = @$case;
+        my $ids = sub {
+            [ sort map { $_->{id} } $model->get( limit => 0, @_ ) ]
+        };
+
+        is_deeply( $ids->( acls => ['public'],            id    => 'p-private' ),    [],             "$name: a visitor cannot fetch a private post by id" );
+        is_deeply( $ids->( acls => ['public'],            title => 'Secret Plans' ), [],             "$name: nor by title" );
+        is_deeply( $ids->( acls => [],                    id    => 'p-public' ),     [],             "$name: no acls fetch nothing, however public" );
+        is_deeply( $ids->( acls => ['admin'],             id    => 'p-private' ),    ['p-private'],  "$name: an admin can" );
+        is_deeply( $ids->( acls => ['public'],            id    => 'p-public' ),     ['p-public'],   "$name: a visitor still gets a public post" );
+        is_deeply( $ids->( acls => ['aseries'],           id    => 'p-acl' ),        ['p-acl'],      "$name: and a member the post their acl names" );
+        is_deeply( $ids->( acls => ['public'],            id    => 'p-unlisted' ),   [],             "$name: unlisted needs its own acl" );
+        is_deeply( $ids->( acls => [qw{public unlisted}], id    => 'p-unlisted' ),   ['p-unlisted'], "$name: which a link to it carries" );
+    }
+};
+
 subtest 'versions' => sub {
-    my ($latest) = $sqlite->get( limit => 0, id => 'p-public' );
+    my ($latest) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-public' );
     is( $latest->{version},     1,                               'the newest version is the one you get' );
     is( $latest->{title},       'The Quick Brown Fox (revised)', 'with its own content' );
     is( $latest->{version_max}, 1,                               'version_max is the newest' );
     is( $latest->{created},     $corpus[0]{created},             'created is the post birthday, not the revision' );
     is( $latest->{modified},    $corpus[-1]{created},            'modified is the revision' );
 
-    my ($first) = $sqlite->get( limit => 0, id => 'p-public', version => 0 );
+    my ($first) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-public', version => 0 );
     is( $first->{title},       'The Quick Brown Fox', 'an older version can still be asked for' );
     is( $first->{version_max}, 1,                     'and knows a newer one exists' );
 
@@ -285,7 +310,7 @@ subtest 'count, tags and delete' => sub {
     my $vdbh = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );
     my ($stale) = $vdbh->selectrow_array(q{SELECT COUNT(*) FROM post_versions WHERE uuid = 'p-micro'});
     is( $stale, 0, 'and its version bookkeeping' );
-    is_deeply( [ $sqlite->get( limit => 0, id => 'p-micro' ) ], [], 'and it cannot be fetched' );
+    is_deeply( [ $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-micro' ) ], [], 'and it cannot be fetched' );
 
     # The schema's triggers own this, not the Perl.
     my $dbh = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );
@@ -313,7 +338,7 @@ subtest 'writing' => sub {
     like( $clash, qr/Could not write post 'p-new'/, 'the same version twice is refused, loudly' );
 
     is( exception { $sqlite->write( [ post( id => 'p-new', title => 'Second Version', version => 1 ) ] ) }, undef, 'a new version is not' );
-    my ($now) = $sqlite->get( limit => 0, id => 'p-new' );
+    my ($now) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-new' );
     is( $now->{title}, 'Second Version', 'and wins' );
 
     like( exception { $sqlite->write( [ { title => 'No Id' } ] ) }, qr/no id/i, 'a post with no id is refused' );

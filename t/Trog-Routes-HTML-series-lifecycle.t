@@ -1243,6 +1243,25 @@ subtest 'invoice' => sub {
     like( $body, qr{Due: <span class="unixtimestamp">\Q$due\E</span>}, 'due date counts from the latest edit, not the first save' );
 };
 
+subtest 'a private post is not served to a visitor who asks for it by id' => sub {
+    my $secret = _save_post(
+        'private post',
+        form       => 'blog.tx',
+        title      => 'Spec Private Post',
+        data       => 'Spec private body.',
+        visibility => 'private',
+        to         => '/posts',
+    ) or return;
+
+    my ( $code, $body ) = _render( _anon( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
+    is( $code, 404, 'a visitor gets a 404' );
+    unlike( $body, qr/Spec private body/, 'and none of the post' );
+
+    ( $code, $body ) = _render( _admin( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'an admin gets the post' );
+    like( $body, qr/Spec private body/, 'with its body' );
+};
+
 subtest 'spec_widget (the wizard-built type)' => sub {
     my $title = 'Spec Widget Series';
     _make_series( 'spec_widget', 'specwidget', 'spec_widget.tx', $title ) or return;

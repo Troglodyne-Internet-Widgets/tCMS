@@ -1485,7 +1485,13 @@ sub series ($query) {
     # Asking for page two of a single post gets nothing, so a series carrying a
     # ?page= in its URL could not find itself and 404'd on its own page.  Latent
     # until something started emitting page numbers -- see _paginate_offset.
-    my @posts = _post_helper( { %$query, page => 1, limit => 1 }, ['series'], $query->{user_acls} );
+    #
+    # Seen through what a viewer can actually see, as posts() does further on:
+    # the raw user_acls of a logged out visitor are empty, and match nothing.
+    # Unlisted too, since the route names this series directly.
+    my @series_acls = ( @{ $query->{user_acls} }, qw{public unlisted} );
+    push( @series_acls, 'private' ) if $is_admin;
+    my @posts = _post_helper( { %$query, page => 1, limit => 1 }, ['series'], \@series_acls );
 
     # The series post carries its *children's* relations, so that an editor
     # picker rendered on this page has something to populate from -- that is

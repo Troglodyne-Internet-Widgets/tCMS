@@ -180,6 +180,19 @@ sub _filter_param ( $query, $param, @filtered ) {
     return @filtered;
 }
 
+# Visibility and acls are both stored as tags, so a caller sees a post when it
+# holds one of them.  admin sees everything.
+sub _filter_acls ( $query, @filtered ) {
+    return @filtered if grep { $_ eq 'admin' } @{ $query->{acls} };
+    return grep {
+        my $tags = $_->{tags};
+        grep {
+            my $t = $_;
+            grep { $t eq $_ } @{ $query->{acls} }
+        } @$tags
+    } @filtered;
+}
+
 =head2 filter($query, @posts) = @filtered
 
 Apply a get() request's filters to a list of posts: tags, exclude_tags, acls,
@@ -196,10 +209,11 @@ sub filter ( $self, $query, @filtered ) {
     $query->{tags}         //= [];
     $query->{exclude_tags} //= [];
 
-    # If an ID or title or acl is passed, just get that (and all it's prior versions)
+    # If an ID or title or acl is passed, just get that (and all it's prior versions),
+    # if the caller may see it.
     foreach my $key (qw{id title aclname}) {
         next unless $query->{$key};
-        return _filter_param( $query, $key, @filtered );
+        return _filter_acls( $query, _filter_param( $query, $key, @filtered ) );
     }
 
     @filtered = _dedup_versions( undef, @filtered );
@@ -233,14 +247,7 @@ sub filter ( $self, $query, @filtered ) {
         } @$tags
     } @filtered if @{ $query->{exclude_tags} };
 
-    # Filter posts without the proper ACLs
-    @filtered = grep {
-        my $tags = $_->{tags};
-        grep {
-            my $t = $_;
-            grep { $t eq $_ } @{ $query->{acls} }
-        } @$tags
-    } @filtered unless grep { $_ eq 'admin' } @{ $query->{acls} };
+    @filtered = _filter_acls( $query, @filtered );
 
     @filtered = grep { ( $_->{form} || '' ) eq $query->{form} } @filtered if $query->{form};
 
@@ -853,7 +860,7 @@ sub add ( $self, @posts ) {
         $post->{local_href} ||= "/posts/$post->{id}";
         $post->{method}     ||= 'GET';
         $post->{created} = time();
-        my @existing_posts = $self->get( id => $post->{id} );
+        my @existing_posts = $self->get( id => $post->{id}, acls => [qw{admin}] );
         if (@existing_posts) {
             my $existing_post = $existing_posts[0];
             $post->{version} = $existing_post->{version};

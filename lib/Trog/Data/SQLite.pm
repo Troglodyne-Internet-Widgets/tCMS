@@ -187,15 +187,15 @@ sub _where ($query) {
         push( @where, 'p.id = v.latest_id' );
     }
 
-    # An id, title or aclname query is answered on its own, with no tag, acl or
-    # visibility filtering after it -- exactly as filter() returns early for
-    # these three.  It is how add() asks whether a post already exists, and how
-    # a route fetches the post it is about to render.
+    # An id, title or aclname query is answered on its own, with no tag or date
+    # filtering after it, but still only if the caller may see it -- exactly as
+    # filter() does for these three.
     foreach my $key (qw{id title aclname}) {
         next unless $query->{$key};
         my $column = $key eq 'id' ? 'p.uuid' : "p.$key";
         push( @where, "$column = ?" );
         push( @bind,  $query->{$key} );
+        _acl_clause( $query, \@where, \@bind );
         return ( \@where, \@bind );
     }
 
@@ -229,25 +229,7 @@ sub _where ($query) {
         push( @bind,  @{ $query->{exclude_tags} } );
     }
 
-    # The load bearing one: a post is only visible to a caller holding one of
-    # its tags, since visibility and acls are both stored as tags.  admin skips
-    # it, as it does in filter().
-    my $acls = ref $query->{acls} eq 'ARRAY' ? $query->{acls} : [];
-    if ( $query->{raw} ) {
-
-        # raw skips filter() altogether in the flat file model, acls included.
-        # Only bin/migrate.pl and an index rebuild ask for it.
-    }
-    elsif ( @$acls && !any { $_ eq 'admin' } @$acls ) {
-        my $binds = join( ',', map { '?' } @$acls );
-        push( @where, "p.id IN (SELECT post_id FROM post_tags WHERE tag IN ($binds))" );
-        push( @bind,  @$acls );
-    }
-    elsif ( !@$acls ) {
-
-        # filter() greps against an empty list here, which matches nothing.
-        push( @where, '0 = 1' );
-    }
+    _acl_clause( $query, \@where, \@bind );
 
     if ( $query->{form} ) {
         push( @where, 'COALESCE(p.form, ?) = ?' );
@@ -266,6 +248,29 @@ sub _where ($query) {
     }
 
     return ( \@where, \@bind );
+}
+
+# The load bearing one: a post is only visible to a caller holding one of its
+# tags, since visibility and acls are both stored as tags.  admin skips it, as
+# it does in filter().
+sub _acl_clause ( $query, $where, $bind ) {
+    my $acls = ref $query->{acls} eq 'ARRAY' ? $query->{acls} : [];
+    if ( $query->{raw} ) {
+
+        # raw skips filter() altogether in the flat file model, acls included.
+        # Only bin/migrate.pl and an index rebuild ask for it.
+    }
+    elsif ( @$acls && !any { $_ eq 'admin' } @$acls ) {
+        my $binds = join( ',', map { '?' } @$acls );
+        push( @$where, "p.id IN (SELECT post_id FROM post_tags WHERE tag IN ($binds))" );
+        push( @$bind,  @$acls );
+    }
+    elsif ( !@$acls ) {
+
+        # filter() greps against an empty list here, which matches nothing.
+        push( @$where, '0 = 1' );
+    }
+    return;
 }
 
 =head2 _like_clause($term)
