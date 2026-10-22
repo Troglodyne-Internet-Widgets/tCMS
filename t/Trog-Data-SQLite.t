@@ -455,4 +455,25 @@ subtest 'indexing a custom field' => sub {
     ok( !$indexes->()->{'posts_custom_post_data'}, 'and a schema column did not pick up an index of its own' );
 };
 
+# Last, so the post it adds changes no count asserted above.
+subtest 'aliases' => sub {
+    my $aliased = post(
+        id         => 'p-aliased',
+        title      => 'Many Names',
+        local_href => '/posts/p-aliased',
+        method     => 'GET',
+        callback   => 'Trog::Routes::HTML::posts',
+        aliases    => [qw{/one /two /three}],
+    );
+    $sqlite->write( [ { %$aliased, tags => [ @{ $aliased->{tags} } ] } ] );
+    $flat->write( [ { %$aliased, tags => [ @{ $aliased->{tags} } ] } ] );
+
+    my %want = map { $_ => '/posts/p-aliased' } qw{/one /two /three};
+    foreach my $case ( [ flatfile => $flat ], [ sqlite => $sqlite ] ) {
+        my ( $name, $model ) = @$case;
+        my %got = $model->aliases();
+        is_deeply( { map { $_ => $got{$_} } grep { exists $want{$_} } keys %got }, \%want, "$name: every alias of a post leads to it, not only the first" );
+    }
+};
+
 done_testing();
