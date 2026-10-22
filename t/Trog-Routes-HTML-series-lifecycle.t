@@ -40,6 +40,14 @@ our $MODEL;
 # In BEGIN because the sandbox is built in one, before file scope runs.
 BEGIN { $MODEL = $ENV{TCMS_TEST_DATA_MODEL} || 'FlatFile' }
 
+# What time() answers in every module required below, so two saves can land on
+# different days; undef is the real clock.
+our $NOW;
+
+BEGIN {
+    *CORE::GLOBAL::time = sub () { $NOW // CORE::time() }
+}
+
 # name => (size, mtime) for every file under the repo dirs this test could
 # plausibly disturb.  Cheap enough, and it is the only real proof of isolation.
 sub _snapshot {
@@ -1196,8 +1204,7 @@ subtest 'invoice' => sub {
     my $title = 'Spec Invoice Series';
     _make_series( 'invoice', 'specinvoice', 'invoice.tx', $title ) or return;
 
-    my $child = _save_post(
-        'invoice child',
+    my %invoice = (
         form          => 'invoice.tx',
         title         => 'Spec Invoice Child',
         data          => [ "Widget assembly\nPrice: \$420", "Shipping\nPrice: \$80" ],
@@ -1208,7 +1215,16 @@ subtest 'invoice' => sub {
         visibility    => 'public',
         tags          => ['specinvoice'],
         to            => '/specinvoice',
-    ) or return;
+    );
+
+    my $sent  = time() - 10 * 86400;
+    my $child = do { local $NOW = $sent; _save_post( 'invoice child', %invoice ) }
+      or return;
+    is( $child->{created}, $sent, 'the first save is stamped with the clock the test set' );
+
+    $child = _save_post( 'invoice child, edited', %invoice, id => $child->{id} ) or return;
+    is( $child->{created}, $sent, 'an edit keeps the date the invoice was first made' );
+    cmp_ok( $child->{modified}, '>', $sent, 'and the edit carries a later one' );
 
     my $body = _series_page( 'invoice', 'specinvoice', $title, 1 ) or return;
 
@@ -1222,6 +1238,9 @@ subtest 'invoice' => sub {
 
     like( $body, qr/Widget assembly/, 'line items rendered' );
     like( $body, qr/Total: \$500/,    'total summed from the line item prices' );
+
+    my $due = $child->{modified} + 30 * 86400;
+    like( $body, qr{Due: <span class="unixtimestamp">\Q$due\E</span>}, 'due date counts from the latest edit, not the first save' );
 };
 
 subtest 'spec_widget (the wizard-built type)' => sub {
