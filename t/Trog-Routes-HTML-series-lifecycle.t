@@ -1412,6 +1412,12 @@ subtest '/api/posts_of_form feeds the relation picker' => sub {
         'listing exactly the posts of that type, id and title only'
     );
 
+    # An editor who is not an admin holds only acls of their own, which no
+    # public post carries.
+    $res     = Trog::Routes::JSON::posts_of_form( _query( user => 'spec-editor', user_acls => ['spec-editors'], route => '/api/posts_of_form', form => 'spec_target.tx' ) );
+    $payload = JSON::MaybeXS::decode_json( join( '', @{ $res->[2] } ) );
+    is_deeply( [ map { $_->{id} } @{ $payload->{posts} } ], [ $target->{id} ], 'an editor who is not an admin can pick a public post too' );
+
     # An unknown type is an empty list, not an error -- a type with no posts
     # yet is the normal state of affairs right after you create it.
     $res     = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'nosuchtype.tx' ) );

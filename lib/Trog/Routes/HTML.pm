@@ -1485,13 +1485,7 @@ sub series ($query) {
     # Asking for page two of a single post gets nothing, so a series carrying a
     # ?page= in its URL could not find itself and 404'd on its own page.  Latent
     # until something started emitting page numbers -- see _paginate_offset.
-    #
-    # Seen through what a viewer can actually see, as posts() does further on:
-    # the raw user_acls of a logged out visitor are empty, and match nothing.
-    # Unlisted too, since the route names this series directly.
-    my @series_acls = ( @{ $query->{user_acls} }, qw{public unlisted} );
-    push( @series_acls, 'private' ) if $is_admin;
-    my @posts = _post_helper( { %$query, page => 1, limit => 1 }, ['series'], \@series_acls );
+    my @posts = _post_helper( { %$query, page => 1, limit => 1 }, ['series'], [ _viewer_acls( $query, 1 ) ] );
 
     # The series post carries its *children's* relations, so that an editor
     # picker rendered on this page has something to populate from -- that is
@@ -1507,14 +1501,7 @@ sub series ($query) {
             # post gets overwritten.
             my $stand_in = { %{ $posts[0] }, form => $posts[0]{child_form} };
 
-            # posts() widens user_acls to what a viewer can actually see, but
-            # that happens after this -- so resolving here against the raw list
-            # means a logged out visitor resolves every relation against no
-            # acls at all, and finds nothing however public the target is.
-            my @acls = ( @{ $query->{user_acls} }, 'public' );
-            push( @acls, 'private' ) if $is_admin;
-
-            _enrich_post( $stand_in, { %$query, user_acls => \@acls } );
+            _enrich_post( $stand_in, { %$query, user_acls => [ _viewer_acls($query) ] } );
             @{ $posts[0] }{ keys(%$relations) } = @{$stand_in}{ keys(%$relations) };
         }
     }
@@ -1538,7 +1525,7 @@ Returns the avatars.css.
 =cut
 
 sub avatars ($query) {
-    push( @{ $query->{user_acls} }, 'public' );
+    $query->{user_acls} = [ _viewer_acls($query) ];
     my $tags = Trog::Utils::coerce_array( $query->{tag} );
 
     my @posts = _post_helper( $query, $tags, $query->{user_acls} );
@@ -1613,7 +1600,7 @@ sub users ($query) {
     return $query->{tpsgi}->notfound($query) unless $username;
 
     $query->{username} //= $username;
-    push( @{ $query->{user_acls} }, 'public' );
+    $query->{user_acls}    = [ _viewer_acls($query) ];
     $query->{exclude_tags} = ['about'];
 
     # Don't show topbar series on the series page.  That said, don't exclude it from direct series view.
@@ -1657,9 +1644,7 @@ sub posts ( $query, $direct = 0 ) {
     $query->{id} = $id if $id && !$query->{in_series};
 
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
-    push( @{ $query->{user_acls} }, 'public' );
-    push( @{ $query->{user_acls} }, 'unlisted' ) if $query->{id};
-    push( @{ $query->{user_acls} }, 'private' )  if $is_admin;
+    $query->{user_acls} = [ _viewer_acls( $query, $query->{id} ) ];
     my @posts;
 
     # Discover this user's visibility, so we can make them post in this category by default
@@ -2026,6 +2011,22 @@ sub _search_language ($query) {
     my $help = $source->can('help') // \&Trog::DataSource::help;
 
     return ( scalar $lang->(), scalar $help->() );
+}
+
+=head2 _viewer_acls($query, $direct) = LIST
+
+The acls to fetch posts for this viewer with: their own, and public, plus
+unlisted when the route names one post directly, plus private for an admin.
+A logged out visitor holds no acls of their own, and would see nothing without
+this.
+
+=cut
+
+sub _viewer_acls ( $query, $direct = 0 ) {
+    my @acls = ( @{ $query->{user_acls} // [] }, 'public' );
+    push( @acls, 'unlisted' ) if $direct;
+    push( @acls, 'private' )  if grep { $_ eq 'admin' } @acls;
+    return List::Util::uniq(@acls);
 }
 
 sub _post_helper ( $query, $tags, $acls ) {

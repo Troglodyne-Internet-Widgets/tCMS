@@ -223,6 +223,15 @@ subtest 'a direct lookup still answers only to the acls' => sub {
     }
 };
 
+subtest 'a caller who can see nothing is not queried for' => sub {
+    my $mock = Test::MockModule->new('Trog::Data::SQLite');
+    $mock->redefine( _dbh => sub { die "queried the database\n" } );
+
+    is( exception { is_deeply( $sqlite->read( { limit => 0, acls => [] } ), [], 'no acls get nothing' ) }, undef, 'without asking the database' );
+    is( exception { is_deeply( $sqlite->read( { limit => 0, acls => [], id => 'p-public' } ), [], 'nor by id' ) }, undef, 'nor for a direct lookup' );
+    like( exception { $sqlite->read( { limit => 0, acls => ['public'] } ) }, qr/queried the database/a, 'while a caller with acls is queried' );
+};
+
 subtest 'versions' => sub {
     my ($latest) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-public' );
     is( $latest->{version},     1,                               'the newest version is the one you get' );

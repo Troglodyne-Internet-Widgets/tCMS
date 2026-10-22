@@ -136,7 +136,7 @@ nobody's business here.
 =cut
 
 sub posts_of_form ($query) {
-    my @posts = Trog::Routes::HTML::_post_helper( { form => $query->{form}, limit => 0 }, [], $query->{user_acls} );
+    my @posts = Trog::Routes::HTML::_post_helper( { form => $query->{form}, limit => 0 }, [], [ Trog::Routes::HTML::_viewer_acls($query) ] );
 
     return _render(
         200, undef,
