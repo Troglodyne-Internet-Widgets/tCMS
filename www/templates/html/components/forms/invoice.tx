@@ -10,6 +10,8 @@
             <img src="<: $post.preview :>" class="responsive-img" loading="lazy" />
         : }
 
+        : # An edit re-sends the invoice, so it is dated, and falls due, from the newest version.
+        : my $sent = $post.modified // $post.created;
         <div class="postData responsive-text" id="postData-<: $post.id :>">
             <div class="table invoice">
                 <div class="table-row">
@@ -20,10 +22,10 @@
                 </div>
                 <div class="table-row">
                     <div class="table-cell underline">
-                        Created: <span class="unixtimestamp"><: $post.created :></span><br />
+                        Created: <span class="unixtimestamp"><: $sent :></span><br />
                     </div>
                     <div class="table-cell underline">
-                        Due: <span class="unixtimestamp"><: $post.created + ($post.due_days * 86400 ) :></span>
+                        Due: <span class="unixtimestamp"><: $sent + ($post.due_days * 86400 ) :></span>
                     </div>
                 </div>
                 <div class="table-row">
