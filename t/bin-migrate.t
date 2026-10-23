@@ -139,12 +139,12 @@ subtest 'the two models now answer the same questions' => sub {
     my @queries = (
         [ 'everything an admin sees' => { limit => 0, acls => ['admin'] } ],
         [ 'what a visitor sees'      => { limit => 0, acls => ['public'] } ],
-        [ 'by tag'           => { limit => 0, acls => ['admin'], tags   => ['topbar'] } ],
-        [ 'by a rare tag'    => { limit => 0, acls => ['admin'], tags   => ['rare'] } ],
-        [ 'by author'        => { limit => 0, acls => ['admin'], author => 'ann' } ],
-        [ 'by id'            => { limit => 0, id   => 'p-one' } ],
-        [ 'an older version' => { limit => 0, id   => 'p-one',   version => 1 } ],
-        [ 'by form'          => { limit => 0, acls => ['admin'], form    => 'presentation.tx' } ],
+        [ 'by tag'           => { limit => 0, acls => ['admin'],   tags   => ['topbar'] } ],
+        [ 'by a rare tag'    => { limit => 0, acls => ['admin'],   tags   => ['rare'] } ],
+        [ 'by author'        => { limit => 0, acls => ['admin'],   author => 'ann' } ],
+        [ 'by id'            => { limit => 0, acls => [qw{admin}], id     => 'p-one' } ],
+        [ 'an older version' => { limit => 0, acls => [qw{admin}], id     => 'p-one', version => 1 } ],
+        [ 'by form'          => { limit => 0, acls => ['admin'],   form   => 'presentation.tx' } ],
     );
 
     foreach my $case (@queries) {
@@ -155,7 +155,7 @@ subtest 'the two models now answer the same questions' => sub {
     }
 
     # The rolled up fields have to survive the trip, not just the rows.
-    my ($current) = $sqlite->get( limit => 0, id => 'p-one' );
+    my ($current) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-one' );
     is( $current->{version},     2,                   'the newest version is the current one' );
     is( $current->{version_max}, 2,                   'version_max came across' );
     is( $current->{title},       'The First v3',      'with the newest content' );
@@ -185,7 +185,7 @@ subtest 'picking up what was written in between' => sub {
     is( $rc, 0, 'succeeds' ) or diag($out);
     like( $out, qr/Carried over 1 post version\(s\), skipped 6/, 'carrying over only the new one' );
 
-    my ($late) = $sqlite->get( limit => 0, id => 'p-late' );
+    my ($late) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-late' );
     is( $late->{title}, 'Written Later', 'which is there afterwards' );
 };
 

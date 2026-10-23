@@ -1243,6 +1243,25 @@ subtest 'invoice' => sub {
     like( $body, qr{Due: <span class="unixtimestamp">\Q$due\E</span>}, 'due date counts from the latest edit, not the first save' );
 };
 
+subtest 'a private post is not served to a visitor who asks for it by id' => sub {
+    my $secret = _save_post(
+        'private post',
+        form       => 'blog.tx',
+        title      => 'Spec Private Post',
+        data       => 'Spec private body.',
+        visibility => 'private',
+        to         => '/posts',
+    ) or return;
+
+    my ( $code, $body ) = _render( _anon( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
+    is( $code, 404, 'a visitor gets a 404' );
+    unlike( $body, qr/Spec private body/, 'and none of the post' );
+
+    ( $code, $body ) = _render( _admin( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'an admin gets the post' );
+    like( $body, qr/Spec private body/, 'with its body' );
+};
+
 subtest 'spec_widget (the wizard-built type)' => sub {
     my $title = 'Spec Widget Series';
     _make_series( 'spec_widget', 'specwidget', 'spec_widget.tx', $title ) or return;
@@ -1392,6 +1411,12 @@ subtest '/api/posts_of_form feeds the relation picker' => sub {
         [ { id => $target->{id}, title => 'Spec Target Post' } ],
         'listing exactly the posts of that type, id and title only'
     );
+
+    # An editor who is not an admin holds only acls of their own, which no
+    # public post carries.
+    $res     = Trog::Routes::JSON::posts_of_form( _query( user => 'spec-editor', user_acls => ['spec-editors'], route => '/api/posts_of_form', form => 'spec_target.tx' ) );
+    $payload = JSON::MaybeXS::decode_json( join( '', @{ $res->[2] } ) );
+    is_deeply( [ map { $_->{id} } @{ $payload->{posts} } ], [ $target->{id} ], 'an editor who is not an admin can pick a public post too' );
 
     # An unknown type is an empty list, not an error -- a type with no posts
     # yet is the normal state of affairs right after you create it.
