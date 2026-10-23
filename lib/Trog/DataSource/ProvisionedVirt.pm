@@ -617,12 +617,17 @@ sub spawn ( $domain, $credentials, $dir, $command, $user ) {
 
     # What the provisioner would otherwise have nobody to ask for.  Closed
     # afterwards, so the read on the far side ends rather than waiting on us.
-    print {$stdin} join( '', map { "$_: $credentials->{$_}\n" } sort keys %$credentials ) . "\n";
-    close($stdin);
+    my $unsent = ( print {$stdin} join( '', map { "$_: $credentials->{$_}\n" } sort keys %$credentials ) . "\n" ) ? undef : "$!";
+    my $closed = close($stdin);
 
-    if ($?) {
-        my $status = $? >> 8;
-        print {$fh} "\n--- $command->[0] exited $status\n";
+    # A write to a provisioner that has gone fails, rather than kills us,
+    # because the server ignores SIGPIPE and we inherit that.  The print or the
+    # close() that flushes it can be the write that fails.  close() also waits
+    # for the provisioner, and is false when it exited non-zero, with $! 0.
+    $unsent //= "$!" if !$closed && $!;
+    if ( $unsent || $? ) {
+        my $status = $unsent ? 1 : $? >> 8;
+        print {$fh} $unsent ? "\n--- could not write to $command->[0]: $unsent\n" : "\n--- $command->[0] exited $status\n";
         write_status(
             $domain,
             state    => 'failed',
