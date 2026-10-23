@@ -352,6 +352,10 @@ subtest 'writing' => sub {
 
     like( exception { $sqlite->write( [ { title => 'No Id' } ] ) }, qr/no id/i, 'a post with no id is refused' );
 
+    my $count = $sqlite->count();
+    ok( exception { $sqlite->write( [ post( id => 'p-half', title => 'Half' ), { title => 'No Id' } ] ) }, 'a batch with a post it refuses is refused' );
+    is( $sqlite->count(), $count, 'and none of the batch lands' );
+
     # These are computed per query out of the version history; storing them
     # would bake one query's answer into the post forever.
     my $dbh = Trog::SQLite::dbh( undef, 'data/posts.sqlite' );

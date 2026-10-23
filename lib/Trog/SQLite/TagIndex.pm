@@ -54,8 +54,42 @@ sub tags {
 
 sub add_post ( $post, $data_obj ) {
     my $dbh = _dbh();
-    build_index( $data_obj, [$post] );
-    build_routes( $data_obj, [$post] );
+    Trog::SQLite::transaction(
+        $dbh,
+        sub {
+            # posts_index has no key for INSERT OR IGNORE to skip a duplicate on,
+            # so a save would add every tag again and keep the ones it removed.
+            $dbh->do( "DELETE FROM posts_index WHERE post_id IN (SELECT id FROM post WHERE uuid=?)", undef, $post->{id} );
+            build_index( $data_obj, [$post] );
+            build_routes( $data_obj, [$post] );
+        }
+    );
+    return 1;
+}
+
+=head2 rebuild($data_obj)
+
+Empty the index, the route table and the aliases, then fill them again from
+every post $data_obj holds.  It is one transaction, so a reader sees the old
+index or the new one, and never an empty one.
+
+The HTTP methods are kept, as the schema fills those rather than any post.
+
+=cut
+
+sub rebuild ($data_obj) {
+    my $dbh = _dbh();
+    Trog::SQLite::transaction(
+        $dbh,
+        sub {
+            # Cascades to posts_index, routes and post_aliases.
+            $dbh->do("DELETE FROM post");
+            $dbh->do("DELETE FROM tag");
+            $dbh->do("DELETE FROM callbacks");
+            build_index($data_obj);
+            build_routes($data_obj);
+        }
+    );
     return 1;
 }
 
