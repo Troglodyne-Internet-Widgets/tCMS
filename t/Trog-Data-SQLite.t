@@ -5,7 +5,7 @@
 # it is whether the two agree -- so most of this file writes one corpus into
 # both models and asserts they return the same posts for the same query.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

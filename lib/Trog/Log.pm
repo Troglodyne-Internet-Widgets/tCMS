@@ -1,6 +1,6 @@
 package Trog::Log;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use POSIX qw{strftime};

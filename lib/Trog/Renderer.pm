@@ -1,6 +1,6 @@
 package Trog::Renderer;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use Carp::Always;

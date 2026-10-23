@@ -5,7 +5,7 @@
 # the same questions afterwards -- so this builds a corpus through the FlatFile
 # model, migrates, and compares the two models query for query.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

@@ -1,6 +1,6 @@
 package Trog::Enrich::Invoice;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use List::Util();

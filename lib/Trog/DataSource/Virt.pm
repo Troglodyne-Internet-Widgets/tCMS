@@ -1,6 +1,6 @@
 package Trog::DataSource::Virt;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use File::Path();

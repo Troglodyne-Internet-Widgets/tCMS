@@ -1,6 +1,6 @@
 package Trog::Renderer::Base;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use Encode qw{encode_utf8};

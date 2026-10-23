@@ -8,7 +8,7 @@
 # Verification goes through Trog::Routes::HTML::index() -- directly, or via
 # series() which delegates to it -- and matches on the returned HTML.
 
-use strict;
+use 5.040;
 use warnings;
 
 # FindBin MUST come first.  $FindBin::Bin is derived from $0, which prove hands

@@ -1,6 +1,6 @@
 package Trog::Vault;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use Crypt::AuthEnc::GCM  ();

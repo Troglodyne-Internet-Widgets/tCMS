@@ -4,7 +4,7 @@
 # both.  Nothing here needs a webserver: what is being tested is that a database
 # on its own is not enough, and that a code is worth one thing.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

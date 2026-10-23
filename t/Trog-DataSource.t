@@ -5,7 +5,7 @@
 # datastore and then threw away along with the posts it filtered -- has to be
 # applied to them by somebody.  This is that somebody.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

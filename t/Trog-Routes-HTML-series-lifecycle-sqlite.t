@@ -8,7 +8,7 @@
 # Run as a separate process because the model is chosen once, from config, at
 # the point Trog::Data builds it.
 
-use strict;
+use 5.040;
 use warnings;
 
 use Test::More;

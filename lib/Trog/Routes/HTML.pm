@@ -1,6 +1,6 @@
 package Trog::Routes::HTML;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 no warnings qw{once};

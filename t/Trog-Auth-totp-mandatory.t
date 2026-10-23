@@ -4,7 +4,7 @@
 # in" and "enrolled", which exists because a login is what gets you the QR --
 # and about the fact that there is no longer any way to turn 2fa back off.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

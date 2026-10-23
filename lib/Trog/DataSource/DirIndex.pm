@@ -1,6 +1,6 @@
 package Trog::DataSource::DirIndex;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use Cwd            ();
