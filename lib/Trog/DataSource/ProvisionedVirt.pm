@@ -609,7 +609,7 @@ sub spawn ( $domain, $credentials, $dir, $command, $user ) {
     # piped open with a list never involves a shell, so the guest name is an
     # argument and cannot be read as a command.  The single argument form of
     # this would be the bug.
-    my $ok = open( my $stdin, '|-', @$command );    ## no critic (ProhibitPipeOpen, InputOutput::RequireBriefOpen) -- list form, so no shell; closed once the credentials are sent
+    my $ok = open( my $stdin, '|-', @$command );    ## no critic (ProhibitPipeOpen) -- list form, so no shell
     if ( !$ok ) {
         print {$fh} "could not run $command->[0]: $!\n";
         POSIX::_exit(1);
