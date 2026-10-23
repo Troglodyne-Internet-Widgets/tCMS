@@ -8,7 +8,6 @@ use FindBin::libs;
 
 use List::Util;
 use File::Copy;
-use Path::Tiny();
 use Ref::Util();
 use File::Basename qw{basename};
 use File::Slurper();
@@ -87,12 +86,12 @@ Every tag known to the datastore, for building tag pickers.
 =cut
 
 #It is required that subclasses implement this
-sub lang  ($self)                { ... }
-sub help  ($self)                { ... }
-sub read  ( $self, $query = {} ) { ... }
-sub write ($self)                { ... }
-sub count ($self)                { ... }
-sub tags  ($self)                { ... }
+sub lang ($)           { ... }
+sub help ($)           { ... }
+sub read ( $, $ = {} ) { ... }
+sub write ($)          { ... }
+sub count ($)          { ... }
+sub tags ($)           { ... }
 
 =head1 METHODS
 
@@ -132,7 +131,7 @@ sub get ( $self, %request ) {
     return @filtered;
 }
 
-sub _fixup ( $self, @filtered ) {
+sub _fixup ( $, @filtered ) {
 
     my %user2display;
 
@@ -205,7 +204,7 @@ holds one of its acls, or the post is public or unlisted.  Callers holding the
 
 =cut
 
-sub filter ( $self, $query, @filtered ) {
+sub filter ( $, $query, @filtered ) {
     $query->{acls}         //= [];
     $query->{tags}         //= [];
     $query->{exclude_tags} //= [];
@@ -266,7 +265,7 @@ present to page at all; limit defaults to 25 when computing the offset.
 
 =cut
 
-sub paginate ( $self, $query, @filtered ) {
+sub paginate ( $, $query, @filtered ) {
     return @filtered unless $query->{page} && $query->{limit};
 
     my $offset = int( $query->{limit} // 25 );
@@ -608,7 +607,7 @@ what is no longer asked for.
 
 =cut
 
-sub index_fields ( $self, @fields ) { return 0 }
+sub index_fields ( $, @ ) { return 0 }
 
 =head2 relations_for($form)
 
@@ -964,7 +963,6 @@ my %seen_files;
 sub _handle_upload ( $file, $uuid, $private = 0 ) {
     my $fname;
     if ( ref $file ne 'HASH' ) {
-        use Data::Dumper;
         $file =~ s/\\/\//g;
         $fname = basename($file);
         FATAL("Did not expect bogus file before its real counterpart!") unless $seen_files{$fname};
@@ -991,7 +989,7 @@ You should override this, it is a stub here.
 
 =cut
 
-sub delete ($self) { die 'stub' }
+sub delete ($) { die 'stub' }
 
 =head2 routes() = HASH
 

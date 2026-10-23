@@ -20,7 +20,7 @@ Memoized: every call after the first returns the first handle, whatever it is pa
 
 =cut
 
-sub new ( $class, $config ) {
+sub new ( $, $config ) {
     state $datamodule;
     return $datamodule if $datamodule;
 

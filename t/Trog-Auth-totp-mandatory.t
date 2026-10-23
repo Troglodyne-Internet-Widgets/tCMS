@@ -82,7 +82,7 @@ subtest 'and cannot go anywhere but /totp until they enrol' => sub {
     # Nothing to enrol, and nothing to protect.
     is( TCMS::needs_enrolment( '', \%page ), 0, 'a logged out visitor is left alone' );
 
-    my ( $uri, $qr, $failure, $message ) = Trog::Auth::totp( 'bob', 'totp.example.com' );
+    my ( $uri, undef, undef, $message ) = Trog::Auth::totp( 'bob', 'totp.example.com' );
     ok( $uri, 'enrolling gives them a URI' ) or diag($message);
     is( Trog::Auth::has_totp('bob'), 1, 'and they are enrolled' );
 

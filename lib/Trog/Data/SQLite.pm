@@ -85,7 +85,7 @@ that Trog::DataModule::_dedup_versions() would have computed by hand.
 
 =cut
 
-sub read ( $self, $query = {} ) {
+sub read ( $, $query = {} ) {
     my ( $sql, @bind ) = _build_query($query) or return [];
 
     my $rows = _dbh()->selectall_arrayref( $sql, { Slice => {} }, @bind );
@@ -318,7 +318,7 @@ and taking minutes, since SQLite otherwise commits once per row.
 
 =cut
 
-sub write ( $self, $data ) {
+sub write ( $, $data ) {
     my $dbh = _dbh();
 
     Trog::SQLite::transaction( $dbh, sub { _insert( $dbh, $data ) } );
@@ -356,7 +356,7 @@ whether it has seen it before.  See bin/migrate.pl.
 
 =cut
 
-sub versions_present ($self) {
+sub versions_present ($) {
     my $rows = _dbh()->selectall_arrayref( 'SELECT uuid, version FROM posts', { Slice => {} } ) // [];
 
     my %present;
@@ -371,7 +371,7 @@ and the search index with them.
 
 =cut
 
-sub delete ( $self, @posts ) {
+sub delete ( $, @posts ) {
     my $dbh    = _dbh();
     my $delete = $dbh->prepare('DELETE FROM posts WHERE uuid = ?');
 
@@ -386,7 +386,7 @@ How many posts there are, counting a post once however many versions it has.
 
 =cut
 
-sub count ($self) {
+sub count ($) {
     my ($count) = _dbh()->selectrow_array('SELECT COUNT(DISTINCT uuid) FROM posts');
     return $count // 0;
 }
@@ -423,7 +423,7 @@ our $index_prefix = 'posts_custom_';
 # all, and it is what stops "index this field" quietly indexing the blob.
 our %reserved = map { $_ => 1 } qw{id post_data uuid version created title user author form aclname visibility local_href data};
 
-sub index_fields ( $self, @fields ) {
+sub index_fields ( $, @fields ) {
     my $dbh = _dbh();
 
     my %want;
@@ -491,7 +491,7 @@ Every tag in use, from the index the schema's triggers maintain.
 
 =cut
 
-sub tags ($self) {
+sub tags ($) {
     my $rows = _dbh()->selectall_arrayref( 'SELECT DISTINCT tag FROM post_tags ORDER BY tag', { Slice => {} } );
     return () unless ref $rows eq 'ARRAY';
     return map { $_->{tag} } @$rows;

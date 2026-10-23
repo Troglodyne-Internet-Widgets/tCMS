@@ -23,7 +23,6 @@ use Digest::SHA qw{sha256_hex};
 use JSON::MaybeXS();
 use IO::Compress::Gzip;
 use Path::Tiny();
-use File::Basename qw{dirname};
 use URI();
 use URI::Escape();
 
@@ -34,7 +33,6 @@ use Trog::Utils;
 use Trog::Config;
 use Trog::Auth;
 use Trog::Data;
-use Trog::FileHandler;
 use Trog::Themes;
 use Trog::Renderer;
 use Trog::Email;
@@ -666,7 +664,6 @@ sub login ($query) {
     my $btnmsg   = $hasusers ? "Log In" : "Register";
 
     my $headers;
-    my $has_totp = 0;
     if ( $query->{username} && $query->{password} ) {
         if ( !$hasusers ) {
 
@@ -1241,9 +1238,6 @@ sub post_save ($qq) {
 
     my $to = delete $query->{to};
 
-    #Copy this down since it will be deleted later
-    my $acls = $query->{acls};
-
     $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
 
     # Support data with multiple pages like presentations
@@ -1698,9 +1692,6 @@ sub posts ( $query, $direct = 0 ) {
     my $ph = $themed ? _themed_title( $query->{route} ) : $query->{route};
 
     return _rss( $query, $ph, \@posts ) if $fmt eq 'rss';
-
-    #XXX Is used by the sitemap, maybe just fix there?
-    my @post_aliases = map { $_->{local_href} } _get_series();
 
     # List the available headers/footers
     my $headers = Trog::Themes::themed_templates_in_dir( "headers", 'text/html', 1 );
@@ -2332,7 +2323,7 @@ about whether the account existed.
 
 =cut
 
-sub processed ($query) {
+sub processed ($) {
     return Trog::Routes::HTML::index(
         {
             title     => "Your request has been processed",

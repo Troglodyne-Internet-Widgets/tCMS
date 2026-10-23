@@ -158,7 +158,7 @@ one that tells you the connection is broken.
 
 =cut
 
-sub posts ( $series, $query ) {
+sub posts ( $series, $ ) {
     my $hypervisors = $series->{ $series->{'x-tcms-datasource-relation'} // 'hypervisors' };
     return () unless ref $hypervisors eq 'ARRAY';
 

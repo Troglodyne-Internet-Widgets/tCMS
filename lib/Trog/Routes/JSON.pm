@@ -5,12 +5,10 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Clone qw{clone};
-use JSON::MaybeXS();
 
 use Scalar::Util();
 
 use Trog::Utils();
-use Trog::Config();
 use Trog::Auth();
 use Trog::Routes::HTML();
 
@@ -77,24 +75,22 @@ foreach my $r ( keys(%$cloned) ) {
     delete $cloned->{$r}{callback};
 }
 
-my $enc = JSON::MaybeXS->new( utf8 => 1 );
-
 # Note to authors, don't forget to update this
 sub _version () {
     return '1.0';
 }
 
 # Special case of a non data-structure JSON return
-sub version ($query) {
+sub version ($) {
     state $ret = [ 200, [ 'Content-type' => "application/json", ETag => 'version-' . _version() ], [ _version() ] ];
     return $ret;
 }
 
-sub catalog ($query) {
+sub catalog ($) {
     return _render( 200, { ETag => 'catalog-' . _version() }, %$cloned );
 }
 
-sub webmanifest ($query) {
+sub webmanifest ($) {
     state $headers = { ETag => 'manifest-' . _version() };
     my $theme_dir = Trog::Themes::get_dir();
     state %manifest = (
@@ -155,7 +151,7 @@ sub requests_per ($query) {
 
 sub _render ( $code, $headers, %data ) {
     return Trog::Renderer->render(
-        code        => 200,
+        code        => $code,
         data        => \%data,
         template    => 'bogus.tx',
         contenttype => 'application/json',

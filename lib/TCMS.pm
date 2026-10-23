@@ -4,21 +4,11 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Carp         qw{confess};
-use Clone        qw{clone};
-use Date::Format qw{strftime};
+use Carp  qw{confess};
+use Clone qw{clone};
 
-use Sys::Hostname();
-use HTTP::Body   ();
-use URL::Encode  ();
-use Text::Xslate ();
-use DateTime::Format::HTTP();
 use CGI::Cookie ();
-use File::Basename();
-use Time::HiRes qw{gettimeofday tv_interval};
-use List::Util;
 use URI();
-use Ref::Util qw{is_coderef is_hashref is_arrayref};
 
 #Grab our custom routes
 use FindBin::libs;
@@ -35,13 +25,11 @@ use Trog::Config;
 # Loaded here rather than where it is used, so that the vault key comes out of
 # the environment once, in the parent, before there is a worker to fork -- see
 # Trog::Vault.
-use Trog::Vault;
+use Trog::Vault;    ## no critic (ProhibitUnusedImports) -- loaded for what it does at load time, as above
 use Trog::Data;
 use Trog::Themes;
 
 # Troglodyne philosophy - simple as possible
-
-my $cur_query = {};
 
 # Build routes
 sub build_routes {
@@ -64,7 +52,6 @@ sub build_routes {
         }
 
         my %cb;
-        my $method   = $v->{method};
         my $callback = delete $v->{callback};
 
         #XXX For now we will discard the tPSGI object.  We might want it later.

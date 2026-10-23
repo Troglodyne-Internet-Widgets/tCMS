@@ -116,7 +116,6 @@ subtest 'and not without the key it was sealed under' => sub {
     my $dbh = Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' );
 
     # A different installation's key, which is what a stolen database meets.
-    my $theirs = Trog::Vault::key();
     {
         no warnings qw{once};
         local $Trog::Vault::master = Crypt::PRNG::random_bytes(32);
@@ -150,10 +149,10 @@ subtest 'the listing never shows a value' => sub {
 
 subtest 'a name is a name' => sub {
     foreach my $bad ( '../../etc/passwd', 'has spaces', '', 'a' x 100, '.hidden' ) {
-        my ( $ok, $why ) = Trog::Vault::set( 'bob', $bad, 'nope' );
+        my ( $ok, undef ) = Trog::Vault::set( 'bob', $bad, 'nope' );
         is( $ok, 0, "'$bad' is refused as a name" );
     }
-    my ( $ok, $why ) = Trog::Vault::set( 'bob', 'fine', '' );
+    my ( $ok, undef ) = Trog::Vault::set( 'bob', 'fine', '' );
     is( $ok, 0, 'and an empty secret is not a secret' );
 };
 
@@ -215,7 +214,7 @@ subtest 'the other two places a key can be' => sub {
 };
 
 subtest 'a code is worth one thing' => sub {
-    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
+    my ( $uri, undef, undef, $message, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
     ok( $uri, 'bob is enrolled' ) or diag($message);
 
     my $now  = time();
@@ -285,7 +284,7 @@ subtest 'passwords are argon2id, and become it' => sub {
 };
 
 subtest 'logging in spends a code' => sub {
-    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
+    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
 
     # The subtest above spent the code for the window we are standing in, and
     # the counter only walks forwards.  Standing here for thirty seconds would

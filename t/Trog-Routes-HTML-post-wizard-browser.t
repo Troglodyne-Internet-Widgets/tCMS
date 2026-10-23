@@ -29,7 +29,6 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use FindBin;
 use FindBin::libs;
 
 use Test::More;

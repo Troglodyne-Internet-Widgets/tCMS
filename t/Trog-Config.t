@@ -7,7 +7,6 @@ use Cwd();
 use File::Path();
 use File::Temp();
 use Path::Tiny();
-use FindBin;
 
 use FindBin::libs;
 

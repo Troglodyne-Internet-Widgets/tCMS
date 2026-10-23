@@ -7,7 +7,6 @@ use warnings FATAL => 'all';
 use parent qw{Trog::DataSource::Virt};
 
 use Cwd                 ();
-use File::Basename      ();
 use File::Path          ();
 use File::Slurper       ();
 use File::Slurper::Temp ();

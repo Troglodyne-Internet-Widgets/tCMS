@@ -163,7 +163,7 @@ the same created, so what this really does for that page is sort it by name.
 
 =cut
 
-sub order ( $query, @posts ) {
+sub order ( $, @posts ) {
     return sort { ( $b->{created} // 0 ) <=> ( $a->{created} // 0 ) || ( $a->{title} // '' ) cmp ( $b->{title} // '' ) || ( $a->{id} // '' ) cmp ( $b->{id} // '' ) } @posts;
 }
 

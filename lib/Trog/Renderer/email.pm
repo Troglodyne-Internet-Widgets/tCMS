@@ -6,8 +6,6 @@ use warnings FATAL => 'all';
 
 use parent qw{Trog::Renderer::Base};
 
-use Text::Xslate;
-use Trog::Themes;
 use Trog::Renderer::html;
 
 =head1 Trog::Renderer::email

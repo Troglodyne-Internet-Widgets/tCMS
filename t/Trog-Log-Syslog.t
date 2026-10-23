@@ -9,7 +9,6 @@ use File::Temp  qw{tempdir};
 use IO::Socket::UNIX;
 use Socket qw{SOCK_DGRAM};
 use Log::Dispatch;
-use FindBin;
 
 use FindBin::libs;
 
