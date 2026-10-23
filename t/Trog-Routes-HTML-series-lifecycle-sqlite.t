@@ -13,7 +13,7 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use File::Temp ();
+use IPC::Run3();
 use FindBin;
 
 my $suite = "$FindBin::Bin/Trog-Routes-HTML-series-lifecycle.t";
@@ -21,18 +21,13 @@ ok( -f $suite, 'the lifecycle suite is there to run' ) or BAIL_OUT("Can't find $
 
 # Captured rather than inherited: the child speaks TAP too, and two test streams
 # down one pipe is not a test result, it is a parse error.
-my ( $fh, $log ) = File::Temp::tempfile( 'lifecycle-sqlite-XXXXXX', TMPDIR => 1, UNLINK => 1 );
-close $fh;
-
-my $rc = do {
+my $output = q{};
+my $rc     = do {
     local $ENV{TCMS_TEST_DATA_MODEL} = 'SQLite';
-    system(qq{$^X "-I$FindBin::Bin/../lib" "$suite" > "$log" 2>&1});
+    IPC::Run3::run3( [ $^X, "-I$FindBin::Bin/../lib", $suite ], \undef, \$output, \$output );
+    $?;
 };
 
-is( $rc, 0, 'the whole lifecycle passes on the SQLite data model' ) or do {
-    open( my $out, '<', $log ) or return;
-    diag($_) while ( $_ = <$out> );
-    close $out;
-};
+is( $rc, 0, 'the whole lifecycle passes on the SQLite data model' ) or diag($output);
 
 done_testing();

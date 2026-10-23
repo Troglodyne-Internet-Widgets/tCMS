@@ -1,16 +1,10 @@
-package Trog::Routes::JSON;
+package Trog::Routes::TXT;
 
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Trog::Config();
-
-my $conf = Trog::Config::get();
-
-# TODO de-duplicate this, it's shared in html
-my $theme_dir = '';
-$theme_dir = "themes/" . $conf->param('general.theme') if $conf->param('general.theme') && -d "www/themes/" . $conf->param('general.theme');
+use Trog::Renderer;
 
 our %routes = (
     '/text/zone' => {
@@ -40,10 +34,6 @@ Routes which render as text/plain.
 This module is not wired up to anything.  TCMS.pm builds its routing table out
 of Trog::Routes::HTML and Trog::Routes::JSON only, so nothing here is reachable
 and /text/zone will 404.
-
-Worse, the package statement in this file says Trog::Routes::JSON rather than
-Trog::Routes::TXT, so loading it would quietly replace the JSON routing table
-with this one.  Fix that before wiring it in.
 
 =head1 VARIABLES
 

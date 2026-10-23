@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -45,7 +46,7 @@ subtest 'each level keeps its severity' => sub {
     my %severity = ( info => 6, notice => 5, warning => 4, error => 3, critical => 2, alert => 1, emergency => 0 );
     foreach my $level ( sort keys %severity ) {
         $log->log( level => $level, message => "at $level" );
-        my $priority = 3 * 8 + $severity{$level};
+        my $priority = 24 + $severity{$level};    # the daemon facility, 3, times 8
         like( received(), qr/^<$priority>\N*:[ ]at[ ]$level$/, "$level is severity $severity{$level}" );
     }
 };

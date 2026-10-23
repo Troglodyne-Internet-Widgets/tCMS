@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -9,7 +10,7 @@ use FindBin::libs;
 
 # Stub modules absent from the test environment before loading Trog::Auth
 BEGIN {
-    # Logging stubs — Log::Dispatch family not installed in test env
+    # Logging stubs -- Log::Dispatch family not installed in test env
     $INC{'Log/Dispatch.pm'}            = 1;
     $INC{'Log/Dispatch/DBI.pm'}        = 1;
     $INC{'Log/Dispatch/Screen.pm'}     = 1;
@@ -26,7 +27,7 @@ BEGIN {
 
 require_ok('Trog::Auth') or BAIL_OUT("Can't load Trog::Auth");
 
-subtest 'users_with_emails — no rows returned' => sub {
+subtest 'users_with_emails -- no rows returned' => sub {
     my $sqlite_mock = Test::MockModule->new('Trog::SQLite');
     $sqlite_mock->redefine(
         'dbh',
@@ -42,7 +43,7 @@ subtest 'users_with_emails — no rows returned' => sub {
     is( scalar @$result, 0,       'empty arrayref when no rows' );
 };
 
-subtest 'users_with_emails — returns populated list' => sub {
+subtest 'users_with_emails -- returns populated list' => sub {
     my $fake_rows = [
         { name => 'alice', contact_email => 'alice@example.com' },
         { name => 'bob',   contact_email => 'bob@example.com' },

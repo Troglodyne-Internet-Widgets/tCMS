@@ -869,7 +869,7 @@ my sub get_data_models {
         my $dir = "$incdir/Trog/Data";
         next unless -d $dir;
         opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
-        my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building a menu of module names
+        my @dmods = map { s/\.pm$//r } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building a menu of module names
         closedir $dh;
         return \@dmods;
     }
@@ -894,7 +894,7 @@ my %config_choices = (
 # is the only reason this does not just ask for the one key.  A key holding
 # commas comes back as an arrayref too, hence the join.
 my sub config_value ( $configured, $name ) {
-    return undef unless exists $configured->{$name};    ## no critic (ProhibitExplicitReturnUndef) -- 'never configured' has to be distinguishable from ''
+    return undef unless exists $configured->{$name};    # 'never configured' has to be distinguishable from ''
 
     my $value = $configured->{$name};
     return '' unless defined $value;
@@ -1746,11 +1746,11 @@ sub posts ( $query, $direct = 0 ) {
 
     #OK, so if we have a user as the ID we found, go grab the rest of their posts
     if ( $query->{id} && @posts && List::Util::any { $_ eq 'about' } @{ $posts[0]->{tags} } ) {
-        my $user = shift(@posts);
-        my $id   = delete $query->{id};
+        my $user       = shift(@posts);
+        my $profile_id = delete $query->{id};
         $query->{author} = $user->{user};
         @posts           = post_helper( $query, $tags, $query->{user_acls} );
-        @posts           = grep { $_->{id} ne $id } @posts;
+        @posts           = grep { $_->{id} ne $profile_id } @posts;
         unshift @posts, $user;
     }
 
@@ -1920,24 +1920,28 @@ Drop the fields a post type marks private, for a reader who isn't an editor.
 Done to the data on its way to the template rather than with a guard inside the
 template: a type can be rendered by more than one template, templates get
 edited by people who did not write the type, and a value that was never handed
-over cannot be printed by mistake.  Recurses, because a post's relations are
-posts too and carry their own private fields.
+over cannot be printed by mistake.  It walks into the post's relations too,
+because they are posts and carry their own private fields.
 
 =cut
 
 sub redact_private ( $post, $seen = {} ) {
-    return unless Ref::Util::is_hashref($post);
+    my @todo = ($post);
+    for ( my $i = 0; $i < scalar(@todo); $i++ ) {
+        my $node = $todo[$i];
+        next unless Ref::Util::is_hashref($node);
 
-    # Relations can point back at what pulled them in.
-    return if $seen->{$post}++;
+        # Relations can point back at what pulled them in.
+        next if $seen->{$node}++;
 
-    if ( $post->{form} ) {
-        delete $post->{$_} foreach @{ Trog::DataModule::private_fields_for( $post->{form} ) };
-    }
+        if ( $node->{form} ) {
+            delete $node->{$_} foreach @{ Trog::DataModule::private_fields_for( $node->{form} ) };
+        }
 
-    foreach my $value ( values(%$post) ) {
-        if    ( Ref::Util::is_hashref($value) )  { redact_private( $value, $seen ) }
-        elsif ( Ref::Util::is_arrayref($value) ) { redact_private( $_,     $seen ) foreach @$value }
+        foreach my $value ( values(%$node) ) {
+            if    ( Ref::Util::is_hashref($value) )  { push( @todo, $value ) }
+            elsif ( Ref::Util::is_arrayref($value) ) { push( @todo, @$value ) }
+        }
     }
     return;
 }
@@ -3494,7 +3498,7 @@ sub finish_render ( $template, $vars, %headers ) {
     # Theme-ize the paths
     $vars->{stylesheets}  = [ @{ build_themed_styles( $vars->{stylesheets} ) } ];
     $vars->{print_styles} = [ @{ build_themed_styles( $vars->{print_styles} ) } ];
-    $vars->{scripts}      = [ map { s/^www\///; $_ } @{ build_themed_scripts( $vars->{scripts} ) } ];
+    $vars->{scripts}      = [ map { s/^www\///r } @{ build_themed_scripts( $vars->{scripts} ) } ];
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );

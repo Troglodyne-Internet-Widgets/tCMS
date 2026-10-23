@@ -14,6 +14,7 @@ use FindBin::libs;
 
 use Test::More;
 use Test::MockModule qw{strict};
+use IPC::Run3();
 
 our ( $REPO, $ROOT, $OLDCWD );
 
@@ -55,7 +56,8 @@ my $sqlite = Trog::Data::SQLite->new($config);
 # The script is the thing under test, so run it the way an operator would.
 sub migrate {
     my (@args) = @_;
-    my $out = qx{$^X "-I$REPO/lib" "$REPO/bin/migrate.pl" @args 2>&1};
+    my $out = q{};
+    IPC::Run3::run3( [ $^X, "-I$REPO/lib", "$REPO/bin/migrate.pl", @args ], \undef, \$out, \$out );
     return ( $?, $out );
 }
 

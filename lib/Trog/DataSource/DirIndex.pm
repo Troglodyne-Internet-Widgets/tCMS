@@ -322,7 +322,8 @@ whatever happened to be touched least recently.
 =cut
 
 sub order ( $, @posts ) {
-    return sort { ( $b->{is_dir} // 0 ) <=> ( $a->{is_dir} // 0 ) || lc( $a->{name} // '' ) cmp lc( $b->{name} // '' ) || ( $a->{name} // '' ) cmp ( $b->{name} // '' ) } @posts;
+    my @sorted = sort { ( $b->{is_dir} // 0 ) <=> ( $a->{is_dir} // 0 ) || lc( $a->{name} // '' ) cmp lc( $b->{name} // '' ) || ( $a->{name} // '' ) cmp ( $b->{name} // '' ) } @posts;
+    return @sorted;
 }
 
 =head2 lang() = STRING

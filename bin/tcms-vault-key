@@ -81,7 +81,7 @@ if ( $help || !$file ) {
 
 # Printed and exited rather than died: Carp::Always is in the dependency chain,
 # and refusing to clobber a key is not a crash.
-if ( -e $Trog::Vault::key_file ) {    ## no critic (ProhibitFiletest_e) -- refusing to overwrite the one thing that cannot be regenerated
+if ( -e $Trog::Vault::key_file ) {    # Refusing to overwrite the one thing that cannot be regenerated
     print STDERR "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";
     exit 2;
 }

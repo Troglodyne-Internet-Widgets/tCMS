@@ -335,7 +335,7 @@ route that called it.
 
 =cut
 
-our $log_max_bytes = 1024 * 1024;
+our $log_max_bytes = 1_048_576;    # 1 MiB
 
 sub log_for ($domain) {
     my $safe = safe_domain($domain);

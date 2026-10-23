@@ -4,6 +4,8 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
+use Module::Runtime();
+
 use Trog::Log qw{:all};
 
 #It's just a factory
@@ -25,9 +27,7 @@ sub new ( $, $config ) {
     return $datamodule if $datamodule;
 
     my $module = "Trog::Data::" . model($config);
-    my $req    = $module;
-    $req =~ s/::/\//g;
-    require "$req.pm";
+    Module::Runtime::require_module($module);
     $datamodule = $module->new($config);
     return $datamodule;
 }

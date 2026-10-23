@@ -4,6 +4,7 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
+use List::Util();
 use File::Path();
 use Sys::Hostname::FQDN();
 use Sys::Virt();
@@ -386,7 +387,7 @@ sub act ( $action, $conn_uri, $domain_name, $user ) {
     # actually stops it happening.  /guest/act is a POST anybody holding the
     # admin acl can craft by hand, and if it went through there would be
     # nothing left running to report the mistake.
-    if ( is_self($safe) && ( $action // '' ) =~ m/^(?:poweroff|destroy)$/ ) {
+    if ( is_self($safe) && List::Util::any { $_ eq ( $action // '' ) } qw{poweroff destroy} ) {
         WARN("Refused guest action '$action' on '$safe': that is this server");
         return ( 0, "'$safe' is this server -- refusing to $action it" );
     }

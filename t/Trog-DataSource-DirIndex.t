@@ -245,7 +245,8 @@ subtest 'it asks to be told when the directory changes' => sub {
     # stack another copy of the same callback on every single view.
     Trog::DataSource::DirIndex::posts( \%series, { tpsgi => $tpsgi } );
     Trog::DataSource::DirIndex::posts( \%series, { tpsgi => $tpsgi } );
-    is( scalar( keys %{ { map { $_->{key} => 1 } @watches } } ), 1, 'and it is the same key every time' );
+    my %keys = map { $_->{key} => 1 } @watches;
+    is( scalar( keys %keys ), 1, 'and it is the same key every time' );
 
     # The callback uses the tPSGI it is handed, not the one from the request
     # that registered it: watches are shared between workers, and whichever

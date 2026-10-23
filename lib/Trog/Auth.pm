@@ -531,16 +531,16 @@ sub process_change_request ($token) {
     my $secret       = $rows->[0]{secret};
     my $contactemail = $rows->[0]{contact_email};
 
-    state %dispatch = (
-        reset_pass => sub {
-            my ( $user, $pass ) = @_;
+    # my, not state: each closure reads this request's $display and $contactemail.
+    my %dispatch = (
+        reset_pass => sub ( $name, $pass ) {
 
             #XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
             # This is also why we have to snag the user's ACLs or they will be wiped.
-            my @acls = acls4user($user);
-            useradd( $user, $display, $pass, \@acls, $contactemail );
-            killsession($user);
-            return "Password set to $pass for $user";
+            my @acls = acls4user($name);
+            useradd( $name, $display, $pass, \@acls, $contactemail );
+            killsession($name);
+            return "Password set to $pass for $name";
         },
     );
     my $res = $dispatch{$type}->( $user, $secret );
