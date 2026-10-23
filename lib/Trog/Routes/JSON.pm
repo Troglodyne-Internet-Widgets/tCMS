@@ -6,8 +6,6 @@ use warnings FATAL => 'all';
 
 use Clone qw{clone};
 
-use Mojo::JSON ();
-
 use Trog::Utils();
 use Trog::Auth();
 use Trog::Routes::HTML();
@@ -36,7 +34,7 @@ our %routes = (
             {
                 name     => 'token',
                 in       => 'path',
-                required => Mojo::JSON::true,
+                required => true,
 
                 # What Trog::Utils::uuid() makes, ended by \z because perl's $ allows a final newline.
                 schema => { type => 'string', pattern => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z' },

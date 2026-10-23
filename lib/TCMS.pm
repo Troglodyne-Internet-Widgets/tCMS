@@ -9,7 +9,6 @@ use Clone qw{clone};
 
 use CGI::Cookie ();
 use URI();
-use Mojo::JSON ();
 
 #Grab our custom routes
 use FindBin::libs;
@@ -213,7 +212,7 @@ sub build_routes {
         my @parameters = @{ $v->{parameters} // [] };
         foreach my $variable ( $k =~ m/\{([^{}]+)\}/g ) {
             next if grep { $_->{in} eq 'path' && $_->{name} eq $variable } @parameters;
-            push( @parameters, { name => $variable, in => 'path', required => Mojo::JSON::true, schema => { type => 'string' } } );
+            push( @parameters, { name => $variable, in => 'path', required => true, schema => { type => 'string' } } );
         }
 
         $paths{$k}{$method} = {

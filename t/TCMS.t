@@ -11,6 +11,7 @@ use lib "$FindBin::Bin/../lib";
 
 use Test::More;
 use Test::MockModule                   qw{strict};
+use JSON::MaybeXS                      ();
 use JSON::Validator::Schema::OpenAPIv3 ();
 
 our ( $REPO, $ROOT, $OLDCWD );
@@ -63,8 +64,12 @@ $html->redefine( posts => sub { return [ 200, [], ['the post'] ] } );
 require_ok('TCMS') or BAIL_OUT("Can't load the dispatcher");
 
 my %openapi = %TCMS::openapi;
-my $schema  = JSON::Validator::Schema::OpenAPIv3->new( \%openapi );
-my $paths   = $openapi{paths};
+
+# Checked as JSON reads it, since tPSGI is not a prerequisite of tCMS: perl's
+# booleans become JSON's, and a callback becomes null.
+my $json   = JSON::MaybeXS->new( allow_unknown => 1, canonical => 1 );
+my $schema = JSON::Validator::Schema::OpenAPIv3->new( $json->decode( $json->encode( \%openapi ) ) );
+my $paths  = $openapi{paths};
 
 subtest 'the document' => sub {
     is_deeply( $schema->errors, [], 'is valid OpenAPI 3' ) or diag explain $schema->errors;
@@ -79,7 +84,7 @@ subtest 'an operation' => sub {
     is( $manual->{'x-tcms-auth'},          1,      'and its auth as x-tcms-auth' );
     is_deeply(
         $manual->{parameters},
-        [ { name => 'module+', in => 'path', required => Mojo::JSON::true, schema => { type => 'string' } } ],
+        [ { name => 'module+', in => 'path', required => true, schema => { type => 'string' } } ],
         'and each variable of the template as a required path parameter'
     );
 
