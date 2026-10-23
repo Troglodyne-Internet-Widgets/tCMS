@@ -262,6 +262,24 @@ subtest 'the guest cache is scoped per hypervisor' => sub {
     like( $paths[0], qr{/hv-1/alpha\.png$}, 'the path names the hypervisor and the guest' );
 };
 
+# /dev/full takes the open and the print, and fails the write that close()
+# flushes, as a full disk does.
+subtest 'a screenshot that could not be cached is not handed out' => sub {
+  SKIP: {
+        skip( 'there is no /dev/full here', 2 ) unless -c '/dev/full';
+
+        my $root = Path::Tiny->tempdir();
+        no warnings 'once';
+        local $Trog::DataSource::Virt::screenshot_dir = "$root";
+        $root->child('hv-1')->mkpath;
+        symlink( '/dev/full', "$root/hv-1/alpha.png" ) or die $!;
+
+        my ( $path, $why ) = Trog::DataSource::Virt::screenshot( { id => 'hv-1', conn_uri => 'test:///default' }, 'alpha' );
+        is( $path, undef, 'no path to a screenshot that is not there' );
+        like( $why, qr/could[ ]not[ ]cache/, 'and it says why' );
+    }
+};
+
 subtest 'the datasource hook only loads what it should' => sub {
     require Trog::Routes::HTML;
 

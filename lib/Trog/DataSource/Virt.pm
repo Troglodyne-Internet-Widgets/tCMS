@@ -364,7 +364,7 @@ sub screenshot ( $hypervisor, $guest_name ) {
     open( my $fh, '>', $path ) or return ( undef, "could not cache the screenshot: $!" );
     binmode $fh;
     print {$fh} $data;
-    close $fh;
+    close($fh) or return ( undef, "could not cache the screenshot: $!" );
 
     return ( $path, undef );
 }

@@ -52,7 +52,7 @@ sub touch {
     my ( $path, $content ) = @_;
     open( my $fh, '>', $path ) or die "$path: $!";
     print {$fh} ( $content // 'x' );
-    close $fh;
+    close($fh) or die $!;
     return;
 }
 

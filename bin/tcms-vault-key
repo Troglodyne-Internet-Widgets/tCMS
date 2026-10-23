@@ -91,7 +91,7 @@ if ( -e $Trog::Vault::key_file ) {    # Refusing to overwrite the one thing that
 
 open( my $fh, '>', $Trog::Vault::key_file ) or die "Could not write $Trog::Vault::key_file: $!\n";
 print {$fh} Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) ) . "\n";
-close($fh);
+close($fh)                                  or die "Could not write $Trog::Vault::key_file: $!\n";
 chmod( oct('600'), $Trog::Vault::key_file ) or die "Could not chmod $Trog::Vault::key_file: $!\n";
 
 print <<"SAID";

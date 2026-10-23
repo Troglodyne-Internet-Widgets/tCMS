@@ -59,7 +59,7 @@ subtest 'nothing below the level goes out' => sub {
 };
 
 subtest 'a syslog that went away does not take the application with it' => sub {
-    close($sink);
+    close($sink) or die $!;
     unlink($path);
 
     # The file output still has the line, and a request that fails because

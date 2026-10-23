@@ -108,7 +108,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
             while ( $fh->read( my $buf, $Trog::Vars::CHUNK_SIZE ) ) {
                 $writer->write($buf);
             }
-            close $fh;
+            close($fh);    ## no critic (RequireCheckedSyscalls) -- read to the end, with nothing to lose
             $writer->close;
           }
           if $streaming && $sz > $Trog::Vars::CHUNK_SIZE;

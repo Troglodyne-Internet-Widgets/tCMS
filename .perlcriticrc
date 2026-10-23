@@ -96,7 +96,7 @@ formats = #!/usr/bin/env perl
 # A sub that returns the result of a syscall or an eval, called where nothing
 # looks at the result.  The same functions as RequireCheckedSyscalls below.
 [ErrorHandling::RequireCheckedIndirectResults]
-exclude_functions = print
+exclude_functions = print say
 [ProhibitUseLib]
 [ProhibitUsageSubs]
 # tCMS: help() is the interface of a data model and a datasource that links
@@ -209,8 +209,9 @@ stop_words_file = .pod_stopwords
 [InputOutput::RequireBracedFileHandleWithPrint]
 [InputOutput::RequireBriefOpen]
 [InputOutput::RequireCheckedOpen]
-#[InputOutput::RequireCheckedSyscalls]
-#exclude_functions = print
+[InputOutput::RequireCheckedSyscalls]
+# tCMS: say prints as print does.
+exclude_functions = print say
 [InputOutput::RequireEncodingWithUTF8Layer]
 [Miscellanea::ProhibitFormats]
 [Miscellanea::ProhibitTies]

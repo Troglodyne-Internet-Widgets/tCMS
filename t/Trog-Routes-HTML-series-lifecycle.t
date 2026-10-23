@@ -131,7 +131,7 @@ BEGIN {
     # dies outright if this file is missing.  Only category and emoji are read.
     open( my $fh, '>', "$ROOT/www/scripts/list.min.json" ) or die $!;
     print {$fh} '{"emojis":[{"category":"Smileys","emoji":"X"}]}';
-    close $fh;
+    close($fh) or die $!;
 
     # Text::Xslate computes its default cache dir from $HOME once, at load time.
     # Without this the sandbox writes compiled templates into the real ~/.xslate_cache.
@@ -782,7 +782,7 @@ subtest 'a directory index series' => sub {
     foreach my $n ( 1 .. 7 ) {
         open( my $fh, '>', "www/assets/spec_downloads/file$n.txt" ) or die $!;
         print {$fh} ( 'x' x ( $n * 10 ) );
-        close $fh;
+        close($fh) or die $!;
     }
 
     reindex();
@@ -1150,7 +1150,7 @@ subtest 'file' => sub {
     my $src = "$ROOT/upload-src/spec-upload.txt";
     open( my $fh, '>', $src ) or die $!;
     print {$fh} "spec upload contents\n";
-    close $fh;
+    close($fh) or die $!;
 
     my $child = save_post(
         'file child',

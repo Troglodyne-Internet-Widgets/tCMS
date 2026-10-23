@@ -40,12 +40,12 @@ BEGIN {
 
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=totp.example.com\n";
-    close $fh;
+    close($fh) or die $!;
 
     # Otherwise login() reads the instance as a fresh install and registers
     # whoever knocks first as the admin, which is a different test.
     open( my $flag, '>', "$ROOT/config/has_users" ) or die $!;
-    close $flag;
+    close($flag)                                    or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }
