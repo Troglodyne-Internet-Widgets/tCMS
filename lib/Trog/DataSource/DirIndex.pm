@@ -189,7 +189,7 @@ sub _resolve ($directory) {
     my $relative = $absolute;
     $relative =~ s{^\Q$base\E/?}{};
 
-    return { absolute => $absolute, relative => $relative ? "$root/$relative" : $root };
+    return { absolute => $absolute, relative => $relative ne q{} ? "$root/$relative" : $root };
 }
 
 # Path containment, done on the resolved paths rather than on the strings the
@@ -303,7 +303,7 @@ under it.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( $query->{like} ) {
+    if ( ( $query->{like} // q{} ) ne q{} ) {
         my $like = $query->{like};
         @posts = grep { Trog::DataSource::searchable_match( $like, $_->{name}, $_->{path}, $_->{extension} ) } @posts;
     }

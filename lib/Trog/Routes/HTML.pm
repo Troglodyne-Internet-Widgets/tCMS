@@ -3250,7 +3250,7 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $
         my $property = { %{ $wizard_field_types{ $field->{type} } } };
         $property->{'x-tcms-input'}       = $field->{type};
         $property->{'x-tcms-label'}       = $field->{label};
-        $property->{'x-tcms-placeholder'} = $field->{placeholder} if $field->{placeholder};
+        $property->{'x-tcms-placeholder'} = $field->{placeholder} if ( $field->{placeholder} // q{} ) ne q{};
 
         # Only written when it is true: a field is public unless it says so,
         # and a sidecar full of x-tcms-private:false reads like the opposite.

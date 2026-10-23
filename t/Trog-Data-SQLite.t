@@ -265,6 +265,7 @@ subtest 'the like filter goes through FTS5' => sub {
         [ 'Secret Plans' => ['p-private'] ],    # title as well as body
         [ 'foxes'        => ['p-slides'] ],     # data stored as an array
         [ 'nonesuch'     => [] ],
+        [ '0'            => [] ],               # a term, not an absent one
     );
 
     foreach my $case (@cases) {

@@ -77,6 +77,10 @@ subtest 'what a secret looks like on disk' => sub {
     is( $row->{key_id},         Trog::Vault::key_id(), 'naming the key it was sealed under' );
 
     is( Trog::Vault::get( 'bob', 'keepass' ), 'correct horse battery staple', 'and it comes back out' );
+
+    ( $ok, $why ) = Trog::Vault::set(qw{bob pin 0});
+    is( $ok,                              1,   'a secret of "0" is a secret, not nothing' ) or diag($why);
+    is( Trog::Vault::get( 'bob', 'pin' ), '0', 'and comes back out' );
 };
 
 subtest 'a fresh salt every write' => sub {
