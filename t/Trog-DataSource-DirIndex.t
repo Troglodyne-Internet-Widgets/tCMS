@@ -5,6 +5,7 @@
 # getting it wrong hands out the names of files somebody meant to keep.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;

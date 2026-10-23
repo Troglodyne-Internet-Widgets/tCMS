@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -50,8 +51,8 @@ subtest 'Header' => sub {
         }
     );
 
-    like( $out, qr/<!doctype html>/i,              "the doctype is emitted by default" );
-    like( $out, qr{<title>A Page</title>},         "the title lands" );
+    like( $out, qr/<!doctype[ ]html>/i,            "the doctype is emitted by default" );
+    like( $out, qr{<title>A[ ]Page</title>},       "the title lands" );
     like( $out, qr{href="/styles/screen\.css"},    "stylesheets land" );
     like( $out, qr{src="/scripts/post\.js"},       "scripts land" );
     like( $out, qr{lang="en-US"},                  "lang defaults rather than rendering empty" );
@@ -62,11 +63,11 @@ subtest 'Header' => sub {
     unlike( $xsl, qr/<!doctype/i, "no_doctype suppresses it" );
 
     # It also has no stylesheets or scripts to give, and must not invent any.
-    unlike( $xsl, qr/rel="stylesheet" type="text\/css" href="\/styles\/screen/, "no stylesheets are conjured up" );
+    unlike( $xsl, qr/rel="stylesheet"[ ]type="text\/css"[ ]href="\/styles\/screen/, "no stylesheets are conjured up" );
 
     # header.tx marks meta_tags raw, so social markup has to survive as markup.
     my $social = Trog::Component::component( 'Header', { meta_tags => '<meta name="twitter:card" />' } );
-    like( $social, qr{<meta name="twitter:card" />}, "meta_tags stay markup" );
+    like( $social, qr{<meta[ ]name="twitter:card"[ ]/>}, "meta_tags stay markup" );
 };
 
 subtest 'CategoryBar' => sub {
@@ -88,7 +89,7 @@ subtest 'PostHeader and PostFooter validate the name' => sub {
     foreach my $bad ( '../../etc/passwd', 'headers/../../../etc/passwd', 'nope.tx', 'about_header' ) {
         like(
             exception { Trog::Component::component( 'PostHeader', { name => $bad } ) },
-            qr/No such header/,
+            qr/No[ ]such[ ]header/,
             "'$bad' is refused"
         );
     }
@@ -138,9 +139,9 @@ subtest 'the whole page still composes' => sub {
     is( $err, '', "index.tx renders" ) or diag($err);
     my $body = ref $psgi eq 'ARRAY' ? $psgi->[2][0] : undef;
 
-    like( $body, qr/<!doctype html>/i,        "Header came through" );
+    like( $body, qr/<!doctype[ ]html>/i,      "Header came through" );
     like( $body, qr{<title>Composed</title>}, "the title came through" );
-    like( $body, qr{<p>the body</p>},         "the content is still the content" );
+    like( $body, qr{<p>the[ ]body</p>},       "the content is still the content" );
     like( $body, qr{href="/series/blog"},     "CategoryBar came through" );
     like( $body, qr{</html>},                 "Footer came through" );
 

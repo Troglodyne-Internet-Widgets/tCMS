@@ -6,6 +6,7 @@
 # applied to them by somebody.  This is that somebody.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;
@@ -458,7 +459,7 @@ subtest 'the paginator renders page links for a datasource' => sub {
     };
 
     my $offset = $render->( paginate_offset => 1, pages => 1, page => 2, pages_total => 5, like => 'web' );
-    like( $offset, qr/Page 2 of 5/,             'it says where you are' );
+    like( $offset, qr/Page[ ]2[ ]of[ ]5/,       'it says where you are' );
     like( $offset, qr/href="\?page=1&limit=25/, 'Prev goes back a page' );
     like( $offset, qr/href="\?page=3&limit=25/, 'Next goes on a page' );
 
@@ -466,7 +467,7 @@ subtest 'the paginator renders page links for a datasource' => sub {
     # ampersand in an attribute is supposed to be.  The cursor branch is the same.
     like( $offset, qr/like=web/, 'and the search survives the trip' );
     unlike( $offset, qr/older=|newer=/, 'no cursor, which could not move on such a page anyway' );
-    unlike( $offset, qr/Jump to/,       'and no date jump, since these posts share a date' );
+    unlike( $offset, qr/Jump[ ]to/,     'and no date jump, since these posts share a date' );
 
     my $first = $render->( paginate_offset => 1, pages => 1, page => 1, pages_total => 3 );
     unlike( $first, qr/rel="prev"/, 'the first page offers no Prev' );
@@ -478,13 +479,13 @@ subtest 'the paginator renders page links for a datasource' => sub {
 
     my $only = $render->( paginate_offset => 1, pages => 0, page => 1, pages_total => 1 );
     unlike( $only, qr/rel="prev"|rel="next"/, 'a single page offers neither' );
-    like( $only, qr/id="paginator" class="disabled"/, 'and says so' );
+    like( $only, qr/id="paginator"[ ]class="disabled"/, 'and says so' );
 
     # Stored posts are untouched by any of this.
     my $cursor = $render->( paginate_offset => 0, pages => 1, older => 1700, newer => 1800, like => 'x' );
     like( $cursor, qr/href="\?older=1700&limit=25/, 'the cursor paginator still pages by cursor' );
     like( $cursor, qr/href="\?newer=1800&limit=25/, 'both ways' );
-    like( $cursor, qr/Jump to/,                     'and keeps its date jump' );
+    like( $cursor, qr/Jump[ ]to/,                   'and keeps its date jump' );
     unlike( $cursor, qr/\?page=/, 'with no page numbers' );
 };
 

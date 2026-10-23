@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -62,12 +63,12 @@ subtest 'name validation' => sub {
     foreach my $case ( sort keys %bad ) {
         like(
             exception { Trog::Component::component( $bad{$case} ) },
-            qr/component name/i,
+            qr/component[ ]name/i,
             "$case rejected before anything is loaded"
         );
     }
 
-    like( exception { Trog::Component::component(undef) }, qr/component name/i, "undef rejected" );
+    like( exception { Trog::Component::component(undef) }, qr/component[ ]name/i, "undef rejected" );
 
     # Nothing above should have made it as far as %INC.
     is( scalar( grep { m{^Trog/Component/} && !m{^Trog/Component/Test} } keys %INC ), 0, "no stray component was loaded" );
@@ -82,7 +83,7 @@ subtest 'loading' => sub {
 
     like(
         exception { Trog::Component::component('TestNoRender') },
-        qr/no render/i,
+        qr/no[ ]render/i,
         "a module without render() is not a component"
     );
 };
@@ -108,13 +109,13 @@ subtest 'failure modes' => sub {
     # meaningless halfway through a template.
     like(
         exception { Trog::Component::component('TestTriplet') },
-        qr/TestTriplet.*ARRAY/,
+        qr/TestTriplet\N*ARRAY/,
         "a PSGI triplet is caught rather than leaking into the page"
     );
 
     like(
         exception { Trog::Component::component('TestSilent') },
-        qr/rendered nothing/,
+        qr/rendered[ ]nothing/,
         "an undef render is a failure, not an empty component"
     );
 
@@ -130,7 +131,7 @@ subtest 'recursion guard' => sub {
     local $Trog::Component::MAX_DEPTH = 5;
 
     my $err = exception { Trog::Component::component('TestRecurse') };
-    like( $err, qr/recursed more than 5 deep/, "self-referential component dies bounded" );
+    like( $err, qr/recursed[ ]more[ ]than[ ]5[ ]deep/, "self-referential component dies bounded" );
 
     is( $Trog::Component::depth, 0, "depth unwinds after the die" );
 };
@@ -171,7 +172,7 @@ subtest 'a failure inside a template is not swallowed' => sub {
 
     my ( $out, $err ) = $render->(q{before<: component('../../etc/passwd') :>after});
     is( $out, 'beforeafter', "Xslate really does render on past a dead component" );
-    like( $err, qr/component name/i, "...and the failure is recorded for the renderer to find" );
+    like( $err, qr/component[ ]name/i, "...and the failure is recorded for the renderer to find" );
 
     ( $out, $err ) = $render->(q{<: component('TestBoom') :>});
     like( $err, qr/TestBoom/, "a component's own death is recorded" );

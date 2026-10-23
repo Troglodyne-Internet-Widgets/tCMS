@@ -1,7 +1,7 @@
 package Trog::SQLite::TagIndex;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use URI::Escape;
 use List::Util qw{uniq};

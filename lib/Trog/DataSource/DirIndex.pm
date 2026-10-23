@@ -1,7 +1,7 @@
 package Trog::DataSource::DirIndex;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Cwd            ();
 use Digest::SHA    qw{sha256_hex};

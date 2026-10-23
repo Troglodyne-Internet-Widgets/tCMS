@@ -6,6 +6,7 @@
 # model, migrates, and compares the two models query for query.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;
@@ -85,8 +86,8 @@ sub post {
 subtest 'nothing to migrate' => sub {
     my ( $rc, $out ) = migrate();
     isnt( $rc, 0, 'an empty datastore is an error rather than a silent success' );
-    like( $out, qr/No posts found/, 'and says so' );
-    unlike( $out, qr/ at \S+ line \d+/, 'without a stack trace, since it is not a crash' );
+    like( $out, qr/No[ ]posts[ ]found/, 'and says so' );
+    unlike( $out, qr/[ ]at[ ]\S+[ ]line[ ]\d+/, 'without a stack trace, since it is not a crash' );
 };
 
 # A corpus with the awkward bits: several versions of one post, a private one,
@@ -117,8 +118,8 @@ reset_flatfile_cache();
 subtest 'a dry run writes nothing' => sub {
     my ( $rc, $out ) = migrate('--dry-run');
     is( $rc, 0, 'it succeeds' ) or diag($out);
-    like( $out, qr/Would carry over 6 post version\(s\)/, 'and counts every version, not every post' );
-    like( $out, qr/Nothing was written/,                  'and says it wrote nothing' );
+    like( $out, qr/Would[ ]carry[ ]over[ ]6[ ]post[ ]version\(s\)/, 'and counts every version, not every post' );
+    like( $out, qr/Nothing[ ]was[ ]written/,                        'and says it wrote nothing' );
 
     is( $sqlite->count(), 0, 'because it wrote nothing' );
 };
@@ -126,8 +127,8 @@ subtest 'a dry run writes nothing' => sub {
 subtest 'the migration itself' => sub {
     my ( $rc, $out ) = migrate();
     is( $rc, 0, 'it succeeds' ) or diag($out);
-    like( $out, qr/Carried over 6 post version\(s\), skipped 0/,                            'carrying over every version' );
-    like( $out, qr/data\/files holds 6 post version\(s\); data\/posts\.sqlite now holds 6/, 'and says what actually landed' );
+    like( $out, qr/Carried[ ]over[ ]6[ ]post[ ]version\(s\),[ ]skipped[ ]0/,                                'carrying over every version' );
+    like( $out, qr/data\/files[ ]holds[ ]6[ ]post[ ]version\(s\);[ ]data\/posts\.sqlite[ ]now[ ]holds[ ]6/, 'and says what actually landed' );
 
     is( $sqlite->count(), 4, 'four posts' );
 
@@ -170,7 +171,7 @@ subtest 'the two models now answer the same questions' => sub {
 subtest 'running it again' => sub {
     my ( $rc, $out ) = migrate();
     is( $rc, 0, 'succeeds' ) or diag($out);
-    like( $out, qr/Carried over 0 post version\(s\), skipped 6/, 'and carries nothing over twice' );
+    like( $out, qr/Carried[ ]over[ ]0[ ]post[ ]version\(s\),[ ]skipped[ ]6/, 'and carries nothing over twice' );
     is( $sqlite->count(), 4, 'leaving the post count alone' );
 };
 
@@ -183,7 +184,7 @@ subtest 'picking up what was written in between' => sub {
 
     my ( $rc, $out ) = migrate();
     is( $rc, 0, 'succeeds' ) or diag($out);
-    like( $out, qr/Carried over 1 post version\(s\), skipped 6/, 'carrying over only the new one' );
+    like( $out, qr/Carried[ ]over[ ]1[ ]post[ ]version\(s\),[ ]skipped[ ]6/, 'carrying over only the new one' );
 
     my ($late) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-late' );
     is( $late->{title}, 'Written Later', 'which is there afterwards' );

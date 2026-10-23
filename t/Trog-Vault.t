@@ -5,6 +5,7 @@
 # on its own is not enough, and that a code is worth one thing.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;
@@ -70,7 +71,7 @@ subtest 'what a secret looks like on disk' => sub {
     is( scalar(@$rows), 1, 'and lands in one row' );
 
     my $row = $rows->[0];
-    unlike( $row->{ciphertext}, qr/correct horse/, 'which does not contain the secret' );
+    unlike( $row->{ciphertext}, qr/correct[ ]horse/, 'which does not contain the secret' );
     is( length( $row->{salt} ), 32,                    'carries a fresh 32 byte salt' );
     is( length( $row->{tag} ),  16,                    'and a GCM tag' );
     is( $row->{key_id},         Trog::Vault::key_id(), 'naming the key it was sealed under' );
@@ -160,7 +161,7 @@ subtest 'no key, no vault' => sub {
     ok( !Trog::Vault::has_key(), 'an installation with no key has no vault' );
     my ( $ok, $why ) = Trog::Vault::set( 'bob', 'nowhere', 'to put it' );
     is( $ok, 0, 'storing is refused' );
-    like( $why, qr/no vault key/, 'saying why, since this is a thing to go and configure' );
+    like( $why, qr/no[ ]vault[ ]key/, 'saying why, since this is a thing to go and configure' );
     is( Trog::Vault::get( 'bob', 'keepass' ), undef, 'and nothing already stored is offered' );
 };
 
@@ -221,7 +222,7 @@ subtest 'a code is worth one thing' => sub {
 
     ( $ok, $why ) = Trog::Auth::spend_totp( 'bob', $code );
     is( $ok, 0, 'and is not accepted a second time' );
-    like( $why, qr/already been used/, 'saying so, since the answer is to wait thirty seconds' );
+    like( $why, qr/already[ ]been[ ]used/, 'saying so, since the answer is to wait thirty seconds' );
 
     # A code from before the one just spent is also spent, whatever the
     # arithmetic says: that is what walking the counter forward is for.
@@ -236,7 +237,7 @@ subtest 'a code is worth one thing' => sub {
 
     ( $ok, $why ) = Trog::Auth::spend_totp( 'eve', $totp->expected_totp_code( $now + 30 ) );
     is( $ok, 0, 'somebody who has not enrolled cannot spend anything' );
-    like( $why, qr/no second factor/, 'and is told that rather than that their code was wrong' );
+    like( $why, qr/no[ ]second[ ]factor/, 'and is told that rather than that their code was wrong' );
 
     # The next window is a new code and works, which is the whole cost of this.
     ( $ok, $why ) = Trog::Auth::spend_totp( 'bob', $totp->expected_totp_code( $now + 30 ) );
@@ -344,7 +345,7 @@ subtest 'when the key is gone' => sub {
         my ( $stored, $why ) = Trog::Vault::set( 'bob', 'replacement', 'a new one' );
         if ( $what eq 'no key at all' ) {
             is( $stored, 0, "$what: storing is refused rather than silently lost" );
-            like( $why, qr/no vault key/, "$what: saying why" );
+            like( $why, qr/no[ ]vault[ ]key/, "$what: saying why" );
         }
         else {
             is( $stored,                                  1,           "$what: a new key stores new secrets fine" );
@@ -422,7 +423,7 @@ subtest 'a write the database refuses is an answer, not a crash' => sub {
     $dbh->do("DROP TRIGGER temp.refuse_spend");
 
     is( $ok, 0, 'a right code that cannot be recorded as spent is refused' );
-    like( $why, qr/could not record the code/, 'saying why' );
+    like( $why, qr/could[ ]not[ ]record[ ]the[ ]code/, 'saying why' );
 };
 
 done_testing();

@@ -9,6 +9,7 @@
 # the point Trog::Data builds it.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;

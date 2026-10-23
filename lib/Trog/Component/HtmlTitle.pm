@@ -1,7 +1,7 @@
 package Trog::Component::HtmlTitle;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Trog::Component ();
 

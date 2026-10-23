@@ -1,7 +1,7 @@
 package Trog::DataModule;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use FindBin::libs;
 
@@ -142,7 +142,7 @@ sub _fixup ( $self, @filtered ) {
             next unless exists $subj->{$param};
 
             #XXX I don't remember what this fixes, but it also breaks things.  URI::Escape usage instead is indicated.
-            $subj->{$param} =~ s/ /%20/g;
+            $subj->{$param} =~ s/[ ]/%20/g;
         }
 
         $user2display{ $subj->{user} } //= Trog::Auth::username2display( $subj->{user} );

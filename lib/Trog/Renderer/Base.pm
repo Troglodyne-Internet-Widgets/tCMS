@@ -1,7 +1,7 @@
 package Trog::Renderer::Base;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Encode qw{encode_utf8};
 use IO::Compress::Gzip;

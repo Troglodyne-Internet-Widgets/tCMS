@@ -1,7 +1,7 @@
 package Trog::Utils;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use UUID;
 use HTTP::Tiny::UNIX();

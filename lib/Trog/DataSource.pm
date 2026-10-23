@@ -1,7 +1,7 @@
 package Trog::DataSource;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Trog::DataModule ();
 use Trog::Log        qw{:all};

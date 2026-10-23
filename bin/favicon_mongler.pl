@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Cwd            ();
 use File::Basename ();

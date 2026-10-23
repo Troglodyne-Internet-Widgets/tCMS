@@ -5,6 +5,7 @@
 # throughout: nothing here forks, and nothing here executes a provisioner.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;
@@ -176,12 +177,12 @@ subtest 'the recipe lands on the guest' => sub {
 subtest 'what it refuses to reprovision' => sub {
     my ( $ok, $why ) = reprovision( domain => 'thisserver.example.com' );
     is( $ok, 0, 'the server it is running on' );
-    like( $why, qr/this server/, 'and says why' );
+    like( $why, qr/this[ ]server/, 'and says why' );
     is_deeply( \@SPAWNED, [], 'without running anything' );
 
     ( $ok, $why ) = reprovision( domain => 'norecipe.example.com' );
     is( $ok, 0, 'a guest with no recipe' );
-    like( $why, qr/no recipe/, 'and says why' );
+    like( $why, qr/no[ ]recipe/, 'and says why' );
 
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => '' );
     is( $ok, 0, 'a run with no passphrase, which the provisioner would just hang waiting for' );
@@ -191,7 +192,7 @@ subtest 'what it refuses to reprovision' => sub {
     foreach my $bad ( '../../etc/passwd', 'guest;rm -rf /', 'guest example.com', '', 'a' x 300, '.hidden' ) {
         my ( $refused, $message ) = reprovision( domain => $bad );
         is( $refused, 0, "'$bad' is refused" );
-        like( $message, qr/bad guest name|no recipe/, '...before anything is run' );
+        like( $message, qr/bad[ ]guest[ ]name|no[ ]recipe/, '...before anything is run' );
     }
 
     is_deeply( \@SPAWNED, [], 'and none of that ran a provisioner' );
@@ -257,7 +258,7 @@ subtest 'a stored passphrase, and a code instead of one' => sub {
     # somebody can click inside the window.
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $code );
     is( $ok, 0, 'and cannot be used again' );
-    like( $why, qr/already been used/, 'saying so' );
+    like( $why, qr/already[ ]been[ ]used/, 'saying so' );
     is_deeply( \@SPAWNED, [], 'without running a second one' );
 
     Trog::Vault::forget( 'admin', $Trog::DataSource::ProvisionedVirt::secret_name );
@@ -320,12 +321,12 @@ subtest 'a password with a line break in it is refused' => sub {
     # nobody asked us to send.
     my ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => "correct horse\nsudo: injected" );
     is( $ok, 0, 'a passphrase carrying a line break does not run' );
-    like( $why, qr/line break/, 'saying so' );
+    like( $why, qr/line[ ]break/, 'saying so' );
     is_deeply( \@SPAWNED, [], 'having run nothing' );
 
     ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => 'correct horse', sudo => "hunter2\nkeepass: not this" );
     is( $ok, 0, 'and neither does a sudo password carrying one' );
-    like( $why, qr/line break/, 'saying so too' );
+    like( $why, qr/line[ ]break/, 'saying so too' );
     is_deeply( \@SPAWNED, [], 'having run nothing' );
 };
 
@@ -359,8 +360,8 @@ subtest 'and when the vault key has gone' => sub {
     my $code = $totp->expected_totp_code( time() );
     my ( $ok, $why ) = reprovision( domain => 'guest.example.com', passphrase => undef, totp => $code );
     is( $ok, 0, 'a code is refused rather than exploding' );
-    like( $why, qr/can open/, 'saying the passphrase cannot be opened' );
-    like( $why, qr{/secrets}, 'and where to go about it' );
+    like( $why, qr/can[ ]open/, 'saying the passphrase cannot be opened' );
+    like( $why, qr{/secrets},   'and where to go about it' );
     is_deeply( \@SPAWNED, [], 'having provisioned nothing' );
 
     # And the refusal came before the code was spent, so the same code is still
@@ -382,7 +383,7 @@ subtest 'without the provisioner configured it is just Virt' => sub {
 
     my ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
     is( $ok, 0, 'nothing to run' );
-    like( $why, qr/not configured/, 'and says so plainly' );
+    like( $why, qr/not[ ]configured/, 'and says so plainly' );
     is_deeply( \@SPAWNED, [], 'having run nothing' );
 
     $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
@@ -395,7 +396,7 @@ subtest 'without the provisioner configured it is just Virt' => sub {
     write_config( trog_provisioner => "$ROOT/nonesuch" );
     ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
     is( $ok, 0, 'a configured path which is not there is refused' );
-    like( $why, qr/not configured/, 'the same as never having configured one' );
+    like( $why, qr/not[ ]configured/, 'the same as never having configured one' );
 
     write_config( trog_provisioner => "$ROOT/trog-provisioner" );
 };
@@ -410,7 +411,7 @@ subtest 'the log is read back onto the page' => sub {
 
     my $tail = Trog::DataSource::ProvisionedVirt::_log_tail('guest.example.com');
     ok( length($tail) <= $Trog::DataSource::ProvisionedVirt::log_tail_bytes, 'only the tail of it' );
-    like( $tail, qr/=== finished ===/, 'which is the part that says how it went' );
+    like( $tail, qr/===[ ]finished[ ]===/, 'which is the part that says how it went' );
 
     is( Trog::DataSource::ProvisionedVirt::_log_tail('norecipe.example.com'), undef, 'nothing when it has never run' );
     is( Trog::DataSource::ProvisionedVirt::_log_tail('../../etc/passwd'),     undef, 'and a name that is not one reads nothing' );
@@ -493,7 +494,7 @@ subtest 'the listing says what is going on' => sub {
     # Starting a second one is refused for the same reason.
     my ( $ok, $why ) = reprovision( domain => 'guest.example.com' );
     is( $ok, 0, 'and a second run is refused while the first is going' );
-    like( $why, qr/already running/, 'saying so' );
+    like( $why, qr/already[ ]running/, 'saying so' );
     is_deeply( \@SPAWNED, [], 'having started nothing' );
 
     open( $fh, '>', $status ) or die $!;
@@ -522,7 +523,7 @@ subtest 'reading the log' => sub {
     open( my $fh, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
     print {$fh} "the whole log\n";
     close $fh;
-    like( Trog::DataSource::ProvisionedVirt::log_for('guest.example.com'), qr/the whole log/, 'and the whole of it when there has' );
+    like( Trog::DataSource::ProvisionedVirt::log_for('guest.example.com'), qr/the[ ]whole[ ]log/, 'and the whole of it when there has' );
 
     # A provisioner can be chatty, and this goes out in one response.
     local $Trog::DataSource::ProvisionedVirt::log_max_bytes = 64;

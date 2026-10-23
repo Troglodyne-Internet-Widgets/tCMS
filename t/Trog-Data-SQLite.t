@@ -6,6 +6,7 @@
 # both models and asserts they return the same posts for the same query.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;
@@ -229,7 +230,7 @@ subtest 'a caller who can see nothing is not queried for' => sub {
 
     is( exception { is_deeply( $sqlite->read( { limit => 0, acls => [] } ), [], 'no acls get nothing' ) }, undef, 'without asking the database' );
     is( exception { is_deeply( $sqlite->read( { limit => 0, acls => [], id => 'p-public' } ), [], 'nor by id' ) }, undef, 'nor for a direct lookup' );
-    like( exception { $sqlite->read( { limit => 0, acls => ['public'] } ) }, qr/queried the database/a, 'while a caller with acls is queried' );
+    like( exception { $sqlite->read( { limit => 0, acls => ['public'] } ) }, qr/queried[ ]the[ ]database/, 'while a caller with acls is queried' );
 };
 
 subtest 'versions' => sub {
@@ -344,13 +345,13 @@ subtest 'writing' => sub {
         local $SIG{__WARN__} = sub { };
         exception { $sqlite->write( [ post( id => 'p-new', title => 'Clashing' ) ] ) };
     };
-    like( $clash, qr/Could not write post 'p-new'/, 'the same version twice is refused, loudly' );
+    like( $clash, qr/Could[ ]not[ ]write[ ]post[ ]'p-new'/, 'the same version twice is refused, loudly' );
 
     is( exception { $sqlite->write( [ post( id => 'p-new', title => 'Second Version', version => 1 ) ] ) }, undef, 'a new version is not' );
     my ($now) = $sqlite->get( limit => 0, acls => [qw{admin}], id => 'p-new' );
     is( $now->{title}, 'Second Version', 'and wins' );
 
-    like( exception { $sqlite->write( [ { title => 'No Id' } ] ) }, qr/no id/i, 'a post with no id is refused' );
+    like( exception { $sqlite->write( [ { title => 'No Id' } ] ) }, qr/no[ ]id/i, 'a post with no id is refused' );
 
     my $count = $sqlite->count();
     ok( exception { $sqlite->write( [ post( id => 'p-half', title => 'Half' ), { title => 'No Id' } ] ) }, 'a batch with a post it refuses is refused' );
@@ -469,7 +470,7 @@ subtest 'indexing a custom field' => sub {
 
     # And SQLite actually uses it, which is the entire point.
     my ($plan) = map { $_->{detail} } @{ $dbh->selectall_arrayref( q{EXPLAIN QUERY PLAN SELECT id FROM posts WHERE cook_time = '45 minutes'}, { Slice => {} } ) };
-    like( $plan, qr/USING INDEX posts_custom_cook_time/, 'and searches it rather than every post' );
+    like( $plan, qr/USING[ ]INDEX[ ]posts_custom_cook_time/, 'and searches it rather than every post' );
 
     is( exception { $sqlite->index_fields(qw{cook_time}) }, undef, 'asking twice is not an error' );
 

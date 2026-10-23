@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -45,7 +46,7 @@ subtest 'model' => sub {
     $dir->child( 'files', 'another' )->spew('{}');
     is( Trog::Data::model( config_for('SQLite') ), 'FlatFile', 'a site with flat file posts and no database keeps serving its posts' );
     is( scalar(@warned),                           1,          'with a warning' );
-    like( $warned[0] // '', qr{holds 2 post\(s\).*bin/migrate\.pl}a, 'saying how many, and how to move them' );
+    like( $warned[0] // '', qr{holds[ ]2[ ]post\(s\)\N*bin/migrate\.pl}, 'saying how many, and how to move them' );
 
     $dir->child('posts.sqlite')->touch;
     @warned = ();

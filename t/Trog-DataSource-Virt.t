@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -173,15 +174,15 @@ subtest 'act() refuses what it should' => sub {
 
     my ( $ok, $message ) = Trog::DataSource::Virt::act( 'rm-rf', 'test:///default', 'alpha', 'specadmin' );
     ok( !$ok, 'an action we do not define is refused' );
-    like( $message, qr/not something we do/, 'and says so' );
+    like( $message, qr/not[ ]something[ ]we[ ]do/, 'and says so' );
 
     ( $ok, $message ) = Trog::DataSource::Virt::act( 'destroy', 'test:///default', '../../etc/passwd', 'specadmin' );
     ok( !$ok, 'a guest name that is a path is refused' );
-    like( $message, qr/bad guest name/, 'before any connection is made' );
+    like( $message, qr/bad[ ]guest[ ]name/, 'before any connection is made' );
 
     ( $ok, $message ) = Trog::DataSource::Virt::act( 'destroy', 'test:///default', 'nosuchguest', 'specadmin' );
     ok( !$ok, 'a guest that is not there is refused' );
-    like( $message, qr/no guest called/, 'rather than acting on some other one' );
+    like( $message, qr/no[ ]guest[ ]called/, 'rather than acting on some other one' );
 
     is_deeply( \@CALLS, [], 'and none of those touched a guest' );
 
@@ -189,7 +190,7 @@ subtest 'act() refuses what it should' => sub {
     ( $ok, $message ) = Trog::DataSource::Virt::act( 'poweroff', 'test:///default', 'alpha', 'specadmin' );
     $connect_fails = 0;
     ok( !$ok, 'an unreachable hypervisor is refused' );
-    like( $message, qr/could not reach/, 'and reported' );
+    like( $message, qr/could[ ]not[ ]reach/, 'and reported' );
     is_deeply( \@CALLS, [], 'having done nothing' );
 };
 
@@ -204,7 +205,7 @@ subtest 'act() will not take the server down with it' => sub {
         @CALLS = ();
         my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, 'test:///default', 'alpha', 'specadmin' );
         ok( !$ok, "$action on the guest we are running in is refused" );
-        like( $message, qr/is this server/, 'saying why' );
+        like( $message, qr/is[ ]this[ ]server/, 'saying why' );
         is_deeply( \@CALLS, [], "and the $action never reached libvirt" );
     }
 
@@ -229,7 +230,7 @@ subtest 'screenshot() validates its inputs before anything else' => sub {
 
     my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hv, '../../../etc/passwd' );
     is( $path, undef, 'a path-shaped guest name gets no screenshot' );
-    like( $why, qr/bad guest name/, 'and is named as the reason' );
+    like( $why, qr/bad[ ]guest[ ]name/, 'and is named as the reason' );
 
     ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hv, 'alpha/../../beta' );
     is( $path, undef, 'nor does one with traversal in the middle' );
@@ -238,7 +239,7 @@ subtest 'screenshot() validates its inputs before anything else' => sub {
     # checked as well -- otherwise it is a directory traversal of its own.
     ( $path, $why ) = Trog::DataSource::Virt::screenshot( { id => '../../..', conn_uri => 'test:///default' }, 'alpha' );
     is( $path, undef, 'nor does a path-shaped hypervisor id' );
-    like( $why, qr/bad hypervisor id/, 'which is reported separately' );
+    like( $why, qr/bad[ ]hypervisor[ ]id/, 'which is reported separately' );
 };
 
 subtest 'the guest cache is scoped per hypervisor' => sub {
@@ -363,7 +364,7 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
 
         # The screenshot route requires the admin acl, so showing the img to
         # anyone else is a broken image and nothing else.
-        is( scalar( () = $out =~ m/<img /g ),                   $admin ? 1 : 0, "$view: console capture shown only to an admin" );
+        is( scalar( () = $out =~ m/<img[ ]/g ),                 $admin ? 1 : 0, "$view: console capture shown only to an admin" );
         is( scalar( () = $out =~ m{href="/guest/screenshot}g ), $admin ? 1 : 0, "$view: and so is the link to it" );
 
         # Powering off, snapshotting and destroying likewise.

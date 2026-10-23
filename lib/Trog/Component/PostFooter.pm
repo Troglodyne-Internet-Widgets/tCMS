@@ -1,7 +1,7 @@
 package Trog::Component::PostFooter;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Trog::Component ();
 use Trog::Themes;

@@ -1,7 +1,7 @@
 package Trog::Renderer::text;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use parent qw{Trog::Renderer::Base};
 
