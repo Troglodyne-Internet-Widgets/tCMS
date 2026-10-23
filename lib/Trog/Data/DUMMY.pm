@@ -10,8 +10,7 @@ use Fcntl qw{O_WRONLY O_CREAT O_EXCL};
 use JSON::MaybeXS;
 use File::Slurper;
 use List::Util qw{uniq};
-use Path::Tiny();
-use parent qw{Trog::DataModule};
+use parent     qw{Trog::DataModule};
 
 =head1 WARNING
 
@@ -25,7 +24,7 @@ sub help { return 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 our $posts;
 
-sub read ( $self, $query = {} ) {
+sub read {
 
     # Seed an empty datastore, as one operation rather than a test followed by
     # a create.  O_EXCL means a file that appeared in between is left alone
@@ -78,7 +77,7 @@ sub delete ( $self, @posts ) {
     return 0;
 }
 
-sub tags ($self) {
+sub tags {
     return ( uniq map { @{ $_->{tags} } } @$posts );
 }
 

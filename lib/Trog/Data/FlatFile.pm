@@ -11,8 +11,6 @@ use File::Path     ();
 use JSON::MaybeXS;
 use File::Slurper;
 use File::Slurper::Temp();
-use File::Copy;
-use Path::Tiny();
 use Capture::Tiny qw{capture_merged};
 
 use Trog::Log qw{:all};
@@ -120,7 +118,7 @@ sub read ( $self, $query = {} ) {
     return \@items;
 }
 
-sub _index ($self) {
+sub _index {
     confess "Can't find datastore in $datastore !" unless -d $datastore;
     opendir( my $dh, $datastore ) or confess;
     my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
@@ -128,11 +126,11 @@ sub _index ($self) {
     return sort { $b cmp $a } @index;
 }
 
-sub routes ($self) {
+sub routes {
     return Trog::SQLite::TagIndex::routes();
 }
 
-sub aliases ($self) {
+sub aliases {
     return Trog::SQLite::TagIndex::aliases();
 }
 
@@ -189,7 +187,7 @@ sub count ($self) {
     return scalar(@index);
 }
 
-sub delete ( $self, @posts ) {
+sub delete ( $, @posts ) {
     foreach my $update (@posts) {
         unlink "$datastore/$update->{id}" or confess;
         Trog::SQLite::TagIndex::remove_post($update);
@@ -198,7 +196,7 @@ sub delete ( $self, @posts ) {
     return 0;
 }
 
-sub tags ($self) {
+sub tags {
     return Trog::SQLite::TagIndex::tags();
 }
 

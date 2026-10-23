@@ -102,12 +102,14 @@ exclude_functions = print
 [RequireQwForLiteralLists]
 #[ProhibitNoWarningsRedefine]
 [RequireFatalWarnings]
-#[ProhibitUnusedImports]
+[ProhibitUnusedImports]
 # Modules imported for a side effect rather than for a symbol, which the policy
 # cannot see.  `re` is here because every file says `use re '/aa'`.  Add your
 # own: IO::Prompter installs prompt() from a custom import rather than @EXPORT,
 # and anything loaded by name from a string is invisible the same way.
-#allow = re
+# tCMS: Exporter, because use Exporter 'import' imports the method that perl
+# calls, which no line of the module names.
+allow = re Exporter
 # Off in a distribution that is only a library: it counts calls from bin/ and
 # lib/, and every sub a library exists to offer is called from neither -- a
 # module with one public sub and no bin/ reports that sub, which is the policy
@@ -262,12 +264,12 @@ terminal_funcs = POSIX::_exit
 #[Variables::ProhibitReusedNames]
 # Stricter than the core ProhibitUnusedVariables, which reports only a bare
 # `my $x;` and misses a variable that is assigned and never read.
-#[Variables::ProhibitUnusedVarsStricter]
+[Variables::ProhibitUnusedVarsStricter]
 # A method takes the arguments of its interface, whether it reads them or not.
-#allow_unused_subroutine_arguments = 1
+allow_unused_subroutine_arguments = 1
 # Anything that returns a guard, which does its work by being held to the end of
 # its scope: a mock, a mocked file, a change of directory, a lock.
-#allow_if_computed_by = Test::MockModule->new Test::MockFile->file
+allow_if_computed_by = Test::MockModule->new Test::MockFile->file
 [Variables::ProtectPrivateVars]
 [Variables::RequireLexicalLoopIterators]
 #[Variables::RequireLocalizedPunctuationVars]

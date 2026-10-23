@@ -83,7 +83,7 @@ sub log_message {
     # Rip apart the message.  If it's got any extended info, lets grab that too.
     my $msg = $params{message};
     my $message;
-    my ( $date, $uuid, $ip, $user, $method, $code, $bytes, $route ) = $msg =~ m!^([\w|\-|:]+)[ ]\[INFO\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\w+)[ ](\d+)[ ](\d+)[ ](\N+)!;
+    my ( $date, $uuid, $ip, $user, $method, $code, undef, $route ) = $msg =~ m!^([\w|\-|:]+)[ ]\[INFO\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\w+)[ ](\d+)[ ](\d+)[ ](\N+)!;
 
     # Otherwise, let's mark it down in the "messages" table.  This will be deferred until the final write.
     if ( !$date ) {

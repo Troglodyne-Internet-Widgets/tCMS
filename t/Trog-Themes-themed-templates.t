@@ -5,7 +5,6 @@ use warnings FATAL => 'all';
 use Test::More;
 use Test::MockModule qw{strict};
 use Path::Tiny();
-use FindBin;
 
 use FindBin::libs;
 

@@ -3,8 +3,7 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use Test::MockModule qw{strict};
-use Test::Fatal      qw{exception};
+use Test::Fatal qw{exception};
 use FindBin;
 
 use FindBin::libs;

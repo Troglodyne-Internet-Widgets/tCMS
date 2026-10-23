@@ -4,7 +4,6 @@ use warnings FATAL => 'all';
 
 use Test::More;
 use Test::Fatal qw{exception};
-use FindBin;
 
 use FindBin::libs;
 

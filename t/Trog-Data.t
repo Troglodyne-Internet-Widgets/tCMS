@@ -7,7 +7,6 @@ use Test::MockModule;
 use Config::Simple ();
 use File::Temp     ();
 use Path::Tiny     ();
-use FindBin;
 
 use FindBin::libs;
 

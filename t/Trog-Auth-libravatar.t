@@ -4,7 +4,6 @@ use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
-use FindBin;
 
 use FindBin::libs;
 

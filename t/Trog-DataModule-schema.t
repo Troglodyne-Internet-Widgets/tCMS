@@ -9,7 +9,6 @@ use Test::Fatal qw{exception};
 use JSON::MaybeXS();
 use Path::Tiny();
 use URI::Escape();
-use FindBin;
 use feature qw{signatures};
 no warnings qw{experimental::signatures};
 

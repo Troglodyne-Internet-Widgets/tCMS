@@ -13,7 +13,6 @@ use FindBin::libs;
 
 use Test::More;
 use Test::MockModule qw{strict};
-use Test::Fatal      qw{exception};
 
 our ( $REPO, $ROOT, $OLDCWD );
 
@@ -246,7 +245,7 @@ subtest 'a stored passphrase, and a code instead of one' => sub {
 
     # And now the point of all of it: a code, spent, exchanged for what was
     # stored.  Enrol first -- a code is only meaningful for somebody enrolled.
-    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
+    my ( $uri, undef, undef, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
     ok( $uri, 'the user is enrolled' ) or diag($message);
     my $code = $totp->expected_totp_code( time() );
 
@@ -294,7 +293,7 @@ subtest 'the sudo password on the hypervisor' => sub {
     is( $post->{passphrase_remembered}, 1, 'after which the passphrase is stored' );
     is( $post->{sudo_remembered},       1, 'and so is the sudo password' );
 
-    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
+    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
     require Trog::SQLite;
     Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' )->do("DELETE FROM totp_spent WHERE username='admin'");
 
@@ -350,7 +349,7 @@ subtest 'and when the vault key has gone' => sub {
 
     # Posted at directly, as somebody would from a page drawn a moment before
     # the key went away.
-    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
+    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'admin', 'example.com' );
 
     # The subtest above spent this window's codes.  Standing here for thirty
     # seconds would say the same thing and cost thirty seconds.

@@ -4,10 +4,9 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Cwd            ();
-use Digest::SHA    qw{sha256_hex};
-use File::Basename ();
-use URI::Escape    ();
+use Cwd         ();
+use Digest::SHA qw{sha256_hex};
+use URI::Escape ();
 
 use Trog::DataSource ();
 use Trog::Utils      ();
@@ -322,7 +321,7 @@ whatever happened to be touched least recently.
 
 =cut
 
-sub order ( $query, @posts ) {
+sub order ( $, @posts ) {
     return sort { ( $b->{is_dir} // 0 ) <=> ( $a->{is_dir} // 0 ) || lc( $a->{name} // '' ) cmp lc( $b->{name} // '' ) || ( $a->{name} // '' ) cmp ( $b->{name} // '' ) } @posts;
 }
 

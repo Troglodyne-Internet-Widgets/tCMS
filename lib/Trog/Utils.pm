@@ -5,14 +5,10 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use UUID;
-use HTTP::Tiny::UNIX();
 use Plack::MIME;
 use Mojo::File;
 use File::LibMagic;
 use Ref::Util qw{is_hashref};
-
-use Trog::Log qw{WARN};
-use Trog::Config();
 
 =head1 Trog::Utils
 

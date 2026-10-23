@@ -35,7 +35,7 @@ to be composed into a page by their caller.
 
 =cut
 
-sub render (%args) {
+sub render {
     state %categorized;
 
     if ( !%categorized ) {

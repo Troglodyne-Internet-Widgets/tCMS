@@ -22,7 +22,7 @@ denomination is taken from the first one that has any.
 
 =cut
 
-sub enrich ( $post, $query ) {
+sub enrich ( $post, $ ) {
     return () unless ref $post->{data} eq 'ARRAY';
 
     my $denomination;

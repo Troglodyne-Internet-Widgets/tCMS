@@ -4,7 +4,6 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Trog::SQLite;
 use Trog::Log;
 
 =head1 Trog::Log::Metrics

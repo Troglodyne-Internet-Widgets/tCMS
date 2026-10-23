@@ -4,17 +4,7 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Clone qw{clone};
-use JSON::MaybeXS();
-
-use Scalar::Util();
-
-use Trog::Utils();
 use Trog::Config();
-use Trog::Auth();
-use Trog::Routes::HTML();
-
-use Trog::Log::Metrics();
 
 my $conf = Trog::Config::get();
 
@@ -74,7 +64,7 @@ sub zone ($query) {
 
 sub _render ( $code, $headers, %data ) {
     return Trog::Renderer->render(
-        code        => 200,
+        code        => $code,
         data        => \%data,
         template    => 'zone.tx',
         contenttype => 'text/plain',

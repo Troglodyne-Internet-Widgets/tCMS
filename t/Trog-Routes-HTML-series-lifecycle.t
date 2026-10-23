@@ -406,7 +406,7 @@ subtest 'the sandbox is what we are actually running against' => sub {
 subtest 'registering the first admin bootstraps the install' => sub {
     ok( !-f 'config/has_users', 'no users yet, so login() is in register mode' );
 
-    my ( $code, $body, $err, $headers ) = _render(
+    my ( $code, undef, $err, $headers ) = _render(
         _anon(
             route         => '/login',
             method        => 'POST',
@@ -565,7 +565,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     require Test::MockModule;
     require Trog::DataSource::Virt;
 
-    my ( $code, $body, $err ) = _render(
+    my ( $code, undef, $err ) = _render(
         _admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
@@ -581,7 +581,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     is( $code, 200, 'the datasource-backed type was created' ) or diag($err);
 
     _reindex();
-    my $series = _make_series( qw{spec_guests specguests spec_guests.tx}, 'Spec Guests Series', no_topbar => 1 ) or return;
+    _make_series( qw{spec_guests specguests spec_guests.tx}, 'Spec Guests Series', no_topbar => 1 ) or return;
 
     # Twelve guests, every one stamped with the same created -- which is what
     # libvirt guests really are, and precisely what the cursor paginator cannot
@@ -852,7 +852,7 @@ subtest 'the wizard offers the types that exist, and can reopen one' => sub {
 };
 
 subtest 'a field can be declared indexed' => sub {
-    my ( $code, $body, $err ) = _render(
+    my ( $code, undef, $err ) = _render(
         _admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
@@ -922,7 +922,7 @@ subtest 'a field can be declared indexed' => sub {
 };
 
 subtest 'a field can be declared editors-only' => sub {
-    my ( $code, $body, $err ) = _render(
+    my ( $code, undef, $err ) = _render(
         _admin(
             route               => '/admin/wyzzerdd/save',
             method              => 'POST',

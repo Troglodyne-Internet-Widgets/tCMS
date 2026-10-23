@@ -7,7 +7,6 @@ use warnings FATAL => 'all';
 use POSIX qw{strftime};
 use Module::Runtime();
 use Log::Dispatch;
-use Log::Dispatch::DBI;
 use Log::Dispatch::Screen;
 use Log::Dispatch::FileRotate;
 use File::Basename qw{dirname};

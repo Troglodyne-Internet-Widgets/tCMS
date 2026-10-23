@@ -43,7 +43,7 @@ The idea is that components will be concatenated to other rendered templates unt
 
 =cut
 
-sub render ( $class, %options ) {
+sub render ( $, %options ) {
     local $@;
     my $renderer;
     return _yeet( $renderer, "Renderer requires a valid content type to be passed", %options ) unless $options{contenttype};
