@@ -98,7 +98,10 @@ formats = #!/usr/bin/env perl
 [ErrorHandling::RequireCheckedIndirectResults]
 exclude_functions = print
 [ProhibitUseLib]
-#[ProhibitUsageSubs]
+[ProhibitUsageSubs]
+# tCMS: help() is the interface of a data model and a datasource that links
+# the documentation of its query language, so it is not a usage message.
+sub_names = usage _usage print_usage usage_message
 [RequireQwForLiteralLists]
 [ProhibitNoWarningsRedefine]
 [RequireFatalWarnings]
