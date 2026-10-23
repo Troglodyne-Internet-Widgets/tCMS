@@ -92,9 +92,9 @@ my $browser = $handle->launch( headless => 1, type => $TYPE );
 my $page    = $browser->newPage();
 
 END {
-    eval { $page->close() }    if $page;
-    eval { $browser->close() } if $browser;
-    eval { $handle->quit() }   if $handle;
+    eval { $page->close();    1 } or diag("could not close the page: $@")          if $page;
+    eval { $browser->close(); 1 } or diag("could not close the browser: $@")       if $browser;
+    eval { $handle->quit();   1 } or diag("could not stop the browser driver: $@") if $handle;
 }
 
 sub field_names {

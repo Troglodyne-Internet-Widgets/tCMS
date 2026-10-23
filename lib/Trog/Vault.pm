@@ -214,7 +214,7 @@ Remember one thing for one user, replacing whatever was there under that name.
 sub set ( $user, $name, $secret ) {
     return ( 0, 'this installation has no vault key, so there is nowhere to keep it' ) unless has_key();
     return ( 0, 'a secret needs a name' )                                              unless safe_name($name);
-    return ( 0, 'nothing to store' )                                                   unless ( $secret // q{} ) ne q{};
+    return ( 0, 'nothing to store' ) if ( $secret // q{} ) eq q{};
 
     my $salt = Crypt::PRNG::random_bytes(32);
     my ( $key, $iv ) = derive($salt);

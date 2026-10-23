@@ -138,7 +138,7 @@ or a nested structure is passed over rather than matched against its address.
 =cut
 
 sub searchable_match ( $like, @values ) {
-    return 0 unless ( $like // q{} ) ne q{};
+    return 0 if ( $like // q{} ) eq q{};
 
     foreach my $value (@values) {
         next     if !defined $value || ref $value;
@@ -164,7 +164,7 @@ the same created, so what this really does for that page is sort it by name.
 =cut
 
 sub order ( $, @posts ) {
-    my @sorted = sort { ( $b->{created} // 0 ) <=> ( $a->{created} // 0 ) || ( $a->{title} // '' ) cmp ( $b->{title} // '' ) || ( $a->{id} // '' ) cmp ( $b->{id} // '' ) } @posts;
+    my @sorted = sort { ( $b->{created} // 0 ) <=> ( $a->{created} // 0 ) || ( $a->{title} // '' ) cmp ( $b->{title} // '' ) || ( $a->{id} // '' ) cmp ( $b->{id} // '' ) } @posts;    ## no critic (BuiltinFunctions::ProhibitReverseSortBlock) -- descending by the first key and ascending by the rest, which reverse cannot say
     return @sorted;
 }
 
@@ -228,7 +228,7 @@ sub for_type ( $form = '' ) {
 
     my $meta   = Trog::DataModule::type_meta_for($form);
     my $source = $meta->{'x-tcms-datasource'};
-    return undef unless $source && !ref $source;
+    return undef if !$source || ref $source;
 
     if ( $source !~ m/^Trog::DataSource::\w+$/ ) {
         WARN("Post type '$form' names a datasource '$source' which isn't one");

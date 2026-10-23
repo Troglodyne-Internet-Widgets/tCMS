@@ -4,10 +4,11 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use Cwd        ();
-use File::Copy ();
-use File::Path ();
-use File::Temp ();
+use Test::Fatal qw{exception};
+use Cwd         ();
+use File::Copy  ();
+use File::Path  ();
+use File::Temp  ();
 use FindBin;
 
 use FindBin::libs;
@@ -95,8 +96,9 @@ subtest 'rebuild is one transaction' => sub {
     my $before = index_rows();
 
     my $broken = Broken::Data->new( post() );
-    ok( !eval { Trog::SQLite::TagIndex::rebuild($broken); 1 }, 'a rebuild that fails part way dies' );
-    like( $@, qr/fell[ ]over/, 'with the error that stopped it' );
+    my $err    = exception { Trog::SQLite::TagIndex::rebuild($broken) };
+    ok( $err, 'a rebuild that fails part way dies' );
+    like( $err, qr/fell[ ]over/, 'with the error that stopped it' );
     is_deeply( index_rows(), $before, 'and leaves the index as it was' );
 };
 

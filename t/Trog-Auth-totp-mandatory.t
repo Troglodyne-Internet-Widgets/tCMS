@@ -44,8 +44,8 @@ BEGIN {
 
     # Otherwise login() reads the instance as a fresh install and registers
     # whoever knocks first as the admin, which is a different test.
-    open( $fh, '>', "$ROOT/config/has_users" ) or die $!;
-    close $fh;
+    open( my $flag, '>', "$ROOT/config/has_users" ) or die $!;
+    close $flag;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }

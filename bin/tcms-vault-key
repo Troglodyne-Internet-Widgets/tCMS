@@ -71,18 +71,21 @@ GetOptions(
 ) or exit 2;
 
 if ( $help || !$file ) {
-    print "Usage: bin/tcms-vault-key --file\n\n";
-    print "Writes $Trog::Vault::key_file, for a tCMS nothing is handing a vault key to:\n";
-    print "running tPSGI by hand while developing, or a machine with no systemd.\n";
-    print "On a production host tPSGI's bin/build_service does this properly, and better;\n";
-    print "see perldoc bin/tcms-vault-key.\n";
+    print <<"USAGE";
+Usage: bin/tcms-vault-key --file
+
+Writes $Trog::Vault::key_file, for a tCMS nothing is handing a vault key to:
+running tPSGI by hand while developing, or a machine with no systemd.
+On a production host tPSGI's bin/build_service does this properly, and better;
+see perldoc bin/tcms-vault-key.
+USAGE
     exit( $help ? 0 : 2 );
 }
 
-# Printed and exited rather than died: Carp::Always is in the dependency chain,
-# and refusing to clobber a key is not a crash.
+# Printed and exited rather than died, so that it exits 2: refusing to clobber a
+# key is not a crash.
 if ( -e $Trog::Vault::key_file ) {    # Refusing to overwrite the one thing that cannot be regenerated
-    print STDERR "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";
+    print {*STDERR} "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
     exit 2;
 }
 
@@ -91,6 +94,8 @@ print {$fh} Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) ) . "\n";
 close($fh);
 chmod( oct('600'), $Trog::Vault::key_file ) or die "Could not chmod $Trog::Vault::key_file: $!\n";
 
-print "Wrote $Trog::Vault::key_file.  Restart tCMS to pick it up.\n";
-print "Fine for development.  On a production host, let tPSGI's bin/build_service hand one\n";
-print "over instead, so the key is not sitting next to the database it protects.\n";
+print <<"SAID";
+Wrote $Trog::Vault::key_file.  Restart tCMS to pick it up.
+Fine for development.  On a production host, let tPSGI's bin/build_service hand one
+over instead, so the key is not sitting next to the database it protects.
+SAID

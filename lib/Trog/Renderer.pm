@@ -4,8 +4,6 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Carp::Always;
-
 use Trog::Vars;
 use Trog::Log qw{:all};
 

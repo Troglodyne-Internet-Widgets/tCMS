@@ -39,6 +39,4 @@ die "Must provide a user"                   unless $user;
 die "Must Set domain in configuration file" unless $domain;
 
 my ( $uri, undef, undef, undef, $totp ) = Trog::Auth::totp( $user, $domain );
-print "TOTP URI: $uri\n";
-print "Secret: " . $totp->base32secret() . "\n";
-print "Current Auth code: " . $totp->expected_totp_code(time) . "\n";
+print "TOTP URI: $uri\n" . "Secret: " . $totp->base32secret() . "\n" . "Current Auth code: " . $totp->expected_totp_code(time) . "\n";

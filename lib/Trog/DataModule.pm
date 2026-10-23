@@ -85,13 +85,13 @@ Every tag known to the datastore, for building tag pickers.
 
 =cut
 
-#It is required that subclasses implement this
-sub lang  { ... }
-sub help  { ... }
-sub read  { ... }
-sub write { ... }
-sub count { ... }
-sub tags  { ... }
+# Each subclass implements these.
+sub lang  { die "Trog::DataModule subclasses must implement lang()\n" }
+sub help  { die "Trog::DataModule subclasses must implement help()\n" }
+sub read  { die "Trog::DataModule subclasses must implement read()\n" }
+sub write { die "Trog::DataModule subclasses must implement write()\n" }
+sub count { die "Trog::DataModule subclasses must implement count()\n" }
+sub tags  { die "Trog::DataModule subclasses must implement tags()\n" }
 
 =head1 METHODS
 
@@ -192,7 +192,7 @@ my sub filter_param ( $query, $param, @filtered ) {
 # Visibility and acls are both stored as tags, so a caller sees a post when it
 # holds one of them.  admin sees everything.
 my sub filter_acls ( $query, @filtered ) {
-    return @filtered if grep { $_ eq 'admin' } @{ $query->{acls} };
+    return @filtered if List::Util::any { $_ eq 'admin' } @{ $query->{acls} };
     return grep {
         my $tags = $_->{tags};
         grep {
@@ -250,10 +250,11 @@ sub filter ( $, $query, @filtered ) {
     # Filter posts *matching* the passed exclude_tag(s), if any
     @filtered = grep {
         my $tags = $_->{tags};
-        !grep {
+        List::Util::none {
             my $t = $_;
             grep { $t eq $_ } @{ $query->{exclude_tags} }
-        } @$tags
+        }
+        @$tags
     } @filtered if @{ $query->{exclude_tags} };
 
     @filtered = filter_acls( $query, @filtered );
@@ -315,7 +316,7 @@ sub dedup_versions ( $version = -1, @posts ) {
     my @uniqids = List::Util::uniq( map { $_->{id} } @posts );
     my %posts_deduped;
     for my $id (@uniqids) {
-        my @ofid        = sort { $b->{version} <=> $a->{version} } grep { $_->{id} eq $id } @posts;
+        my @ofid        = reverse sort { $a->{version} <=> $b->{version} } grep { $_->{id} eq $id } @posts;
         my $version_max = List::Util::max( map { $_->{version} } @ofid );
         $posts_deduped{$id} = $ofid[0];
         $posts_deduped{$id}{version_max} = $version_max;
@@ -980,7 +981,7 @@ sub process ($post) {
     $post->{acls} //= [];
     @{ $post->{tags} } = grep {
         my $subj = $_;
-        !grep { $_ eq $subj } qw{public private unlisted}
+        List::Util::none { $_ eq $subj } qw{public private unlisted}
     } @{ $post->{tags} };
     push( @{ $post->{tags} }, grep { defined } @{ $post->{acls} } ) if $is_private_post;
     delete $post->{acls};
@@ -1007,7 +1008,7 @@ sub process ($post) {
     $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
     $post->{is_audio}   = 1 if $post->{content_type} =~ m/^audio\//;
     $post->{is_image}   = 1 if $post->{content_type} =~ m/^image\//;
-    $post->{is_profile} = 1 if grep { $_ eq 'about' } @{ $post->{tags} };
+    $post->{is_profile} = 1 if List::Util::any { $_ eq 'about' } @{ $post->{tags} };
 
     return $post;
 }

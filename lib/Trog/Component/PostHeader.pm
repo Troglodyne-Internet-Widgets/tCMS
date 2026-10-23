@@ -4,6 +4,8 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
+use List::Util();
+
 use Trog::Component ();
 use Trog::Themes;
 
@@ -33,7 +35,7 @@ sub render (%args) {
     my $name = delete $args{name};
     return '' unless $name;
 
-    die "No such header '$name'\n" unless grep { $_ eq $name } @{ available() };
+    die "No such header '$name'\n" unless List::Util::any { $_ eq $name } @{ available() };
 
     $args{theme_dir} //= Trog::Themes::td();
     return Trog::Component::render_template( "headers/$name", \%args );

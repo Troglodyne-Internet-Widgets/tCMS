@@ -42,7 +42,7 @@ sub read {
     $posts = JSON::MaybeXS::decode_json($slurped);
 
     # Sort everything by date DESC
-    @$posts = sort { $b->{created} <=> $a->{created} } @$posts;
+    @$posts = reverse sort { $a->{created} <=> $b->{created} } @$posts;
 
     return $posts;
 }
@@ -62,7 +62,7 @@ sub write ( $self, $data, $overwrite = 0 ) {
         push( @$orig, @$data );
     }
     open( my $fh, '>', $datastore ) or confess;
-    print $fh JSON::MaybeXS::encode_json($orig);
+    print {$fh} JSON::MaybeXS::encode_json($orig);
     close $fh;
     return 1;
 }

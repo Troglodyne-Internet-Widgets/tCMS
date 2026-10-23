@@ -220,7 +220,7 @@ routing table knows nothing about.
 
 sub needs_enrolment ( $user, $dispatcher ) {
     return 0 unless $user;
-    return 0 unless $dispatcher && $dispatcher->{auth} && !$dispatcher->{totp_exempt};
+    return 0 if !$dispatcher || !$dispatcher->{auth} || $dispatcher->{totp_exempt};
     return Trog::Auth::has_totp($user) ? 0 : 1;
 }
 
