@@ -129,7 +129,7 @@ sub main {
     pod2usage( -exitval => 0, -verbose => 1 ) if $options{help};
 
     unless ( $options{user} ) {
-        warn "--user is required.\n";
+        print {*STDERR} "--user is required.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         return 2;
     }
 
@@ -139,7 +139,7 @@ sub main {
         $options{password} = read_password("New password for '$options{user}': ");
 
         unless ( $options{password} ) {
-            warn "No password provided.\n";
+            print {*STDERR} "No password provided.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
             return 2;
         }
 
@@ -148,7 +148,7 @@ sub main {
         # and there is nothing to confirm against.
         my $again = read_password("Confirm: ");
         if ( defined $again && $options{password} ne $again ) {
-            warn "Passwords did not match.\n";
+            print {*STDERR} "Passwords did not match.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
             return 2;
         }
     }
@@ -173,7 +173,7 @@ sub main {
 
     if ($is_new) {
         unless ( $options{password} && $options{display_name} && $options{contact_email} ) {
-            warn "User '$options{user}' does not exist yet.\nCreating one needs --password, --display_name and --contact_email.\n";
+            print {*STDERR} "User '$options{user}' does not exist yet.\nCreating one needs --password, --display_name and --contact_email.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
             return 2;
         }
     }
@@ -196,13 +196,13 @@ sub main {
 
     local $@;
     eval { Trog::Auth::useradd( $options{user}, $merged{display_name}, $options{password}, $options{acl}, $merged{contact_email} ); 1 } or do {
-        warn "Could not add user '$options{user}': $@";
+        print {*STDERR} "Could not add user '$options{user}': $@";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         return 1;
     };
 
     eval { $data->add( \%merged ); 1 } or do {
         my @errors = ref $@ eq 'ARRAY' ? @{$@} : ($@);
-        warn "Saved the credentials for '$options{user}', but their profile post was rejected:\n" . join( "\n", @errors ) . "\n";
+        print {*STDERR} "Saved the credentials for '$options{user}', but their profile post was rejected:\n" . join( "\n", @errors ) . "\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         return 1;
     };
 

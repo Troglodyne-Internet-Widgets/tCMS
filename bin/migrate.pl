@@ -63,9 +63,9 @@ STDERR->autoflush(1);
 
 my $usage = "Usage: bin/migrate.pl [--dry-run] [--batch N] [--quiet]\n";
 
-# Warned and exited rather than died, so that a usage error exits 2.
+# Printed and exited rather than died, so that a usage error exits 2.
 sub usage_error (@complaint) {
-    warn @complaint, $usage;
+    print {*STDERR} @complaint, $usage;    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
     exit 2;
 }
 
@@ -94,7 +94,7 @@ my $to     = Trog::Data::SQLite->new($config);
 my $started = [ Time::HiRes::gettimeofday() ];
 my @posts   = $from->get( raw => 1, limit => 0 );
 if ( !@posts ) {
-    warn "No posts found in data/files -- is this a tCMS root, and is it on the FlatFile model?\n";
+    print {*STDERR} "No posts found in data/files -- is this a tCMS root, and is it on the FlatFile model?\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
     exit 2;
 }
 
@@ -131,7 +131,7 @@ sub flush_batch () {
         # the batch down with it.  Go back over them one at a time: a migration
         # wants everything that can land to land, and a list naming exactly what
         # could not -- not five hundred posts rejected on account of one.
-        warn "A batch of " . scalar(@batch) . " failed ($error); retrying it one post at a time.\n";
+        print {*STDERR} "A batch of " . scalar(@batch) . " failed ($error); retrying it one post at a time.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
 
         foreach my $post (@batch) {
             local $@;
@@ -143,7 +143,7 @@ sub flush_batch () {
                 my $why = $@;
                 $why =~ s/\n.*//s;
                 $failed++;
-                warn "  could not write $post->{id} version " . ( $post->{version} // 0 ) . ": $why\n";
+                print {*STDERR} "  could not write $post->{id} version " . ( $post->{version} // 0 ) . ": $why\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
             };
         }
     };
@@ -154,7 +154,7 @@ sub flush_batch () {
 
 foreach my $post (@posts) {
     if ( !$post->{id} ) {
-        warn "Skipping a post with no id, which is not something this can carry over\n";
+        print {*STDERR} "Skipping a post with no id, which is not something this can carry over\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         $failed++;
         next;
     }
@@ -187,7 +187,7 @@ say_unless_quiet( sprintf( "Carried over %d post version(s), skipped %d already 
 say_unless_quiet( sprintf( "data/files holds %d post version(s); data/posts.sqlite now holds %d.", $expected, $have ) );
 
 if ( $failed || $have < $expected ) {
-    warn sprintf( "%d post version(s) did not make it across.  Fix what the errors above name and re-run; what landed will be skipped.\n", $failed || ( $expected - $have ) );
+    print {*STDERR} sprintf( "%d post version(s) did not make it across.  Fix what the errors above name and re-run; what landed will be skipped.\n", $failed || ( $expected - $have ) );    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
     exit 1;
 }
 

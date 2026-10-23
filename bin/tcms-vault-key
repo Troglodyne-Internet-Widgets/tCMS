@@ -82,10 +82,10 @@ USAGE
     exit( $help ? 0 : 2 );
 }
 
-# Warned and exited rather than died, so that it exits 2: refusing to clobber a
+# Printed and exited rather than died, so that it exits 2: refusing to clobber a
 # key is not a crash.
 if ( -e $Trog::Vault::key_file ) {    # Refusing to overwrite the one thing that cannot be regenerated
-    warn "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";
+    print {*STDERR} "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
     exit 2;
 }
 

@@ -96,7 +96,7 @@ sub main {
     pod2usage( -exitval => 0, -verbose => 1 ) if $options{help};
 
     unless ( $options{user} ) {
-        warn "--user is required.\n";
+        print {*STDERR} "--user is required.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         return 2;
     }
 
@@ -106,7 +106,7 @@ sub main {
     $options{password} = read_password("Password for '$options{user}': ")
       unless $options{password};
     unless ( $options{password} ) {
-        warn "No password provided.\n";
+        print {*STDERR} "No password provided.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         return 2;
     }
 
@@ -114,7 +114,7 @@ sub main {
     # the same '' for an unknown user, a bad password and a bad TOTP code.
     my $session = Trog::Auth::mksession( $options{user}, $options{password}, $options{token}, 'tcmslogin' );
     unless ($session) {
-        warn <<"SAID";
+        print {*STDERR} <<"SAID";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
 Login failed for '$options{user}'.
 Check the password, and pass --token if this user has 2FA enabled.
 Use bin/tcms-useradd --user $options{user} --password ... to reset it.
