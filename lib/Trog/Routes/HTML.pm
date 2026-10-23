@@ -883,7 +883,7 @@ sub _config_sections {
                     map {
                         {
                             value    => $_,
-                            label    => $_ ne q{}    ? $_ : 'default',
+                            label    => $_           ? $_ : 'default',
                             selected => $_ eq $value ? 1  : 0,
                         }
                     } @{ $choices->() }
@@ -1980,7 +1980,7 @@ sub _paginate_offset ( $query, $limit, @posts ) {
     # shows the last page rather than an empty one, which is what a stale
     # bookmark deserves.
     ( my $wanted = $query->{page} // '' ) =~ s/[^0-9]//g;
-    my $page = $wanted ne q{} ? int($wanted) : 1;
+    my $page = $wanted ? int($wanted) : 1;
     $page = 1            if $page < 1;
     $page = $pages_total if $page > $pages_total;
 
@@ -3250,7 +3250,7 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $
         my $property = { %{ $wizard_field_types{ $field->{type} } } };
         $property->{'x-tcms-input'}       = $field->{type};
         $property->{'x-tcms-label'}       = $field->{label};
-        $property->{'x-tcms-placeholder'} = $field->{placeholder} if ( $field->{placeholder} // q{} ) ne q{};
+        $property->{'x-tcms-placeholder'} = $field->{placeholder} if $field->{placeholder};
 
         # Only written when it is true: a field is public unless it says so,
         # and a sidecar full of x-tcms-private:false reads like the opposite.

@@ -102,7 +102,7 @@ rather than by hoping this one covers it.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( ( $query->{like} // q{} ) ne q{} ) {
+    if ( $query->{like} ) {
         my $like = $query->{like};
         @posts = grep { searchable_match( $like, $_->{title}, $_->{data} ) } @posts;
     }
@@ -113,11 +113,11 @@ sub filter ( $query, @posts ) {
     # this arrives straight off a query string.
     if ( $query->{older} ) {
         ( my $older = $query->{older} ) =~ s/[^0-9]//g;
-        @posts = grep { ( $_->{created} // 0 ) < $older } @posts if $older ne q{};
+        @posts = grep { ( $_->{created} // 0 ) < $older } @posts if $older;
     }
     if ( $query->{newer} ) {
         ( my $newer = $query->{newer} ) =~ s/[^0-9]//g;
-        @posts = grep { ( $_->{created} // 0 ) > $newer } @posts if $newer ne q{};
+        @posts = grep { ( $_->{created} // 0 ) > $newer } @posts if $newer;
     }
 
     return @posts;
@@ -138,7 +138,7 @@ or a nested structure is passed over rather than matched against its address.
 =cut
 
 sub searchable_match ( $like, @values ) {
-    return 0 unless ( $like // q{} ) ne q{};
+    return 0 unless $like;
 
     foreach my $value (@values) {
         next     if !defined $value || ref $value;

@@ -116,8 +116,8 @@ sub main {
 
     # Omitted entirely or passed with no value both mean "ask me".
     $options{password} = _read_password("Password for '$options{user}': ")
-      unless ( $options{password} // q{} ) ne q{};
-    unless ( ( $options{password} // q{} ) ne q{} ) {
+      unless $options{password};
+    unless ( $options{password} ) {
         print STDERR "No password provided.\n";
         return 2;
     }

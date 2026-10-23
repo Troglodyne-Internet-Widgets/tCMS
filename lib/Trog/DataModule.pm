@@ -941,8 +941,8 @@ sub _process ($post) {
     #Filter adding the same acl twice, and anything that isn't a tag at all --
     # an undef here is what every query below compares against, and it warns
     # its way through the lot before matching nothing.
-    @{ $post->{tags} }    = List::Util::uniq( grep { ( $_ // q{} ) ne q{} } @{ $post->{tags} } );
-    @{ $post->{aliases} } = List::Util::uniq( grep { ( $_ // q{} ) ne q{} } @{ $post->{aliases} } );
+    @{ $post->{tags} }    = List::Util::uniq( grep { $_ } @{ $post->{tags} } );
+    @{ $post->{aliases} } = List::Util::uniq( grep { $_ } @{ $post->{aliases} } );
 
     # Handle multimedia content types
     $post->{content_type}       = Trog::Utils::mime_type("www/$post->{href}")       if $post->{href};

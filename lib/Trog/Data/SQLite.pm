@@ -242,7 +242,7 @@ sub _where ($query) {
         push( @bind,  $query->{author} );
     }
 
-    if ( ( $query->{like} // q{} ) ne q{} ) {
+    if ( $query->{like} ) {
         my ( $clause, @like_bind ) = _like_clause( $query->{like} );
         push( @where, $clause );
         push( @bind,  @like_bind );

@@ -378,7 +378,7 @@ our $argon2_tag     = 32;
 our $argon2_saltlen = 16;
 
 sub check_password ( $user, $pass ) {
-    return 0 unless ( $pass // q{} ) ne q{};
+    return 0 unless $pass;
 
     my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT hash, salt FROM user WHERE name = ?", { Slice => {} }, $user );

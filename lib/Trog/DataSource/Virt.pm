@@ -210,7 +210,7 @@ Trog::DataSource::filter.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( ( $query->{like} // q{} ) ne q{} ) {
+    if ( $query->{like} ) {
         my $like = $query->{like};
         @posts = grep {
             Trog::DataSource::searchable_match(

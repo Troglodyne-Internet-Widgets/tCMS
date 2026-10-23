@@ -146,7 +146,7 @@ sub posts ( $series, $query ) {
 # and the path relative to the tCMS root, since the first is what we read and
 # the second is what we log and watch.
 sub _resolve ($directory) {
-    return undef unless ( $directory // q{} ) ne q{};
+    return undef unless $directory;
 
     # Before abs_path, which would happily resolve one for us.
     if ( $directory =~ m{(?:^|/)\.\.(?:/|$)} ) {
@@ -189,7 +189,7 @@ sub _resolve ($directory) {
     my $relative = $absolute;
     $relative =~ s{^\Q$base\E/?}{};
 
-    return { absolute => $absolute, relative => $relative ne q{} ? "$root/$relative" : $root };
+    return { absolute => $absolute, relative => $relative ? "$root/$relative" : $root };
 }
 
 # Path containment, done on the resolved paths rather than on the strings the
@@ -303,7 +303,7 @@ under it.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( ( $query->{like} // q{} ) ne q{} ) {
+    if ( $query->{like} ) {
         my $like = $query->{like};
         @posts = grep { Trog::DataSource::searchable_match( $like, $_->{name}, $_->{path}, $_->{extension} ) } @posts;
     }
