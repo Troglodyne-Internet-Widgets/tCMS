@@ -80,13 +80,11 @@ Returns 1.
 =cut
 
 sub log_init {
-    my ( $LOGNAME, $LEVEL, $loggers ) = @_;
+    my ( $LOGNAME, $level, $loggers ) = @_;
 
-    die "Cannot initialize logs without log name and log level" unless $LOGNAME && $LEVEL;
+    die "Cannot initialize logs without log name and log level" unless $LOGNAME && $level;
 
-    $LOGNAME //= 'logs/tcms.log';
-    $LEVEL   //= 'info';
-
+    $LEVEL  = $level;
     $LOGDIR = dirname($LOGNAME);
 
     # By default only log requests & warnings.
@@ -96,7 +94,7 @@ sub log_init {
         filename  => $LOGNAME,
         min_level => $LEVEL,
         'mode'    => 'append',
-        size      => 10 * 1024 * 1024,
+        size      => 10_485_760,    # 10 MiB
         max       => 6,
     );
 
