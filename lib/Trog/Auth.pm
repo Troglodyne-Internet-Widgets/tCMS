@@ -193,8 +193,8 @@ sub totp ( $user, $domain ) {
     # it is given -- so one containing a slash or .. would otherwise write
     # outside totp/ entirely.  Same whitelist Trog::DataSource::Virt uses for
     # guest names.
-    my ($safe_user)   = ( $user   // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
-    my ($safe_domain) = ( $domain // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    my ($safe_user)   = ( $user   // '' ) =~ m/^([\w.-]+)$/;
+    my ($safe_domain) = ( $domain // '' ) =~ m/^([\w.-]+)$/;
     return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe username '" . ( $user // '' ) . "'." ) unless $safe_user;
     return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe domain '" . ( $domain // '' ) . "'." ) unless $safe_domain;
 
@@ -271,8 +271,8 @@ nowhere else until they have.
 
 There is no way to turn it back off.  Losing an authenticator is not a reason to
 stop having a second factor, and the answer to it is bin/totp, which re-reads a
-user their enrolment out of band -- the secret is still in the database, so it
-is the same enrolment rather than a new one.
+user their enrollment out of band -- the secret is still in the database, so it
+is the same enrollment rather than a new one.
 
 =cut
 
@@ -310,7 +310,7 @@ our $totp_period    = 30;
 our $totp_digits    = 6;
 
 sub spend_totp ( $user, $code ) {
-    return ( 0, 'no code given' ) unless defined $code && $code =~ m/^[0-9]{$totp_digits}$/;
+    return ( 0, 'no code given' ) unless defined $code && $code =~ m/^\d{$totp_digits}$/;
 
     my $dbh    = dbh();
     my $rows   = $dbh->selectall_arrayref( "SELECT totp_secret FROM user WHERE name=?", { Slice => {} }, $user );

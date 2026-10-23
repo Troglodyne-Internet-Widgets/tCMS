@@ -112,11 +112,11 @@ sub filter ( $query, @posts ) {
     # Coerced to a number the same way Trog::DataModule::filter() does it, since
     # this arrives straight off a query string.
     if ( $query->{older} ) {
-        ( my $older = $query->{older} ) =~ s/[^0-9]//g;
+        ( my $older = $query->{older} ) =~ s/\D//g;
         @posts = grep { ( $_->{created} // 0 ) < $older } @posts if $older;
     }
     if ( $query->{newer} ) {
-        ( my $newer = $query->{newer} ) =~ s/[^0-9]//g;
+        ( my $newer = $query->{newer} ) =~ s/\D//g;
         @posts = grep { ( $_->{created} // 0 ) > $newer } @posts if $newer;
     }
 

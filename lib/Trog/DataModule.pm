@@ -72,7 +72,7 @@ Documentation for that query language, shown to the user alongside it.
 
 Every post the data model holds, as an arrayref of hashrefs.  Filtering is
 get()'s job unless your storage engine can do it more cheaply itself, in which
-case honour $query here and override get() too.
+case honor $query here and override get() too.
 
 =head2 write($posts)
 
@@ -230,11 +230,11 @@ sub filter ( $, $query, @filtered ) {
     #Filter out posts which are too old
     #Coerce older into numeric
     if ( $query->{older} ) {
-        $query->{older} =~ s/[^0-9]//g;
+        $query->{older} =~ s/\D//g;
         @filtered = grep { $_->{created} < $query->{older} } @filtered;
     }
     if ( $query->{newer} ) {
-        $query->{newer} =~ s/[^0-9]//g;
+        $query->{newer} =~ s/\D//g;
         @filtered = grep { $_->{created} > $query->{newer} } @filtered;
     }
 
@@ -454,7 +454,7 @@ my sub sidecar_generation {
 # explicitly undef form.
 my sub type_of ($form) {
     $form = '' if !defined $form || ref $form;
-    my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;    ## no critic (RegularExpressions::ProhibitRegexToStripAffix) -- the class is the check: anything else is no type
+    my ($type) = $form =~ m/^([\w-]+)\.tx$/;    ## no critic (RegularExpressions::ProhibitRegexToStripAffix) -- the class is the check: anything else is no type
     return $type // '';
 }
 
@@ -595,7 +595,7 @@ my sub includes_of ($type) {
     # including the ones the wizard generates.  Deduped, since a template is
     # free to splice the same block in twice.
     my %seen;
-    return [ grep { !$seen{$_}++ } $template =~ m/^\s*:\s*include\s+"([A-Za-z0-9_-]+\.tx)"/gm ];
+    return [ grep { !$seen{$_}++ } $template =~ m/^\s*:\s*include\s+"([\w-]+\.tx)"/gm ];
 }
 
 =head2 includes_for($form)
@@ -819,7 +819,7 @@ spot, but it was never asked.
 
 Checks rather than filters, unlike validate().  process() adds fields the base
 schema has never heard of -- content_type, is_video, attachments -- and dropping
-what it does not recognise would throw away the work it just did.  So this looks
+what it does not recognize would throw away the work it just did.  So this looks
 only at the fields the schema actually describes, on a copy, and changes nothing.
 
 Returns the list of validation errors, empty when the post is fit to store.
@@ -1029,7 +1029,7 @@ sub delete { die 'stub' }
 =head2 routes() = HASH
 
 Returns the routes to each post.
-You should override this for performance reasons, as it's just a wrapper around get() by defualt.
+You should override this for performance reasons, as it's just a wrapper around get() by default.
 
 =cut
 
@@ -1041,7 +1041,7 @@ sub routes ($self) {
 =head2 aliases() = HASH
 
 Returns the aliases for each post, indexed by aliases.
-You should override this for performance reasons, as it's just a wrapper around get() by defualt.
+You should override this for performance reasons, as it's just a wrapper around get() by default.
 
 =cut
 

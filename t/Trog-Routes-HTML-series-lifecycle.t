@@ -422,7 +422,7 @@ subtest 'registering the first admin bootstraps the install' => sub {
     is( $code, 200, 'login() rendered' ) or diag($err);
 
     my %h = @{ $headers || [] };
-    like( $h{'Set-Cookie'} // '', qr/^tcmslogin=[0-9a-f-]{36};/, 'a session cookie came back' );
+    like( $h{'Set-Cookie'} // '', qr/^tcmslogin=[\da-f-]{36};/, 'a session cookie came back' );
 
     ok( -f 'config/has_users', 'registration is now closed' );
     is_deeply( Trog::Auth::acls4user($ADMIN_USER), ['admin'], 'the new user is an admin' );

@@ -206,13 +206,13 @@ sub build_routes {
 
 Whether this request should be turned around and sent to /totp.
 
-Two factors or nothing.  A login is what gets you to the enrolment page -- the QR
+Two factors or nothing.  A login is what gets you to the enrollment page -- the QR
 is the shared secret, so it cannot be handed to whoever asks for it -- which
 leaves a window where somebody is logged in and has no second factor yet.  This
 is what makes that window one page wide: every route a login can reach, and no
 route a logged out visitor can, is refused until they have enrolled.
 
-The enrolment page and the QR on it say so themselves, with totp_exempt, because
+The enrollment page and the QR on it say so themselves, with totp_exempt, because
 the exemption belongs next to the route rather than in a list over here that the
 routing table knows nothing about.
 

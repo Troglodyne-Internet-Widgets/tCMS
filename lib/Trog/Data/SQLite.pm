@@ -174,12 +174,12 @@ my sub where ($query) {
     # version's, so older/newer have always meant the post's birthday rather
     # than the date of its most recent edit.
     if ( $query->{older} ) {
-        ( my $older = $query->{older} ) =~ s/[^0-9]//g;
+        ( my $older = $query->{older} ) =~ s/\D//g;
         push( @where, 'v.first_created < ?' );
         push( @bind,  $older );
     }
     if ( $query->{newer} ) {
-        ( my $newer = $query->{newer} ) =~ s/[^0-9]//g;
+        ( my $newer = $query->{newer} ) =~ s/\D//g;
         push( @where, 'v.first_created > ?' );
         push( @bind,  $newer );
     }
@@ -428,7 +428,7 @@ sub index_fields ( $, @fields ) {
 
     my %want;
     foreach my $field (@fields) {
-        my ($safe) = ( $field // '' ) =~ m/^([a-z][a-z0-9_]{0,31})$/;
+        my ($safe) = ( $field // '' ) =~ m/^([[:lower:]][[:lower:]\d_]{0,31})$/;
         if ( !defined $safe ) {
             WARN( "Refusing to index '" . ( $field // '' ) . "': not a field name" );
             next;

@@ -348,7 +348,7 @@ Ask tPSGI to tell us when the directory changes, and throw the static renders
 away when it does.
 
 These pages are cached exactly like any other: the render goes through
-Trog::Renderer, which hands anonymous, unparameterised, successful renders to
+Trog::Renderer, which hands anonymous, unparameterized, successful renders to
 tPSGI to save.  That is the whole point -- a directory listing is cheap to build
 but there is no reason to build it per request -- but a cached listing of a
 directory that has since changed is simply wrong, and nothing else would ever

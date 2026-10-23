@@ -32,7 +32,7 @@ function call, hands them to its warn handler, and carries on with an empty
 string where the call was -- so a broken component would otherwise vanish from
 the page with nothing but a line on stderr to say so.  The failure is therefore
 also recorded in $Trog::Component::error, which Trog::Renderer::Base::render()
-localises and checks, turning it into the 500 it deserves.
+localizes and checks, turning it into the 500 it deserves.
 
 =head1 FUNCTIONS
 
@@ -54,7 +54,7 @@ my sub load ($name) {
     state %loaded;
 
     die "Component name must be given\n"   unless $name;
-    die "Invalid component name '$name'\n" unless $name =~ m/^[A-Za-z][A-Za-z0-9_]*$/;
+    die "Invalid component name '$name'\n" unless $name =~ m/^[[:alpha:]]\w*$/;
 
     my $module = "Trog::Component::$name";
     return $module if $loaded{$module};
