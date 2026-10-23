@@ -51,7 +51,7 @@ CFG
 require_ok('Trog::Routes::HTML') or BAIL_OUT("Can't find SUT");
 
 my %field;
-my $sections = Trog::Routes::HTML::_config_sections();
+my $sections = Trog::Routes::HTML::config_sections();
 foreach my $section (@$sections) {
     $field{ $_->{name} } = $_ foreach @{ $section->{fields} };
 }
@@ -97,7 +97,7 @@ subtest 'saving only writes what the defaults describe' => sub {
     require Config::Simple;
     my $conf = Config::Simple->new( syntax => 'ini' );
 
-    Trog::Routes::HTML::_config_apply(
+    Trog::Routes::HTML::config_apply(
         $conf,
         {
             'general.title' => 'Renamed',

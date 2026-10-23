@@ -70,14 +70,14 @@ Display this output.
 
 # The logger is set up per-request by the server; a CLI run has to do it itself,
 # or the first thing Trog::Auth logs blows up on an undefined $log.
-sub _init_logs {
+my sub init_logs {
     my ($who) = @_;
     Trog::Log::log_init( 'logs/tcms.log', 'info' );
     $Trog::Log::user = $who // 'nobody';
     return;
 }
 
-sub _read_password {
+my sub read_password {
     my ($prompt) = @_;
     my $password;
     if ( -t STDIN ) {
@@ -112,10 +112,10 @@ sub main {
         return 2;
     }
 
-    _init_logs( $options{user} );
+    init_logs( $options{user} );
 
     # Omitted entirely or passed with no value both mean "ask me".
-    $options{password} = _read_password("Password for '$options{user}': ")
+    $options{password} = read_password("Password for '$options{user}': ")
       unless $options{password};
     unless ( $options{password} ) {
         print STDERR "No password provided.\n";

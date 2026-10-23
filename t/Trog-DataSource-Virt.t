@@ -125,7 +125,7 @@ subtest 'a guest is this server when it is named like it' => sub {
     foreach my $case (@same) {
         my ( $guest, $host, $why ) = @$case;
         local $Trog::DataSource::Virt::hostname = $host;
-        ok( Trog::DataSource::Virt::_is_self($guest), "$why is this server" );
+        ok( Trog::DataSource::Virt::is_self($guest), "$why is this server" );
     }
 
     my @different = (
@@ -138,7 +138,7 @@ subtest 'a guest is this server when it is named like it' => sub {
     foreach my $case (@different) {
         my ( $guest, $host, $why ) = @$case;
         local $Trog::DataSource::Virt::hostname = $host;
-        ok( !Trog::DataSource::Virt::_is_self($guest), "$why is not" );
+        ok( !Trog::DataSource::Virt::is_self($guest), "$why is not" );
     }
 };
 
@@ -277,23 +277,23 @@ subtest 'the datasource hook only loads what it should' => sub {
     # A type that declares nothing keeps its own posts -- this hook must be
     # invisible to the overwhelming majority of pages.
     $declared = undef;
-    is_deeply( [ Trog::Routes::HTML::_datasource_posts( $query, \@stored ) ], \@stored, 'no datasource declared, posts untouched' );
+    is_deeply( [ Trog::Routes::HTML::datasource_posts( $query, \@stored ) ], \@stored, 'no datasource declared, posts untouched' );
 
     # The namespace restriction is the point: a sidecar is a file on disk, and
     # it must not be able to make us require an arbitrary module.
     foreach my $bad (qw{Trog::Routes::HTML File::Path ../../etc/passwd Trog::DataSource::Virt::act}) {
         $declared = $bad;
-        is_deeply( [ Trog::Routes::HTML::_datasource_posts( $query, \@stored ) ], \@stored, "'$bad' is refused as a datasource" );
+        is_deeply( [ Trog::Routes::HTML::datasource_posts( $query, \@stored ) ], \@stored, "'$bad' is refused as a datasource" );
     }
 
     # One that does not exist is a warning, not a dead page.
     $declared = 'Trog::DataSource::Nonexistent';
-    is_deeply( [ Trog::Routes::HTML::_datasource_posts( $query, \@stored ) ], \@stored, 'a datasource that will not load falls back' );
+    is_deeply( [ Trog::Routes::HTML::datasource_posts( $query, \@stored ) ], \@stored, 'a datasource that will not load falls back' );
 
     # And a real one is actually used.
     $declared = 'Trog::DataSource::Virt';
     $query->{primary_post}{hypervisors} = [ { id => 'hv-1', title => 'spec-hv', conn_uri => 'test:///default' } ];
-    my @got = Trog::Routes::HTML::_datasource_posts( $query, \@stored );
+    my @got = Trog::Routes::HTML::datasource_posts( $query, \@stored );
     is( scalar @got,    2,       'a declared datasource replaces the stored posts' );
     is( $got[0]{title}, 'alpha', 'with what it built' );
 };
@@ -357,7 +357,7 @@ subtest 'guests show nothing an unprivileged viewer cannot use' => sub {
         # thing that actually protects the capture -- the template only decides
         # whether to draw an img for a value it was given.
         my %shown = %post;
-        Trog::Routes::HTML::_redact_private( \%shown ) unless $admin;
+        Trog::Routes::HTML::redact_private( \%shown ) unless $admin;
 
         my $out = $tx->render( 'forms/guests.tx', { post => \%shown, style => '', route => '/vm', %{ $views{$view} } } );
 
@@ -434,15 +434,15 @@ subtest 'the server itself is drawn without the controls that would kill it' => 
 subtest 'a datasource says whether its posts can be edited' => sub {
     require Trog::Routes::HTML;
 
-    my $sources = Trog::Routes::HTML::_get_datasources();
+    my $sources = Trog::Routes::HTML::get_datasources();
     ok( ( grep { $_ eq 'Trog::DataSource::Virt' } @$sources ), 'the wizard can find this datasource' );
     ok( !( grep { !m/^Trog::DataSource::\w+$/ } @$sources ),   'and finds nothing that is not one' );
 
-    is( Trog::DataSource::Virt->EDITABLE,                                   0, 'a guest cannot be edited' );
-    is( Trog::Routes::HTML::_datasource_editable('Trog::DataSource::Virt'), 0, 'so no editor is appropriate' );
+    is( Trog::DataSource::Virt->EDITABLE,                                  0, 'a guest cannot be edited' );
+    is( Trog::Routes::HTML::datasource_editable('Trog::DataSource::Virt'), 0, 'so no editor is appropriate' );
 
     # The datastore is the default, and posts in it are written by people.
-    is( Trog::Routes::HTML::_datasource_editable(''), 1, 'the datastore is editable' );
+    is( Trog::Routes::HTML::datasource_editable(''), 1, 'the datastore is editable' );
 
     # A datasource that says nothing is assumed editable, since that is what a
     # post type is unless it has a reason not to be.
@@ -451,7 +451,7 @@ subtest 'a datasource says whether its posts can be edited' => sub {
         $INC{'Trog/DataSource/SpecMute.pm'} = 1;
         @Trog::DataSource::SpecMute::ISA = ();
     }
-    is( Trog::Routes::HTML::_datasource_editable('Trog::DataSource::SpecMute'), 1, 'one that declares nothing is assumed editable' );
+    is( Trog::Routes::HTML::datasource_editable('Trog::DataSource::SpecMute'), 1, 'one that declares nothing is assumed editable' );
 };
 
 subtest 'the guests type is built by the wizard, from a datasource' => sub {
@@ -499,7 +499,7 @@ subtest 'private fields are dropped before a non-editor sees them' => sub {
         other   => { form => 'ordinary.tx', hidden => 'not declared private here' },
     };
 
-    Trog::Routes::HTML::_redact_private($post);
+    Trog::Routes::HTML::redact_private($post);
 
     ok( !exists $post->{hidden}, 'the private field is gone' );
     is( $post->{shown}, 'not a secret', 'and the public ones are not' );
@@ -520,7 +520,7 @@ subtest 'a post that refers to itself does not hang the redactor' => sub {
     $post->{itself} = $post;
 
     # A relation can point back at whatever pulled it in.
-    is( exception { Trog::Routes::HTML::_redact_private($post) }, undef, 'it terminates' );
+    is( exception { Trog::Routes::HTML::redact_private($post) }, undef, 'it terminates' );
     ok( !exists $post->{hidden}, 'having done the job' );
 };
 

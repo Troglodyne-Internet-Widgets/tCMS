@@ -76,7 +76,7 @@ foreach my $r ( keys(%$cloned) ) {
 }
 
 # Note to authors, don't forget to update this
-sub _version () {
+my sub _version () {
     return '1.0';
 }
 
@@ -84,6 +84,19 @@ sub _version () {
 sub version {
     state $ret = [ 200, [ 'Content-type' => "application/json", ETag => 'version-' . _version() ], [ _version() ] ];
     return $ret;
+}
+
+my sub _render ( $code, $headers, %data ) {
+    return Trog::Renderer->render(
+        code        => $code,
+        data        => \%data,
+        template    => 'bogus.tx',
+        contenttype => 'application/json',
+        headers     => $headers,
+
+        # TODO it may be appropriate to cache some of these methods.
+        nocache => 1,
+    );
 }
 
 sub catalog {
@@ -133,7 +146,7 @@ nobody's business here.
 =cut
 
 sub posts_of_form ($query) {
-    my @posts = Trog::Routes::HTML::_post_helper( { form => $query->{form}, limit => 0 }, [], [ Trog::Routes::HTML::_viewer_acls($query) ] );
+    my @posts = Trog::Routes::HTML::post_helper( { form => $query->{form}, limit => 0 }, [], [ Trog::Routes::HTML::viewer_acls($query) ] );
 
     return _render(
         200, undef,
@@ -146,19 +159,6 @@ sub requests_per ($query) {
     return _render(
         200, undef,
         %{ Trog::Log::Metrics::requests_per( $query->{period}, $query->{num_periods}, $query->{before}, @$code ) }
-    );
-}
-
-sub _render ( $code, $headers, %data ) {
-    return Trog::Renderer->render(
-        code        => $code,
-        data        => \%data,
-        template    => 'bogus.tx',
-        contenttype => 'application/json',
-        headers     => $headers,
-
-        # TODO it may be appropriate to cache some of these methods.
-        nocache => 1,
     );
 }
 

@@ -147,17 +147,17 @@ subtest 'the route marks an uncacheable page nocache' => sub {
     # An ordinary page is left alone.
     $source = undef;
     my $ordinary = $query->();
-    Trog::Routes::HTML::_datasource_posts( $ordinary, [ guest('stored') ] );
+    Trog::Routes::HTML::datasource_posts( $ordinary, [ guest('stored') ] );
     ok( !$ordinary->{nocache}, 'an ordinary page is not marked' );
 
     $source = 'Trog::DataSource::TestPlain';
     my $uncacheable = $query->();
-    Trog::Routes::HTML::_datasource_posts( $uncacheable, [] );
+    Trog::Routes::HTML::datasource_posts( $uncacheable, [] );
     is( $uncacheable->{nocache}, 1, 'a source which has not said is marked nocache' );
 
     $source = 'Trog::DataSource::TestCached';
     my $cacheable = $query->();
-    Trog::Routes::HTML::_datasource_posts( $cacheable, [] );
+    Trog::Routes::HTML::datasource_posts( $cacheable, [] );
     ok( !$cacheable->{nocache}, 'and one which has said so is not' );
 };
 
@@ -269,19 +269,19 @@ subtest 'the route applies the search to synthesized posts' => sub {
     # No datasource at all: the stored posts are handed straight back.
     $source = undef;
     my @stored = ( guest('stored') );
-    is_deeply( titles( Trog::Routes::HTML::_datasource_posts( $query->(), \@stored ) ), ['stored'], 'an ordinary type is left alone' );
+    is_deeply( titles( Trog::Routes::HTML::datasource_posts( $query->(), \@stored ) ), ['stored'], 'an ordinary type is left alone' );
 
     $source = 'Trog::DataSource::TestPlain';
-    is_deeply( titles( Trog::Routes::HTML::_datasource_posts( $query->(), \@stored ) ), [ sort qw{alpha beta} ], 'a datasource replaces them' );
+    is_deeply( titles( Trog::Routes::HTML::datasource_posts( $query->(), \@stored ) ), [ sort qw{alpha beta} ], 'a datasource replaces them' );
 
     # The point of the exercise.
     is_deeply(
-        titles( Trog::Routes::HTML::_datasource_posts( $query->( like => 'alph' ), \@stored ) ),
+        titles( Trog::Routes::HTML::datasource_posts( $query->( like => 'alph' ), \@stored ) ),
         ['alpha'],
         'and the search reaches them, rather than being dropped'
     );
     is_deeply(
-        titles( Trog::Routes::HTML::_datasource_posts( $query->( like => 'nonesuch' ), \@stored ) ),
+        titles( Trog::Routes::HTML::datasource_posts( $query->( like => 'nonesuch' ), \@stored ) ),
         [],
         'including when it matches nothing'
     );
@@ -290,7 +290,7 @@ subtest 'the route applies the search to synthesized posts' => sub {
     $source                                = 'Trog::DataSource::TestPicky';
     @Trog::DataSource::TestPicky::FILTERED = ();
     is_deeply(
-        titles( Trog::Routes::HTML::_datasource_posts( $query->( like => 'alph' ), \@stored ) ),
+        titles( Trog::Routes::HTML::datasource_posts( $query->( like => 'alph' ), \@stored ) ),
         ['beta'],
         "a source's own filter wins over the default"
     );
@@ -302,7 +302,7 @@ subtest 'the route applies the search to synthesized posts' => sub {
     {
         my $log = Test::MockModule->new('Trog::Routes::HTML');
         $log->redefine( WARN => sub { note(shift) } );
-        @survived = Trog::Routes::HTML::_datasource_posts( $query->( like => 'x' ), \@stored );
+        @survived = Trog::Routes::HTML::datasource_posts( $query->( like => 'x' ), \@stored );
     }
     is_deeply( titles(@survived), ['alpha'], 'a filter that dies falls back to the unfiltered posts' );
 
@@ -312,7 +312,7 @@ subtest 'the route applies the search to synthesized posts' => sub {
     {
         my $log = Test::MockModule->new('Trog::DataSource');
         $log->redefine( WARN => sub { note(shift) } );
-        @refused = Trog::Routes::HTML::_datasource_posts( $query->(), \@stored );
+        @refused = Trog::Routes::HTML::datasource_posts( $query->(), \@stored );
     }
     is_deeply( titles(@refused), ['stored'], 'a datasource outside the namespace is refused' );
 };
@@ -338,12 +338,12 @@ subtest 'the search box says what it is searching' => sub {
 
     $source = undef;
     is_deeply(
-        [ Trog::Routes::HTML::_search_language( { primary_post => { child_form => 'blog.tx' } } ) ],
+        [ Trog::Routes::HTML::search_language( { primary_post => { child_form => 'blog.tx' } } ) ],
         [ 'Model language', 'https://example.com/model' ],
         'an ordinary page advertises the data model'
     );
     is_deeply(
-        [ Trog::Routes::HTML::_search_language( {} ) ],
+        [ Trog::Routes::HTML::search_language( {} ) ],
         [ 'Model language', 'https://example.com/model' ],
         'and so does a page with no series at all'
     );
@@ -352,14 +352,14 @@ subtest 'the search box says what it is searching' => sub {
     # query language is the wrong thing to advertise on it.
     $source = 'Trog::DataSource::TestPlain';
     is_deeply(
-        [ Trog::Routes::HTML::_search_language( { primary_post => { child_form => 'fake.tx' } } ) ],
+        [ Trog::Routes::HTML::search_language( { primary_post => { child_form => 'fake.tx' } } ) ],
         [ Trog::DataSource::lang(), Trog::DataSource::help() ],
         'a datasource page advertises the datasource default'
     );
 
     $source = 'Trog::DataSource::TestPicky';
     is_deeply(
-        [ Trog::Routes::HTML::_search_language( { primary_post => { child_form => 'fake.tx' } } ) ],
+        [ Trog::Routes::HTML::search_language( { primary_post => { child_form => 'fake.tx' } } ) ],
         [ 'Picky search', 'https://example.com/picky' ],
         'or its own, when it has one'
     );
@@ -398,48 +398,48 @@ subtest 'offset pagination' => sub {
 
     my @ten = map { guest( sprintf( 'g%02d', $_ ), created => 100 + $_ ) } 1 .. 10;
 
-    my ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 4, @ten );
+    my ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 1 }, 4, @ten );
     is( $page,            1,     'page one is page one' );
     is( $total,           3,     'ten posts at four a page is three pages' );
     is( scalar(@slice),   4,     'and a full page' );
     is( $slice[0]{title}, 'g01', 'starting at the beginning' );
 
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 2 }, 4, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 2 }, 4, @ten );
     is( $slice[0]{title}, 'g05', 'page two carries on where page one stopped' );
     is( scalar(@slice),   4,     'and is also full' );
 
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 3 }, 4, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 3 }, 4, @ten );
     is( scalar(@slice),   2,     'the last page holds the remainder' );
     is( $slice[0]{title}, 'g09', 'from where page two stopped' );
 
     # Every post appears exactly once across the pages, which is the whole point.
     my @walked;
-    push( @walked, ( Trog::Routes::HTML::_paginate_offset( { page => $_ }, 4, @ten ) )[ 2 .. 5 ] ) for 1 .. 3;
+    push( @walked, ( Trog::Routes::HTML::paginate_offset( { page => $_ }, 4, @ten ) )[ 2 .. 5 ] ) for 1 .. 3;
     @walked = grep { defined } @walked;
     is_deeply( [ sort map { $_->{title} } @walked ], [ sort map { $_->{title} } @ten ], 'walking the pages visits everything, once' );
 
     # Straight off a query string.
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 99 }, 4, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 99 }, 4, @ten );
     is( $page, 3, 'a page past the end shows the last one' );
     ok( scalar(@slice), 'rather than nothing at all' );
 
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 0 }, 4, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 0 }, 4, @ten );
     is( $page, 1, 'and page zero is page one' );
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 'nonsense' }, 4, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 'nonsense' }, 4, @ten );
     is( $page, 1, 'as is a page that is not a number' );
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( {}, 4, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( {}, 4, @ten );
     is( $page, 1, 'and no page at all' );
 
     # A limit that would divide by zero.
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 0, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 1 }, 0, @ten );
     is( $total,         1,  'a limit of zero falls back to the default rather than dividing by it' );
     is( scalar(@slice), 10, 'and shows everything' );
 
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 4 );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 1 }, 4 );
     is( $total,         1, 'no posts is one empty page' );
     is( scalar(@slice), 0, 'holding nothing' );
 
-    ( $page, $total, @slice ) = Trog::Routes::HTML::_paginate_offset( { page => 1 }, 25, @ten );
+    ( $page, $total, @slice ) = Trog::Routes::HTML::paginate_offset( { page => 1 }, 25, @ten );
     is( $total,         1,  'fewer posts than a page is one page' );
     is( scalar(@slice), 10, 'holding all of them' );
 };

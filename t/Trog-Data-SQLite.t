@@ -47,7 +47,7 @@ require_ok('Trog::Data::FlatFile') or BAIL_OUT("Can't find the model to compare 
 require Trog::Config;
 require Trog::SQLite::TagIndex;
 
-# _fixup() decorates every post with the author's display name and avatar class,
+# fixup() decorates every post with the author's display name and avatar class,
 # which would otherwise drag the auth database in.  Not what is under test.
 my $auth = Test::MockModule->new('Trog::Auth');
 $auth->redefine( username2display   => sub { return "Display $_[0]" } );
@@ -78,7 +78,7 @@ sub post {
         callback   => 'Trog::Routes::HTML::posts',
         %o,
 
-        # _process() pushes visibility into tags, so the corpus does too.
+        # process() pushes visibility into tags, so the corpus does too.
         tags => [ @{ $o{tags} // ['blog'] }, $o{visibility} // 'public' ],
     };
 }
@@ -92,7 +92,7 @@ my @corpus = (
     post( id => 'p-series',   title => 'A Series',            data => 'holds other posts',                      form       => 'series.tx', aclname => 'aseries', tags => [qw{series topbar}] ),
     post( id => 'p-slides',   title => 'A Deck',              data => [ 'slide one about foxes', 'slide two' ], form       => 'presentation.tx' ),
 
-    # What _process() leaves behind for a private post with an acl: the acl is
+    # What process() leaves behind for a private post with an acl: the acl is
     # folded into tags and the acls field is deleted outright.
     post( id => 'p-acl', title => 'Members Only', data => 'for the club', visibility => 'private', tags => [qw{blog aseries}] ),
 );
@@ -228,7 +228,7 @@ subtest 'a direct lookup still answers only to the acls' => sub {
 
 subtest 'a caller who can see nothing is not queried for' => sub {
     my $mock = Test::MockModule->new('Trog::Data::SQLite');
-    $mock->redefine( _dbh => sub { die "queried the database\n" } );
+    $mock->redefine( dbh => sub { die "queried the database\n" } );
 
     is( exception { is_deeply( $sqlite->read( { limit => 0, acls => [] } ), [], 'no acls get nothing' ) }, undef, 'without asking the database' );
     is( exception { is_deeply( $sqlite->read( { limit => 0, acls => [], id => 'p-public' } ), [], 'nor by id' ) }, undef, 'nor for a direct lookup' );
@@ -398,7 +398,7 @@ subtest 'tags a post might really have' => sub {
         is( exception { $sqlite->write( [$post] ) }, undef, "a post with $id tags is storable" );
     }
 
-    # The one that actually bit: Trog::DataModule::_process() pushed a post's
+    # The one that actually bit: Trog::DataModule::process() pushed a post's
     # visibility into its tags without defaulting it first, so posts written
     # before that carry a null there, and a whole site's migration fell over on
     # the NOT NULL constraint rather than on anything wrong with the post.
@@ -427,7 +427,7 @@ subtest 'the triggers can be fixed after the fact' => sub {
     $dbh->do( 'CREATE TRIGGER posts_tags_insert AFTER INSERT ON posts BEGIN INSERT INTO post_tags (post_id, tag) VALUES (new.id, %s); END;' =~ s/%s/'wrong'/r );
 
     # What a worker starting up does.
-    Trog::Data::SQLite::_dbh();
+    Trog::Data::SQLite::dbh();
     my $schema = File::Slurper::read_text('schema/sqlite.schema');
     $dbh->{sqlite_allow_multiple_statements} = 1;
     $dbh->do($schema);

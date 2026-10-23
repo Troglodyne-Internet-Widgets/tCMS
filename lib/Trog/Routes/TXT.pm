@@ -21,6 +21,16 @@ our %routes = (
     },
 );
 
+my sub _render ( $code, $headers, %data ) {
+    return Trog::Renderer->render(
+        code        => $code,
+        data        => \%data,
+        template    => 'zone.tx',
+        contenttype => 'text/plain',
+        headers     => $headers,
+    );
+}
+
 =head1 Trog::Routes::TXT
 
 Routes which render as text/plain.
@@ -60,16 +70,6 @@ render anything.
 
 sub zone ($query) {
     return _render( 200, {}, $query );
-}
-
-sub _render ( $code, $headers, %data ) {
-    return Trog::Renderer->render(
-        code        => $code,
-        data        => \%data,
-        template    => 'zone.tx',
-        contenttype => 'text/plain',
-        headers     => $headers,
-    );
 }
 
 1;

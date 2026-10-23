@@ -83,47 +83,28 @@ our %states = (
     interrupted => 'reprovision interrupted',
 );
 
-=head1 FUNCTIONS
+# A guest name reaches the filesystem here, so it is a hostname or it is nothing.
+my sub safe_domain ($domain) {
+    return undef if !$domain || length $domain >= 254;
+    return undef if $domain =~ m/(?:^|\.)\.\.?(?:\.|$)/;
 
-=head2 posts($series, $query) = @posts
-
-The guests Trog::DataSource::Virt would have listed, each carrying what we know
-about how it was built:
-
-    recipe                the recipe's YAML, as text, for the page to show
-    recipe_path           where that came from
-    has_recipe            whether there was one at all
-    can_reprovision       whether the button should be drawn
-    reprovision_state     running, ok, failed, interrupted, or absent
-    reprovision_status    that, in words a person reads
-    reprovision_started   when the last run began
-    reprovision_finished  when it ended, if it has
-    reprovision_exit      what it exited with, if it has
-    reprovision_by        who asked for it
-    is_reprovisioning     whether one is going on right now
-    reprovision_log       the tail of the last run
-    reprovision_log_href  where to read all of it
-
-A guest with no recipe is still listed.  Plenty of guests on a hypervisor were
-not built by this, and saying nothing about them is better than hiding them.
-
-=cut
-
-sub posts ( $series, $query ) {
-    my @guests = Trog::DataSource::Virt::posts( $series, $query );
-    my $config = _config();
-
-    # Asked once for the page rather than once per guest, and asked rather than
-    # opened: what the form needs to know is which box to draw.
-    my $user = $query->{user} // '';
-    $config->{can_remember}    = ( $user                   && Trog::Vault::has_key() )                  ? 1 : 0;
-    $config->{remembered}      = ( $config->{can_remember} && Trog::Vault::has( $user, $secret_name ) ) ? 1 : 0;
-    $config->{sudo_remembered} = ( $config->{can_remember} && Trog::Vault::has( $user, $sudo_name ) )   ? 1 : 0;
-
-    return map { _with_recipe( $_, $config ) } @guests;
+    my ($safe) = $domain =~ m/^([A-Za-z0-9][A-Za-z0-9._-]*)$/;
+    return $safe;
 }
 
-sub _with_recipe ( $post, $config ) {
+# An installation's recipes are where they are whether tCMS knows about the
+# provisioner or not, but reading them is the feature, so it is off with it.
+my sub _recipe_path ( $config, $domain ) {
+    return undef unless $config->{trog_provisioner};
+
+    my $safe = safe_domain($domain);
+    return undef unless $safe;
+
+    my $path = "$config->{recipes}/$safe.yaml";
+    return -f $path ? $path : undef;    ## no critic (ProhibitFiletest_f) -- is there a recipe for this guest
+}
+
+my sub with_recipe ( $post, $config ) {
     return $post if $post->{unreachable};
 
     my $domain = $post->{domain} // '';
@@ -167,10 +148,87 @@ sub _with_recipe ( $post, $config ) {
     # anybody wants to have started by double clicking.
     $post->{can_reprovision} = 0 if $post->{is_reprovisioning};
 
-    $post->{reprovision_log}      = _log_tail($domain);
+    $post->{reprovision_log}      = log_tail($domain);
     $post->{reprovision_log_href} = $post->{reprovision_log} ? "/guest/reprovision/log/$domain" : undef;
 
     return $post;
+}
+
+=head2 config() = HASHREF
+
+Where the provisioner is checked out, from the tCMS configuration, and where the
+recipes it reads are, from trog-provisioner's own rule for that.
+
+    trog_provisioner    the checkout, or undef
+    recipes             the directory the guests' recipes are in
+
+Undef for the checkout means the feature is off rather than broken: a site which
+has not configured it gets a plain guest listing, which is what it asked for.
+
+=cut
+
+my sub config {
+    my $conf = Trog::Config::get();
+
+    # Nothing to configure here: the provisioner reads this env var or that
+    # directory, so a recipe we showed from anywhere else would be a recipe it
+    # is not going to build from.
+    my %config = ( recipes => ( $ENV{TROG_PROVISIONER_CONFIG} // $provisioner_config ) . "/$recipe_dir" );
+
+    my $dir = $conf->param('provisioner.trog_provisioner');
+    return \%config unless $dir && !ref $dir;
+
+    # Resolved, and checked to be there.  A path in a config file which does not
+    # exist is a typo, and finding that out here beats finding it out halfway
+    # through a reprovision.
+    my $absolute = Cwd::abs_path($dir);
+    if ( !$absolute || !-d $absolute ) {
+        WARN("provisioner.trog_provisioner is set to '$dir', which is not a directory here");
+        return \%config;
+    }
+
+    $config{trog_provisioner} = $absolute;
+    return \%config;
+}
+
+=head1 FUNCTIONS
+
+=head2 posts($series, $query) = @posts
+
+The guests Trog::DataSource::Virt would have listed, each carrying what we know
+about how it was built:
+
+    recipe                the recipe's YAML, as text, for the page to show
+    recipe_path           where that came from
+    has_recipe            whether there was one at all
+    can_reprovision       whether the button should be drawn
+    reprovision_state     running, ok, failed, interrupted, or absent
+    reprovision_status    that, in words a person reads
+    reprovision_started   when the last run began
+    reprovision_finished  when it ended, if it has
+    reprovision_exit      what it exited with, if it has
+    reprovision_by        who asked for it
+    is_reprovisioning     whether one is going on right now
+    reprovision_log       the tail of the last run
+    reprovision_log_href  where to read all of it
+
+A guest with no recipe is still listed.  Plenty of guests on a hypervisor were
+not built by this, and saying nothing about them is better than hiding them.
+
+=cut
+
+sub posts ( $series, $query ) {
+    my @guests = Trog::DataSource::Virt::posts( $series, $query );
+    my $config = config();
+
+    # Asked once for the page rather than once per guest, and asked rather than
+    # opened: what the form needs to know is which box to draw.
+    my $user = $query->{user} // '';
+    $config->{can_remember}    = ( $user                   && Trog::Vault::has_key() )                  ? 1 : 0;
+    $config->{remembered}      = ( $config->{can_remember} && Trog::Vault::has( $user, $secret_name ) ) ? 1 : 0;
+    $config->{sudo_remembered} = ( $config->{can_remember} && Trog::Vault::has( $user, $sudo_name ) )   ? 1 : 0;
+
+    return map { with_recipe( $_, $config ) } @guests;
 }
 
 =head2 status($domain) = HASHREF or undef
@@ -194,7 +252,7 @@ one: the alternative is a page that says a provision is in progress forever.
 =cut
 
 sub status ($domain) {
-    my $safe = _safe_domain($domain);
+    my $safe = safe_domain($domain);
     return undef unless $safe;
 
     my $path = "$log_dir/$safe.status";
@@ -226,7 +284,7 @@ sub status ($domain) {
 # that a page drawn while the run is writing sees the old status or the new one
 # and never half of either -- the reader would ignore a torn file, but ignoring
 # it means the page says nothing was ever run.
-sub _write_status ( $domain, %fields ) {
+my sub write_status ( $domain, %fields ) {
     my $path = "$log_dir/$domain.status";
     my $out  = join( '', map { "$_=" . ( $fields{$_} // '' ) . "\n" } sort keys %fields );
 
@@ -243,65 +301,7 @@ sub _write_status ( $domain, %fields ) {
     return;
 }
 
-=head2 _config() = HASHREF
-
-Where the provisioner is checked out, from the tCMS configuration, and where the
-recipes it reads are, from trog-provisioner's own rule for that.
-
-    trog_provisioner    the checkout, or undef
-    recipes             the directory the guests' recipes are in
-
-Undef for the checkout means the feature is off rather than broken: a site which
-has not configured it gets a plain guest listing, which is what it asked for.
-
-=cut
-
-sub _config {
-    my $conf = Trog::Config::get();
-
-    # Nothing to configure here: the provisioner reads this env var or that
-    # directory, so a recipe we showed from anywhere else would be a recipe it
-    # is not going to build from.
-    my %config = ( recipes => ( $ENV{TROG_PROVISIONER_CONFIG} // $provisioner_config ) . "/$recipe_dir" );
-
-    my $dir = $conf->param('provisioner.trog_provisioner');
-    return \%config unless $dir && !ref $dir;
-
-    # Resolved, and checked to be there.  A path in a config file which does not
-    # exist is a typo, and finding that out here beats finding it out halfway
-    # through a reprovision.
-    my $absolute = Cwd::abs_path($dir);
-    if ( !$absolute || !-d $absolute ) {
-        WARN("provisioner.trog_provisioner is set to '$dir', which is not a directory here");
-        return \%config;
-    }
-
-    $config{trog_provisioner} = $absolute;
-    return \%config;
-}
-
-# A guest name reaches the filesystem here, so it is a hostname or it is nothing.
-sub _safe_domain ($domain) {
-    return undef if !$domain || length $domain >= 254;
-    return undef if $domain =~ m/(?:^|\.)\.\.?(?:\.|$)/;
-
-    my ($safe) = $domain =~ m/^([A-Za-z0-9][A-Za-z0-9._-]*)$/;
-    return $safe;
-}
-
-# An installation's recipes are where they are whether tCMS knows about the
-# provisioner or not, but reading them is the feature, so it is off with it.
-sub _recipe_path ( $config, $domain ) {
-    return undef unless $config->{trog_provisioner};
-
-    my $safe = _safe_domain($domain);
-    return undef unless $safe;
-
-    my $path = "$config->{recipes}/$safe.yaml";
-    return -f $path ? $path : undef;    ## no critic (ProhibitFiletest_f) -- is there a recipe for this guest
-}
-
-=head2 _log_tail($domain) = STRING
+=head2 log_tail($domain) = STRING
 
 The last of whatever the previous reprovision said, or nothing.
 
@@ -312,8 +312,8 @@ is the only account of it there is.
 
 our $log_tail_bytes = 4096;
 
-sub _log_tail ($domain) {
-    my $safe = _safe_domain($domain);
+sub log_tail ($domain) {
+    my $safe = safe_domain($domain);
     return undef unless $safe;
 
     my $path = "$log_dir/$safe.log";
@@ -338,7 +338,7 @@ route that called it.
 our $log_max_bytes = 1024 * 1024;
 
 sub log_for ($domain) {
-    my $safe = _safe_domain($domain);
+    my $safe = safe_domain($domain);
     return undef unless $safe;
 
     my $path = "$log_dir/$safe.log";
@@ -353,97 +353,23 @@ sub log_for ($domain) {
       : $text;
 }
 
-=head2 reprovision(%args) = ($ok, $message)
+# File away what they typed, so the next run is a code.
+#
+# Said rather than refused when it does not work: they asked for a reprovision
+# and gave us what it needs, and failing to keep a copy is not a reason to not do
+# the thing they asked for.
+my sub _remember ( $user, $credentials ) {
+    my %vault_name = ( keepass => $secret_name, sudo => $sudo_name );
 
-Run bin/provision for one guest, which generates its configuration from its
-recipe and then builds the machine.
-
-    domain      which guest.  Required, and validated as a hostname.
-    user        who asked.  For the log, and whose vault to look in.
-    passphrase  the KeePass passphrase the recipe's secrets need.
-    sudo        their sudo password on the hypervisor, if it wants one.
-    totp        a code, instead of those, when they have been stored.
-    remember    store what they just typed, so that next time is a code.
-
-Returns immediately.  Provisioning a machine takes minutes and an HTTP worker
-does not have minutes, so the work is handed to a detached process and the
-caller is told it started rather than told it finished.  What happened is in
-logs/reprovision/$domain.log, which is what _log_tail reads back onto the page.
-
-=head3 WHY IT ASKS FOR ANYTHING AT ALL
-
-Two passwords, for two different reasons.
-
-Every recipe inherits secret: values from _base, so the provisioner opens a
-KeePass database on its way past and wants the passphrase to it.  The
-alternative to asking is keeping the master password for every secret an
-operator holds in a file the webserver can read, which is worse than asking.
-
-And almost everything it does on the hypervisor needs root.  Where the login
-there has passwordless sudo -- which is how ours are set up, and what we would
-recommend -- there is nothing to ask for.  Where it does not, sudo over ssh has
-no terminal to ask at, and a run that finds that out dies several minutes in on
-a prompt nobody will ever see.  So it is asked for here instead, and left empty
-by anybody who does not need it.
-
-Asking every time has its own cost, though: a passphrase somebody has to have to
-hand is a passphrase that gets written down, and then it is in a text file
-instead of a config file, which is not an improvement.  So it can be stored --
-see Trog::Vault, where it is sealed under a key the database does not contain --
-and then what this asks for is a TOTP code, which proves the person is here
-without their having to be holding anything.
-
-The code is spent either way, so it authorizes this one reprovision rather than
-every reprovision inside its window.
-
-However they arrive, they go down the child's stdin as a credentials block --
-see Trog::Credentials in trog-provisioner -- and are written nowhere: not the
-log, not the process table, not the configuration.
-
-=cut
-
-sub reprovision (%args) {
-    my $safe = _safe_domain( $args{domain} );
-    return ( 0, 'bad guest name' ) unless $safe;
-
-    # The template does not draw the button for this guest.  This is what
-    # actually stops it: /guest/reprovision is a POST anybody holding the admin
-    # acl can craft by hand, and there would be nothing left to report to.
-    if ( Trog::DataSource::Virt::_is_self($safe) ) {
-        WARN("Refused to reprovision '$safe': that is this server");
-        return ( 0, "'$safe' is this server -- refusing to reprovision it" );
+    foreach my $name ( sort keys %$credentials ) {
+        my ( $ok, $why ) = Trog::Vault::set( $user, $vault_name{$name}, $credentials->{$name} );
+        WARN("Could not remember the provisioner's $name for $user: $why") unless $ok;
     }
 
-    my $config = _config();
-    return ( 0, 'provisioner.trog_provisioner is not configured' ) unless $config->{trog_provisioner};
-
-    my $recipe = _recipe_path( $config, $safe );
-    return ( 0, "there is no recipe for '$safe' in $config->{recipes}" ) unless $recipe;
-
-    my ( $credentials, $why ) = _credentials(%args);
-    return ( 0, $why ) unless $credentials;
-
-    my $unsendable = _sendable($credentials);
-    return ( 0, $unsendable ) if $unsendable;
-
-    # One at a time.  Two provisions of one machine racing each other is not
-    # something anybody should be able to start by double clicking.
-    my $running = status($safe);
-    return ( 0, 'a reprovision of this guest is already running' ) if $running && $running->{state} eq 'running';
-
-    # --credentials, because nothing in there reads stdin unless it is told to.
-    my @command = ( "$config->{trog_provisioner}/bin/provision", '--credentials', $safe );
-    return ( 0, "$command[0] is not there to run" ) unless -x $command[0];    ## no critic (ProhibitFiletest_rwxRWX) -- refusing early beats finding out mid-provision
-
-    INFO( "Reprovision of '$safe' requested by " . ( $args{user} // 'somebody' ) );
-
-    my ( $ok, $failed ) = _spawn( $safe, $credentials, $config->{trog_provisioner}, \@command, $args{user} );
-    return ( 0, $failed ) unless $ok;
-
-    return ( 1, "reprovision started; watch $log_dir/$safe.log" );
+    return;
 }
 
-=head2 _credentials(%args) = ($credentials, $why)
+=head2 credentials(%args) = ($credentials, $why)
 
 What to hand the provisioner, out of whatever the form sent: a hashref of the
 names Trog::Credentials knows, or undef and a reason.
@@ -463,7 +389,7 @@ The reason, when there is one, is what the person reads -- so it has to tell
 
 =cut
 
-sub _credentials (%args) {
+my sub credentials (%args) {
     my $user = $args{user} // '';
 
     my %credentials;
@@ -516,7 +442,7 @@ sub _credentials (%args) {
 # send.  Refused rather than escaped or trimmed: no password anybody meant to
 # type has a newline in the middle of it, and quietly changing what somebody
 # typed into their own password field is worse than saying no.
-sub _sendable ($credentials) {
+my sub sendable ($credentials) {
     foreach my $name ( sort keys %$credentials ) {
         next unless $credentials->{$name} =~ m/[\r\n]/;
         return "the $name has a line break in it, which is not something this can send";
@@ -524,23 +450,97 @@ sub _sendable ($credentials) {
     return '';
 }
 
-# File away what they typed, so the next run is a code.
-#
-# Said rather than refused when it does not work: they asked for a reprovision
-# and gave us what it needs, and failing to keep a copy is not a reason to not do
-# the thing they asked for.
-sub _remember ( $user, $credentials ) {
-    my %vault_name = ( keepass => $secret_name, sudo => $sudo_name );
+=head2 reprovision(%args) = ($ok, $message)
 
-    foreach my $name ( sort keys %$credentials ) {
-        my ( $ok, $why ) = Trog::Vault::set( $user, $vault_name{$name}, $credentials->{$name} );
-        WARN("Could not remember the provisioner's $name for $user: $why") unless $ok;
+Run bin/provision for one guest, which generates its configuration from its
+recipe and then builds the machine.
+
+    domain      which guest.  Required, and validated as a hostname.
+    user        who asked.  For the log, and whose vault to look in.
+    passphrase  the KeePass passphrase the recipe's secrets need.
+    sudo        their sudo password on the hypervisor, if it wants one.
+    totp        a code, instead of those, when they have been stored.
+    remember    store what they just typed, so that next time is a code.
+
+Returns immediately.  Provisioning a machine takes minutes and an HTTP worker
+does not have minutes, so the work is handed to a detached process and the
+caller is told it started rather than told it finished.  What happened is in
+logs/reprovision/$domain.log, which is what log_tail reads back onto the page.
+
+=head3 WHY IT ASKS FOR ANYTHING AT ALL
+
+Two passwords, for two different reasons.
+
+Every recipe inherits secret: values from _base, so the provisioner opens a
+KeePass database on its way past and wants the passphrase to it.  The
+alternative to asking is keeping the master password for every secret an
+operator holds in a file the webserver can read, which is worse than asking.
+
+And almost everything it does on the hypervisor needs root.  Where the login
+there has passwordless sudo -- which is how ours are set up, and what we would
+recommend -- there is nothing to ask for.  Where it does not, sudo over ssh has
+no terminal to ask at, and a run that finds that out dies several minutes in on
+a prompt nobody will ever see.  So it is asked for here instead, and left empty
+by anybody who does not need it.
+
+Asking every time has its own cost, though: a passphrase somebody has to have to
+hand is a passphrase that gets written down, and then it is in a text file
+instead of a config file, which is not an improvement.  So it can be stored --
+see Trog::Vault, where it is sealed under a key the database does not contain --
+and then what this asks for is a TOTP code, which proves the person is here
+without their having to be holding anything.
+
+The code is spent either way, so it authorizes this one reprovision rather than
+every reprovision inside its window.
+
+However they arrive, they go down the child's stdin as a credentials block --
+see Trog::Credentials in trog-provisioner -- and are written nowhere: not the
+log, not the process table, not the configuration.
+
+=cut
+
+sub reprovision (%args) {
+    my $safe = safe_domain( $args{domain} );
+    return ( 0, 'bad guest name' ) unless $safe;
+
+    # The template does not draw the button for this guest.  This is what
+    # actually stops it: /guest/reprovision is a POST anybody holding the admin
+    # acl can craft by hand, and there would be nothing left to report to.
+    if ( Trog::DataSource::Virt::is_self($safe) ) {
+        WARN("Refused to reprovision '$safe': that is this server");
+        return ( 0, "'$safe' is this server -- refusing to reprovision it" );
     }
 
-    return;
+    my $config = config();
+    return ( 0, 'provisioner.trog_provisioner is not configured' ) unless $config->{trog_provisioner};
+
+    my $recipe = _recipe_path( $config, $safe );
+    return ( 0, "there is no recipe for '$safe' in $config->{recipes}" ) unless $recipe;
+
+    my ( $credentials, $why ) = credentials(%args);
+    return ( 0, $why ) unless $credentials;
+
+    my $unsendable = sendable($credentials);
+    return ( 0, $unsendable ) if $unsendable;
+
+    # One at a time.  Two provisions of one machine racing each other is not
+    # something anybody should be able to start by double clicking.
+    my $running = status($safe);
+    return ( 0, 'a reprovision of this guest is already running' ) if $running && $running->{state} eq 'running';
+
+    # --credentials, because nothing in there reads stdin unless it is told to.
+    my @command = ( "$config->{trog_provisioner}/bin/provision", '--credentials', $safe );
+    return ( 0, "$command[0] is not there to run" ) unless -x $command[0];    ## no critic (ProhibitFiletest_rwxRWX) -- refusing early beats finding out mid-provision
+
+    INFO( "Reprovision of '$safe' requested by " . ( $args{user} // 'somebody' ) );
+
+    my ( $ok, $failed ) = spawn( $safe, $credentials, $config->{trog_provisioner}, \@command, $args{user} );
+    return ( 0, $failed ) unless $ok;
+
+    return ( 1, "reprovision started; watch $log_dir/$safe.log" );
 }
 
-=head2 _spawn($domain, $credentials, $dir, $command, $user)
+=head2 spawn($domain, $credentials, $dir, $command, $user)
 
 Fork the provisioner off where nothing is waiting for it.
 
@@ -562,7 +562,7 @@ that has a newline in the middle of it.
 
 =cut
 
-sub _spawn ( $domain, $credentials, $dir, $command, $user ) {
+sub spawn ( $domain, $credentials, $dir, $command, $user ) {
     my $log = "$log_dir/$domain.log";
 
     local $@;
@@ -589,7 +589,7 @@ sub _spawn ( $domain, $credentials, $dir, $command, $user ) {
     # $$ is this process, which is the one that will still be here in ten
     # minutes -- the two before it have already gone.  status() checks it is
     # alive, so it has to be the pid of whatever is actually doing the work.
-    _write_status( $domain, state => 'running', pid => $$, started => $started, user => ( $user // '' ) );
+    write_status( $domain, state => 'running', pid => $$, started => $started, user => ( $user // '' ) );
 
     print {$fh} "\n--- $command->[0] $command->[1] (in $dir)\n";
 
@@ -624,7 +624,7 @@ sub _spawn ( $domain, $credentials, $dir, $command, $user ) {
     if ($?) {
         my $status = $? >> 8;
         print {$fh} "\n--- $command->[0] exited $status\n";
-        _write_status(
+        write_status(
             $domain,
             state    => 'failed',
             started  => $started,
@@ -637,7 +637,7 @@ sub _spawn ( $domain, $credentials, $dir, $command, $user ) {
     }
 
     print {$fh} "\n=== finished ===\n";
-    _write_status( $domain, state => 'ok', started => $started, finished => time(), exit => 0, user => ( $user // '' ) );
+    write_status( $domain, state => 'ok', started => $started, finished => time(), exit => 0, user => ( $user // '' ) );
     POSIX::_exit(0);
 }
 

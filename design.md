@@ -62,7 +62,7 @@ A post is a JSON object. It has a handful of fields every post has -- `id`,
 Two consequences fall out of that, and most of the system is downstream of them.
 
 **The routing table is data, not code.** Every post carries a `local_href` and a
-`callback`. At startup, `TCMS::_routes` asks the data model for every post and
+`callback`. At startup, `_routes` in TCMS.pm asks the data model for every post and
 builds the routing table out of them, then merges the static routes from
 `Trog::Routes::HTML`, `Trog::Routes::JSON` and the active theme over the top.
 Publishing a post creates a URL because the URL *is* a field on the post. There
@@ -93,7 +93,7 @@ forbid, invalidate cached renders, run work after the response is closed.
     ├──▶ Trog::Data->new(config)       ← the data model: get() the posts
     │      └──▶ Trog::DataSource       ← unless this type's posts are built, not stored
     │
-    ├──▶ _enrich_post                  ← resolve declared relations, run enrich subs
+    ├──▶ enrich_post                   ← resolve declared relations, run enrich subs
     │
     ▼
   Trog::Renderer->render(...)          ← picks a renderer by content type
@@ -234,7 +234,7 @@ of "site structure" -- there is no menu editor, because the menu is a query.
 Visibility and ACLs
 -------------------
 
-`visibility` is one of `public`, `unlisted`, `private`. `Trog::DataModule::_process`
+`visibility` is one of `public`, `unlisted`, `private`. `Trog::DataModule::process`
 folds it into the post's `tags`, along with the post's ACLs when it is private,
 and then deletes the separate `acls` field. **Tags are the whole truth about who
 may see a post**, which is why `get()` answers the `acls` filter by looking at
@@ -251,7 +251,7 @@ is chosen by `general.data_model` in the config.
 
 `Trog::DataModule` is the base class and provides the query semantics -- `get()`,
 `filter()`, `paginate()`, version rollup, validation, and the derived-field
-plumbing in `_process`. A subclass must implement `read`, `write`, `count`,
+plumbing in `process`. A subclass must implement `read`, `write`, `count`,
 `tags`, `lang` and `help`, and may override `get` if it can answer a query more
 directly than by filtering in Perl.
 
@@ -312,7 +312,7 @@ both are places the obvious implementation is wrong:
   you depend on, in which case register a `$tpsgi->add_watch` for it with a
   stable `key`, invalidate through the tPSGI object your callback is *handed*
   rather than the one it closed over, and declare `CACHEABLE`
-  (`DirIndex::_watch` is four lines of this). Or you cannot, in which case say
+  (`DirIndex::watch` is four lines of this). Or you cannot, in which case say
   nothing and your pages are never cached -- which is the default, because a
   page that is merely slow beats one that is wrong with no way of becoming
   right.
@@ -375,7 +375,7 @@ Composition: relations and enrichment
 
 Types need to refer to each other -- an invoice has a payee and a payor, which
 are `entities` posts. A type declares that in its sidecar and
-`Trog::Routes::HTML::_enrich_post` resolves it at render time:
+`Trog::Routes::HTML::enrich_post` resolves it at render time:
 
 - an entry naming a `from` field resolves the UUID in that field into the post it
   refers to;
@@ -466,14 +466,14 @@ Things that will bite you
 
 Hard-won, and none of them obvious from reading the code that contains them.
 
-- **Tags carry visibility and ACLs.** `_process` folds them in and deletes the
+- **Tags carry visibility and ACLs.** `process` folds them in and deletes the
   separate field. Anything that filters on tags is a security boundary.
 - **`get(id => ...)` deliberately skips the ACL filter.** `filter()` returns early
   for an `id`, `title` or `aclname` query, because that is how `add()` asks
   whether a post already exists. Do not "fix" it without reading every caller.
-- **Validation runs on what was submitted; `_process` then builds what gets
+- **Validation runs on what was submitted; `process` then builds what gets
   stored.** Both are checked now (`validate` and `validate_built`), and they
-  check different objects. A field that only exists after `_process` will not be
+  check different objects. A field that only exists after `process` will not be
   in the first one.
 - **The FlatFile model caches its tag list at load time** and filters each query's
   tags against it *in place*. A tag created later is not merely unindexed, it is

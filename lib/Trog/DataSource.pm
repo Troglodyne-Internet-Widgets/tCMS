@@ -25,7 +25,7 @@ than methods, and named by a post type's sidecar in x-tcms-datasource.
     posts($series, $query) = @posts       required
 
 The children of $series, as post hashrefs.  Enough of a post to survive being
-rendered like one -- see Trog::DataSource::Virt::_post_for for the shape.
+rendered like one -- see Trog::DataSource::Virt::post_for for the shape.
 
     EDITABLE                              optional constant
 
@@ -196,7 +196,7 @@ saved -- whatever the source draws on changed instead.  So a source has to
 answer one of two questions, and it has to answer deliberately.
 
 Either it knows what it depends on and can say when that changes, in which case
-it should register a watch (Trog::DataSource::DirIndex::_watch is the worked
+it should register a watch (Trog::DataSource::DirIndex::watch is the worked
 example) and declare CACHEABLE.  Or it doesn't, in which case its pages must not
 be cached at all, because the cached copy has no way of ever becoming right
 again.

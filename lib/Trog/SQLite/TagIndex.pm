@@ -20,7 +20,7 @@ Also used to retrieve cached routes from posts.
 =cut
 
 sub posts_for_tags (@tags) {
-    my $dbh    = _dbh();
+    my $dbh    = dbh();
     my $clause = @tags ? "WHERE tag IN (" . join( ',', ( map { '?' } @tags ) ) . ")" : '';
     ## no critic(ValuesAndExpressions::PreventSQLInjection)
     my $rows = $dbh->selectall_arrayref( "SELECT DISTINCT id FROM posts $clause ORDER BY created DESC", { Slice => {} }, @tags );
@@ -29,7 +29,7 @@ sub posts_for_tags (@tags) {
 }
 
 sub routes {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT id, route, method, callback FROM all_routes", { Slice => {} } );
     return () unless ref $rows eq 'ARRAY' && @$rows;
 
@@ -39,7 +39,7 @@ sub routes {
 }
 
 sub aliases {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT actual,alias FROM aliases", { Slice => {} } );
     return () unless ref $rows eq 'ARRAY' && @$rows;
     my %aliases = map { $_->{alias} => $_->{actual} } @$rows;
@@ -47,14 +47,14 @@ sub aliases {
 }
 
 sub tags {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM tag", { Slice => {} } );
     return () unless ref $rows eq 'ARRAY' && @$rows;
     return map { $_->{name} } @$rows;
 }
 
 sub add_post ( $post, $data_obj ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     Trog::SQLite::transaction(
         $dbh,
         sub {
@@ -79,7 +79,7 @@ The HTTP methods are kept, as the schema fills those rather than any post.
 =cut
 
 sub rebuild ($data_obj) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     Trog::SQLite::transaction(
         $dbh,
         sub {
@@ -95,7 +95,7 @@ sub rebuild ($data_obj) {
 }
 
 sub remove_post ($post) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
 
     # Deleting the post will cascade to the post index & primary route, which cascades to the aliases
     $dbh->do( "DELETE FROM post WHERE uuid=?", undef, $post->{id} );
@@ -107,14 +107,21 @@ sub remove_post ($post) {
     return 1;
 }
 
+my sub id_for_uuid ( $dbh, @uuids ) {
+    my $bind = join( ',', ( map { '?' } @uuids ) );
+    Trog::SQLite::bulk_insert( $dbh, 'post', ['uuid'], 'IGNORE', @uuids );
+    ## no critic(ValuesAndExpressions::PreventSQLInjection)
+    return $dbh->selectall_hashref( "SELECT id,uuid FROM post WHERE uuid IN ($bind)", 'uuid', {}, @uuids );
+}
+
 sub build_index ( $data_obj, $posts = [] ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     $posts = $data_obj->read( { limit => 0, acls => ['admin'] } ) unless @$posts;
 
     # First, slap in the UUIDs
     my @uuids = map { $_->{id} } @$posts;
     Trog::SQLite::bulk_insert( $dbh, 'post', ['uuid'], 'IGNORE', @uuids );
-    my $pids = _id_for_uuid( $dbh, @uuids );
+    my $pids = id_for_uuid( $dbh, @uuids );
     foreach my $post (@$posts) {
         $post->{post_id} = $pids->{ $post->{id} }{id};
     }
@@ -141,20 +148,13 @@ sub build_index ( $data_obj, $posts = [] ) {
     return 1;
 }
 
-sub _id_for_uuid ( $dbh, @uuids ) {
-    my $bind = join( ',', ( map { '?' } @uuids ) );
-    Trog::SQLite::bulk_insert( $dbh, 'post', ['uuid'], 'IGNORE', @uuids );
-    ## no critic(ValuesAndExpressions::PreventSQLInjection)
-    return $dbh->selectall_hashref( "SELECT id,uuid FROM post WHERE uuid IN ($bind)", 'uuid', {}, @uuids );
-}
-
 # It is important we use get() instead of read() because of incomplete data.
 sub build_routes ( $data_obj, $posts = [] ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     @$posts = $data_obj->get( limit => 0, acls => ['admin'] ) unless @$posts;
 
     my @uuids = map { $_->{id} } @$posts;
-    my $pids  = _id_for_uuid( $dbh, @uuids );
+    my $pids  = id_for_uuid( $dbh, @uuids );
     foreach my $post (@$posts) {
         $post->{post_id} = $pids->{ $post->{id} }{id};
     }
@@ -185,8 +185,14 @@ sub build_routes ( $data_obj, $posts = [] ) {
     return 1;
 }
 
-# Ensure the db schema is OK, and give us a handle
-sub _dbh {
+=head2 dbh() = DBI::db
+
+The handle to the tag index, data/posts.db, with its schema applied.
+Trog::SQLite caches it, so every call gets the same one.
+
+=cut
+
+sub dbh {
     my $file   = 'schema/flatfile.schema';
     my $dbname = "data/posts.db";
     return Trog::SQLite::dbh( $file, $dbname );

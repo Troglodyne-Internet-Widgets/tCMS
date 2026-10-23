@@ -33,7 +33,7 @@ source of truth, the projections cost no storage, and they cannot drift from
 what they were drawn from.
 
 What that buys is get(): the filtering Trog::DataModule::filter() does in Perl
-over every post on disk happens here in one indexed query.  See _where() for
+over every post on disk happens here in one indexed query.  See where() for
 the mapping, which is filter() clause for clause.
 
 Adding a queryable field is one ALTER TABLE and one CREATE INDEX, with no
@@ -50,7 +50,7 @@ which mean there is no data model to serve from.
 
 =cut
 
-sub _dbh {
+sub dbh {
     return Trog::SQLite::dbh( $schema, $dbname );
 }
 
@@ -62,7 +62,7 @@ Trog::DataModule::get() without the filtering pass: the query does that.
 
 Everything filter() would have grepped for is a WHERE clause, and paginate()'s
 slice is LIMIT/OFFSET, so what comes back out of the database is already the
-answer.  _fixup() still runs, as that fills in display fields rather than
+answer.  fixup() still runs, as that fills in display fields rather than
 choosing rows.
 
 =cut
@@ -71,61 +71,20 @@ sub get ( $self, %request ) {
     my $posts = $self->read( \%request );
     return @$posts if $request{raw};
 
-    return $self->_fixup(@$posts);
+    return $self->fixup(@$posts);
 }
 
-=head2 read($query) = ARRAYREF $posts
-
-The rows a query selects, decoded back into posts.
-
-With C<raw>, every version of everything the query matches, untouched -- that is
-what an index build or a version history wants.  Otherwise one post per id: the
-newest version, carrying the version_max, created, modified and author fields
-that Trog::DataModule::_dedup_versions() would have computed by hand.
-
-=cut
-
-sub read ( $, $query = {} ) {
-    my ( $sql, @bind ) = _build_query($query) or return [];
-
-    my $rows = _dbh()->selectall_arrayref( $sql, { Slice => {} }, @bind );
-    return [] unless ref $rows eq 'ARRAY';
-
-    my @posts;
-    foreach my $row (@$rows) {
-        my $post = eval { $parser->decode( $row->{post_data} ) };
-        if ( !$post ) {
-            WARN("Could not decode post '$row->{uuid}' version $row->{version}: $@");
-            next;
-        }
-        if ( !$query->{raw} ) {
-
-            # What _dedup_versions() works out by sorting the versions in Perl.
-            # Deliberately the same shape, so a caller cannot tell which data
-            # model answered it.
-            $post->{version_max} = $row->{version_max};
-
-            # Only when we were not asked for one version in particular.
-            # _dedup_versions() rewrites these from the version history, and a
-            # request for version 3 wants version 3's own dates, not the post's.
-            if ( !_pinned($query) ) {
-                $post->{modified} = $post->{created};
-                $post->{created}  = $row->{first_created};
-                $post->{author}   = $row->{first_author};
-            }
-        }
-
-        push( @posts, $post );
-    }
-
-    return \@posts;
+# Whether the caller named a version.  Empty string counts as unasked, since
+# that is what a form posts for a field nobody filled in.
+my sub pinned ($query) {
+    return defined $query->{version} && $query->{version} ne '';
 }
 
 # One version of one post per row, so "the current post" is a join against
 # post_versions, which the schema's triggers keep pointing at the newest row for
-# each uuid.  f is the oldest version, which is where _dedup_versions() takes
+# each uuid.  f is the oldest version, which is where dedup_versions() takes
 # the post's own birthday and original author from.
-sub _from_clause {
+my sub from_clause {
     return q{
         FROM posts p
         JOIN post_versions v ON v.uuid = p.uuid
@@ -133,54 +92,64 @@ sub _from_clause {
     };
 }
 
-# Whether the caller named a version.  Empty string counts as unasked, since
-# that is what a form posts for a field nobody filled in.
-sub _pinned ($query) {
-    return defined $query->{version} && $query->{version} ne '';
+# A post is only visible to a caller holding one of its tags, since visibility
+# and acls are both stored as tags.  admin skips it, as it does in filter().
+# False when the caller can see nothing at all, so there is nothing to query.
+my sub acl_clause ( $query, $where, $bind ) {
+
+    # raw skips filter() altogether in the flat file model, acls included.
+    # Only bin/migrate.pl and an index rebuild ask for it.
+    return 1 if $query->{raw};
+
+    my $acls = ref $query->{acls} eq 'ARRAY' ? $query->{acls} : [];
+    return 0 unless @$acls;
+    return 1 if any { $_ eq 'admin' } @$acls;
+
+    my $binds = join( ',', map { '?' } @$acls );
+    push( @$where, "p.id IN (SELECT post_id FROM post_tags WHERE tag IN ($binds))" );
+    push( @$bind,  @$acls );
+    return 1;
 }
 
-sub _build_query ($query) {
-    my $select = q{SELECT p.post_data, p.uuid, p.version, v.version_max, v.first_created, f.author AS first_author};
+=head2 like_clause($term)
 
-    my ( $where, $bind ) = _where($query) or return;
+The 'like' filter: a case insensitive substring match over a post's title and
+its content.
 
-    # A raw read with no filters has no clauses at all, and "WHERE" on its own
-    # is a syntax error rather than "everything".
-    push( @$where, '1 = 1' ) unless @$where;
+Answered by the FTS5 index, which is built with the trigram tokenizer precisely
+so that substring is a thing it can answer.  The term goes in as a quoted
+phrase, doubling any quote in it, so that a search for C<AND> or C<"> is a
+search for that text rather than FTS5 query syntax the user did not ask for.
 
-    my $sql = "$select " . _from_clause() . " WHERE " . join( ' AND ', @$where );
+Trigram indexes nothing shorter than three characters, so shorter terms fall
+back to a LIKE scan.  That is the slow path, and it is the only one -- but a one
+or two character search matches most of the site anyway.
 
-    # Newest first, by the same date the caller gets back as created -- the
-    # post's birthday.  The flat file model returned posts in readdir order,
-    # which is to say whatever order the filesystem felt like; every caller that
-    # cared went through the tag index, which ordered by created DESC.
-    $sql .= ' ORDER BY v.first_created DESC, p.uuid DESC';
+=cut
 
-    # 0 means unlimited, as it does in the flat file model.
-    my @extra;
-    my $limit = defined $query->{limit} ? int( $query->{limit} ) : 25;
-    if ($limit) {
-        $sql .= ' LIMIT ?';
-        push( @extra, $limit );
-        if ( $query->{page} ) {
-            $sql .= ' OFFSET ?';
-            push( @extra, ( int( $query->{page} ) - 1 ) * $limit );
-        }
+my sub like_clause ($term) {
+
+    if ( length($term) < 3 ) {
+        my $escaped = $term;
+        $escaped =~ s/([\\%_])/\\$1/g;
+        return ( "(p.title LIKE ? ESCAPE '\\' OR p.data LIKE ? ESCAPE '\\')", "%$escaped%", "%$escaped%" );
     }
 
-    return ( $sql, @$bind, @extra );
+    my $phrase = $term;
+    $phrase =~ s/"/""/g;
+    return ( 'p.id IN (SELECT rowid FROM posts_fts WHERE posts_fts MATCH ?)', qq{"$phrase"} );
 }
 
 # filter(), clause for clause.  Read the two side by side when changing either.
 # Returns nothing when no post can match, and then there is no query to run.
-sub _where ($query) {
+my sub where ($query) {
     my ( @where, @bind );
 
     # Which versions are in play.  Everything else filters within that.
     #
     # raw is the exception: it means "the history, as stored", which is what a
     # migration or an index rebuild reads, so it pins nothing.
-    if ( _pinned($query) ) {
+    if ( pinned($query) ) {
         push( @where, 'p.version = ?' );
         push( @bind,  int( $query->{version} ) );
     }
@@ -196,12 +165,12 @@ sub _where ($query) {
         my $column = $key eq 'id' ? 'p.uuid' : "p.$key";
         push( @where, "$column = ?" );
         push( @bind,  $query->{$key} );
-        return unless _acl_clause( $query, \@where, \@bind );
+        return unless acl_clause( $query, \@where, \@bind );
         return ( \@where, \@bind );
     }
 
     # Against the first version's date, not this row's.  filter() applies these
-    # after _dedup_versions() has already rewritten created to the oldest
+    # after dedup_versions() has already rewritten created to the oldest
     # version's, so older/newer have always meant the post's birthday rather
     # than the date of its most recent edit.
     if ( $query->{older} ) {
@@ -230,7 +199,7 @@ sub _where ($query) {
         push( @bind,  @{ $query->{exclude_tags} } );
     }
 
-    return unless _acl_clause( $query, \@where, \@bind );
+    return unless acl_clause( $query, \@where, \@bind );
 
     if ( $query->{form} ) {
         push( @where, 'COALESCE(p.form, ?) = ?' );
@@ -243,7 +212,7 @@ sub _where ($query) {
     }
 
     if ( ( $query->{like} // q{} ) ne q{} ) {
-        my ( $clause, @like_bind ) = _like_clause( $query->{like} );
+        my ( $clause, @like_bind ) = like_clause( $query->{like} );
         push( @where, $clause );
         push( @bind,  @like_bind );
     }
@@ -251,52 +220,105 @@ sub _where ($query) {
     return ( \@where, \@bind );
 }
 
-# A post is only visible to a caller holding one of its tags, since visibility
-# and acls are both stored as tags.  admin skips it, as it does in filter().
-# False when the caller can see nothing at all, so there is nothing to query.
-sub _acl_clause ( $query, $where, $bind ) {
+my sub build_query ($query) {
+    my $select = q{SELECT p.post_data, p.uuid, p.version, v.version_max, v.first_created, f.author AS first_author};
 
-    # raw skips filter() altogether in the flat file model, acls included.
-    # Only bin/migrate.pl and an index rebuild ask for it.
-    return 1 if $query->{raw};
+    my ( $where, $bind ) = where($query) or return;
 
-    my $acls = ref $query->{acls} eq 'ARRAY' ? $query->{acls} : [];
-    return 0 unless @$acls;
-    return 1 if any { $_ eq 'admin' } @$acls;
+    # A raw read with no filters has no clauses at all, and "WHERE" on its own
+    # is a syntax error rather than "everything".
+    push( @$where, '1 = 1' ) unless @$where;
 
-    my $binds = join( ',', map { '?' } @$acls );
-    push( @$where, "p.id IN (SELECT post_id FROM post_tags WHERE tag IN ($binds))" );
-    push( @$bind,  @$acls );
-    return 1;
+    my $sql = "$select " . from_clause() . " WHERE " . join( ' AND ', @$where );
+
+    # Newest first, by the same date the caller gets back as created -- the
+    # post's birthday.  The flat file model returned posts in readdir order,
+    # which is to say whatever order the filesystem felt like; every caller that
+    # cared went through the tag index, which ordered by created DESC.
+    $sql .= ' ORDER BY v.first_created DESC, p.uuid DESC';
+
+    # 0 means unlimited, as it does in the flat file model.
+    my @extra;
+    my $limit = defined $query->{limit} ? int( $query->{limit} ) : 25;
+    if ($limit) {
+        $sql .= ' LIMIT ?';
+        push( @extra, $limit );
+        if ( $query->{page} ) {
+            $sql .= ' OFFSET ?';
+            push( @extra, ( int( $query->{page} ) - 1 ) * $limit );
+        }
+    }
+
+    return ( $sql, @$bind, @extra );
 }
 
-=head2 _like_clause($term)
+=head2 read($query) = ARRAYREF $posts
 
-The 'like' filter: a case insensitive substring match over a post's title and
-its content.
+The rows a query selects, decoded back into posts.
 
-Answered by the FTS5 index, which is built with the trigram tokenizer precisely
-so that substring is a thing it can answer.  The term goes in as a quoted
-phrase, doubling any quote in it, so that a search for C<AND> or C<"> is a
-search for that text rather than FTS5 query syntax the user did not ask for.
-
-Trigram indexes nothing shorter than three characters, so shorter terms fall
-back to a LIKE scan.  That is the slow path, and it is the only one -- but a one
-or two character search matches most of the site anyway.
+With C<raw>, every version of everything the query matches, untouched -- that is
+what an index build or a version history wants.  Otherwise one post per id: the
+newest version, carrying the version_max, created, modified and author fields
+that Trog::DataModule::dedup_versions() would have computed by hand.
 
 =cut
 
-sub _like_clause ($term) {
+sub read ( $, $query = {} ) {
+    my ( $sql, @bind ) = build_query($query) or return [];
 
-    if ( length($term) < 3 ) {
-        my $escaped = $term;
-        $escaped =~ s/([\\%_])/\\$1/g;
-        return ( "(p.title LIKE ? ESCAPE '\\' OR p.data LIKE ? ESCAPE '\\')", "%$escaped%", "%$escaped%" );
+    my $rows = dbh()->selectall_arrayref( $sql, { Slice => {} }, @bind );
+    return [] unless ref $rows eq 'ARRAY';
+
+    my @posts;
+    foreach my $row (@$rows) {
+        my $post = eval { $parser->decode( $row->{post_data} ) };
+        if ( !$post ) {
+            WARN("Could not decode post '$row->{uuid}' version $row->{version}: $@");
+            next;
+        }
+        if ( !$query->{raw} ) {
+
+            # What dedup_versions() works out by sorting the versions in Perl.
+            # Deliberately the same shape, so a caller cannot tell which data
+            # model answered it.
+            $post->{version_max} = $row->{version_max};
+
+            # Only when we were not asked for one version in particular.
+            # dedup_versions() rewrites these from the version history, and a
+            # request for version 3 wants version 3's own dates, not the post's.
+            if ( !pinned($query) ) {
+                $post->{modified} = $post->{created};
+                $post->{created}  = $row->{first_created};
+                $post->{author}   = $row->{first_author};
+            }
+        }
+
+        push( @posts, $post );
     }
 
-    my $phrase = $term;
-    $phrase =~ s/"/""/g;
-    return ( 'p.id IN (SELECT rowid FROM posts_fts WHERE posts_fts MATCH ?)', qq{"$phrase"} );
+    return \@posts;
+}
+
+my sub insert ( $dbh, $data ) {
+    my $insert = $dbh->prepare('INSERT INTO posts (post_data) VALUES (?)');
+
+    foreach my $post (@$data) {
+        confess "Cannot write a post with no id" unless $post->{id};
+
+        # Not stored: they are computed per query from the version history, and
+        # writing them would bake one query's answer into the post forever.
+        my %stored = %$post;
+        delete @stored{qw{version_max modified display_name user_class post_id}};
+        $stored{version} //= 0;
+
+        # Caught to name the post: a rejected write -- the unique index catching
+        # two workers on the same version, most of all -- otherwise dies with
+        # the message of DBI alone, which does not say which post it was.
+        eval { $insert->execute( $parser->encode( \%stored ) ); 1 }
+          or confess "Could not write post '$post->{id}' version $stored{version}: $@";
+    }
+
+    return 1;
 }
 
 =head1 WRITING
@@ -319,31 +341,9 @@ and taking minutes, since SQLite otherwise commits once per row.
 =cut
 
 sub write ( $, $data ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
 
-    Trog::SQLite::transaction( $dbh, sub { _insert( $dbh, $data ) } );
-    return 1;
-}
-
-sub _insert ( $dbh, $data ) {
-    my $insert = $dbh->prepare('INSERT INTO posts (post_data) VALUES (?)');
-
-    foreach my $post (@$data) {
-        confess "Cannot write a post with no id" unless $post->{id};
-
-        # Not stored: they are computed per query from the version history, and
-        # writing them would bake one query's answer into the post forever.
-        my %stored = %$post;
-        delete @stored{qw{version_max modified display_name user_class post_id}};
-        $stored{version} //= 0;
-
-        # Caught to name the post: a rejected write -- the unique index catching
-        # two workers on the same version, most of all -- otherwise dies with
-        # the message of DBI alone, which does not say which post it was.
-        eval { $insert->execute( $parser->encode( \%stored ) ); 1 }
-          or confess "Could not write post '$post->{id}' version $stored{version}: $@";
-    }
-
+    Trog::SQLite::transaction( $dbh, sub { insert( $dbh, $data ) } );
     return 1;
 }
 
@@ -357,7 +357,7 @@ whether it has seen it before.  See bin/migrate.pl.
 =cut
 
 sub versions_present {
-    my $rows = _dbh()->selectall_arrayref( 'SELECT uuid, version FROM posts', { Slice => {} } ) // [];
+    my $rows = dbh()->selectall_arrayref( 'SELECT uuid, version FROM posts', { Slice => {} } ) // [];
 
     my %present;
     $present{ $_->{uuid} }{ $_->{version} } = 1 foreach @$rows;
@@ -372,7 +372,7 @@ and the search index with them.
 =cut
 
 sub delete ( $, @posts ) {
-    my $dbh    = _dbh();
+    my $dbh    = dbh();
     my $delete = $dbh->prepare('DELETE FROM posts WHERE uuid = ?');
 
     $delete->execute( $_->{id} ) foreach @posts;
@@ -387,7 +387,7 @@ How many posts there are, counting a post once however many versions it has.
 =cut
 
 sub count {
-    my ($count) = _dbh()->selectrow_array('SELECT COUNT(DISTINCT uuid) FROM posts');
+    my ($count) = dbh()->selectrow_array('SELECT COUNT(DISTINCT uuid) FROM posts');
     return $count // 0;
 }
 
@@ -424,7 +424,7 @@ our $index_prefix = 'posts_custom_';
 our %reserved = map { $_ => 1 } qw{id post_data uuid version created title user author form aclname visibility local_href data};
 
 sub index_fields ( $, @fields ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
 
     my %want;
     foreach my $field (@fields) {
@@ -492,7 +492,7 @@ Every tag in use, from the index the schema's triggers maintain.
 =cut
 
 sub tags {
-    my $rows = _dbh()->selectall_arrayref( 'SELECT DISTINCT tag FROM post_tags ORDER BY tag', { Slice => {} } );
+    my $rows = dbh()->selectall_arrayref( 'SELECT DISTINCT tag FROM post_tags ORDER BY tag', { Slice => {} } );
     return () unless ref $rows eq 'ARRAY';
     return map { $_->{tag} } @$rows;
 }

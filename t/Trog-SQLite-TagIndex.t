@@ -50,7 +50,7 @@ sub post {
 }
 
 sub index_rows {
-    my $rows = Trog::SQLite::TagIndex::_dbh()->selectall_arrayref( 'SELECT id, tag FROM posts ORDER BY id, tag', { Slice => {} } );
+    my $rows = Trog::SQLite::TagIndex::dbh()->selectall_arrayref( 'SELECT id, tag FROM posts ORDER BY id, tag', { Slice => {} } );
     return [ map { "$_->{id}:$_->{tag}" } @$rows ];
 }
 
@@ -67,7 +67,7 @@ subtest 'add_post' => sub {
 };
 
 subtest 'rebuild' => sub {
-    my $dbh = Trog::SQLite::TagIndex::_dbh();
+    my $dbh = Trog::SQLite::TagIndex::dbh();
 
     # What an index looks like after something other than tCMS changed the
     # posts: a post that is gone, and a route to it.

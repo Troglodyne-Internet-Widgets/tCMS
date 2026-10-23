@@ -36,6 +36,31 @@ our %renderers = (
     email => \&Trog::Renderer::email::render,
 );
 
+my sub yeet ( $renderer, $error, %options ) {
+    WARN($error);
+
+    # All-else fails error page
+    my $ret;
+    local $@;
+    eval {
+        $ret = $renderer->(
+            code        => 500,
+            template    => '500.tx',
+            contenttype => 'text/html',
+            data        => { %options, content => "<h1>500 Internal Server Error</h1>$error" },
+        );
+        1;
+    } or do {
+        my $msg = $error;
+        $msg .= " and subsequently during render of error template, $@" if $renderer;
+
+        #XXX bytes is probably not correct here
+        INFO( "$options{data}{method} 500 " . length($msg) . " $options{data}{route}" );
+        FATAL($msg);
+    };
+    return $ret;
+}
+
 =head2 Trog::Renderer->render(%options)
 
 Returns either the 3-arg arrayref suitable to emit at the end of a PSGI session or a response body if the component field of options is truthy.
@@ -46,14 +71,14 @@ The idea is that components will be concatenated to other rendered templates unt
 sub render ( $, %options ) {
     local $@;
     my $renderer;
-    return _yeet( $renderer, "Renderer requires a valid content type to be passed", %options ) unless $options{contenttype};
+    return yeet( $renderer, "Renderer requires a valid content type to be passed", %options ) unless $options{contenttype};
     my $rendertype = $Trog::Vars::byct{ $options{contenttype} };
-    return _yeet( $renderer, "Renderer requires a known content type (used $options{contenttype}) to be passed", %options ) unless $rendertype;
+    return yeet( $renderer, "Renderer requires a known content type (used $options{contenttype}) to be passed", %options ) unless $rendertype;
     $renderer = $renderers{$rendertype};
-    return _yeet( $renderer, "Renderer for $rendertype is not defined!", %options ) unless $renderer;
-    return _yeet( $renderer, "Status code not provided",                 %options ) if !$options{code} && !$options{component};
-    return _yeet( $renderer, "Template data not provided",               %options ) unless $options{data};
-    return _yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
+    return yeet( $renderer, "Renderer for $rendertype is not defined!", %options ) unless $renderer;
+    return yeet( $renderer, "Status code not provided",                 %options ) if !$options{code} && !$options{component};
+    return yeet( $renderer, "Template data not provided",               %options ) unless $options{data};
+    return yeet( $renderer, "Template not provided",                    %options ) unless $options{template};
 
     #TODO future - save the components too and then compose them?
     my $data = $options{data};
@@ -88,32 +113,7 @@ sub render ( $, %options ) {
         }
         1;
     } or do {
-        return _yeet( $renderer, $@, %options );
-    };
-    return $ret;
-}
-
-sub _yeet ( $renderer, $error, %options ) {
-    WARN($error);
-
-    # All-else fails error page
-    my $ret;
-    local $@;
-    eval {
-        $ret = $renderer->(
-            code        => 500,
-            template    => '500.tx',
-            contenttype => 'text/html',
-            data        => { %options, content => "<h1>500 Internal Server Error</h1>$error" },
-        );
-        1;
-    } or do {
-        my $msg = $error;
-        $msg .= " and subsequently during render of error template, $@" if $renderer;
-
-        #XXX bytes is probably not correct here
-        INFO( "$options{data}{method} 500 " . length($msg) . " $options{data}{route}" );
-        FATAL($msg);
+        return yeet( $renderer, $@, %options );
     };
     return $ret;
 }

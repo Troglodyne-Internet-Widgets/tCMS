@@ -18,6 +18,13 @@ use Trog::Config;
 use Trog::SQLite;
 use Trog::Data;
 
+# Ensure the db schema is OK, and give us a handle
+my sub dbh {
+    my $file   = 'schema/auth.schema';
+    my $dbname = "config/auth.db";
+    return Trog::SQLite::dbh( $file, $dbname );
+}
+
 =head1 Trog::Auth
 
 An SQLite3 authdb.
@@ -37,7 +44,7 @@ Returns empty string on no active session.
 =cut
 
 sub session2user ($sessid) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM sess_user WHERE session=?", { Slice => {} }, $sessid );
     return '' unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]->{name};
@@ -51,7 +58,7 @@ If the user has an active session, things like password reset requests should fa
 =cut
 
 sub user_has_session ($user) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT session FROM sess_user WHERE name=?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return 1;
@@ -64,7 +71,7 @@ Return whether the user exists at all.
 =cut
 
 sub user_exists ($user) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE name=?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return 1;
@@ -77,7 +84,7 @@ Returns the oldest user with the admin ACL.
 =cut
 
 sub primary_user {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT username FROM user_acl WHERE acl='admin' LIMIT 1", { Slice => {} } );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{username};
@@ -90,7 +97,7 @@ Fetch existing settings for a user.
 =cut
 
 sub get_existing_user_data ($user) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT hash, salt, totp_secret, display_name, contact_email FROM user WHERE name=?", { Slice => {} }, $user );
     return ( undef, undef, undef ) unless ref $rows eq 'ARRAY' && @$rows;
     return ( $rows->[0]{hash}, $rows->[0]{salt}, $rows->[0]{totp_secret}, $rows->[0]{display_name}, $rows->[0]{contact_email} );
@@ -103,21 +110,21 @@ Return the associated contact email for the user.
 =cut
 
 sub email4user ($user) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT contact_email FROM user WHERE name=?", { Slice => {} }, $user );
     return '' unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{contact_email};
 }
 
 sub display2username ($display_name) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE display_name=?", { Slice => {} }, $display_name );
     return '' unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{name};
 }
 
 sub username2display ($name) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT display_name FROM user WHERE name=?", { Slice => {} }, $name );
     return '' unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{display_name};
@@ -151,12 +158,22 @@ The 'admin' ACL is the only special one, as it allows for authoring posts, confi
 =cut
 
 sub acls4user ($username) {
-    my $dbh     = _dbh();
+    my $dbh     = dbh();
     my $records = $dbh->selectall_arrayref( "SELECT acl FROM user_acl WHERE username = ?", { Slice => {} }, $username );
 
     return () unless ref $records eq 'ARRAY' && @$records;
     my @acls = map { $_->{acl} } @$records;
     return \@acls;
+}
+
+my sub _totp {
+    state $totp;
+    if ( !$totp ) {
+        $totp = Trog::TOTP->new();
+        die "Cannot instantiate TOTP client!" unless $totp;
+        $totp->{DEBUG} = 1 if is_debug();
+    }
+    return $totp;
 }
 
 =head2 totp(user, domain)
@@ -182,7 +199,7 @@ sub totp ( $user, $domain ) {
     return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe domain '" . ( $domain // '' ) . "'." ) unless $safe_domain;
 
     my $totp = _totp();
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
 
     my $failure = 0;
     my $message = "TOTP Secret generated successfully.";
@@ -244,16 +261,6 @@ sub totp ( $user, $domain ) {
     return ( $uri, $qr, $failure, $message, $totp );
 }
 
-sub _totp {
-    state $totp;
-    if ( !$totp ) {
-        $totp = Trog::TOTP->new();
-        die "Cannot instantiate TOTP client!" unless $totp;
-        $totp->{DEBUG} = 1 if is_debug();
-    }
-    return $totp;
-}
-
 =head2 has_totp(user) = BOOL
 
 Whether this user has enrolled in TOTP yet.
@@ -270,7 +277,7 @@ is the same enrolment rather than a new one.
 =cut
 
 sub has_totp ($user) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT totp_secret FROM user WHERE name=?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{totp_secret} ? 1 : 0;
@@ -305,7 +312,7 @@ our $totp_digits    = 6;
 sub spend_totp ( $user, $code ) {
     return ( 0, 'no code given' ) unless defined $code && $code =~ m/^[0-9]{$totp_digits}$/;
 
-    my $dbh    = _dbh();
+    my $dbh    = dbh();
     my $rows   = $dbh->selectall_arrayref( "SELECT totp_secret FROM user WHERE name=?", { Slice => {} }, $user );
     my $secret = ref $rows eq 'ARRAY' && @$rows ? $rows->[0]{totp_secret} : undef;
     return ( 0, 'this user has no second factor enrolled' ) unless $secret;
@@ -377,10 +384,26 @@ our $argon2_lanes   = 1;
 our $argon2_tag     = 32;
 our $argon2_saltlen = 16;
 
+# The hash and the salt that goes with it.  Argon2 carries the salt in its own
+# encoding as well; the column keeps it because the rows which have not been
+# upgraded yet are still using it for what it was for.
+my sub hash_password ($pass) {
+    my $salt = Trog::Utils::uuid();
+    $salt = substr( $salt, 0, $argon2_saltlen );
+    return ( argon2id_pass( $pass, $salt, $argon2_time, $argon2_memory, $argon2_lanes, $argon2_tag ), $salt );
+}
+
+my sub store_password ( $user, $pass ) {
+    my ( $hash, $salt ) = hash_password($pass);
+    my $dbh = dbh();
+    $dbh->do( "UPDATE user SET hash=?, salt=? WHERE name=?", undef, $hash, $salt, $user );
+    return 1;
+}
+
 sub check_password ( $user, $pass ) {
     return 0 unless $pass;
 
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT hash, salt FROM user WHERE name = ?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
@@ -392,30 +415,14 @@ sub check_password ( $user, $pass ) {
 
         # Cheap, and it is the only time we hold the password, so it is the only
         # time the cost of a stronger hash can be paid.
-        _store_password( $user, $pass )
+        store_password( $user, $pass )
           if argon2_needs_rehash( $hash, 'argon2id', $argon2_time, $argon2_memory, $argon2_lanes, $argon2_tag, $argon2_saltlen );
         return 1;
     }
 
     return 0 unless sha256( $pass . ( $salt // '' ) ) eq $hash;
     INFO("Upgrading the stored password for $user from sha256 to argon2id");
-    _store_password( $user, $pass );
-    return 1;
-}
-
-# The hash and the salt that goes with it.  Argon2 carries the salt in its own
-# encoding as well; the column keeps it because the rows which have not been
-# upgraded yet are still using it for what it was for.
-sub _hash_password ($pass) {
-    my $salt = Trog::Utils::uuid();
-    $salt = substr( $salt, 0, $argon2_saltlen );
-    return ( argon2id_pass( $pass, $salt, $argon2_time, $argon2_memory, $argon2_lanes, $argon2_tag ), $salt );
-}
-
-sub _store_password ( $user, $pass ) {
-    my ( $hash, $salt ) = _hash_password($pass);
-    my $dbh = _dbh();
-    $dbh->do( "UPDATE user SET hash=?, salt=? WHERE name=?", undef, $hash, $salt, $user );
+    store_password( $user, $pass );
     return 1;
 }
 
@@ -428,7 +435,7 @@ Returns a session ID, or blank string in the event the user does not exist or in
 =cut
 
 sub mksession ( $user, $pass, $token, $ip_addr = '' ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
 
     my $records = $dbh->selectall_arrayref( "SELECT name, hash, salt, totp_secret FROM user WHERE name = ?", { Slice => {} }, $user );
     if ( !( ref $records eq 'ARRAY' && @$records ) || !check_password( $user, $pass ) ) {
@@ -466,7 +473,7 @@ Delete the provided user's session from the auth db.
 =cut
 
 sub killsession ( $user, $ip_addr = '' ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     $dbh->do( "DELETE FROM session WHERE username=?", undef, $user );
     log_event( 'logout', $user, $ip_addr );
     return 1;
@@ -496,8 +503,8 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     die "ACLs must be array"             unless is_arrayref($acls);
     die "No contact email set for user!" unless $contactemail;
 
-    my $dbh = _dbh();
-    ( $hash, $salt ) = _hash_password($pass) if $pass;
+    my $dbh = dbh();
+    ( $hash, $salt ) = hash_password($pass) if $pass;
     $dbh->do( "INSERT OR REPLACE INTO user (name, display_name, salt, hash, contact_email, totp_secret) VALUES (?,?,?,?,?,?)", undef, $user, $displayname, $salt, $hash, $contactemail, $t_secret );
 
     #XXX this is clearly not normalized with an ACL mapping table, will be an issue with large number of users
@@ -508,13 +515,13 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
 }
 
 sub add_change_request (%args) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
     return 1;
 }
 
 sub process_change_request ($token) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT username, display_name, type, secret, contact_email FROM change_request_full WHERE processed=0 AND token=?", { Slice => {} }, $token );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
@@ -551,7 +558,7 @@ Supports filtering by C<username>, C<event_type>, and C<limit> (default 100).
 =cut
 
 sub audit_log (%opts) {
-    my $dbh   = _dbh();
+    my $dbh   = dbh();
     my $limit = int( $opts{limit} // 100 );
     my @where;
     my @bind;
@@ -589,7 +596,7 @@ would be a worse outcome than a login nobody wrote down.
 
 sub log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
     eval {
-        my $dbh = _dbh();
+        my $dbh = dbh();
         $dbh->do(
             "INSERT INTO audit_log (event_time, username, session_id, ip_addr, event_type) VALUES (?,?,?,?,?)",
             undef, time(), $username, $session_id, $ip_addr, $event_type
@@ -607,19 +614,12 @@ Return all users and their contact emails, for use in libravatar lookups.
 
 #XXX it may be worth using the sqlite extension to do SHA hashing here to speed up lookups.
 sub users_with_emails {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref(
         "SELECT name, contact_email FROM user WHERE contact_email IS NOT NULL AND contact_email != ''",
         { Slice => {} }
     );
     return ref $rows eq 'ARRAY' ? $rows : [];
-}
-
-# Ensure the db schema is OK, and give us a handle
-sub _dbh {
-    my $file   = 'schema/auth.schema';
-    my $dbname = "config/auth.db";
-    return Trog::SQLite::dbh( $file, $dbname );
 }
 
 1;

@@ -36,7 +36,7 @@ Needs inkscape on the PATH to do the rendering, and dies if it isn't there.
 
 Works with either era of inkscape.  1.0 reworked the command line and renamed
 the export flag from -e to -o, and 1.x rejects -e outright, so the version is
-read off the binary rather than assumed -- see _export_flag().
+read off the binary rather than assumed -- see export_flag().
 
 Overwrites whatever is already at those paths without asking.
 
@@ -50,7 +50,7 @@ extension.  The real container is assembled with Imager afterwards.
 # and 1.x errors out on -e rather than quietly accepting it.  Ask the binary
 # which era it belongs to instead of guessing -- this script has already been
 # flipped between the two by hand twice (e23b678, then back in 5f0cdca).
-sub _export_flag ($bin) {
+my sub export_flag ($bin) {
 
     # Shelling out, on purpose and on the record.  system() cannot hand back
     # what the child printed, and reaching for a pipe open instead would only
@@ -71,7 +71,7 @@ my $bin  = File::Which::which('inkscape');
 die "Please install inkscape" if !$bin;
 my $dir = File::Basename::dirname($icon) || die "Can't figure out dir from $icon";
 
-my $export = _export_flag($bin);
+my $export = export_flag($bin);
 
 # The sizes the site links to directly.
 my @png_sizes = qw{32 48 167 180 192 512};

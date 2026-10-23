@@ -12,82 +12,7 @@ use Trog::Log qw{:all};
 use Trog::Vars;
 use Trog::Utils;
 
-=head2 serve
-
-Serve a file, with options to stream and cache the output.
-
-=cut
-
-sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) {
-    my $ft = Trog::Utils::mime_type($path);
-    $ft ||= $Trog::Vars::content_types{text};
-
-    my $ct      = 'Content-type';
-    my @headers = ( $ct => $ft );
-
-    #TODO use static Cache-Control for everything but JS/CSS?
-    push( @headers, 'Cache-control' => $Trog::Vars::cache_control{revalidate} );
-
-    push( @headers, 'Accept-Ranges' => 'bytes' );
-
-    my $mt         = ( stat($path) )[9];
-    my $sz         = ( stat(_) )[7];
-    my @gm         = gmtime($mt);
-    my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
-    my $code       = $mt > $last_fetch ? 200 : 304;
-
-    push( @headers, "Last-Modified" => $now_string );
-    push( @headers, 'Vary'          => 'Accept-Encoding' );
-
-    if ( open( my $fh, '<', $path ) ) {
-        return _range( $fullpath, $fh, $ranges, $sz, @headers ) if @$ranges && $streaming;
-
-        # Transfer-encoding: chunked
-        return sub {
-            my $responder = shift;
-            push( @headers, 'Content-Length' => $sz );
-            my $writer = $responder->( [ $code, \@headers ] );
-            while ( $fh->read( my $buf, $Trog::Vars::CHUNK_SIZE ) ) {
-                $writer->write($buf);
-            }
-            close $fh;
-            $writer->close;
-          }
-          if $streaming && $sz > $Trog::Vars::CHUNK_SIZE;
-
-        #Return data in the event the caller does not support deflate
-        if ( !$deflate ) {
-            push( @headers, "Content-Length" => $sz );
-            INFO("GET 200 $sz $fullpath");
-
-            # Append server-timing headers
-            my $tot = tv_interval($start) * 1000;
-            push( @headers, 'Server-Timing' => "file;dur=$tot" );
-
-            return [ $code, \@headers, $fh ];
-        }
-
-        #Compress everything less than 1MB
-        push( @headers, "Content-Encoding" => "gzip" );
-        my $dfh;
-        IO::Compress::Gzip::gzip( $fh => \$dfh );
-        print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
-        push( @headers, "Content-Length" => length($dfh) );
-
-        INFO( "GET 200 " . length($dfh) . " $fullpath" );
-
-        # Append server-timing headers
-        my $tot = tv_interval($start) * 1000;
-        push( @headers, 'Server-Timing' => "file;dur=$tot" );
-
-        return [ $code, \@headers, [$dfh] ];
-    }
-
-    INFO("GET 403 23 $fullpath");
-    return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
-}
-
-sub _range ( $fullpath, $fh, $ranges, $sz, %headers ) {
+my sub range ( $fullpath, $fh, $ranges, $sz, %headers ) {
 
     # Set mode
     my $primary_ct   = "Content-Type: $headers{'Content-type'}";
@@ -143,6 +68,81 @@ sub _range ( $fullpath, $fh, $ranges, $sz, %headers ) {
         $writer->write("\n--$Trog::Vars::CHUNK_SEP\--\n") if $is_multipart;
         $writer->close;
     };
+}
+
+=head2 serve
+
+Serve a file, with options to stream and cache the output.
+
+=cut
+
+sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $deflate = 0 ) {
+    my $ft = Trog::Utils::mime_type($path);
+    $ft ||= $Trog::Vars::content_types{text};
+
+    my $ct      = 'Content-type';
+    my @headers = ( $ct => $ft );
+
+    #TODO use static Cache-Control for everything but JS/CSS?
+    push( @headers, 'Cache-control' => $Trog::Vars::cache_control{revalidate} );
+
+    push( @headers, 'Accept-Ranges' => 'bytes' );
+
+    my $mt         = ( stat($path) )[9];
+    my $sz         = ( stat(_) )[7];
+    my @gm         = gmtime($mt);
+    my $now_string = strftime( "%a, %d %b %Y %H:%M:%S GMT", @gm );
+    my $code       = $mt > $last_fetch ? 200 : 304;
+
+    push( @headers, "Last-Modified" => $now_string );
+    push( @headers, 'Vary'          => 'Accept-Encoding' );
+
+    if ( open( my $fh, '<', $path ) ) {
+        return range( $fullpath, $fh, $ranges, $sz, @headers ) if @$ranges && $streaming;
+
+        # Transfer-encoding: chunked
+        return sub {
+            my $responder = shift;
+            push( @headers, 'Content-Length' => $sz );
+            my $writer = $responder->( [ $code, \@headers ] );
+            while ( $fh->read( my $buf, $Trog::Vars::CHUNK_SIZE ) ) {
+                $writer->write($buf);
+            }
+            close $fh;
+            $writer->close;
+          }
+          if $streaming && $sz > $Trog::Vars::CHUNK_SIZE;
+
+        #Return data in the event the caller does not support deflate
+        if ( !$deflate ) {
+            push( @headers, "Content-Length" => $sz );
+            INFO("GET 200 $sz $fullpath");
+
+            # Append server-timing headers
+            my $tot = tv_interval($start) * 1000;
+            push( @headers, 'Server-Timing' => "file;dur=$tot" );
+
+            return [ $code, \@headers, $fh ];
+        }
+
+        #Compress everything less than 1MB
+        push( @headers, "Content-Encoding" => "gzip" );
+        my $dfh;
+        IO::Compress::Gzip::gzip( $fh => \$dfh );
+        print $IO::Compress::Gzip::GzipError if $IO::Compress::Gzip::GzipError;
+        push( @headers, "Content-Length" => length($dfh) );
+
+        INFO( "GET 200 " . length($dfh) . " $fullpath" );
+
+        # Append server-timing headers
+        my $tot = tv_interval($start) * 1000;
+        push( @headers, 'Server-Timing' => "file;dur=$tot" );
+
+        return [ $code, \@headers, [$dfh] ];
+    }
+
+    INFO("GET 403 23 $fullpath");
+    return [ 403, [ $ct => $Trog::Vars::content_types{text} ], ["STAY OUT YOU RED MENACE"] ];
 }
 
 1;

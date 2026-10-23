@@ -11,7 +11,7 @@ use List::Util();
 The part of an invoice which has to be computed rather than merely fetched.
 
 Its payee and payor are ordinary relations, declared in invoice.json and
-resolved by Trog::Routes::HTML::_enrich_post like any other type's.  The
+resolved by Trog::Routes::HTML::enrich_post like any other type's.  The
 running total is not -- it is read out of the line items themselves.
 
 =head2 enrich($post, $query) = %extra

@@ -59,7 +59,7 @@ sub requests_per ( $period, $num_periods, $before, @codes ) {
     ## no critic(ValuesAndExpressions::PreventSQLInjection)
     my $query = "SELECT count(*) FROM all_requests $whereclause GROUP BY date / ? HAVING date < ? LIMIT ?";
 
-    my @results = map { $_->[0] } @{ Trog::Log::_dbh()->selectall_arrayref( $query, undef, @input ) };
+    my @results = map { $_->[0] } @{ Trog::Log::dbh()->selectall_arrayref( $query, undef, @input ) };
     my $np      = @results < $num_periods ? @results : $num_periods;
     my @labels  = reverse map { "$_ $period(s) ago" } ( 1 .. $np );
 

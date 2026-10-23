@@ -108,19 +108,10 @@ so, rather than presenting as corruption.
 
 # 32 raw bytes.  Read at load: see WHERE THE KEY IS -- this is the moment the
 # environment is scrubbed, and it has to be before anything forks.
-our $key_file       = 'config/secrets.key';
-our $credential     = 'tpsgi-vault';
-our $key_bytes      = 32;
-our $master         = _from_env();
-our $looked_further = 0;
-
-sub _from_env {
-    my $raw = delete $ENV{TPSGI_VAULT_KEY};
-    return undef unless $raw;
-    return _decode( $raw, 'TPSGI_VAULT_KEY' );
-}
-
-sub _decode ( $raw, $whence ) {
+our $key_file   = 'config/secrets.key';
+our $credential = 'tpsgi-vault';
+our $key_bytes  = 32;
+my sub decode ( $raw, $whence ) {
     $raw =~ s/\s+//g;
     my $key = eval { Crypt::Misc::decode_b64($raw) };
     if ( !defined $key || length($key) != $key_bytes ) {
@@ -130,17 +121,26 @@ sub _decode ( $raw, $whence ) {
     return $key;
 }
 
+my sub from_env {
+    my $raw = delete $ENV{TPSGI_VAULT_KEY};
+    return undef unless $raw;
+    return decode( $raw, 'TPSGI_VAULT_KEY' );
+}
+
+our $master         = from_env();
+our $looked_further = 0;
+
 # The two places worth looking that are not the environment.  Deferred rather
 # than done at load, since both are files and this module is loaded by things
 # which have no interest in a vault.
-sub _look_further {
+my sub look_further {
     $looked_further = 1;
 
     my $dir = $ENV{CREDENTIALS_DIRECTORY};
     if ($dir) {
         my $path = "$dir/$credential";
         my $raw  = eval { File::Slurper::read_binary($path) };
-        return _decode( $raw, $path ) if defined $raw;
+        return decode( $raw, $path ) if defined $raw;
     }
 
     my $raw = eval { File::Slurper::read_binary($key_file) };
@@ -152,7 +152,7 @@ sub _look_further {
     my @stat = stat($key_file);
     WARN("$key_file is readable by more than its owner; chmod 600 it") if @stat && ( $stat[2] & oct('077') );
 
-    return _decode( $raw, $key_file );
+    return decode( $raw, $key_file );
 }
 
 =head2 key() = STRING or undef
@@ -168,7 +168,7 @@ losing it.
 =cut
 
 sub key {
-    $master //= _look_further() unless $looked_further;
+    $master //= look_further() unless $looked_further;
     return $master;
 }
 
@@ -188,12 +188,22 @@ sub key_id {
 
 # Bound into the ciphertext, so that moving a row between users or renaming it
 # breaks the tag rather than working.
-sub _aad ( $user, $name ) { return join( "\0", $user, $name ) }
+my sub aad ( $user, $name ) { return join( "\0", $user, $name ) }
 
-sub _derive ($salt) {
+my sub derive ($salt) {
     my $material = Crypt::KeyDerivation::hkdf( key(), $salt, 'SHA256', 44, 'tcms/user-secret' );
     return ( substr( $material, 0, 32 ), substr( $material, 32, 12 ) );
 }
+
+# A name is a label in a form and a key in a table, and it is half of what binds
+# a row to its owner, so it is a short plain thing or it is nothing.
+my sub safe_name ($name) {
+    return 0 if !$name || length $name > 64;
+    return $name =~ m/^[A-Za-z0-9][A-Za-z0-9._-]*$/ ? 1 : 0;
+}
+
+# The same database the users are in, since a secret belongs to one.
+my sub dbh { return Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' ) }
 
 =head2 set($user, $name, $secret) = ($ok, $message)
 
@@ -203,18 +213,18 @@ Remember one thing for one user, replacing whatever was there under that name.
 
 sub set ( $user, $name, $secret ) {
     return ( 0, 'this installation has no vault key, so there is nowhere to keep it' ) unless has_key();
-    return ( 0, 'a secret needs a name' )                                              unless _safe_name($name);
+    return ( 0, 'a secret needs a name' )                                              unless safe_name($name);
     return ( 0, 'nothing to store' )                                                   unless ( $secret // q{} ) ne q{};
 
     my $salt = Crypt::PRNG::random_bytes(32);
-    my ( $key, $iv ) = _derive($salt);
+    my ( $key, $iv ) = derive($salt);
 
     my $gcm = Crypt::AuthEnc::GCM->new( 'AES', $key, $iv );
-    $gcm->adata_add( _aad( $user, $name ) );
+    $gcm->adata_add( aad( $user, $name ) );
     my $ciphertext = $gcm->encrypt_add($secret);
     my $tag        = $gcm->encrypt_done();
 
-    my $dbh = _dbh();
+    my $dbh = dbh();
     eval {
         $dbh->do(
             "INSERT OR REPLACE INTO user_secret (username, name, key_id, salt, ciphertext, tag, created) VALUES (?,?,?,?,?,?,?)",
@@ -230,23 +240,27 @@ sub set ( $user, $name, $secret ) {
     return ( 1, "'$name' stored" );
 }
 
-=head2 get($user, $name) = STRING or undef
+# The plaintext, or undef with a reason in the log.  Never dies: a row that will
+# not open is a thing to report to somebody who can store it again, not an
+# exception halfway through drawing a page.
+my sub _open ( $row, $user, $name ) {
+    if ( $row->{key_id} ne key_id() ) {
+        WARN( "'$name' for $user was sealed under vault key $row->{key_id}, and this installation has " . key_id() );
+        return undef;
+    }
 
-What was stored, or undef if there is nothing under that name, no key to open it
-with, or a key which is not the one it was sealed under.
+    my ( $key, $iv ) = derive( $row->{salt} );
+    my $gcm = Crypt::AuthEnc::GCM->new( 'AES', $key, $iv );
+    $gcm->adata_add( aad( $user, $name ) );
+    my $secret = $gcm->decrypt_add( $row->{ciphertext} );
 
-Every call is an audit_log row.  Reading a stored password is the interesting
-event here, not writing one.
+    # The tag is the whole point: it says this ciphertext, under this key, for
+    # this user and this name, is the one that was written.
+    if ( !$gcm->decrypt_done( $row->{tag} ) ) {
+        WARN("'$name' for $user did not survive its own tag check; it has been tampered with or the database is damaged");
+        return undef;
+    }
 
-=cut
-
-sub get ( $user, $name ) {
-    my $secret = _stored( $user, $name );
-    return undef unless defined $secret;
-
-    my $dbh = _dbh();
-    $dbh->do( "UPDATE user_secret SET last_used=? WHERE username=? AND name=?", undef, time(), $user, $name );
-    Trog::Auth::log_event( 'secret_read', $user );
     return $secret;
 }
 
@@ -261,10 +275,10 @@ sub get ( $user, $name ) {
 # What get() adds is that reading a secret is an event: it moves last_used and
 # writes to the audit log.  Asking whether one is usable is not an event, and
 # does not.
-sub _stored ( $user, $name ) {
+my sub stored ( $user, $name ) {
     return undef unless has_key();
 
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref(
         "SELECT key_id, salt, ciphertext, tag FROM user_secret WHERE username=? AND name=?",
         { Slice => {} }, $user, $name
@@ -274,27 +288,23 @@ sub _stored ( $user, $name ) {
     return _open( $rows->[0], $user, $name );
 }
 
-# The plaintext, or undef with a reason in the log.  Never dies: a row that will
-# not open is a thing to report to somebody who can store it again, not an
-# exception halfway through drawing a page.
-sub _open ( $row, $user, $name ) {
-    if ( $row->{key_id} ne key_id() ) {
-        WARN( "'$name' for $user was sealed under vault key $row->{key_id}, and this installation has " . key_id() );
-        return undef;
-    }
+=head2 get($user, $name) = STRING or undef
 
-    my ( $key, $iv ) = _derive( $row->{salt} );
-    my $gcm = Crypt::AuthEnc::GCM->new( 'AES', $key, $iv );
-    $gcm->adata_add( _aad( $user, $name ) );
-    my $secret = $gcm->decrypt_add( $row->{ciphertext} );
+What was stored, or undef if there is nothing under that name, no key to open it
+with, or a key which is not the one it was sealed under.
 
-    # The tag is the whole point: it says this ciphertext, under this key, for
-    # this user and this name, is the one that was written.
-    if ( !$gcm->decrypt_done( $row->{tag} ) ) {
-        WARN("'$name' for $user did not survive its own tag check; it has been tampered with or the database is damaged");
-        return undef;
-    }
+Every call is an audit_log row.  Reading a stored password is the interesting
+event here, not writing one.
 
+=cut
+
+sub get ( $user, $name ) {
+    my $secret = stored( $user, $name );
+    return undef unless defined $secret;
+
+    my $dbh = dbh();
+    $dbh->do( "UPDATE user_secret SET last_used=? WHERE username=? AND name=?", undef, time(), $user, $name );
+    Trog::Auth::log_event( 'secret_read', $user );
     return $secret;
 }
 
@@ -307,7 +317,7 @@ you can read off a screen is one you did not need us to keep.
 =cut
 
 sub list ($user) {
-    my $dbh  = _dbh();
+    my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref(
         "SELECT name, created, last_used, key_id, salt, ciphertext, tag FROM user_secret WHERE username=? ORDER BY name",
         { Slice => {} }, $user
@@ -340,27 +350,17 @@ not.  This moves nothing and writes nothing to the audit log.
 
 =cut
 
-sub has ( $user, $name ) { return defined _stored( $user, $name ) ? 1 : 0 }
+sub has ( $user, $name ) { return defined stored( $user, $name ) ? 1 : 0 }
 
 =head2 forget($user, $name) = BOOL
 
 =cut
 
 sub forget ( $user, $name ) {
-    my $dbh = _dbh();
+    my $dbh = dbh();
     my $res = $dbh->do( "DELETE FROM user_secret WHERE username=? AND name=?", undef, $user, $name );
     Trog::Auth::log_event( 'secret_delete', $user ) if $res && $res != 0;
     return $res && $res != 0 ? 1 : 0;
 }
-
-# A name is a label in a form and a key in a table, and it is half of what binds
-# a row to its owner, so it is a short plain thing or it is nothing.
-sub _safe_name ($name) {
-    return 0 if !$name || length $name > 64;
-    return $name =~ m/^[A-Za-z0-9][A-Za-z0-9._-]*$/ ? 1 : 0;
-}
-
-# The same database the users are in, since a secret belongs to one.
-sub _dbh { return Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' ) }
 
 1;

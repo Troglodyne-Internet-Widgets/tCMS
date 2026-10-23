@@ -8,6 +8,10 @@ use parent qw{Trog::Renderer::Base};
 
 use JavaScript::Minifier::XS;
 
+my sub minify {
+    return JavaScript::Minifier::XS::minify(shift);
+}
+
 =head1 Trog::Renderer::javascript
 
 Render JS, and minify the output.
@@ -15,12 +19,8 @@ Render JS, and minify the output.
 =cut
 
 sub render (%options) {
-    $options{post_processor} = \&_minify;
+    $options{post_processor} = \&minify;
     return Trog::Renderer::Base::render(%options);
-}
-
-sub _minify {
-    return JavaScript::Minifier::XS::minify(shift);
 }
 
 1;
