@@ -77,7 +77,7 @@ my sub _component ( $name, $args ) {
     my $module = load($name);
 
     die "Component '$name' recursed more than $MAX_DEPTH deep\n" if $depth >= $MAX_DEPTH;
-    local $depth = $depth + 1;
+    local $Trog::Component::depth = $depth + 1;
 
     $args = {} unless ref $args eq 'HASH';
 

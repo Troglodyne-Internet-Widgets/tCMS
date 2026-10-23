@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -88,7 +89,7 @@ subtest 'loading' => sub {
 };
 
 subtest 'render' => sub {
-    local @ARGS_SEEN = ();
+    local @main::ARGS_SEEN = ();
 
     my $out = Trog::Component::component('TestFixture');
     is( "$out", '<b>fixture</b>', "component output comes back" );

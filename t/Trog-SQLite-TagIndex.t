@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -31,7 +32,7 @@ package Fake::Data {
 
 # One that gets as far as the index, then falls over before the routes.
 package Broken::Data {
-    our @ISA = ('Fake::Data');
+    use parent -norequire, 'Fake::Data';
     sub get { die "the data model fell over\n" }
 }
 

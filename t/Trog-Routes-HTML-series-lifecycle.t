@@ -19,16 +19,17 @@ use FindBin;
 use FindBin::libs;
 
 use Test::More;
-use Cwd           ();
-use Encode        ();
-use File::Copy    ();
-use File::Find    ();
-use File::Path    ();
-use File::Temp    ();
-use Time::HiRes   ();
-use URI::Escape   ();
-use JSON::MaybeXS ();
-use File::Slurper ();
+use Cwd                 ();
+use Encode              ();
+use File::Copy          ();
+use File::Find          ();
+use File::Path          ();
+use File::Temp          ();
+use Time::HiRes         ();
+use URI::Escape         ();
+use JSON::MaybeXS       ();
+use File::Slurper       ();
+use File::Slurper::Temp ();
 
 our ( $REPO, $ROOT, $OLDCWD );
 our %REPO_BEFORE;
@@ -116,7 +117,7 @@ BEGIN {
     # finished when the app cannot tell which one it is talking to.
     my $stock = File::Slurper::read_text("$REPO/config/default.cfg");
     $stock =~ s/^(\s*data_model=)\N*$/$1$MODEL/m or die "could not set the data model in default.cfg";
-    File::Slurper::write_text( "$ROOT/config/default.cfg", $stock );
+    File::Slurper::Temp::write_text( "$ROOT/config/default.cfg", $stock );
 
     # Hardcoded paths in Auth.pm, TagIndex.pm, the data models and Log.pm -- not negotiable.
     File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{auth.schema flatfile.schema sqlite.schema log.schema};
@@ -183,7 +184,7 @@ require Trog::Routes::JSON;
             restarts      => 0,
             tpsgi_dir     => Cwd::getcwd(),
             log_dir       => 'logs',
-            gid           => $),
+            gid           => "$)",
             verbose       => 0,
             %args,
         }, $class;
@@ -490,7 +491,7 @@ subtest 'the post wizard invents a new post type' => sub {
     # type opt out of collecting them, which is how a hypervisor post ended up
     # stored with no visibility and an undef in its tags.
     foreach my $required ( 'visibility.tx', 'acls.tx' ) {
-        like( $generated, qr/\Q: include "$required";\E/, "$required is included whether or not it was asked for" );
+        like( $generated, qr/:[ ]include[ ]"\Q$required\E";/, "$required is included whether or not it was asked for" );
     }
     like( $generated, qr/name="title"/, 'and so is the title input' );
 
@@ -1218,8 +1219,8 @@ subtest 'invoice' => sub {
         to            => '/specinvoice',
     );
 
-    my $sent  = time() - 10 * 86400;
-    my $child = do { local $NOW = $sent; save_post( 'invoice child', %invoice ) }
+    my $sent  = time() - 864_000;                                                         # ten days
+    my $child = do { local $main::NOW = $sent; save_post( 'invoice child', %invoice ) }
       or return;
     is( $child->{created}, $sent, 'the first save is stamped with the clock the test set' );
 
@@ -1240,7 +1241,7 @@ subtest 'invoice' => sub {
     like( $body, qr/Widget[ ]assembly/, 'line items rendered' );
     like( $body, qr/Total:[ ]\$500/,    'total summed from the line item prices' );
 
-    my $due = $child->{modified} + 30 * 86400;
+    my $due = $child->{modified} + 2_592_000;    # thirty days
     like( $body, qr{Due:[ ]<span[ ]class="unixtimestamp">\Q$due\E</span>}, 'due date counts from the latest edit, not the first save' );
 };
 

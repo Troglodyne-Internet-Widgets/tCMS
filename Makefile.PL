@@ -133,11 +133,9 @@ WriteMakefile(
         'WWW::SitemapIndex::XML'              => '0',
         'CSS::Minifier::XS'                   => '0',
         'JavaScript::Minifier::XS'            => '0',
-        'Digest::SHA'                         => '0',
         'Path::Tiny'                          => '0',
         'Log::Dispatch'                       => '0',
         'Log::Dispatch::FileRotate'           => '0',
-        'Digest::SHA'                         => '0',
         'URI'                                 => '0',
         'FindBin::libs'                       => '0',
         'Carp::Always'                        => '0',
@@ -148,11 +146,25 @@ WriteMakefile(
         'Log::Dispatch::DBI'                  => '0',
         'Log::Syslog::Fast'                   => '0',
         'Module::Runtime'                     => '0',
-        'Email::MIME'                         => '0',
-        'Email::Sender::Simple'               => '0',
         'Net::IP'                             => '0',
         'File::LibMagic'                      => '0',
         'Linux::Perl::inotify'                => '0',
     },
     test => { TESTS => 't/*.t' }
 );
+
+__END__
+
+=head1 NAME
+
+Makefile.PL - what tCMS needs installed
+
+=head1 DESCRIPTION
+
+PREREQ_PM lists what tCMS needs at run time.  The develop prerequisites list
+what the git hooks and .perlcriticrc need as well.
+
+    cpanm --installdeps .                  # to run tCMS
+    cpanm --installdeps --with-develop .   # to work on it
+
+=cut

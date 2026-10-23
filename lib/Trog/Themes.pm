@@ -35,7 +35,7 @@ sub routes {
     # get_dir() is relative to the tCMS root, which require only searches from '.'.
     local @INC = ( '.', @INC );
     local $@;
-    eval { require "$rdir/routes.pm"; 1; } or do {
+    eval { require "$rdir/routes.pm"; 1; } or do {    ## no critic (Modules::RequireBarewordIncludes) -- a theme ships a file, not a module
         die "Could not load Theme routing package: $@";
     };
 

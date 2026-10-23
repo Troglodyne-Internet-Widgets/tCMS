@@ -37,23 +37,23 @@ color     = 1
 allow-unsafe = 1
 # Usability
 [Modules::RequirePerlVersion]
-#[Documentation::RequirePod]
+[Documentation::RequirePod]
 # Security
 [ValuesAndExpressions::PreventSQLInjection]
 # Drop this one at 5.041 and later.  It also applies to POD, where the only
 # thing it tends to catch is a contributor's name in the section Dist::Zilla
 # generates, and spelling somebody's name wrong is not a code standard.
-#[CodeLayout::RequireASCII]
+[CodeLayout::RequireASCII]
 [RegularExpressions::RequireDefault]
 strict = 1
-#[RegularExpressions::PreventUselessMetacharacterEscapes]
+[RegularExpressions::PreventUselessMetacharacterEscapes]
 # PEBCAK catches
 [BuiltinFunctions::ProhibitDeleteOnArrays]
 [Subroutines::ProhibitAmbiguousFunctionCalls]
 [ValuesAndExpressions::ProhibitSingleArgArraySlice]
 [ValuesAndExpressions::ProhibitDefinedBeforeLength]
 [Variables::ProhibitUselessVarClearing]
-#[Subroutines::ProhibitTailRecursion]
+[Subroutines::ProhibitTailRecursion]
 [Bangs::ProhibitUselessRegexModifiers]
 [Bangs::ProhibitCommentedOutCode]
 [Tics::ProhibitUseBase]
@@ -62,7 +62,7 @@ strict = 1
 [ValuesAndExpressions::UnexpandedSpecialLiteral]
 [CodeLayout::ProhibitIfIfSameLine]
 [ValuesAndExpressions::ConstantBeforeLt]
-#[ValuesAndExpressions::ProhibitDuplicateHashKeys]
+[ValuesAndExpressions::ProhibitDuplicateHashKeys]
 # any access checks are necessarily a TOCTOU waiting to happen
 #[ValuesAndExpressions::ProhibitFiletest_f]
 [ValuesAndExpressions::ProhibitFiletest_rwxRWX]
@@ -71,25 +71,25 @@ strict = 1
 warn_level = 40
 info_level = 30
 [Variables::ProhibitUselessInitialization]
-#[PreferredModules]
+[PreferredModules]
 #config = .preferred_modules.ini
 [logicLAB::RequireSheBang]
 formats = #!/usr/bin/env perl
 # Performance
-#[logicLAB::ProhibitShellDispatch]
+[logicLAB::ProhibitShellDispatch]
 [ProhibitPipeOpen]
 #[Performance::ProhibitRegexForSimpleSubstring]
-#[RegularExpressions::ProhibitRegexToStripAffix]
+[RegularExpressions::ProhibitRegexToStripAffix]
 [RegularExpressions::ProhibitRegexToChomp]
 [BuiltinFunctions::ProhibitChainingSameListSub]
 [RegularExpressions::ProhibitRegexForStringEquality]
 [Subroutines::ProhibitUnderscorePrivateSubs]
 #[Subroutines::ProhibitSingleUseLexicalSubs]
-#[ValuesAndExpressions::ProhibitLiteralArithmetic]
+[ValuesAndExpressions::ProhibitLiteralArithmetic]
 [BuiltinFunctions::ProhibitIndirectBooleanGrep]
 # What ProhibitMutatingListFunctions reports, which this replaces, and a block
 # that changes $_ through a sub that it calls.
-#[ControlStructures::ProhibitMutatingListFunctionsStricter]
+[ControlStructures::ProhibitMutatingListFunctionsStricter]
 # An if, elsif, else or unless whose block holds no statement, a comment
 # being none.  Loops are left alone, because a loop condition can do the work.
 [ControlStructures::ProhibitEmptyConditionalBlocks]
@@ -100,7 +100,7 @@ exclude_functions = print
 [ProhibitUseLib]
 #[ProhibitUsageSubs]
 [RequireQwForLiteralLists]
-#[ProhibitNoWarningsRedefine]
+[ProhibitNoWarningsRedefine]
 [RequireFatalWarnings]
 [ProhibitUnusedImports]
 # Modules imported for a side effect rather than for a symbol, which the policy
@@ -171,14 +171,14 @@ allow = re Exporter
 [BuiltinFunctions::ProhibitUniversalCan]
 [BuiltinFunctions::ProhibitUniversalIsa]
 [BuiltinFunctions::ProhibitVoidGrep]
-#[BuiltinFunctions::ProhibitVoidMap]
+[BuiltinFunctions::ProhibitVoidMap]
 [BuiltinFunctions::RequireBlockGrep]
 [BuiltinFunctions::RequireBlockMap]
 [BuiltinFunctions::RequireGlobFunction]
 [BuiltinFunctions::RequireSimpleSortBlock]
 [ClassHierarchies::ProhibitAutoloading]
-#[ClassHierarchies::ProhibitExplicitISA]
-#[ClassHierarchies::ProhibitOneArgBless]
+[ClassHierarchies::ProhibitExplicitISA]
+[ClassHierarchies::ProhibitOneArgBless]
 [CodeLayout::ProhibitHardTabs]
 [CodeLayout::ProhibitTrailingWhitespace]
 [CodeLayout::RequireConsistentNewlines]
@@ -215,14 +215,14 @@ allow = re Exporter
 #[Miscellanea::ProhibitUselessNoCritic]
 [Modules::ProhibitAutomaticExportation]
 #[Modules::ProhibitConditionalUseStatements]
-#[Modules::RequireBarewordIncludes]
-#[Modules::RequireFilenameMatchesPackage]
+[Modules::RequireBarewordIncludes]
+[Modules::RequireFilenameMatchesPackage]
 [Modules::RequireNoMatchVarsWithUseEnglish]
 #[NamingConventions::Capitalization]
 [RegularExpressions::ProhibitCaptureWithoutTest]
 #[RegularExpressions::ProhibitComplexRegexes]
 #[RegularExpressions::ProhibitEnumeratedClasses]
-#[RegularExpressions::ProhibitFixedStringMatches]
+[RegularExpressions::ProhibitFixedStringMatches]
 [RegularExpressions::ProhibitSingleCharAlternation]
 [RegularExpressions::ProhibitUnusedCapture]
 [RegularExpressions::RequireBracesForMultiline]
@@ -232,7 +232,7 @@ allow = re Exporter
 #[Subroutines::ProhibitBuiltinHomonyms]
 [Subroutines::ProhibitManyArgs]
 [Subroutines::ProhibitNestedSubs]
-#[Subroutines::ProhibitReturnSort]
+[Subroutines::ProhibitReturnSort]
 [Subroutines::ProhibitSubroutinePrototypes]
 [Subroutines::ProtectPrivateSubs]
 #[Subroutines::RequireArgUnpacking]
@@ -245,7 +245,7 @@ terminal_funcs = POSIX::_exit
 [ValuesAndExpressions::ProhibitComplexVersion]
 [ValuesAndExpressions::ProhibitEscapedCharacters]
 [ValuesAndExpressions::ProhibitLongChainsOfMethodCalls]
-#[ValuesAndExpressions::ProhibitMismatchedOperators]
+[ValuesAndExpressions::ProhibitMismatchedOperators]
 [ValuesAndExpressions::ProhibitMixedBooleanOperators]
 [ValuesAndExpressions::ProhibitQuotesAsQuotelikeOperatorDelimiters]
 [ValuesAndExpressions::ProhibitSpecialLiteralHeredocTerminator]
@@ -257,11 +257,11 @@ terminal_funcs = POSIX::_exit
 [Variables::ProhibitConditionalDeclarations]
 # Variables::ProhibitEvilVariables is not listed: it declines to load until it
 # is given variables to prohibit, and nobody has named any.
-#[Variables::ProhibitLocalVars]
+[Variables::ProhibitLocalVars]
 [Variables::ProhibitMatchVars]
 # Drop this one at 5.041 and later, with RequireASCII above.
 [Variables::ProhibitPerl4PackageNames]
-#[Variables::ProhibitReusedNames]
+[Variables::ProhibitReusedNames]
 # Stricter than the core ProhibitUnusedVariables, which reports only a bare
 # `my $x;` and misses a variable that is assigned and never read.
 [Variables::ProhibitUnusedVarsStricter]

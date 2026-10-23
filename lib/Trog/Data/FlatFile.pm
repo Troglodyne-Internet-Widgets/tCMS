@@ -41,7 +41,8 @@ my sub _index {
     opendir( my $dh, $datastore ) or confess;
     my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
     closedir $dh;
-    return sort { $b cmp $a } @index;
+    my @sorted = sort { $b cmp $a } @index;
+    return @sorted;
 }
 
 sub read ( $self, $query = {} ) {

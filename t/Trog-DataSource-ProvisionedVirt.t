@@ -64,6 +64,10 @@ END {
     chdir($OLDCWD) if $OLDCWD;
 }
 
+# Trog::Config memoises, which is what a running server wants and a test
+# emphatically does not.
+my $config_mock;
+
 sub write_config {
     my (%section) = @_;
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
@@ -71,13 +75,11 @@ sub write_config {
     print {$fh} "    $_=$section{$_}\n" foreach sort keys %section;
     close $fh;
 
-    # Trog::Config memoises, which is what a running server wants and a test
-    # emphatically does not.
-    no warnings qw{once redefine};
     require Config::Simple;
     my $conf = Config::Simple->new("$ROOT/config/default.cfg");
     local $@;
-    *Trog::Config::get = sub { return $conf };
+    $config_mock //= Test::MockModule->new('Trog::Config');
+    $config_mock->redefine( get => sub { return $conf } );
     return;
 }
 
@@ -472,9 +474,9 @@ subtest 'the listing says what is going on' => sub {
     File::Path::make_path("$ROOT/logs/reprovision");
 
     my $status = "$ROOT/logs/reprovision/guest.example.com.status";
-    open( my $log, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
-    print {$log} "some output\n";
-    close $log;
+    open( my $out, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
+    print {$out} "some output\n";
+    close $out;
 
     $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
 

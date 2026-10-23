@@ -453,7 +453,7 @@ my sub sidecar_generation {
 # explicitly undef form.
 my sub type_of ($form) {
     $form = '' if !defined $form || ref $form;
-    my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;
+    my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;    ## no critic (RegularExpressions::ProhibitRegexToStripAffix) -- the class is the check: anything else is no type
     return $type // '';
 }
 
@@ -463,26 +463,29 @@ our %relation_schema = ( type => 'string' );
 # string-or-hashref dance every upload field would otherwise need.  Uploads are
 # a hashref on the way in from the browser and the href string they became on
 # the way back out of the datastore.
-my sub expand_pseudo_types ($node) {
-    return unless Ref::Util::is_hashref($node);
-
+my sub expand_pseudo_types ($root) {
     my %pseudo = (
         upload   => \%upload_schema,
         relation => \%relation_schema,
     );
 
-    my $type = $node->{type} // '';
-    if ( $pseudo{$type} ) {
-        delete $node->{type};
-        %$node = ( %$node, %{ $pseudo{$type} } );
-        return;
-    }
+    my @todo = ($root);
+    for ( my $i = 0; $i < scalar(@todo); $i++ ) {
+        my $node = $todo[$i];
+        next unless Ref::Util::is_hashref($node);
 
-    __SUB__->($_) foreach values( %{ $node->{properties} // {} } );
-    __SUB__->( $node->{items} ) if $node->{items};
-    foreach my $key (qw{oneOf anyOf allOf}) {
-        next unless Ref::Util::is_arrayref( $node->{$key} );
-        __SUB__->($_) foreach @{ $node->{$key} };
+        my $type = $node->{type} // '';
+        if ( $pseudo{$type} ) {
+            delete $node->{type};
+            %$node = ( %$node, %{ $pseudo{$type} } );
+            next;
+        }
+
+        push( @todo, values( %{ $node->{properties} // {} } ) );
+        push( @todo, $node->{items} ) if $node->{items};
+        foreach my $key (qw{oneOf anyOf allOf}) {
+            push( @todo, @{ $node->{$key} } ) if Ref::Util::is_arrayref( $node->{$key} );
+        }
     }
     return;
 }
