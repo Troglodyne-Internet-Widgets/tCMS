@@ -35,7 +35,7 @@ our %routes = (
         callback   => \&process_auth_change_request,
         captures   => ['token'],
         parameters => {
-            token => sub { my $tok = shift; $tok =~ m/[a-f|0-9|-]+/; },
+            token => sub { my $tok = shift; $tok =~ m/\A[\da-f-]+\z/; },
         },
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
@@ -46,7 +46,7 @@ our %routes = (
         parameters => {
 
             # Same shape series.json demands of child_form.
-            form => sub { $_[0] =~ m/^[A-Za-z0-9_-]+\.tx$/ },
+            form => sub { $_[0] =~ m/^[\w-]+\.tx$/ },
         },
         callback => \&posts_of_form,
         noindex  => 1,
