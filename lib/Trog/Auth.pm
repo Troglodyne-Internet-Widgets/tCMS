@@ -142,10 +142,10 @@ sub username2classname ($name) {
 
     # Users are always self-authored, you see
 
-    my $user_obj = List::Util::first { ( $_->{user} || '' ) eq $name } @userposts;
-    my $NNname   = $user_obj->{id} || '';
-    $NNname =~ tr/-/_/;
-    return "a_$NNname";
+    my $user_obj  = List::Util::first { ( $_->{user} || '' ) eq $name } @userposts;
+    my $classname = $user_obj->{id} || '';
+    $classname =~ tr/-/_/;
+    return "a_$classname";
 }
 
 =head2 acls4user(STRING username) = ARRAYREF
