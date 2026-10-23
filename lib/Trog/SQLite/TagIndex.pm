@@ -54,7 +54,7 @@ sub tags {
 
 sub add_post ( $post, $data_obj ) {
     my $dbh = _dbh();
-    _in_transaction(
+    Trog::SQLite::transaction(
         $dbh,
         sub {
             # posts_index has no key for INSERT OR IGNORE to skip a duplicate on,
@@ -79,7 +79,7 @@ The HTTP methods are kept, as the schema fills those rather than any post.
 
 sub rebuild ($data_obj) {
     my $dbh = _dbh();
-    _in_transaction(
+    Trog::SQLite::transaction(
         $dbh,
         sub {
             # Cascades to posts_index, routes and post_aliases.
@@ -90,18 +90,6 @@ sub rebuild ($data_obj) {
             build_routes($data_obj);
         }
     );
-    return 1;
-}
-
-sub _in_transaction ( $dbh, $work ) {
-    $dbh->begin_work();
-    my $ok = eval { $work->(); 1 };
-    if ( !$ok ) {
-        my $err = $@;
-        $dbh->rollback();
-        die $err;
-    }
-    $dbh->commit();
     return 1;
 }
 

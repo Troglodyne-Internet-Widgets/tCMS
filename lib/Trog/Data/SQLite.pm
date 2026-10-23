@@ -319,24 +319,7 @@ and taking minutes, since SQLite otherwise commits once per row.
 sub write ( $self, $data ) {
     my $dbh = _dbh();
 
-    # Only if we are not already inside someone else's transaction: begin_work
-    # dies rather than nesting.
-    my $mine = $dbh->{AutoCommit} ? $dbh->begin_work : 0;
-
-    local $@;
-    eval {
-        _insert( $dbh, $data );
-        $dbh->commit if $mine;
-        1;
-    } or do {
-        my $error = $@;
-        if ($mine) {
-            local $@;
-            eval { $dbh->rollback; 1 } or WARN("Could not roll back a failed write: $@");
-        }
-        confess $error;
-    };
-
+    Trog::SQLite::transaction( $dbh, sub { _insert( $dbh, $data ) } );
     return 1;
 }
 
