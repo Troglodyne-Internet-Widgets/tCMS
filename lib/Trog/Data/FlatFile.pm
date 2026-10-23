@@ -39,8 +39,8 @@ our %posts_by_tag;
 
 my sub _index {
     confess "Can't find datastore in $datastore !" unless -d $datastore;
-    my @index  = map  { "$_" } grep { -f } Path::Tiny::path($datastore)->children;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
-    my @sorted = sort { $b cmp $a } @index;
+    my @index  = map { "$_" } grep { -f } Path::Tiny::path($datastore)->children;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
+    my @sorted = reverse sort @index;
     return @sorted;
 }
 
@@ -160,7 +160,7 @@ sub write ( $self, $data ) {
         # N+1, so one save vanishes: at three workers by 25 saves, about 30 of
         # 75 revisions survived.  With it, all 75.  It has to be taken on a
         # path that never gets renamed, hence a lockfile rather than the post.
-        open( my $lock, '>>', "$spool/.write.lock" ) or confess "Could not open $spool/.write.lock: $!";
+        open( my $lock, '>>', "$spool/.write.lock" ) or confess "Could not open $spool/.write.lock: $!";    ## no critic (InputOutput::RequireBriefOpen) -- held until the write lands
         flock( $lock, LOCK_EX )                      or confess "Could not lock $spool/.write.lock: $!";
 
         my $slurped = eval { File::Slurper::read_binary($file) };

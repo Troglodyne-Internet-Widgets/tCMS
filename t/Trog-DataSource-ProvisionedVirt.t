@@ -71,8 +71,7 @@ my $config_mock;
 sub write_config {
     my (%section) = @_;
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
-    print {$fh} "[general]\n    data_model=FlatFile\n[provisioner]\n";
-    print {$fh} "    $_=$section{$_}\n" foreach sort keys %section;
+    print {$fh} "[general]\n    data_model=FlatFile\n[provisioner]\n" . join( '', map { "    $_=$section{$_}\n" } sort keys %section );
     close $fh;
 
     require Config::Simple;

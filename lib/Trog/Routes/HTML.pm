@@ -499,7 +499,7 @@ my sub build_social_meta ( $query, $title ) {
     $meta_tags =~ s/content="video"/content="video:other"/mg if $meta_tags;
     $meta_tags .= $extra_tags                                if $extra_tags;
 
-    print STDERR "WARNING: Theme misconfigured, social media tags will not be included\n$@\n" if $theme_dir && !$meta_tags;
+    WARN("Theme misconfigured, social media tags will not be included: $@") if $theme_dir && !$meta_tags;
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 
@@ -836,7 +836,7 @@ Renders the configuration page, or redirects you back to the login page.
 
 sub config ( $query = {} ) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -1153,7 +1153,7 @@ editable, not whatever turned up in the request.
 
 sub config_save ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $conf = Trog::Config::get();
     config_apply( $conf, $query );
@@ -1208,7 +1208,7 @@ Clone a theme by copying a directory.
 
 sub themeclone ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my ( $theme, $newtheme ) = ( $query->{theme}, $query->{newtheme} );
 
@@ -1232,7 +1232,7 @@ Saves posts submitted via the /post pages
 
 sub post_save ($qq) {
     return $qq->{tpsgi}->see_also('/login') unless $qq->{user};
-    return $qq->{tpsgi}->forbidden($qq)     unless grep { $_ eq 'admin' } @{ $qq->{user_acls} };
+    return $qq->{tpsgi}->forbidden($qq)     unless List::Util::any { $_ eq 'admin' } @{ $qq->{user_acls} };
 
     my $query = clone($qq);
 
@@ -1295,7 +1295,7 @@ Saves / updates new users.
 
 sub profile ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     # Find the user's post and edit it
     state $data;
@@ -1358,7 +1358,7 @@ deletes posts.
 
 sub post_delete ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
@@ -1373,7 +1373,7 @@ sub post_delete ($query) {
 my sub enrich_callback ( $post, $query ) {
     my $meta = Trog::DataModule::type_meta_for( $post->{form} );
     my $sub  = $meta->{'x-tcms-post-type'}{enrich};
-    return unless $sub && !ref $sub;
+    return if !$sub || ref $sub;
 
     my ($modname) = $sub =~ m/^([\w:]+)::\w+$/;
     if ( !$modname ) {
@@ -1462,7 +1462,7 @@ sub series ($query) {
     $query->{route} =~ s|^/secure||;
 
     #we are either viewed one of two ways, /post/$id or /$aclname
-    my ( undef, $aclname, $id ) = split( '/', $query->{route} );
+    my ( undef, $aclname, $id ) = split( m{/}, $query->{route} );
     $query->{aclname} = $aclname if !$id;
     $query->{id}      = $id      if $id;
 
@@ -1590,7 +1590,7 @@ sub users ($query) {
     $query->{route} =~ s|^/secure||;
 
     # Capture the username
-    my ( undef, undef, $display_name ) = split( '/', $query->{route} );
+    my ( undef, undef, $display_name ) = split( m{/}, $query->{route} );
     $display_name = URI::Escape::uri_unescape($display_name);
 
     my $username = Trog::Auth::display2username($display_name);
@@ -1703,7 +1703,7 @@ sub posts ( $query, $direct = 0 ) {
     # rip away /secure if present
     $query->{route} =~ s|^/secure||;
 
-    my ( undef, undef, $id ) = split( '/', $query->{route} );
+    my ( undef, undef, $id ) = split( m{/}, $query->{route} );
 
     my $tags = Trog::Utils::coerce_array( $query->{tag} );
     $query->{id} = $id if $id && !$query->{in_series};
@@ -1799,7 +1799,7 @@ sub posts ( $query, $direct = 0 ) {
     foreach my $post (@posts) {
         @{ $post->{tags} } = grep {
             my $tag = $_;
-            !grep { $tag eq $_ } @visibuddies
+            List::Util::none { $tag eq $_ } @visibuddies
         } @{ $post->{tags} };
     }
 
@@ -2086,7 +2086,7 @@ this.
 sub viewer_acls ( $query, $direct = 0 ) {
     my @acls = ( @{ $query->{user_acls} // [] }, 'public' );
     push( @acls, 'unlisted' ) if $direct;
-    push( @acls, 'private' )  if grep { $_ eq 'admin' } @acls;
+    push( @acls, 'private' )  if List::Util::any { $_ eq 'admin' } @acls;
     return List::Util::uniq(@acls);
 }
 
@@ -2272,12 +2272,12 @@ sub sitemap ($query) {
     @to_map = sort @to_map unless $is_index;
     my $styles = ['sitemap.css'];
 
-    $query->{title}    = "$query->{domain} : Sitemap";
-    $query->{template} = 'sitemap.tx',
-      $query->{to_map}     = \@to_map,
-      $query->{is_index}   = $is_index,
-      $query->{route_type} = $route_type,
-      $query->{etag}       = $etag;
+    $query->{title}      = "$query->{domain} : Sitemap";
+    $query->{template}   = 'sitemap.tx';
+    $query->{to_map}     = \@to_map;
+    $query->{is_index}   = $is_index;
+    $query->{route_type} = $route_type;
+    $query->{etag}       = $etag;
 
     return Trog::Routes::HTML::index( $query, undef, $styles );
 }
@@ -2292,7 +2292,7 @@ Basically a thin wrapper around Pod::Html.
 
 sub manual ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     require Pod::Html;
     require Capture::Tiny;
@@ -2358,7 +2358,7 @@ compute here.
 
 sub metrics ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -2392,7 +2392,7 @@ session id on a page.
 
 sub sessions ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $limit  = int( $query->{limit} // 100 );
     my $events = Trog::Auth::audit_log(
@@ -2450,7 +2450,7 @@ our @wizard_mandatory = qw{inc_title_input inc_visibility inc_acls};
 
 our @wizard_optional_includes = grep {
     my $include = $_;
-    !grep { $include eq $_ } @wizard_mandatory
+    List::Util::none { $include eq $_ } @wizard_mandatory
 } @wizard_include_order;
 
 # The checkboxes which are not editor includes: the wrapper div, and the two
@@ -2502,7 +2502,7 @@ captures in parallel instead of us taking them one after another.
 
 sub guest_screenshot ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $hypervisor = guest_hypervisor( $query, $query->{hypervisor} );
     return $query->{tpsgi}->notfound($query) unless $hypervisor;
@@ -2532,7 +2532,7 @@ Trog::DataSource::Virt::act.
 
 sub guest_act ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $to = $query->{to} || '/';
 
@@ -2570,7 +2570,7 @@ for whichever of those they kept last time.
 
 sub guest_reprovision ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $to = $query->{to} || '/';
 
@@ -2613,7 +2613,7 @@ reasonable place for a hostname, an IP plan or a package list to turn up.
 
 sub guest_reprovision_log ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     require Trog::DataSource::ProvisionedVirt;
 
@@ -2650,7 +2650,7 @@ everything after a rejected submission.
 
 sub post_wizard ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     $query->{failure} //= -1;
 
@@ -2846,7 +2846,7 @@ type's own fields survive validation at save time.
 
 sub post_wizard_save ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     # Anchored capture rather than a substitution, so anything containing a '/'
     # or a '..' simply fails to match instead of being silently scrubbed into
@@ -2875,7 +2875,7 @@ sub post_wizard_save ($query) {
     # Whitelisted against what is actually on disk: this name goes into a
     # sidecar and is require()d later, so a regex is not enough.
     my $datasource = wizard_scalar( $query->{datasource} );
-    if ( $datasource && !grep { $_ eq $datasource } @{ get_datasources() } ) {
+    if ( $datasource && List::Util::none { $_ eq $datasource } @{ get_datasources() } ) {
         return wizard_fail( $query, "'$datasource' is not a datasource I can find." );
     }
 
@@ -2997,7 +2997,7 @@ my sub wizard_display_of ($form) {
     # Kolon at all -- see wizard_template.  So only the first line with
     # anything on it is asked, and a type which opens with its own markup or its
     # own directive is one that ticked the box off.
-    foreach my $line ( split( "\n", $template ) ) {
+    foreach my $line ( split( /\n/, $template ) ) {
         next                if $line =~ m/^\s*$/;
         next                if $line =~ m/^\s*<!--/;
         $shown{wrapper} = 1 if $line =~ m/^\s*<div\s+class="post\b/;
@@ -3100,11 +3100,11 @@ my sub wizard_display_from_template ($form) {
     my $template = eval { File::Slurper::read_text($path) };
     return '' unless defined $template;
 
-    my @lines = split( "\n", $template );
+    my @lines = split( /\n/, $template );
 
     # CORE::index because this package has an index() of its own -- the route
     # that renders every page.
-    return '' unless @lines && CORE::index( $lines[0], 'Generated by the tCMS Post Type Wizard' ) != -1;
+    return '' if !@lines || CORE::index( $lines[0], 'Generated by the tCMS Post Type Wizard' ) == -1;
 
     my ( @display, $inside );
     foreach my $line (@lines) {
@@ -3281,7 +3281,7 @@ sub wizard_fields ($query) {
 
         # Never let a custom field shadow a core post attribute.
         next if exists $Trog::DataModule::post_schema{properties}{$fname};
-        next if grep { $fname eq $_ } @wizard_reserved;
+        next if List::Util::any { $fname eq $_ } @wizard_reserved;
 
         my $type = wizard_scalar( $types->[$index] );
         $type = 'text' unless $wizard_field_types{$type};

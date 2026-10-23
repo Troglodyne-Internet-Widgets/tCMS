@@ -176,7 +176,7 @@ my sub config {
     my %config = ( recipes => ( $ENV{TROG_PROVISIONER_CONFIG} // $provisioner_config ) . "/$recipe_dir" );
 
     my $dir = $conf->param('provisioner.trog_provisioner');
-    return \%config unless $dir && !ref $dir;
+    return \%config if !$dir || ref $dir;
 
     # Resolved, and checked to be there.  A path in a config file which does not
     # exist is a typo, and finding that out here beats finding it out halfway
@@ -262,7 +262,7 @@ sub status ($domain) {
     return undef unless defined $raw;
 
     my %status;
-    foreach my $line ( split( "\n", $raw ) ) {
+    foreach my $line ( split( /\n/, $raw ) ) {
         my ( $key, $value ) = $line =~ m/^(\w+)=(\N*)$/;
         $status{$key} = $value if defined $key;
     }
@@ -580,7 +580,7 @@ sub spawn ( $domain, $credentials, $dir, $command, $user ) {
 
     # From here on we are nobody's child and nothing reads our exit status, so
     # the log is the only way to say anything.
-    open( my $fh, '>>', $log ) or POSIX::_exit(1);
+    open( my $fh, '>>', $log ) or POSIX::_exit(1);    ## no critic (InputOutput::RequireBriefOpen) -- the child's STDOUT and STDERR from here on
     $fh->autoflush(1);
 
     my $started = time();
@@ -609,7 +609,7 @@ sub spawn ( $domain, $credentials, $dir, $command, $user ) {
     # piped open with a list never involves a shell, so the guest name is an
     # argument and cannot be read as a command.  The single argument form of
     # this would be the bug.
-    my $ok = open( my $stdin, '|-', @$command );    ## no critic (ProhibitPipeOpen) -- list form, so no shell
+    my $ok = open( my $stdin, '|-', @$command );    ## no critic (ProhibitPipeOpen, InputOutput::RequireBriefOpen) -- list form, so no shell; closed once the credentials are sent
     if ( !$ok ) {
         print {$fh} "could not run $command->[0]: $!\n";
         POSIX::_exit(1);
@@ -617,8 +617,7 @@ sub spawn ( $domain, $credentials, $dir, $command, $user ) {
 
     # What the provisioner would otherwise have nobody to ask for.  Closed
     # afterwards, so the read on the far side ends rather than waiting on us.
-    print {$stdin} "$_: $credentials->{$_}\n" foreach sort keys %$credentials;
-    print {$stdin} "\n";
+    print {$stdin} join( '', map { "$_: $credentials->{$_}\n" } sort keys %$credentials ) . "\n";
     close($stdin);
 
     if ($?) {

@@ -149,7 +149,7 @@ END {
 
         # SQLite handles are file-lexical in Trog::SQLite and unreachable from
         # here; DBI disconnects at global destruction, after these are gone.
-        eval { File::Path::remove_tree($ROOT) };
+        eval { File::Path::remove_tree($ROOT); 1 } or diag("could not remove $ROOT: $@");
     }
 }
 

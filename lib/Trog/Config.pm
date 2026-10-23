@@ -7,6 +7,7 @@ use warnings FATAL => 'all';
 use FindBin::libs;
 
 use Config::Simple;
+use File::Slurper();
 
 =head1 Trog::Config
 
@@ -77,11 +78,8 @@ name for them, so neither do we.
 =cut
 
 sub schema ( $file = $default ) {
-    open( my $fh, '<', $file ) or die "Could not read $file: $!";
-
     my ( @sections, $section, @comments );
-    while ( my $line = readline($fh) ) {
-        chomp $line;
+    foreach my $line ( File::Slurper::read_lines($file) ) {
         $line =~ s/^\s+//;
         $line =~ s/\s+$//;
         next unless $line;
@@ -113,7 +111,6 @@ sub schema ( $file = $default ) {
         );
         @comments = ();
     }
-    close($fh);
 
     return \@sections;
 }

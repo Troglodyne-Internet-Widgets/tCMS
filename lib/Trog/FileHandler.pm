@@ -30,7 +30,7 @@ my sub range ( $fullpath, $fh, $ranges, $sz, %headers ) {
         INFO("GET 416 31 $fullpath");
         return [ 416, [%headers], ["Requested range not satisfiable"] ] if $range->[0] > $sz || $range->[0] < 0 || $range->[1] < 0 || $range->[0] > $range->[1];
     }
-    $headers{'Content-Length'} = List::Util::sum( map { my $arr = $_; $arr->[1] + 1, -$arr->[0] } @$ranges );
+    $headers{'Content-Length'} = List::Util::sum( map { $_->[1] + 1 - $_->[0] } @$ranges );
 
     #XXX Add the entity header lengths to the value - should hash-ify this to DRY
     if ($is_multipart) {
@@ -97,7 +97,7 @@ sub serve ( $fullpath, $path, $start, $streaming, $ranges, $last_fetch = 0, $def
     push( @headers, "Last-Modified" => $now_string );
     push( @headers, 'Vary'          => 'Accept-Encoding' );
 
-    if ( open( my $fh, '<', $path ) ) {
+    if ( open( my $fh, '<', $path ) ) {    ## no critic (InputOutput::RequireBriefOpen) -- streamed to the client, which closes it
         return range( $fullpath, $fh, $ranges, $sz, @headers ) if @$ranges && $streaming;
 
         # Transfer-encoding: chunked

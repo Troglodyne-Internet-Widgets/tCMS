@@ -196,7 +196,7 @@ my sub post_for ( $name, $dir, $series ) {
     # Escaped per segment: a filename may legally hold a space, a question mark
     # or a hash, and none of those survive being dropped into an href as they
     # are.  Per segment rather than wholesale, or the separators go too.
-    my $href = '/' . join( '/', map { URI::Escape::uri_escape($_) } split( '/', $path ) );
+    my $href = '/' . join( '/', map { URI::Escape::uri_escape($_) } split( m{/}, $path ) );
 
     my $post = {
 
@@ -325,7 +325,7 @@ whatever happened to be touched least recently.
 =cut
 
 sub order ( $, @posts ) {
-    my @sorted = sort { ( $b->{is_dir} // 0 ) <=> ( $a->{is_dir} // 0 ) || lc( $a->{name} // '' ) cmp lc( $b->{name} // '' ) || ( $a->{name} // '' ) cmp ( $b->{name} // '' ) } @posts;
+    my @sorted = sort { ( $b->{is_dir} // 0 ) <=> ( $a->{is_dir} // 0 ) || lc( $a->{name} // '' ) cmp lc( $b->{name} // '' ) || ( $a->{name} // '' ) cmp ( $b->{name} // '' ) } @posts;    ## no critic (BuiltinFunctions::ProhibitReverseSortBlock) -- descending by the first key and ascending by the rest, which reverse cannot say
     return @sorted;
 }
 

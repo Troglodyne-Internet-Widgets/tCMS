@@ -129,8 +129,8 @@ allow = re Exporter
 # share one parse.  A library whose subclasses live in other distributions
 # names in allow_subs each hook that only one of its own subclasses uses.
 #[ProhibitMisplacedMethods]
-#[ProhibitPrintSTDERR]
-#[InputOutput::ProhibitRepeatedPrints]
+[ProhibitPrintSTDERR]
+[InputOutput::ProhibitRepeatedPrints]
 # Perl::Critic's own policies.  only = 1 loads nothing that is not named, so
 # each of these has to be, and the ones that are absent are absent on purpose.
 #
@@ -161,13 +161,13 @@ allow = re Exporter
 # Documentation::RequirePodSections is out as well: the sections it asks for are
 # the ones Pod::Weaver writes at build, and weaver.ini names them AUTHORS and
 # COPYRIGHT AND LICENSE where the policy wants AUTHOR and LICENSE AND COPYRIGHT.
-#[BuiltinFunctions::ProhibitBooleanGrep]
+[BuiltinFunctions::ProhibitBooleanGrep]
 [BuiltinFunctions::ProhibitLvalueSubstr]
-#[BuiltinFunctions::ProhibitReverseSortBlock]
+[BuiltinFunctions::ProhibitReverseSortBlock]
 [BuiltinFunctions::ProhibitShiftRef]
 [BuiltinFunctions::ProhibitSleepViaSelect]
 [BuiltinFunctions::ProhibitStringyEval]
-#[BuiltinFunctions::ProhibitStringySplit]
+[BuiltinFunctions::ProhibitStringySplit]
 [BuiltinFunctions::ProhibitUniversalCan]
 [BuiltinFunctions::ProhibitUniversalIsa]
 [BuiltinFunctions::ProhibitVoidGrep]
@@ -188,23 +188,23 @@ allow = re Exporter
 # repeated that, and ran perltidy over the whole file on every check.
 [CodeLayout::RequireTrailingCommas]
 [ControlStructures::ProhibitLabelsWithSpecialBlockNames]
-#[ControlStructures::ProhibitNegativeExpressionsInUnlessAndUntilConditions]
+[ControlStructures::ProhibitNegativeExpressionsInUnlessAndUntilConditions]
 [ControlStructures::ProhibitUnreachableCode]
 [ControlStructures::ProhibitUntilBlocks]
-#[ControlStructures::ProhibitYadaOperator]
+[ControlStructures::ProhibitYadaOperator]
 #[Documentation::PodSpelling]
 #spell_command = aspell --lang=en_US list
 #stop_words_file = .pod_stopwords
 [Documentation::RequirePackageMatchesPodName]
-#[ErrorHandling::RequireCheckingReturnValueOfEval]
+[ErrorHandling::RequireCheckingReturnValueOfEval]
 [InputOutput::ProhibitExplicitStdin]
 [InputOutput::ProhibitInteractiveTest]
 [InputOutput::ProhibitJoinedReadline]
 [InputOutput::ProhibitOneArgSelect]
 [InputOutput::ProhibitReadlineInForLoop]
 [InputOutput::ProhibitTwoArgOpen]
-#[InputOutput::RequireBracedFileHandleWithPrint]
-#[InputOutput::RequireBriefOpen]
+[InputOutput::RequireBracedFileHandleWithPrint]
+[InputOutput::RequireBriefOpen]
 [InputOutput::RequireCheckedOpen]
 #[InputOutput::RequireCheckedSyscalls]
 #exclude_functions = print
@@ -241,7 +241,7 @@ allow = re Exporter
 terminal_funcs = POSIX::_exit
 [TestingAndDebugging::ProhibitProlongedStrictureOverride]
 [TestingAndDebugging::RequireTestLabels]
-#[ValuesAndExpressions::ProhibitCommaSeparatedStatements]
+[ValuesAndExpressions::ProhibitCommaSeparatedStatements]
 [ValuesAndExpressions::ProhibitComplexVersion]
 [ValuesAndExpressions::ProhibitEscapedCharacters]
 [ValuesAndExpressions::ProhibitLongChainsOfMethodCalls]

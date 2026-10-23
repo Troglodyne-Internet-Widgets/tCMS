@@ -103,8 +103,8 @@ push( @corpus, post( id => 'p-public', title => 'The Quick Brown Fox (revised)',
 foreach my $p (@corpus) {
 
     # Separate copies: FlatFile's index build decorates what it is handed.
-    $sqlite->write( [ { %$p, tags => [ @{ $p->{tags} } ] } ] );
-    $flat->write( [ { %$p, tags => [ @{ $p->{tags} } ] } ] );
+    $sqlite->write( [ +{ %$p, tags => [ @{ $p->{tags} } ] } ] );
+    $flat->write( [ +{ %$p, tags => [ @{ $p->{tags} } ] } ] );
 }
 
 # FlatFile snapshots the tag list at load time and filters queries against it in
@@ -507,8 +507,8 @@ subtest 'aliases' => sub {
         callback   => 'Trog::Routes::HTML::posts',
         aliases    => [qw{/one /two /three}],
     );
-    $sqlite->write( [ { %$aliased, tags => [ @{ $aliased->{tags} } ] } ] );
-    $flat->write( [ { %$aliased, tags => [ @{ $aliased->{tags} } ] } ] );
+    $sqlite->write( [ +{ %$aliased, tags => [ @{ $aliased->{tags} } ] } ] );
+    $flat->write( [ +{ %$aliased, tags => [ @{ $aliased->{tags} } ] } ] );
 
     my %want = map { $_ => '/posts/p-aliased' } qw{/one /two /three};
     foreach my $case ( [ flatfile => $flat ], [ sqlite => $sqlite ] ) {

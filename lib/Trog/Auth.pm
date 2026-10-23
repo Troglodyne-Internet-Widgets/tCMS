@@ -601,8 +601,8 @@ sub log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
             "INSERT INTO audit_log (event_time, username, session_id, ip_addr, event_type) VALUES (?,?,?,?,?)",
             undef, time(), $username, $session_id, $ip_addr, $event_type
         );
-    };
-    WARN("audit_log insert failed: $@") if $@;
+        1;
+    } or WARN("audit_log insert failed: $@");
     return;
 }
 

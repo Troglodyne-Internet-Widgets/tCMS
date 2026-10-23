@@ -86,7 +86,7 @@ my $scratch = File::Temp->newdir();
 # Render each size from the vector source rather than downscaling one big
 # raster -- at 16 and 32 pixels the difference is the whole ballgame.
 my %rendered;
-foreach my $size ( sort { $b <=> $a } uniq( @png_sizes, @ico_sizes ) ) {
+foreach my $size ( reverse sort { $a <=> $b } uniq( @png_sizes, @ico_sizes ) ) {
     my $keep = grep { $_ == $size } @png_sizes;
     my $out  = $keep ? "$dir/favicon-$size.png" : "$scratch/favicon-$size.png";
 

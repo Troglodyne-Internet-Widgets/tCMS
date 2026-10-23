@@ -86,7 +86,7 @@ WriteMakefile(
         },
     },
     PREREQ_PM => {
-        'Trog::TOTP'                          => '1.007',
+        'Trog::TOTP'                          => '1.008',
         'Trog::SQLite'                        => '0.004',
         'CGI::Cookie'                         => '0',
         'Capture::Tiny'                       => '0',

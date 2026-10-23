@@ -81,7 +81,7 @@ sub log_message ( $self, %p ) {
         $self->{syslog}->set_severity($severity);
         $self->{syslog}->send( $message, time );
         1;
-    };
+    } or return;
     return;
 }
 
