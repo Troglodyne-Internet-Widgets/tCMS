@@ -339,7 +339,9 @@ my sub post_count {
 # The rendered page is ~40KB and mostly JavaScript.  Show the content well.
 my sub kontent {
     my ($body) = @_;
-    my ($k)    = $body =~ m{<div[ ]id="kontent"[ ]class="kontained">(.*?)<div[ ]id="rightbar"}s;
+    state $from = qr{<div[ ]id="kontent"[ ]class="kontained">};
+    state $to   = qr{<div[ ]id="rightbar"};
+    my ($k) = $body =~ m{$from(.*?)$to}s;
     $k //= $body;
     $k =~ s/<script\b.*?<\/script>//gs;
     return length($k) > 2500 ? substr( $k, 0, 2500 ) . "\n...[truncated]" : $k;
@@ -1134,9 +1136,10 @@ subtest 'microblog' => sub {
 
     my $body = series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
 
-    like( $body, qr{href='https://example\.com/spec'[ ]>Spec[ ]Microblog[ ]Child</a>}, 'title links out to href' );
-    like( $body, qr{id="postData-\Q$child->{id}\E"},                                   'body block rendered' );
-    like( $body, qr/Spec[ ]microblog[ ]body\./,                                        'body text rendered' );
+    my $link = q{href='https://example.com/spec' >Spec Microblog Child</a>};
+    like( $body, qr{\Q$link\E},                      'title links out to href' );
+    like( $body, qr{id="postData-\Q$child->{id}\E"}, 'body block rendered' );
+    like( $body, qr/Spec[ ]microblog[ ]body\./,      'body text rendered' );
 };
 
 subtest 'file' => sub {
@@ -1199,7 +1202,8 @@ subtest 'presentation' => sub {
     my $body = series_page( 'presentation', 'specpresentation', $title, 1 ) or return;
 
     # Slides only render under nochrome; the series page just links to the deck.
-    like( $body, qr{<a[ ]href="/posts/\Q$child->{id}\E\?embed=1&nochrome=1">Click[ ]Here[ ]to[ ]view</a>}, 'deck link rendered' );
+    my $deck = qq{<a href="/posts/$child->{id}?embed=1&nochrome=1">Click Here to view</a>};
+    like( $body, qr{\Q$deck\E}, 'deck link rendered' );
     unlike( $body, qr/Slide[ ]one[ ]body\./, 'slides themselves are not rendered inline' );
 };
 

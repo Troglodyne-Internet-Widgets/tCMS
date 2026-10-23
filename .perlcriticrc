@@ -227,7 +227,7 @@ stop_words_file = .pod_stopwords
 # name on its own, so these are the parts.
 package_exemptions = main tcms login useradd blob css email html javascript json text
 [RegularExpressions::ProhibitCaptureWithoutTest]
-#[RegularExpressions::ProhibitComplexRegexes]
+[RegularExpressions::ProhibitComplexRegexes]
 [RegularExpressions::ProhibitEnumeratedClasses]
 [RegularExpressions::ProhibitFixedStringMatches]
 [RegularExpressions::ProhibitSingleCharAlternation]
@@ -236,7 +236,11 @@ package_exemptions = main tcms login useradd blob css email html javascript json
 [RegularExpressions::RequireDotMatchAnything]
 [RegularExpressions::RequireExtendedFormatting]
 [Subroutines::ProhibitAmpersandSigils]
-#[Subroutines::ProhibitBuiltinHomonyms]
+[Subroutines::ProhibitBuiltinHomonyms]
+# tCMS: read, write and delete are methods of every data model.  index is the
+# route that every page ends in, which a theme's routes call by that name.
+# shutdown is a method of Sys::Virt::Domain, which a test fakes.
+allow = read write delete index shutdown
 [Subroutines::ProhibitManyArgs]
 [Subroutines::ProhibitNestedSubs]
 [Subroutines::ProhibitReturnSort]

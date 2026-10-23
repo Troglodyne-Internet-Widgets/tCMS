@@ -130,8 +130,9 @@ subtest 'a dry run writes nothing' => sub {
 subtest 'the migration itself' => sub {
     my ( $rc, $out ) = migrate();
     is( $rc, 0, 'it succeeds' ) or diag($out);
-    like( $out, qr/Carried[ ]over[ ]6[ ]post[ ]version\(s\),[ ]skipped[ ]0/,                                'carrying over every version' );
-    like( $out, qr/data\/files[ ]holds[ ]6[ ]post[ ]version\(s\);[ ]data\/posts\.sqlite[ ]now[ ]holds[ ]6/, 'and says what actually landed' );
+    like( $out, qr/Carried[ ]over[ ]6[ ]post[ ]version\(s\),[ ]skipped[ ]0/, 'carrying over every version' );
+    my $landed = 'data/files holds 6 post version(s); data/posts.sqlite now holds 6';
+    like( $out, qr/\Q$landed\E/, 'and says what actually landed' );
 
     is( $sqlite->count(), 4, 'four posts' );
 

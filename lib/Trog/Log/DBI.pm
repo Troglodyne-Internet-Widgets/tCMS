@@ -67,6 +67,18 @@ sub create_statement {
 
 my %buffer;
 
+# A line as Trog::Log formats it: the time, the level, who asked, and what
+# happened.
+my $STAMP   = qr/[\w:-]+/;
+my $REQUEST = qr/[\w-]+/;
+my $ADDRESS = qr/[\w.:]+/;
+my $WHO     = qr/RequestId[ ]($REQUEST)[ ]From[ ]($ADDRESS)[ ]\|(\w+)\|/;
+my $LINE    = qr/\A($STAMP)[ ]\[(\w+)\]:[ ]$WHO[ ](\N+)/;
+
+# What happened, when that is a request that was served: the method, the
+# code, the bytes, and the route.
+my $SERVED = qr/\A(\w+)[ ](\d+)[ ](\d+)[ ](\N+)/;
+
 =head2 log_message(HASH params) = MIXED
 
 Record one log line.
@@ -80,25 +92,16 @@ A write that fails is a warning on stderr, and never dies.
 sub log_message {
     my ( $self, %params ) = @_;
 
-    # Rip apart the message.  If it's got any extended info, lets grab that too.
-    my $msg = $params{message};
-    my $message;
-    my ( $date, $uuid, $ip, $user, $method, $code, undef, $route ) = $msg =~ m!^([\w|\-|:]+)[ ]\[INFO\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\w+)[ ](\d+)[ ](\d+)[ ](\N+)!;
+    my ( $date, $level, $uuid, $ip, $user, $message ) = $params{message} =~ $LINE;
+    return unless $uuid;
 
-    # Otherwise, let's mark it down in the "messages" table.  This will be deferred until the final write.
-    if ( !$date ) {
-        ( $date, $uuid, $ip, $user, $message ) = $msg =~ m!^([\w|\-|:]+)[ ]\[\w+\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\N+)!;
+    my ( $method, $code, undef, $route ) = $level eq 'INFO' ? $message =~ $SERVED : ();
 
-        # If we can't figure out its request, ignore the message
-        if ($uuid) {
-            $buffer{$uuid} //= [];
-            push( @{ $buffer{$uuid} }, $message );
-        }
+    # Anything else goes in the "messages" table, once its request is written.
+    if ( !defined $method ) {
+        push( @{ $buffer{$uuid} }, $message );
         return 1;
     }
-
-    # If this is a mangled log, forget it.
-    return unless $date && $uuid;
 
     # 2024-01-20T22:37:41Z
     # Transform the date into an epoch so we can do math on it
