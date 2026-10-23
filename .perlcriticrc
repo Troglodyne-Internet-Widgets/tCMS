@@ -246,7 +246,7 @@ allow = read write delete index shutdown
 [Subroutines::ProhibitReturnSort]
 [Subroutines::ProhibitSubroutinePrototypes]
 [Subroutines::ProtectPrivateSubs]
-#[Subroutines::RequireArgUnpacking]
+[Subroutines::RequireArgUnpacking]
 [Subroutines::RequireFinalReturn]
 # tCMS: a sub that forks ends its child with POSIX::_exit, which never returns.
 terminal_funcs = POSIX::_exit

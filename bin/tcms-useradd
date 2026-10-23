@@ -115,10 +115,10 @@ my sub default_user_post {
     };
 }
 
-sub main {
+sub main (@args) {
     my %options;
     Getopt::Long::GetOptionsFromArray(
-        \@_,
+        \@args,
         'user=s'          => \$options{user},
         'display_name=s'  => \$options{display_name},
         'help|?'          => \$options{help},

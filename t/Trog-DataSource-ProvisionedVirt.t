@@ -107,9 +107,9 @@ $virt->redefine( is_self => sub { return $_[0] eq 'thisserver.example.com' ? 1 :
 
 write_config( trog_provisioner => "$ROOT/trog-provisioner" );
 
-sub reprovision {
+sub reprovision (@args) {
     @SPAWNED = ();
-    return Trog::DataSource::ProvisionedVirt::reprovision( passphrase => 'hunter2', user => 'admin', @_ );
+    return Trog::DataSource::ProvisionedVirt::reprovision( passphrase => 'hunter2', user => 'admin', @args );
 }
 
 require Trog::Auth;
