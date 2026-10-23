@@ -64,7 +64,7 @@ strict = 1
 [ValuesAndExpressions::ConstantBeforeLt]
 [ValuesAndExpressions::ProhibitDuplicateHashKeys]
 # any access checks are necessarily a TOCTOU waiting to happen
-#[ValuesAndExpressions::ProhibitFiletest_f]
+[ValuesAndExpressions::ProhibitFiletest_f]
 [ValuesAndExpressions::ProhibitFiletest_rwxRWX]
 # Bikeshed
 [CognitiveComplexity::ProhibitExcessCognitiveComplexity]
@@ -78,7 +78,7 @@ formats = #!/usr/bin/env perl
 # Performance
 [logicLAB::ProhibitShellDispatch]
 [ProhibitPipeOpen]
-#[Performance::ProhibitRegexForSimpleSubstring]
+[Performance::ProhibitRegexForSimpleSubstring]
 [RegularExpressions::ProhibitRegexToStripAffix]
 [RegularExpressions::ProhibitRegexToChomp]
 [BuiltinFunctions::ProhibitChainingSameListSub]
@@ -98,7 +98,10 @@ formats = #!/usr/bin/env perl
 [ErrorHandling::RequireCheckedIndirectResults]
 exclude_functions = print
 [ProhibitUseLib]
-#[ProhibitUsageSubs]
+[ProhibitUsageSubs]
+# tCMS: help() is the interface of a data model and a datasource that links
+# the documentation of its query language, so it is not a usage message.
+sub_names = usage _usage print_usage usage_message
 [RequireQwForLiteralLists]
 [ProhibitNoWarningsRedefine]
 [RequireFatalWarnings]
@@ -128,7 +131,7 @@ allow = re Exporter
 # Perl::Critic::Distribution, as ProhibitUnusedDefinitions does, so the two
 # share one parse.  A library whose subclasses live in other distributions
 # names in allow_subs each hook that only one of its own subclasses uses.
-#[ProhibitMisplacedMethods]
+[ProhibitMisplacedMethods]
 [ProhibitPrintSTDERR]
 [InputOutput::ProhibitRepeatedPrints]
 # Perl::Critic's own policies.  only = 1 loads nothing that is not named, so
@@ -214,11 +217,15 @@ stop_words_file = .pod_stopwords
 [Miscellanea::ProhibitUnrestrictedNoCritic]
 #[Miscellanea::ProhibitUselessNoCritic]
 [Modules::ProhibitAutomaticExportation]
-#[Modules::ProhibitConditionalUseStatements]
+[Modules::ProhibitConditionalUseStatements]
 [Modules::RequireBarewordIncludes]
 [Modules::RequireFilenameMatchesPackage]
 [Modules::RequireNoMatchVarsWithUseEnglish]
-#[NamingConventions::Capitalization]
+[NamingConventions::Capitalization]
+# tCMS: each renderer is named for the content type it renders, and each
+# script's package for the script.  The policy tests each part of a package
+# name on its own, so these are the parts.
+package_exemptions = main tcms login useradd blob css email html javascript json text
 [RegularExpressions::ProhibitCaptureWithoutTest]
 #[RegularExpressions::ProhibitComplexRegexes]
 [RegularExpressions::ProhibitEnumeratedClasses]

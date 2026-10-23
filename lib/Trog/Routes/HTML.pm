@@ -1117,8 +1117,8 @@ sub get_datasources {
         my $dir = "$incdir/Trog/DataSource";
         next unless -d $dir;
         my @modules = eval {
-            grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/);
-        } or next;    ## no critic (ProhibitFiletest_f) -- building an allowlist of names
+            grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/);    ## no critic (ProhibitFiletest_f) -- building an allowlist of names
+        } or next;
         $found{ "Trog::DataSource::" . $_->basename('.pm') } = 1 foreach @modules;
     }
     return [ sort keys(%found) ];

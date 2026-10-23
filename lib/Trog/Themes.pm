@@ -208,8 +208,8 @@ sub forms_dir {
 my sub read_dir ( $dir, $ext ) {
     return [] unless -d $dir;
     my @files = eval {
-        grep { -f } Path::Tiny::path($dir)->children(qr/[.]\Q$ext\E\z/);
-    };    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
+        grep { -f } Path::Tiny::path($dir)->children(qr/[.]\Q$ext\E\z/);    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
+    };
     return [ map { $_->basename } @files ];
 }
 

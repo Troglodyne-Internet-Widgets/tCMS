@@ -17,7 +17,7 @@ use IPC::Run3();
 use FindBin;
 
 my $suite = "$FindBin::Bin/Trog-Routes-HTML-series-lifecycle.t";
-ok( -f $suite, 'the lifecycle suite is there to run' ) or BAIL_OUT("Can't find $suite");
+ok( -e $suite, 'the lifecycle suite is there to run' ) or BAIL_OUT("Can't find $suite");
 
 # Captured rather than inherited: the child speaks TAP too, and two test streams
 # down one pipe is not a test result, it is a parse error.

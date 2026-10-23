@@ -33,7 +33,7 @@ $thememock->redefine( 'template_dirs', sub { ("$tempdir") } );
 $thememock->redefine(
     'themed_file_in_dir',
     sub ( $path, $file, @ ) {
-        return -f "$formsdir/$file" ? "$formsdir/$file" : undef;
+        return -e "$formsdir/$file" ? "$formsdir/$file" : undef;
     }
 );
 
