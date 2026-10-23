@@ -81,16 +81,16 @@ sub _version () {
 }
 
 # Special case of a non data-structure JSON return
-sub version ($) {
+sub version {
     state $ret = [ 200, [ 'Content-type' => "application/json", ETag => 'version-' . _version() ], [ _version() ] ];
     return $ret;
 }
 
-sub catalog ($) {
+sub catalog {
     return _render( 200, { ETag => 'catalog-' . _version() }, %$cloned );
 }
 
-sub webmanifest ($) {
+sub webmanifest {
     state $headers = { ETag => 'manifest-' . _version() };
     my $theme_dir = Trog::Themes::get_dir();
     state %manifest = (

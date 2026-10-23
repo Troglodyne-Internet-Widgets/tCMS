@@ -118,7 +118,7 @@ sub read ( $self, $query = {} ) {
     return \@items;
 }
 
-sub _index ($) {
+sub _index {
     confess "Can't find datastore in $datastore !" unless -d $datastore;
     opendir( my $dh, $datastore ) or confess;
     my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
@@ -126,11 +126,11 @@ sub _index ($) {
     return sort { $b cmp $a } @index;
 }
 
-sub routes ($) {
+sub routes {
     return Trog::SQLite::TagIndex::routes();
 }
 
-sub aliases ($) {
+sub aliases {
     return Trog::SQLite::TagIndex::aliases();
 }
 
@@ -196,7 +196,7 @@ sub delete ( $, @posts ) {
     return 0;
 }
 
-sub tags ($) {
+sub tags {
     return Trog::SQLite::TagIndex::tags();
 }
 

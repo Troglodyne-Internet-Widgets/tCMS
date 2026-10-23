@@ -2323,7 +2323,7 @@ about whether the account existed.
 
 =cut
 
-sub processed ($) {
+sub processed {
     return Trog::Routes::HTML::index(
         {
             title     => "Your request has been processed",

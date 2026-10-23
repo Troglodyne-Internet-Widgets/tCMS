@@ -356,7 +356,7 @@ whether it has seen it before.  See bin/migrate.pl.
 
 =cut
 
-sub versions_present ($) {
+sub versions_present {
     my $rows = _dbh()->selectall_arrayref( 'SELECT uuid, version FROM posts', { Slice => {} } ) // [];
 
     my %present;
@@ -386,7 +386,7 @@ How many posts there are, counting a post once however many versions it has.
 
 =cut
 
-sub count ($) {
+sub count {
     my ($count) = _dbh()->selectrow_array('SELECT COUNT(DISTINCT uuid) FROM posts');
     return $count // 0;
 }
@@ -491,7 +491,7 @@ Every tag in use, from the index the schema's triggers maintain.
 
 =cut
 
-sub tags ($) {
+sub tags {
     my $rows = _dbh()->selectall_arrayref( 'SELECT DISTINCT tag FROM post_tags ORDER BY tag', { Slice => {} } );
     return () unless ref $rows eq 'ARRAY';
     return map { $_->{tag} } @$rows;

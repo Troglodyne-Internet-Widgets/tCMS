@@ -24,7 +24,7 @@ sub help { return 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 our $posts;
 
-sub read ( $, $ = {} ) {
+sub read {
 
     # Seed an empty datastore, as one operation rather than a test followed by
     # a create.  O_EXCL means a file that appeared in between is left alone
@@ -77,7 +77,7 @@ sub delete ( $self, @posts ) {
     return 0;
 }
 
-sub tags ($) {
+sub tags {
     return ( uniq map { @{ $_->{tags} } } @$posts );
 }
 
