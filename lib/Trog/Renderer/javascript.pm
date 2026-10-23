@@ -2,6 +2,7 @@ package Trog::Renderer::javascript;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use parent qw{Trog::Renderer::Base};
 
@@ -15,7 +16,7 @@ Render JS, and minify the output.
 
 sub render (%options) {
     $options{post_processor} = \&_minify;
-    Trog::Renderer::Base::render(%options);
+    return Trog::Renderer::Base::render(%options);
 }
 
 sub _minify {

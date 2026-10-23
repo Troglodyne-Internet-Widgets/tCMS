@@ -2,6 +2,7 @@ package Trog::Log::DBI;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use parent qw{Log::Dispatch::DBI};
 
@@ -89,7 +90,7 @@ sub log_message {
         ( $date, $uuid, $ip, $user, $message ) = $msg =~ m!^([\w|\-|:]+)[ ]\[\w+\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\N+)!;
 
         # If we can't figure out its request, ignore the message
-        if ( length $uuid ) {
+        if ($uuid) {
             $buffer{$uuid} //= [];
             push( @{ $buffer{$uuid} }, $message );
         }

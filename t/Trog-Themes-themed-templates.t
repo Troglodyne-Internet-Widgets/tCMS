@@ -1,13 +1,13 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
 use Path::Tiny();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 require_ok('Trog::Themes') or BAIL_OUT("Can't find SUT");
 
@@ -77,17 +77,37 @@ subtest 'themed_file_in_dir prefers the theme, falls back to stock' => sub {
     $themedir = "$root/www/themes/spec";
 
     is(
-        Trog::Themes::themed_file_in_dir( 'forms', 'blog.json', 'text/html', 1 ),
+        Trog::Themes::themed_file_in_dir( qw{forms blog.json text/html}, 1 ),
         "$theme/blog.json", "the theme's copy wins"
     );
     is(
-        Trog::Themes::themed_file_in_dir( 'forms', 'series.json', 'text/html', 1 ),
+        Trog::Themes::themed_file_in_dir( qw{forms series.json text/html}, 1 ),
         "$stock/series.json", "one the theme lacks falls back"
     );
     is(
-        Trog::Themes::themed_file_in_dir( 'forms', 'nope.json', 'text/html', 1 ),
+        Trog::Themes::themed_file_in_dir( qw{forms nope.json text/html}, 1 ),
         undef, "and one nobody has is undef, not a path that doesn't exist"
     );
+};
+
+subtest 'routes: a theme ships routes.pm under a dir relative to the tCMS root' => sub {
+    my $site = Path::Tiny->tempdir();
+    $site->child('www/themes/routed')->mkpath;
+    $site->child('www/themes/routed/routes.pm')->spew_utf8(<<'PM');
+package Theme;
+our %routes = ( '/spec-themed' => { method => 'GET' } );
+1;
+PM
+
+    my $was = Path::Tiny->cwd;
+    chdir $site or die "chdir $site: $!";
+    $themedir = 'www/themes/routed';
+    my %routes = eval { Trog::Themes::routes() };
+    my $err    = $@;
+    chdir $was or die "chdir $was: $!";
+
+    is( $err, '', 'it loads' );
+    is_deeply( [ keys %routes ], ['/spec-themed'], 'and the routes are the ones it declared' );
 };
 
 subtest 'an empty or missing dir is not fatal' => sub {

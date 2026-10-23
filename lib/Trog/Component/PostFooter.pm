@@ -2,6 +2,7 @@ package Trog::Component::PostFooter;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Trog::Component ();
 use Trog::Themes;
@@ -30,7 +31,7 @@ wants something else should be handed it at the call site in posts.tx.
 
 sub render (%args) {
     my $name = delete $args{name};
-    return '' unless defined $name && length $name;
+    return '' unless $name;
 
     die "No such footer '$name'\n" unless grep { $_ eq $name } @{ available() };
 

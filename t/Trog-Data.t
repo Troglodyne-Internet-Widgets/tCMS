@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule;
@@ -9,7 +9,7 @@ use File::Temp     ();
 use Path::Tiny     ();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use_ok('Trog::Data') or BAIL_OUT("Can't find SUT");
 

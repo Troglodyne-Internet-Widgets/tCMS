@@ -2,6 +2,7 @@ package Trog::Log::Syslog;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use parent qw{Log::Dispatch::Output};
 

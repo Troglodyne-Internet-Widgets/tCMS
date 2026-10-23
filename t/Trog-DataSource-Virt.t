@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
@@ -9,7 +9,7 @@ use Path::Tiny();
 use JSON::MaybeXS();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 # Nothing in this file may ever reach a real hypervisor.  Every libvirt object
 # here is a fake that records what was asked of it, which is the only safe way
@@ -27,16 +27,16 @@ our @CALLS;
 
     package FakeDomain;
     sub new             { my ( $c, %a ) = @_; return bless {%a}, $c }
-    sub get_name        { $_[0]{name} }
-    sub get_uuid_string { $_[0]{uuid} }
-    sub is_active       { $_[0]{active} }
-    sub get_info        { { state => $_[0]{state}, memory => 1024, nrVirtCpu => 2 } }
+    sub get_name        { return $_[0]{name} }
+    sub get_uuid_string { return $_[0]{uuid} }
+    sub is_active       { return $_[0]{active} }
+    sub get_info        { return { state => $_[0]{state}, memory => 1024, nrVirtCpu => 2 } }
 
     # The operations we must never actually perform: record and return.
-    sub create          { push @main::CALLS, [ 'create',          $_[0]{name} ]; 1 }
-    sub shutdown        { push @main::CALLS, [ 'shutdown',        $_[0]{name} ]; 1 }
-    sub destroy         { push @main::CALLS, [ 'destroy',         $_[0]{name} ]; 1 }
-    sub create_snapshot { push @main::CALLS, [ 'create_snapshot', $_[0]{name} ]; 1 }
+    sub create          { push @main::CALLS, [ 'create',          $_[0]{name} ]; return 1 }
+    sub shutdown        { push @main::CALLS, [ 'shutdown',        $_[0]{name} ]; return 1 }
+    sub destroy         { push @main::CALLS, [ 'destroy',         $_[0]{name} ]; return 1 }
+    sub create_snapshot { push @main::CALLS, [ 'create_snapshot', $_[0]{name} ]; return 1 }
 
     # Reading a console is not a mutation, so this one really runs.
     sub screenshot { return 'image/png' }
@@ -45,16 +45,16 @@ our @CALLS;
 {
 
     package FakeStream;
-    sub new      { bless {}, shift }
+    sub new      { return bless {}, shift }
     sub recv_all { my ( $self, $cb ) = @_; $cb->( $self, 'fake-png-bytes' ); return 1 }
-    sub finish   { 1 }
+    sub finish   { return 1 }
 }
 
 {
 
     package FakeConn;
-    sub new        { bless {}, shift }
-    sub new_stream { FakeStream->new() }
+    sub new        { return bless {}, shift }
+    sub new_stream { return FakeStream->new() }
 
     sub list_all_domains {
         return (
@@ -163,7 +163,7 @@ subtest 'act() drives the right libvirt call, and only on request' => sub {
 
     foreach my $action ( sort keys %expected ) {
         @CALLS = ();
-        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, 'test:///default', 'alpha', 'specadmin' );
+        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, qw{test:///default alpha specadmin} );
         ok( $ok, "$action succeeded" ) or diag($message);
         is_deeply( \@CALLS, [ [ $expected{$action}, 'alpha' ] ], "$action called $expected{$action} on the named guest, once" );
     }
@@ -172,22 +172,22 @@ subtest 'act() drives the right libvirt call, and only on request' => sub {
 subtest 'act() refuses what it should' => sub {
     @CALLS = ();
 
-    my ( $ok, $message ) = Trog::DataSource::Virt::act( 'rm-rf', 'test:///default', 'alpha', 'specadmin' );
+    my ( $ok, $message ) = Trog::DataSource::Virt::act(qw{rm-rf test:///default alpha specadmin});
     ok( !$ok, 'an action we do not define is refused' );
     like( $message, qr/not[ ]something[ ]we[ ]do/, 'and says so' );
 
-    ( $ok, $message ) = Trog::DataSource::Virt::act( 'destroy', 'test:///default', '../../etc/passwd', 'specadmin' );
+    ( $ok, $message ) = Trog::DataSource::Virt::act(qw{destroy test:///default ../../etc/passwd specadmin});
     ok( !$ok, 'a guest name that is a path is refused' );
     like( $message, qr/bad[ ]guest[ ]name/, 'before any connection is made' );
 
-    ( $ok, $message ) = Trog::DataSource::Virt::act( 'destroy', 'test:///default', 'nosuchguest', 'specadmin' );
+    ( $ok, $message ) = Trog::DataSource::Virt::act(qw{destroy test:///default nosuchguest specadmin});
     ok( !$ok, 'a guest that is not there is refused' );
     like( $message, qr/no[ ]guest[ ]called/, 'rather than acting on some other one' );
 
     is_deeply( \@CALLS, [], 'and none of those touched a guest' );
 
     $connect_fails = 1;
-    ( $ok, $message ) = Trog::DataSource::Virt::act( 'poweroff', 'test:///default', 'alpha', 'specadmin' );
+    ( $ok, $message ) = Trog::DataSource::Virt::act(qw{poweroff test:///default alpha specadmin});
     $connect_fails = 0;
     ok( !$ok, 'an unreachable hypervisor is refused' );
     like( $message, qr/could[ ]not[ ]reach/, 'and reported' );
@@ -203,7 +203,7 @@ subtest 'act() will not take the server down with it' => sub {
 
     foreach my $action (qw{poweroff destroy}) {
         @CALLS = ();
-        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, 'test:///default', 'alpha', 'specadmin' );
+        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, qw{test:///default alpha specadmin} );
         ok( !$ok, "$action on the guest we are running in is refused" );
         like( $message, qr/is[ ]this[ ]server/, 'saying why' );
         is_deeply( \@CALLS, [], "and the $action never reached libvirt" );
@@ -213,14 +213,14 @@ subtest 'act() will not take the server down with it' => sub {
     # less useful than one that can.
     foreach my $action (qw{snapshot poweron}) {
         @CALLS = ();
-        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, 'test:///default', 'alpha', 'specadmin' );
+        my ( $ok, $message ) = Trog::DataSource::Virt::act( $action, qw{test:///default alpha specadmin} );
         ok( $ok, "$action is still allowed on it" ) or diag($message);
         is( scalar @CALLS, 1, 'and reached libvirt' );
     }
 
     # Its neighbours are ordinary guests.
     @CALLS = ();
-    my ($ok) = Trog::DataSource::Virt::act( 'destroy', 'test:///default', 'beta', 'specadmin' );
+    my ($ok) = Trog::DataSource::Virt::act(qw{destroy test:///default beta specadmin});
     ok( $ok, 'another guest on the same hypervisor is unaffected' );
     is_deeply( \@CALLS, [ [ 'destroy', 'beta' ] ], 'and is destroyed as asked' );
 };
@@ -247,6 +247,7 @@ subtest 'the guest cache is scoped per hypervisor' => sub {
     # Two hypervisors, each with a guest called 'alpha' -- which is the normal
     # state of affairs, not a corner case.
     my $root = Path::Tiny->tempdir();
+    no warnings 'once';
     local $Trog::DataSource::Virt::screenshot_dir = "$root";
 
     my @paths;
@@ -280,7 +281,7 @@ subtest 'the datasource hook only loads what it should' => sub {
 
     # The namespace restriction is the point: a sidecar is a file on disk, and
     # it must not be able to make us require an arbitrary module.
-    foreach my $bad ( 'Trog::Routes::HTML', 'File::Path', '../../etc/passwd', 'Trog::DataSource::Virt::act' ) {
+    foreach my $bad (qw{Trog::Routes::HTML File::Path ../../etc/passwd Trog::DataSource::Virt::act}) {
         $declared = $bad;
         is_deeply( [ Trog::Routes::HTML::_datasource_posts( $query, \@stored ) ], \@stored, "'$bad' is refused as a datasource" );
     }
@@ -306,6 +307,7 @@ subtest 'the guest routes avoid the router\'s own query keys' => sub {
     # the screenshot and action routes at a guest named after the web host.
     my @reserved = qw{domain route method scheme port user acls to};
 
+    no warnings 'once';
     my $captures = $Trog::Routes::HTML::routes{'/guest/screenshot/(.*)/(.*)'}{captures};
     foreach my $capture (@$captures) {
         ok( !( grep { $_ eq $capture } @reserved ), "the screenshot route's '$capture' capture is not a router key" );

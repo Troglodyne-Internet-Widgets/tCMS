@@ -2,6 +2,7 @@ package Trog::DataSource::ProvisionedVirt;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use parent qw{Trog::DataSource::Virt};
 
@@ -282,7 +283,7 @@ sub _config {
 
 # A guest name reaches the filesystem here, so it is a hostname or it is nothing.
 sub _safe_domain ($domain) {
-    return undef unless defined $domain && length($domain) && length($domain) < 254;
+    return undef if !$domain || length $domain >= 254;
     return undef if $domain =~ m/(?:^|\.)\.\.?(?:\.|$)/;
 
     my ($safe) = $domain =~ m/^([A-Za-z0-9][A-Za-z0-9._-]*)$/;
@@ -472,9 +473,9 @@ sub _credentials (%args) {
     # typed ones are worth filing away, and only they can be: a value fetched
     # from the vault is already in it.
     my %typed;
-    $typed{sudo} = $args{sudo} if length( $args{sudo} // '' );
+    $typed{sudo} = $args{sudo} if $args{sudo};
 
-    if ( length( $args{totp} // '' ) ) {
+    if ( $args{totp} ) {
         return ( undef, 'a code identifies somebody, and nobody is logged in' ) unless $user;
 
         # Asked before the code is spent, and the reason is that a code is
@@ -491,11 +492,11 @@ sub _credentials (%args) {
         return ( undef, $why ) unless $ok;
 
         my $stored = Trog::Vault::get( $user, $secret_name );
-        return ( undef, "the stored provisioning passphrase for $user could not be read" ) unless defined $stored && length($stored);
+        return ( undef, "the stored provisioning passphrase for $user could not be read" ) unless $stored;
         $credentials{keepass} = $stored;
     }
     else {
-        return ( undef, 'a passphrase is required, as the provisioner asks for one' ) unless length( $args{passphrase} // '' );
+        return ( undef, 'a passphrase is required, as the provisioner asks for one' ) unless $args{passphrase};
         $credentials{keepass} = $args{passphrase};
         $typed{keepass}       = $args{passphrase};
     }
@@ -504,7 +505,7 @@ sub _credentials (%args) {
     # reason to -- and no sudo password at all is the ordinary answer, for a
     # hypervisor whose login has passwordless sudo.
     my $sudo = $typed{sudo} // ( $user ? Trog::Vault::get( $user, $sudo_name ) : undef );
-    $credentials{sudo} = $sudo if defined $sudo && length($sudo);
+    $credentials{sudo} = $sudo if $sudo;
 
     _remember( $user, \%typed ) if $args{remember} && $user && %typed;
 

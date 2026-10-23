@@ -2,6 +2,7 @@ package Trog::Utils;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use UUID;
 use HTTP::Tiny::UNIX();

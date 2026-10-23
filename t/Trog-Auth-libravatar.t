@@ -1,12 +1,12 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 # Stub modules absent from the test environment before loading Trog::Auth
 BEGIN {

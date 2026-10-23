@@ -2,6 +2,7 @@ package Trog::Component;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Text::Xslate ();
 
@@ -137,7 +138,7 @@ sub render_template ( $template, $data = {} ) {
 sub _load ($name) {
     state %loaded;
 
-    die "Component name must be given\n"   unless defined $name && length $name;
+    die "Component name must be given\n"   unless $name;
     die "Invalid component name '$name'\n" unless $name =~ m/^[A-Za-z][A-Za-z0-9_]*$/;
 
     my $module = "Trog::Component::$name";

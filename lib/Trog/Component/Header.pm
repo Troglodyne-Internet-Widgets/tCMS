@@ -2,6 +2,7 @@ package Trog::Component::Header;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Trog::Component ();
 use Trog::Themes;

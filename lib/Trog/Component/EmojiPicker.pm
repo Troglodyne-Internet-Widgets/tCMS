@@ -2,6 +2,7 @@ package Trog::Component::EmojiPicker;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use File::Slurper ();
 use JSON::MaybeXS;

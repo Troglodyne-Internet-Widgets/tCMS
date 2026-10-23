@@ -2,12 +2,12 @@ package Trog::Data::SQLite;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Carp qw{confess};
 use JSON::MaybeXS;
 use List::Util qw{any};
 
-use lib 'lib';
 use Trog::Log qw{:all};
 use Trog::SQLite;
 
@@ -18,8 +18,8 @@ our $dbname = 'data/posts.sqlite';
 
 our $parser = JSON::MaybeXS->new( utf8 => 1 );
 
-sub lang { 'SQLite FTS5 substring match' }
-sub help { 'https://sqlite.org/fts5.html' }
+sub lang { return 'SQLite FTS5 substring match' }
+sub help { return 'https://sqlite.org/fts5.html' }
 
 =head1 Trog::Data::SQLite
 
@@ -242,7 +242,7 @@ sub _where ($query) {
         push( @bind,  $query->{author} );
     }
 
-    if ( length( $query->{like} // '' ) ) {
+    if ( ( $query->{like} // q{} ) ne q{} ) {
         my ( $clause, @like_bind ) = _like_clause( $query->{like} );
         push( @where, $clause );
         push( @bind,  @like_bind );

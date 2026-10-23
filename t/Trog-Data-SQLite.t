@@ -7,10 +7,10 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Test::MockModule qw{strict};
@@ -74,6 +74,8 @@ sub post {
         created    => $t++,
         version    => 0,
         form       => 'blog.tx',
+        method     => 'GET',
+        callback   => 'Trog::Routes::HTML::posts',
         %o,
 
         # _process() pushes visibility into tags, so the corpus does too.
@@ -263,6 +265,7 @@ subtest 'the like filter goes through FTS5' => sub {
         [ 'Secret Plans' => ['p-private'] ],    # title as well as body
         [ 'foxes'        => ['p-slides'] ],     # data stored as an array
         [ 'nonesuch'     => [] ],
+        [ '0'            => [] ],               # a term, not an absent one
     );
 
     foreach my $case (@cases) {
@@ -487,7 +490,7 @@ subtest 'indexing a custom field' => sub {
 
     # The name reaches SQLite as an identifier and a JSON path, neither of which
     # can be bound as a parameter, so it is checked here and not merely upstream.
-    foreach my $hostile ( 'cook_time; DROP TABLE posts', "cook'time", 'Cook_Time', '1st_course', 'a' x 40, '', 'post_data' ) {
+    foreach my $hostile ( 'cook_time; DROP TABLE posts', "cook'time", 'Cook_Time', '1st_course', ( 'a' x 40 ), '', 'post_data' ) {
         is( exception { $sqlite->index_fields($hostile) }, undef, "'$hostile' is refused rather than run" );
     }
     ok( $indexes->()->{posts_created},             'and the table is still there afterwards' );

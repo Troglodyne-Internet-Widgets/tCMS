@@ -1,13 +1,13 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::Fatal qw{exception};
 use File::Path  ();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 my ( $ROOT, $OLDCWD );
 

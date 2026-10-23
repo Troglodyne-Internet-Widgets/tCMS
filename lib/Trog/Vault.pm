@@ -2,6 +2,7 @@ package Trog::Vault;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Crypt::AuthEnc::GCM  ();
 use Crypt::KeyDerivation ();
@@ -115,7 +116,7 @@ our $looked_further = 0;
 
 sub _from_env {
     my $raw = delete $ENV{TPSGI_VAULT_KEY};
-    return undef unless defined $raw && length($raw);
+    return undef unless $raw;
     return _decode( $raw, 'TPSGI_VAULT_KEY' );
 }
 
@@ -203,7 +204,7 @@ Remember one thing for one user, replacing whatever was there under that name.
 sub set ( $user, $name, $secret ) {
     return ( 0, 'this installation has no vault key, so there is nowhere to keep it' ) unless has_key();
     return ( 0, 'a secret needs a name' )                                              unless _safe_name($name);
-    return ( 0, 'nothing to store' )                                                   unless defined $secret && length($secret);
+    return ( 0, 'nothing to store' )                                                   unless ( $secret // q{} ) ne q{};
 
     my $salt = Crypt::PRNG::random_bytes(32);
     my ( $key, $iv ) = _derive($salt);
@@ -355,7 +356,7 @@ sub forget ( $user, $name ) {
 # A name is a label in a form and a key in a table, and it is half of what binds
 # a row to its owner, so it is a short plain thing or it is nothing.
 sub _safe_name ($name) {
-    return 0 unless defined $name && length($name) && length($name) <= 64;
+    return 0 if !$name || length $name > 64;
     return $name =~ m/^[A-Za-z0-9][A-Za-z0-9._-]*$/ ? 1 : 0;
 }
 

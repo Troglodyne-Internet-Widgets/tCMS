@@ -2,6 +2,7 @@ package TCMS;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Carp         qw{confess};
 use Clone        qw{clone};
@@ -20,8 +21,6 @@ use URI();
 use Ref::Util qw{is_coderef is_hashref is_arrayref};
 
 #Grab our custom routes
-use FindBin;
-use lib "$FindBin::Bin/../lib";
 use FindBin::libs;
 
 use Trog::Routes::HTML;

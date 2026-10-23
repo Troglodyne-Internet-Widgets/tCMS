@@ -6,10 +6,10 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Test::MockModule qw{strict};

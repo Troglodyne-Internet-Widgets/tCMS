@@ -4,6 +4,7 @@ package tcms::useradd;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin::libs;
 use Getopt::Long;
@@ -145,11 +146,11 @@ sub main {
 
     # --password with no value means "ask me", as opposed to leaving the option
     # out entirely, which means "leave the password alone".
-    if ( defined $options{password} && !length $options{password} ) {
+    if ( defined $options{password} && !$options{password} ) {
         my $interactive = -t STDIN;
         $options{password} = _read_password("New password for '$options{user}': ");
 
-        unless ( defined $options{password} && length $options{password} ) {
+        unless ( $options{password} ) {
             print STDERR "No password provided.\n";
             return 2;
         }

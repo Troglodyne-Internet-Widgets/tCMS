@@ -2,6 +2,7 @@ package Trog::Log;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use POSIX qw{strftime};
 use Module::Runtime();
@@ -158,7 +159,7 @@ request's messages under the request itself.
 sub uuid {
     my $requestid = shift;
     $rq = $requestid if $requestid;
-    $requestid //= return $rq;
+    return $requestid // $rq;
 }
 
 sub _log {

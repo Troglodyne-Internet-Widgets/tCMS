@@ -7,10 +7,10 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Test::Fatal qw{exception};
@@ -99,7 +99,7 @@ subtest 'searchable_match' => sub {
     ok( Trog::DataSource::searchable_match( 'ell', 'hello' ),       'a substring matches' );
     ok( Trog::DataSource::searchable_match( 'ELL', 'hello' ),       'case insensitively' );
     ok( Trog::DataSource::searchable_match( 'x', 'a', undef, 'x' ), 'across several values' );
-    ok( !Trog::DataSource::searchable_match( 'zz', 'a', 'b' ),      'and misses when it should' );
+    ok( !Trog::DataSource::searchable_match(qw{zz a b}),            'and misses when it should' );
 
     ok( !Trog::DataSource::searchable_match( '',    'anything' ), 'an empty search matches nothing' );
     ok( !Trog::DataSource::searchable_match( undef, 'anything' ), 'and neither does no search' );
@@ -248,8 +248,8 @@ BEGIN {
         push @FILTERED, $q->{like};
         return grep { $_->{title} eq 'beta' } @p;
     }
-    sub lang { 'Picky search' }
-    sub help { 'https://example.com/picky' }
+    sub lang { return 'Picky search' }
+    sub help { return 'https://example.com/picky' }
 
     # One whose filter blows up.
     package Trog::DataSource::TestBroken;

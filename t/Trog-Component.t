@@ -1,12 +1,12 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::Fatal qw{exception};
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Text::Xslate ();
 
@@ -43,7 +43,7 @@ our @ARGS_SEEN;
     sub render { return Trog::Component::component('TestRecurse') }
 
     package Trog::Component::TestNoRender;
-    sub nope { 1 }
+    sub nope { return 1 }
 }
 
 subtest 'name validation' => sub {

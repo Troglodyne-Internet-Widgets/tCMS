@@ -2,6 +2,7 @@ package Theme;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 =head1 Theme
 

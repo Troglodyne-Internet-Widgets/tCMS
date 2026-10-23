@@ -51,7 +51,7 @@ strict = 1
 [BuiltinFunctions::ProhibitDeleteOnArrays]
 [Subroutines::ProhibitAmbiguousFunctionCalls]
 [ValuesAndExpressions::ProhibitSingleArgArraySlice]
-#[ValuesAndExpressions::ProhibitDefinedBeforeLength]
+[ValuesAndExpressions::ProhibitDefinedBeforeLength]
 [Variables::ProhibitUselessVarClearing]
 #[Subroutines::ProhibitTailRecursion]
 [Bangs::ProhibitUselessRegexModifiers]
@@ -97,11 +97,11 @@ formats = #!/usr/bin/env perl
 # looks at the result.  The same functions as RequireCheckedSyscalls below.
 [ErrorHandling::RequireCheckedIndirectResults]
 exclude_functions = print
-#[ProhibitUseLib]
+[ProhibitUseLib]
 #[ProhibitUsageSubs]
-#[RequireQwForLiteralLists]
+[RequireQwForLiteralLists]
 #[ProhibitNoWarningsRedefine]
-#[RequireFatalWarnings]
+[RequireFatalWarnings]
 #[ProhibitUnusedImports]
 # Modules imported for a side effect rather than for a symbol, which the policy
 # cannot see.  `re` is here because every file says `use re '/aa'`.  Add your
@@ -234,7 +234,9 @@ exclude_functions = print
 [Subroutines::ProhibitSubroutinePrototypes]
 #[Subroutines::ProtectPrivateSubs]
 #[Subroutines::RequireArgUnpacking]
-#[Subroutines::RequireFinalReturn]
+[Subroutines::RequireFinalReturn]
+# tCMS: a sub that forks ends its child with POSIX::_exit, which never returns.
+terminal_funcs = POSIX::_exit
 [TestingAndDebugging::ProhibitProlongedStrictureOverride]
 [TestingAndDebugging::RequireTestLabels]
 #[ValuesAndExpressions::ProhibitCommaSeparatedStatements]

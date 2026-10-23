@@ -10,13 +10,13 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 # FindBin MUST come first.  $FindBin::Bin is derived from $0, which prove hands
 # us relatively, and it is computed once.  chdir before this loads and every
 # module's `use FindBin::libs` resolves against the sandbox instead of the repo.
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Cwd           ();
@@ -76,7 +76,7 @@ sub _copy_tree {
             no_chdir => 1,
             wanted   => sub {
                 my $rel = substr( $File::Find::name, length($from) );
-                return unless length $rel;
+                return unless $rel;
                 my $dst = "$to$rel";
                 if    ( -d $File::Find::name ) { File::Path::make_path($dst) }
                 elsif ( -f $File::Find::name ) { File::Copy::copy( $File::Find::name, $dst ) or die "copy $File::Find::name: $!" }
@@ -189,14 +189,14 @@ require Trog::Routes::JSON;
         }, $class;
     }
 
-    sub INFO  { 1 }
-    sub DEBUG { 1 }
-    sub WARN  { 1 }
-    sub ERROR { 1 }
-    sub CRIT  { 1 }
-    sub ALERT { 1 }
-    sub EMERG { 1 }
-    sub FATAL { 1 }
+    sub INFO  { return 1 }
+    sub DEBUG { return 1 }
+    sub WARN  { return 1 }
+    sub ERROR { return 1 }
+    sub CRIT  { return 1 }
+    sub ALERT { return 1 }
+    sub EMERG { return 1 }
+    sub FATAL { return 1 }
 
     sub see_also           { return [ 303, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
     sub redirect           { return [ 302, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
@@ -581,7 +581,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     is( $code, 200, 'the datasource-backed type was created' ) or diag($err);
 
     _reindex();
-    my $series = _make_series( 'spec_guests', 'specguests', 'spec_guests.tx', 'Spec Guests Series', no_topbar => 1 ) or return;
+    my $series = _make_series( qw{spec_guests specguests spec_guests.tx}, 'Spec Guests Series', no_topbar => 1 ) or return;
 
     # Twelve guests, every one stamped with the same created -- which is what
     # libvirt guests really are, and precisely what the cursor paginator cannot
@@ -672,7 +672,7 @@ subtest 'an ordinary series survives a page number in its URL' => sub {
     # its own page.  Latent until the datasource paginator started emitting page
     # numbers, and it was never about datasources.
     _reindex();
-    _make_series( 'spec_paged', 'specpaged', 'blog.tx', 'Spec Paged Series', no_topbar => 1 ) or return;
+    _make_series( qw{spec_paged specpaged blog.tx}, 'Spec Paged Series', no_topbar => 1 ) or return;
 
     foreach my $n ( 1, 2 ) {
         _save_post(
@@ -729,7 +729,7 @@ subtest 'a directory index series' => sub {
 
     _reindex();
     my $series = _make_series(
-        'spec_files', 'specfiles', 'spec_files.tx', 'Spec Files Series',
+        qw{spec_files specfiles spec_files.tx}, 'Spec Files Series',
         no_topbar => 1,
         directory => 'assets/spec_downloads',
     ) or return;
@@ -864,15 +864,15 @@ subtest 'a field can be declared indexed' => sub {
             # The middle row is the one that matters: its box is clear, and the
             # wizard zips these arrays together positionally, so if a clear box
             # ever submitted nothing the flag would land on the wrong field.
-            param_name          => [ 'cook_time', 'garnish', 'serves' ],
-            param_type          => [ 'text',      'text',    'number' ],
+            param_name          => [qw{cook_time garnish serves}],
+            param_type          => [qw{text text number}],
             param_label         => [ 'Cook Time', 'Garnish', 'Serves' ],
             param_placeholder   => [ '',          '',        '' ],
             param_required      => [ 0,           0,         0 ],
             param_private       => [ 0,           0,         0 ],
             param_indexed       => [ 1,           0,         1 ],
-            param_relation_form => [ 'blog.tx',   'blog.tx', 'blog.tx' ],
-            param_relation_mode => [ 'one',       'one',     'one' ],
+            param_relation_form => [qw{blog.tx blog.tx blog.tx}],
+            param_relation_mode => [qw{one one one}],
             display             => q{<div class="ct"><: $post.cook_time :></div>},
         ),
         \&Trog::Routes::HTML::post_wizard_save,
@@ -905,7 +905,7 @@ subtest 'a field can be declared indexed' => sub {
 
     # A post of the type still saves and reads back the same as any other.
     _reindex();
-    _make_series( 'spec_indexed', 'specindexed', 'spec_indexed.tx', 'Spec Indexed Series', no_topbar => 1 ) or return;
+    _make_series( qw{spec_indexed specindexed spec_indexed.tx}, 'Spec Indexed Series', no_topbar => 1 ) or return;
     my $child = _save_post(
         'spec_indexed child',
         form       => 'spec_indexed.tx',
@@ -954,7 +954,7 @@ subtest 'a field can be declared editors-only' => sub {
 
     _reindex();
 
-    _make_series( 'spec_secretive', 'specsecretive', 'spec_secretive.tx', 'Spec Secretive Series', no_topbar => 1 ) or return;
+    _make_series( qw{spec_secretive specsecretive spec_secretive.tx}, 'Spec Secretive Series', no_topbar => 1 ) or return;
     my $child = _save_post(
         'spec_secretive child',
         form       => 'spec_secretive.tx',
@@ -1054,7 +1054,7 @@ our ( $PAYEE, $PAYOR );
 
 subtest 'entities' => sub {
     my $title = 'Spec Entities Series';
-    _make_series( 'entities', 'specentities', 'entities.tx', $title ) or return;
+    _make_series( qw{entities specentities entities.tx}, $title ) or return;
 
     $PAYEE = _save_post(
         'entities payee child',
@@ -1094,7 +1094,7 @@ subtest 'entities' => sub {
 
 subtest 'blog' => sub {
     my $title = 'Spec Blog Series';
-    _make_series( 'blog', 'specblog', 'blog.tx', $title ) or return;
+    _make_series( qw{blog specblog blog.tx}, $title ) or return;
 
     my $child = _save_post(
         'blog child',
@@ -1117,7 +1117,7 @@ subtest 'blog' => sub {
 
 subtest 'microblog' => sub {
     my $title = 'Spec Microblog Series';
-    _make_series( 'microblog', 'specmicroblog', 'microblog.tx', $title ) or return;
+    _make_series( qw{microblog specmicroblog microblog.tx}, $title ) or return;
 
     my $child = _save_post(
         'microblog child',
@@ -1139,7 +1139,7 @@ subtest 'microblog' => sub {
 
 subtest 'file' => sub {
     my $title = 'Spec File Series';
-    _make_series( 'file', 'specfile', 'file.tx', $title ) or return;
+    _make_series( qw{file specfile file.tx}, $title ) or return;
 
     # _handle_upload MOVES the file, so it has to be created fresh here.
     my $src = "$ROOT/upload-src/spec-upload.txt";
@@ -1179,7 +1179,7 @@ subtest 'file' => sub {
 
 subtest 'presentation' => sub {
     my $title = 'Spec Presentation Series';
-    _make_series( 'presentation', 'specpresentation', 'presentation.tx', $title ) or return;
+    _make_series( qw{presentation specpresentation presentation.tx}, $title ) or return;
 
     my $child = _save_post(
         'presentation child',
@@ -1203,7 +1203,7 @@ subtest 'presentation' => sub {
 
 subtest 'invoice' => sub {
     my $title = 'Spec Invoice Series';
-    _make_series( 'invoice', 'specinvoice', 'invoice.tx', $title ) or return;
+    _make_series( qw{invoice specinvoice invoice.tx}, $title ) or return;
 
     my %invoice = (
         form          => 'invoice.tx',
@@ -1265,7 +1265,7 @@ subtest 'a private post is not served to a visitor who asks for it by id' => sub
 
 subtest 'spec_widget (the wizard-built type)' => sub {
     my $title = 'Spec Widget Series';
-    _make_series( 'spec_widget', 'specwidget', 'spec_widget.tx', $title ) or return;
+    _make_series( qw{spec_widget specwidget spec_widget.tx}, $title ) or return;
 
     my $child = _save_post(
         'spec_widget child',
@@ -1364,7 +1364,7 @@ subtest 'a wizard-built type can depend on another type' => sub {
     _reindex();
 
     # Now exercise it end to end.
-    _make_series( 'spec_target', 'spectarget', 'spec_target.tx', 'Spec Target Series', no_topbar => 1 ) or return;
+    _make_series( qw{spec_target spectarget spec_target.tx}, 'Spec Target Series', no_topbar => 1 ) or return;
     my $target = _save_post(
         'spec_target child',
         form       => 'spec_target.tx',
@@ -1375,7 +1375,7 @@ subtest 'a wizard-built type can depend on another type' => sub {
         to         => '/spectarget',
     ) or return;
 
-    _make_series( 'spec_relator', 'specrelator', 'spec_relator.tx', 'Spec Relator Series', no_topbar => 1 ) or return;
+    _make_series( qw{spec_relator specrelator spec_relator.tx}, 'Spec Relator Series', no_topbar => 1 ) or return;
     my $relator = _save_post(
         'spec_relator child',
         form       => 'spec_relator.tx',

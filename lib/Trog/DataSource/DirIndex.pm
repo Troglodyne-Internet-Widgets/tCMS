@@ -2,6 +2,7 @@ package Trog::DataSource::DirIndex;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Cwd            ();
 use Digest::SHA    qw{sha256_hex};
@@ -145,7 +146,7 @@ sub posts ( $series, $query ) {
 # and the path relative to the tCMS root, since the first is what we read and
 # the second is what we log and watch.
 sub _resolve ($directory) {
-    return undef unless defined $directory && length $directory;
+    return undef unless $directory;
 
     # Before abs_path, which would happily resolve one for us.
     if ( $directory =~ m{(?:^|/)\.\.(?:/|$)} ) {
@@ -188,7 +189,7 @@ sub _resolve ($directory) {
     my $relative = $absolute;
     $relative =~ s{^\Q$base\E/?}{};
 
-    return { absolute => $absolute, relative => length($relative) ? "$root/$relative" : $root };
+    return { absolute => $absolute, relative => $relative ne q{} ? "$root/$relative" : $root };
 }
 
 # Path containment, done on the resolved paths rather than on the strings the
@@ -302,7 +303,7 @@ under it.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( length( $query->{like} // '' ) ) {
+    if ( ( $query->{like} // q{} ) ne q{} ) {
         my $like = $query->{like};
         @posts = grep { Trog::DataSource::searchable_match( $like, $_->{name}, $_->{path}, $_->{extension} ) } @posts;
     }
@@ -335,8 +336,8 @@ Where to read about it.
 
 =cut
 
-sub lang { 'Case insensitive substring of a file name, path or extension' }
-sub help { 'https://en.wikipedia.org/wiki/Substring' }
+sub lang { return 'Case insensitive substring of a file name, path or extension' }
+sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
 =head2 _watch($query, $directory)
 

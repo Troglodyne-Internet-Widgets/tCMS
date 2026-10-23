@@ -2,9 +2,10 @@
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Getopt::Long qw{GetOptions};
 use Time::HiRes  ();
