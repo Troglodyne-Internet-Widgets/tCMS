@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# Bring the records of tests-covering up to the commit just made.
+#
+# git-hooks/pre-commit chooses tests by reading a diff against these records,
+# and a diff describes the files as they were before the change.  So after each
+# commit the records must describe that commit, or the next choice falls back
+# to every test that loaded a changed file, and grows coarser with each commit.
+#
+# In the background, because it runs each stale test under Devel::Cover, and a
+# full refresh takes much longer than a commit should.  Run it by hand to catch
+# up.  It runs the tests the way the pre-commit hook does, with lib/ on the
+# path and nothing else set, so that the records describe the same runs.
+#
+# Install it: cp git-hooks/pre-commit git-hooks/post-commit .git/hooks/
+
+command -v tests-covering >/dev/null 2>&1 || exit 0
+
+# Not while a rebase, or a cherry-pick or revert of several commits, applies
+# them.  git runs this hook for each commit that it applies, and each refresh
+# runs every stale test under Devel::Cover.  A refresh brings the records up to
+# the working tree, however many commits it missed, so the next commit after
+# the rebase catches them up.
+for state in rebase-merge rebase-apply sequencer; do
+    [ -d "$(git rev-parse --git-path "$state")" ] && exit 0
+done
+
+# Without the GIT_ variables that git sets for this hook, for the reason the
+# pre-commit hook gives: the refresh runs the tests, and a test that runs git
+# in a repository of its own would otherwise work in this one.
+unset $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p')
+
+tests-covering --refresh --jobs "$(nproc 2>/dev/null || echo 1)" >/dev/null 2>&1 &

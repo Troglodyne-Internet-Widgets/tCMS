@@ -1,4 +1,4 @@
-use strict;
+use 5.040;
 use warnings;
 
 use ExtUtils::MakeMaker;
@@ -6,12 +6,77 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     VERSION => '0.01',
 
-    # Every module and script declares 'use v5.36' -- signatures without the
-    # experimental warning is what we build on.
-    MIN_PERL_VERSION => '5.036000',
+    # Every module, script and test declares 'use 5.040'.
+    MIN_PERL_VERSION => '5.040000',
     META_MERGE       => {
         "meta-spec" => { version => 2 },
-        resources   => {
+
+        # What the hooks and .perlcriticrc need, which nothing at run time does.
+        # Add a line whenever .perlcriticrc names a policy from another distribution.
+        prereqs => {
+            develop => {
+                requires => {
+                    'Perl::Critic'                                                                   => '0',
+                    'Perl::Tidy'                                                                     => '0',
+                    'Devel::Cover'                                                                   => '0',
+                    'Perl::Tests::Covering'                                                          => '0.002',
+                    'Perl::Critic::Policy::Modules::RequirePerlVersion'                              => '0',
+                    'Perl::Critic::Policy::Documentation::RequirePod'                                => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::PreventSQLInjection'                => '0',
+                    'Perl::Critic::Policy::CodeLayout::RequireASCII'                                 => '0',
+                    'Perl::Critic::Policy::RegularExpressions::RequireDefault'                       => '0',
+                    'Perl::Critic::Policy::BuiltinFunctions::ProhibitDeleteOnArrays'                 => '0',
+                    'Perl::Critic::Policy::Subroutines::ProhibitAmbiguousFunctionCalls'              => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ProhibitSingleArgArraySlice'        => '0',
+                    'Perl::Critic::Policy::Bangs::ProhibitUselessRegexModifiers'                     => '0',
+                    'Perl::Critic::Policy::Bangs::ProhibitCommentedOutCode'                          => '0',
+                    'Perl::Critic::Policy::Tics::ProhibitUseBase'                                    => '0',
+                    'Perl::Critic::Policy::Plicease::ProhibitLeadingZeros'                           => '0',
+                    'Perl::Critic::Policy::RegularExpressions::ProhibitEmptyAlternatives'            => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::UnexpandedSpecialLiteral'           => '0',
+                    'Perl::Critic::Policy::CodeLayout::ProhibitIfIfSameLine'                         => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ConstantBeforeLt'                   => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ProhibitDuplicateHashKeys'          => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ProhibitFiletest_f'                 => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ProhibitFiletest_rwxRWX'            => '0',
+                    'Perl::Critic::Policy::CognitiveComplexity::ProhibitExcessCognitiveComplexity'   => '0',
+                    'Perl::Critic::Policy::Variables::ProhibitUselessInitialization'                 => '0',
+                    'Perl::Critic::Policy::PreferredModules'                                         => '0',
+                    'Perl::Critic::Policy::logicLAB::RequireSheBang'                                 => '0',
+                    'Perl::Critic::Policy::logicLAB::ProhibitShellDispatch'                          => '0',
+                    'Perl::Critic::Policy::Performance::ProhibitRegexForSimpleSubstring'             => '0',
+                    'Perl::Critic::Policy::RegularExpressions::ProhibitRegexToStripAffix'            => '0',
+                    'Perl::Critic::Policy::RegularExpressions::ProhibitRegexToChomp'                 => '0',
+                    'Perl::Critic::Policy::BuiltinFunctions::ProhibitChainingSameListSub'            => '0',
+                    'Perl::Critic::Policy::RegularExpressions::ProhibitRegexForStringEquality'       => '0',
+                    'Perl::Critic::Policy::Subroutines::ProhibitUnderscorePrivateSubs'               => '0',
+                    'Perl::Critic::Policy::Subroutines::ProhibitSingleUseLexicalSubs'                => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ProhibitLiteralArithmetic'          => '0',
+                    'Perl::Critic::Policy::BuiltinFunctions::ProhibitIndirectBooleanGrep'            => '0',
+                    'Perl::Critic::Policy::ControlStructures::ProhibitMutatingListFunctionsStricter' => '0',
+                    'Perl::Critic::Policy::ControlStructures::ProhibitEmptyConditionalBlocks'        => '0',
+                    'Perl::Critic::Policy::ErrorHandling::RequireCheckedIndirectResults'             => '0',
+                    'Perl::Critic::Policy::CompileTime'                                              => '0',
+                    'Perl::Critic::Policy::ProhibitPipeOpen'                                         => '0',
+                    'Perl::Critic::Policy::ProhibitUseLib'                                           => '0',
+                    'Perl::Critic::Policy::ProhibitUsageSubs'                                        => '0',
+                    'Perl::Critic::Policy::RequireQwForLiteralLists'                                 => '0',
+                    'Perl::Critic::Policy::ProhibitNoWarningsRedefine'                               => '0',
+                    'Perl::Critic::Policy::RequireFatalWarnings'                                     => '0',
+                    'Perl::Critic::Policy::ProhibitUnusedImports'                                    => '0',
+                    'Perl::Critic::Policy::ProhibitMisplacedMethods'                                 => '0',
+                    'Perl::Critic::Policy::ProhibitPrintSTDERR'                                      => '0',
+                    'Perl::Critic::Policy::InputOutput::ProhibitRepeatedPrints'                      => '0',
+                    'Perl::Critic::Policy::ValuesAndExpressions::ProhibitDefinedBeforeLength'        => '0',
+                    'Perl::Critic::Policy::Variables::ProhibitUselessVarClearing'                    => '0.001',
+                    'Perl::Critic::Policy::Subroutines::ProhibitTailRecursion'                       => '0.001',
+                    'Perl::Critic::Policy::RegularExpressions::PreventUselessMetacharacterEscapes'   => '0',
+                    'Perl::Critic::Policy::Variables::ProhibitUnusedVarsStricter'                    => '0',
+                    'Perl::Critic::Policy::ProhibitUnusedDefinitions'                                => '0',
+                },
+            },
+        },
+        resources => {
             repository => {
                 type => 'git',
                 url  => 'git@github.com:Troglodyne-Internet-Widgets/tCMS.git',
