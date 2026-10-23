@@ -110,7 +110,7 @@ sub log_init {
     my $dblog = Trog::Log::DBI->new(
         name      => 'dbi',
         min_level => $LEVEL,
-        dbh       => _dbh(),
+        dbh       => dbh(),
     );
 
     $log = Log::Dispatch->new();
@@ -129,7 +129,14 @@ sub log_init {
 #memoize
 my $rq;
 
-sub _dbh {
+=head2 dbh() = DBI::db
+
+The handle to the log database, under the log directory, with its schema
+applied.  Trog::SQLite caches it, so every call gets the same one.
+
+=cut
+
+sub dbh {
     return Trog::SQLite::dbh( 'schema/log.schema', "$LOGDIR/log.db" );
 }
 
@@ -161,7 +168,7 @@ sub uuid {
     return $requestid // $rq;
 }
 
-sub _log {
+my sub _log {
     my ( $msg, $level ) = @_;
 
     $msg //= "No message passed.  This is almost certainly a bug. ";
@@ -196,7 +203,7 @@ and the test suite.
 =cut
 
 # One path for every level so the uninitialized fallback only exists once.
-sub _emit ( $level, $method, $msg ) {
+my sub emit ( $level, $method, $msg ) {
     my $line = _log( $msg, $level );
     return $log->$method($line) if $log;
 
@@ -204,11 +211,11 @@ sub _emit ( $level, $method, $msg ) {
     return 1;
 }
 
-sub DEBUG { return _emit( 'DEBUG', 'debug', shift ) }
+sub DEBUG { return emit( 'DEBUG', 'debug', shift ) }
 
-sub INFO { return _emit( 'INFO', 'info', shift ) }
+sub INFO { return emit( 'INFO', 'info', shift ) }
 
-sub WARN { return _emit( 'WARN', 'warning', shift ) }
+sub WARN { return emit( 'WARN', 'warning', shift ) }
 
 sub FATAL {
     my $line = _log( shift, 'FATAL' );

@@ -126,12 +126,21 @@ sub get ( $self, %request ) {
     return @$posts if $request{raw};
 
     my @filtered = $self->filter( \%request, @$posts );
-    @filtered = $self->_fixup(@filtered);
+    @filtered = $self->fixup(@filtered);
     @filtered = $self->paginate( \%request, @filtered );
     return @filtered;
 }
 
-sub _fixup ( $, @filtered ) {
+=head2 fixup(@posts) = LIST
+
+Fill in what a post needs for display and routing, and does not store: the
+author's display_name and user_class, and a local_href, callback and method
+where the post has none.  Spaces in its href fields become %20.  Called by
+get(), and by a subclass whose get() does not call the base one.
+
+=cut
+
+sub fixup ( $, @filtered ) {
 
     my %user2display;
 
@@ -174,15 +183,15 @@ sub _fixup ( $, @filtered ) {
     return @filtered;
 }
 
-sub _filter_param ( $query, $param, @filtered ) {
+my sub filter_param ( $query, $param, @filtered ) {
     @filtered = grep { ( $_->{$param} || '' ) eq $query->{$param} } @filtered;
-    @filtered = _dedup_versions( $query->{version}, @filtered );
+    @filtered = dedup_versions( $query->{version}, @filtered );
     return @filtered;
 }
 
 # Visibility and acls are both stored as tags, so a caller sees a post when it
 # holds one of them.  admin sees everything.
-sub _filter_acls ( $query, @filtered ) {
+my sub filter_acls ( $query, @filtered ) {
     return @filtered if grep { $_ eq 'admin' } @{ $query->{acls} };
     return grep {
         my $tags = $_->{tags};
@@ -213,10 +222,10 @@ sub filter ( $, $query, @filtered ) {
     # if the caller may see it.
     foreach my $key (qw{id title aclname}) {
         next unless $query->{$key};
-        return _filter_acls( $query, _filter_param( $query, $key, @filtered ) );
+        return filter_acls( $query, filter_param( $query, $key, @filtered ) );
     }
 
-    @filtered = _dedup_versions( undef, @filtered );
+    @filtered = dedup_versions( undef, @filtered );
 
     #Filter out posts which are too old
     #Coerce older into numeric
@@ -247,7 +256,7 @@ sub filter ( $, $query, @filtered ) {
         } @$tags
     } @filtered if @{ $query->{exclude_tags} };
 
-    @filtered = _filter_acls( $query, @filtered );
+    @filtered = filter_acls( $query, @filtered );
 
     @filtered = grep { ( $_->{form} || '' ) eq $query->{form} } @filtered if $query->{form};
 
@@ -281,7 +290,17 @@ sub paginate ( $, $query, @filtered ) {
     return splice( @filtered, $start, $offset );
 }
 
-sub _dedup_versions ( $version = -1, @posts ) {
+=head2 dedup_versions($version, @posts) = LIST
+
+Given a $version, the posts of that version, each with version_max set to the
+newest version among @posts.
+
+Given undef, one post per id: its newest version, with version_max set, created
+and author taken from its oldest version, and modified from the newest one.
+
+=cut
+
+sub dedup_versions ( $version = -1, @posts ) {
 
     #ASSUMPTION made here - if we pass version this is direct ID query
     if ( defined $version ) {
@@ -426,16 +445,65 @@ picks the change up on its very next add() with no restart needed.
 # a type saved and used inside the same second validated against the schema it
 # had a moment ago.  Falls back to whatever stat gives where the filesystem
 # carries no sub-second timestamps.
-sub _sidecar_generation {
+my sub sidecar_generation {
     return join( ':', map { ( ( Time::HiRes::stat("$_/forms") )[9] // 0, ( Time::HiRes::stat($_) )[9] // 0 ) } Trog::Themes::template_dirs( 'text/html', 1 ) );
 }
 
 # A signature default only covers an absent arg, and plenty of posts have an
 # explicitly undef form.
-sub _type_of ($form) {
+my sub type_of ($form) {
     $form = '' if !defined $form || ref $form;
     my ($type) = $form =~ m/^([A-Za-z0-9_-]+)\.tx$/;
     return $type // '';
+}
+
+our %relation_schema = ( type => 'string' );
+
+# Sugar: a sidecar says {"type":"upload"} rather than spelling out the
+# string-or-hashref dance every upload field would otherwise need.  Uploads are
+# a hashref on the way in from the browser and the href string they became on
+# the way back out of the datastore.
+my sub expand_pseudo_types ($node) {
+    return unless Ref::Util::is_hashref($node);
+
+    my %pseudo = (
+        upload   => \%upload_schema,
+        relation => \%relation_schema,
+    );
+
+    my $type = $node->{type} // '';
+    if ( $pseudo{$type} ) {
+        delete $node->{type};
+        %$node = ( %$node, %{ $pseudo{$type} } );
+        return;
+    }
+
+    __SUB__->($_) foreach values( %{ $node->{properties} // {} } );
+    __SUB__->( $node->{items} ) if $node->{items};
+    foreach my $key (qw{oneOf anyOf allOf}) {
+        next unless Ref::Util::is_arrayref( $node->{$key} );
+        __SUB__->($_) foreach @{ $node->{$key} };
+    }
+    return;
+}
+
+my sub read_sidecar ($path) {
+
+    # -e, not -f: the question is whether a sidecar exists at all, and most
+    # post types have none.  Letting the read below fail instead would WARN
+    # about every type that simply does not have one.
+    return undef unless -e $path;
+
+    local $@;
+    my $spec = eval { JSON::MaybeXS::decode_json( File::Slurper::read_text($path) ) };
+    if ( !$spec ) {
+        WARN("Could not parse post type sidecar '$path': $@");
+        return undef;
+    }
+    return undef unless Ref::Util::is_hashref($spec);
+
+    expand_pseudo_types($spec);
+    return $spec;
 }
 
 =head2 type_meta_for($form)
@@ -452,14 +520,14 @@ type's own metadata live out there and something has to read them.
 sub type_meta_for ( $form = '' ) {
     state %cache;
 
-    my $generation = _sidecar_generation();
+    my $generation = sidecar_generation();
     %cache = () unless exists $cache{$generation};
 
-    my $type = _type_of($form);
+    my $type = type_of($form);
     return $cache{$generation}{$type} if exists $cache{$generation}{$type};
 
     my $path    = $type ? Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 ) : undef;
-    my $sidecar = $path ? _read_sidecar($path)                                                      : undef;
+    my $sidecar = $path ? read_sidecar($path)                                                       : undef;
 
     my %meta;
     if ($sidecar) {
@@ -492,20 +560,38 @@ them, since edit_head.tx and friends collect nothing.
 sub include_schema_for ( $include = '' ) {
     state %cache;
 
-    my $generation = _sidecar_generation();
+    my $generation = sidecar_generation();
     %cache = () unless exists $cache{$generation};
 
     # Same shape as a post type, so the same check: a name and nothing else,
     # since it is about to be turned into a path.
-    my $name = _type_of($include);
+    my $name = type_of($include);
     return {} unless $name;
     return $cache{$generation}{$name} if exists $cache{$generation}{$name};
 
     my $path    = Trog::Themes::themed_component("$name.json");
-    my $sidecar = $path ? _read_sidecar($path) : undef;
+    my $sidecar = $path ? read_sidecar($path) : undef;
 
     $cache{$generation}{$name} = $sidecar // {};
     return $cache{$generation}{$name};
+}
+
+my sub includes_of ($type) {
+    my $path     = Trog::Themes::themed_file_in_dir( 'forms', "$type.tx", 'text/html', 1 );
+    my $template = $path ? eval { File::Slurper::read_text($path) } : undef;
+
+    if ( !defined $template ) {
+        my $meta     = type_meta_for("$type.tx")->{'x-tcms-post-type'};
+        my $recorded = Ref::Util::is_hashref($meta) ? $meta->{includes} : undef;
+        return [] unless Ref::Util::is_arrayref($recorded);
+        return [ grep { defined && !ref } @$recorded ];
+    }
+
+    # Kolon's line syntax, which is how every include in the tree is written --
+    # including the ones the wizard generates.  Deduped, since a template is
+    # free to splice the same block in twice.
+    my %seen;
+    return [ grep { !$seen{$_}++ } $template =~ m/^\s*:\s*include\s+"([A-Za-z0-9_-]+\.tx)"/gm ];
 }
 
 =head2 includes_for($form)
@@ -527,33 +613,15 @@ anything.
 sub includes_for ( $form = '' ) {
     state %cache;
 
-    my $generation = _sidecar_generation();
+    my $generation = sidecar_generation();
     %cache = () unless exists $cache{$generation};
 
-    my $type = _type_of($form);
+    my $type = type_of($form);
     return [] unless $type;
     return $cache{$generation}{$type} if exists $cache{$generation}{$type};
 
-    $cache{$generation}{$type} = _includes_of($type);
+    $cache{$generation}{$type} = includes_of($type);
     return $cache{$generation}{$type};
-}
-
-sub _includes_of ($type) {
-    my $path     = Trog::Themes::themed_file_in_dir( 'forms', "$type.tx", 'text/html', 1 );
-    my $template = $path ? eval { File::Slurper::read_text($path) } : undef;
-
-    if ( !defined $template ) {
-        my $meta     = type_meta_for("$type.tx")->{'x-tcms-post-type'};
-        my $recorded = Ref::Util::is_hashref($meta) ? $meta->{includes} : undef;
-        return [] unless Ref::Util::is_arrayref($recorded);
-        return [ grep { defined && !ref } @$recorded ];
-    }
-
-    # Kolon's line syntax, which is how every include in the tree is written --
-    # including the ones the wizard generates.  Deduped, since a template is
-    # free to splice the same block in twice.
-    my %seen;
-    return [ grep { !$seen{$_}++ } $template =~ m/^\s*:\s*include\s+"([A-Za-z0-9_-]+\.tx)"/gm ];
 }
 
 =head2 private_fields_for($form)
@@ -628,12 +696,12 @@ sub relations_for ( $form = '' ) {
 sub schema_for ( $form = '' ) {
     state %cache;
 
-    my $generation = _sidecar_generation();
+    my $generation = sidecar_generation();
 
     # Only ever keep the current generation around.
     %cache = () unless exists $cache{$generation};
 
-    my $type = _type_of($form);
+    my $type = type_of($form);
     return $cache{$generation}{$type} if exists $cache{$generation}{$type};
 
     my %merged = ( %post_schema, properties => { %{ $post_schema{properties} } } );
@@ -642,7 +710,7 @@ sub schema_for ( $form = '' ) {
     # ship its own blog.json alongside it, and one that doesn't still gets the
     # stock schema rather than nothing at all.
     my $path    = $type ? Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 ) : undef;
-    my $sidecar = $path ? _read_sidecar($path)                                                      : undef;
+    my $sidecar = $path ? read_sidecar($path)                                                       : undef;
     if ($sidecar) {
 
         # The base schema is merged *last*, so a sidecar can add fields but can
@@ -680,59 +748,11 @@ sub schema_for ( $form = '' ) {
     return $cache{$generation}{$type};
 }
 
-sub _read_sidecar ($path) {
-
-    # -e, not -f: the question is whether a sidecar exists at all, and most
-    # post types have none.  Letting the read below fail instead would WARN
-    # about every type that simply does not have one.
-    return undef unless -e $path;
-
-    local $@;
-    my $spec = eval { JSON::MaybeXS::decode_json( File::Slurper::read_text($path) ) };
-    if ( !$spec ) {
-        WARN("Could not parse post type sidecar '$path': $@");
-        return undef;
-    }
-    return undef unless Ref::Util::is_hashref($spec);
-
-    _expand_pseudo_types($spec);
-    return $spec;
-}
-
 # A relation is stored as the referenced post's UUID, and resolved into the
 # post itself at render time -- see the x-tcms-relations table a sidecar
-# declares alongside it, and Trog::Routes::HTML::_enrich_post.  The pseudo-type
+# declares alongside it, and Trog::Routes::HTML::enrich_post.  The pseudo-type
 # exists so a sidecar can say what a field *means* rather than just that it
 # happens to be a string.
-our %relation_schema = ( type => 'string' );
-
-# Sugar: a sidecar says {"type":"upload"} rather than spelling out the
-# string-or-hashref dance every upload field would otherwise need.  Uploads are
-# a hashref on the way in from the browser and the href string they became on
-# the way back out of the datastore.
-sub _expand_pseudo_types ($node) {
-    return unless Ref::Util::is_hashref($node);
-
-    my %pseudo = (
-        upload   => \%upload_schema,
-        relation => \%relation_schema,
-    );
-
-    my $type = $node->{type} // '';
-    if ( $pseudo{$type} ) {
-        delete $node->{type};
-        %$node = ( %$node, %{ $pseudo{$type} } );
-        return;
-    }
-
-    _expand_pseudo_types($_) foreach values( %{ $node->{properties} // {} } );
-    _expand_pseudo_types( $node->{items} ) if $node->{items};
-    foreach my $key (qw{oneOf anyOf allOf}) {
-        next unless Ref::Util::is_arrayref( $node->{$key} );
-        _expand_pseudo_types($_) foreach @{ $node->{$key} };
-    }
-    return;
-}
 
 =head2 validate($post)
 
@@ -746,14 +766,14 @@ meant to round-trip.
 
 =cut
 
-sub _validator {
+my sub validator {
     state $validator;
     $validator //= JSON::Validator::Schema::Troglodyne->new();
     return $validator;
 }
 
 sub validate ($post) {
-    my $validator = _validator();
+    my $validator = validator();
 
     my $schema = schema_for( $post->{form} );
 
@@ -786,14 +806,14 @@ sub validate ($post) {
 
 Check the post that is actually about to be written.
 
-validate() runs on what was submitted.  _process() then builds the shape that
+validate() runs on what was submitted.  process() then builds the shape that
 gets stored -- it turns a visibility into a tag, folds the acls in, resolves
 uploads into hrefs -- and until now nothing looked at the result.  That is how
 every post saved without a visibility came to carry a null in its tags: the
 schema describes tags as an array of strings and would have rejected it on the
 spot, but it was never asked.
 
-Checks rather than filters, unlike validate().  _process() adds fields the base
+Checks rather than filters, unlike validate().  process() adds fields the base
 schema has never heard of -- content_type, is_video, attachments -- and dropping
 what it does not recognise would throw away the work it just did.  So this looks
 only at the fields the schema actually describes, on a copy, and changes nothing.
@@ -807,7 +827,7 @@ sub validate_built ($post) {
 
     my %described = map { $_ => $post->{$_} } grep { exists $schema->{properties}{$_} } keys(%$post);
 
-    return _validator()->validate( \%described, $schema );
+    return validator()->validate( \%described, $schema );
 }
 
 sub add ( $self, @posts ) {
@@ -841,7 +861,7 @@ sub add ( $self, @posts ) {
             push( @{ $post->{aliases} }, "/posts/$post->{id}", "/series/$post->{id}" );
         }
 
-        # Every post needs one: _process pushes it into the tags, and an
+        # Every post needs one: process pushes it into the tags, and an
         # undef there is a tag no query will ever match, which makes the post
         # invisible to everyone but an admin.  A post type built without a
         # visibility selector would otherwise produce exactly that.  Private
@@ -873,9 +893,9 @@ sub add ( $self, @posts ) {
             $post->{local_href} =~ s|/secure||gmx;
         }
 
-        $post = _process($post);
+        $post = process($post);
 
-        # And check what _process() built, not just what arrived.  A post that
+        # And check what process() built, not just what arrived.  A post that
         # fails here is one this code has made wrong on its way to disk, so it
         # is a bug rather than bad input -- but the answer is still to refuse to
         # write it, because the alternative is what we did before, which was to
@@ -893,9 +913,41 @@ sub add ( $self, @posts ) {
     return 0;
 }
 
+my %seen_files;
+
+my sub handle_upload ( $file, $uuid, $private = 0 ) {
+    my $fname;
+    if ( ref $file ne 'HASH' ) {
+        $file =~ s/\\/\//g;
+        $fname = basename($file);
+        FATAL("Did not expect bogus file before its real counterpart!") unless $seen_files{$fname};
+        return $seen_files{$fname};
+    }
+    my $f = $file->{tempname};
+    $fname = basename( $file->{filename} );
+    my $newname = "$uuid.$file->{filename}";
+    $newname = "private/$newname" if $private;
+    File::Copy::move( $f, "www/assets/$newname" );
+
+    # Regrettably, we have no control over the perms of the temp file that starman creates for uploads.
+    chmod( 0755, "www/assets/$newname" );
+    $seen_files{$fname} = "/assets/$newname";
+    return $seen_files{$fname};
+}
+
 #XXX this level of post-processing seems gross, but may be unavoidable
 # Not actually a subprocess, kek
-sub _process ($post) {
+
+=head2 process($post) = HASHREF
+
+Build the post that gets stored from the one that was submitted.  It stores
+the uploaded files, folds the visibility, the acls and the series into the
+tags, removes the fields that only the form uses, and sets the content type
+fields from the files the post points at.  Changes $post, and returns it.
+
+=cut
+
+sub process ($post) {
 
     # Here as well as in add(), because this is the sub that turns a visibility
     # into a tag: without one it pushed an undef into tags, which is a tag no
@@ -906,10 +958,10 @@ sub _process ($post) {
     # If the post is private, make sure it's associated assets are too.
     my $is_private_post = $post->{visibility} eq 'private';
 
-    $post->{href}      = _handle_upload( $post->{file},           $post->{id}, $is_private_post ) if $post->{file};
-    $post->{preview}   = _handle_upload( $post->{preview_file},   $post->{id}, $is_private_post ) if $post->{preview_file};
-    $post->{wallpaper} = _handle_upload( $post->{wallpaper_file}, $post->{id}, $is_private_post ) if $post->{wallpaper_file};
-    @{ $post->{attachments} } = map { _handle_upload( $_, $post->{id}, $is_private_post ) } @{ $post->{attachments} } if $post->{attachments};
+    $post->{href}      = handle_upload( $post->{file},           $post->{id}, $is_private_post ) if $post->{file};
+    $post->{preview}   = handle_upload( $post->{preview_file},   $post->{id}, $is_private_post ) if $post->{preview_file};
+    $post->{wallpaper} = handle_upload( $post->{wallpaper_file}, $post->{id}, $is_private_post ) if $post->{wallpaper_file};
+    @{ $post->{attachments} } = map { handle_upload( $_, $post->{id}, $is_private_post ) } @{ $post->{attachments} } if $post->{attachments};
     $post->{preview} = $post->{href} if $post->{app} && $post->{app} eq 'image';
     delete $post->{app};
     delete $post->{file};
@@ -958,27 +1010,6 @@ sub _process ($post) {
 }
 
 # Browsers try and save time in the event that the same file is sent twice, so handle that.
-my %seen_files;
-
-sub _handle_upload ( $file, $uuid, $private = 0 ) {
-    my $fname;
-    if ( ref $file ne 'HASH' ) {
-        $file =~ s/\\/\//g;
-        $fname = basename($file);
-        FATAL("Did not expect bogus file before its real counterpart!") unless $seen_files{$fname};
-        return $seen_files{$fname};
-    }
-    my $f = $file->{tempname};
-    $fname = basename( $file->{filename} );
-    my $newname = "$uuid.$file->{filename}";
-    $newname = "private/$newname" if $private;
-    File::Copy::move( $f, "www/assets/$newname" );
-
-    # Regrettably, we have no control over the perms of the temp file that starman creates for uploads.
-    chmod( 0755, "www/assets/$newname" );
-    $seen_files{$fname} = "/assets/$newname";
-    return $seen_files{$fname};
-}
 
 =head2 delete(@posts)
 

@@ -82,7 +82,7 @@ our $screenshot_dir = 'www/assets/private/datasource/virt';
 # Reconnecting per guest would be absurd -- one ssh handshake per hypervisor
 # per process is enough.  Not a state var: a connection that has gone away
 # should be retried rather than remembered.
-sub _connect ( $uri, $cache = {} ) {
+my sub _connect ( $uri, $cache = {} ) {
     return $cache->{$uri} if $cache->{$uri};
 
     local $@;
@@ -104,7 +104,7 @@ my @states = (
     'shutting down', 'shut off', 'crashed', 'suspended',
 );
 
-sub _state_name ($state) {
+my sub state_name ($state) {
     return $states[$state] // 'unknown';
 }
 
@@ -112,7 +112,7 @@ sub _state_name ($state) {
 # to be a different host without having to lie to Sys::Hostname.
 our $hostname;
 
-sub _hostname {
+my sub hostname {
     return $hostname if defined $hostname;
 
     local $@;
@@ -127,7 +127,7 @@ sub _hostname {
     return $hostname;
 }
 
-=head2 _is_self($name)
+=head2 is_self($name)
 
 Whether a guest by this name is the machine we are running on.
 
@@ -140,12 +140,35 @@ Returns false otherwise.
 
 =cut
 
-sub _is_self ($name) {
-    my $me = lc( _hostname() );
+sub is_self ($name) {
+    my $me = lc( hostname() );
     $name = lc( $name // '' );
 
     return 1 if $name eq $me;
     return 0;
+}
+
+my sub unreachable_post ( $hypervisor, $series, $form, $why ) {
+    return {
+        id               => "unreachable-$hypervisor->{id}",
+        title            => $hypervisor->{title} // 'hypervisor',
+        form             => $form,
+        data             => '',
+        state            => "unreachable: $why",
+        is_active        => 0,
+        unreachable      => 1,
+        hypervisor       => $hypervisor->{id},
+        hypervisor_title => $hypervisor->{title},
+        preview          => '',
+        local_href       => '',
+        href             => '',
+        tags             => $series->{tags}       // [],
+        visibility       => $series->{visibility} // 'private',
+        created          => time(),
+        version          => 0,
+        user             => $series->{user},
+        method           => 'GET',
+    };
 }
 
 =head2 posts($series, $query) = @posts
@@ -172,7 +195,7 @@ sub posts ( $series, $ ) {
 
         my ( $conn, $why ) = _connect( $uri, \%cache );
         if ( !$conn ) {
-            push( @out, _unreachable_post( $hypervisor, $series, $form, $why ) );
+            push( @out, unreachable_post( $hypervisor, $series, $form, $why ) );
             next;
         }
 
@@ -181,11 +204,11 @@ sub posts ( $series, $ ) {
         if ($@) {
             my $err = "$@";
             $err =~ s/\n.*//s;
-            push( @out, _unreachable_post( $hypervisor, $series, $form, $err ) );
+            push( @out, unreachable_post( $hypervisor, $series, $form, $err ) );
             next;
         }
 
-        push( @out, map { _post_for( $_, $hypervisor, $series, $form ) } @domains );
+        push( @out, map { post_for( $_, $hypervisor, $series, $form ) } @domains );
     }
 
     return @out;
@@ -237,7 +260,14 @@ Where to read about it.
 sub lang { return 'Case insensitive substring of a guest name, state or hypervisor' }
 sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
-sub _post_for ( $domain, $hypervisor, $series, $form ) {
+=head2 post_for($domain, $hypervisor, $series, $form) = HASHREF
+
+The post that stands for the guest $domain, a Sys::Virt::Domain, on
+$hypervisor, in the listing of $series, rendered with $form.
+
+=cut
+
+sub post_for ( $domain, $hypervisor, $series, $form ) {
     my $name = $domain->get_name();
     my $info = $domain->get_info();
 
@@ -250,9 +280,9 @@ sub _post_for ( $domain, $hypervisor, $series, $form ) {
         data  => '',
 
         domain           => $name,
-        state            => _state_name( $info->{state} ),
+        state            => state_name( $info->{state} ),
         is_active        => $domain->is_active() ? 1 : 0,
-        is_self          => _is_self($name),
+        is_self          => is_self($name),
         memory           => $info->{memory},
         vcpus            => $info->{nrVirtCpu},
         hypervisor       => $hypervisor->{id},
@@ -271,29 +301,6 @@ sub _post_for ( $domain, $hypervisor, $series, $form ) {
         version    => 0,
         user       => $series->{user},
         method     => 'GET',
-    };
-}
-
-sub _unreachable_post ( $hypervisor, $series, $form, $why ) {
-    return {
-        id               => "unreachable-$hypervisor->{id}",
-        title            => $hypervisor->{title} // 'hypervisor',
-        form             => $form,
-        data             => '',
-        state            => "unreachable: $why",
-        is_active        => 0,
-        unreachable      => 1,
-        hypervisor       => $hypervisor->{id},
-        hypervisor_title => $hypervisor->{title},
-        preview          => '',
-        local_href       => '',
-        href             => '',
-        tags             => $series->{tags}       // [],
-        visibility       => $series->{visibility} // 'private',
-        created          => time(),
-        version          => 0,
-        user             => $series->{user},
-        method           => 'GET',
     };
 }
 
@@ -379,7 +386,7 @@ sub act ( $action, $conn_uri, $domain_name, $user ) {
     # actually stops it happening.  /guest/act is a POST anybody holding the
     # admin acl can craft by hand, and if it went through there would be
     # nothing left running to report the mistake.
-    if ( _is_self($safe) && ( $action // '' ) =~ m/^(?:poweroff|destroy)$/ ) {
+    if ( is_self($safe) && ( $action // '' ) =~ m/^(?:poweroff|destroy)$/ ) {
         WARN("Refused guest action '$action' on '$safe': that is this server");
         return ( 0, "'$safe' is this server -- refusing to $action it" );
     }

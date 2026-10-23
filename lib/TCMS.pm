@@ -29,6 +29,71 @@ use Trog::Vault;    ## no critic (ProhibitUnusedImports) -- loaded for what it d
 use Trog::Data;
 use Trog::Themes;
 
+#XXX Return a clone of the routing table ref, because code modifies it later
+my sub _routes ( $data = {} ) {
+    state %routes;
+    return clone( \%routes ) if %routes;
+
+    my $conf = Trog::Config::get();
+    $data = Trog::Data->new($conf) unless $data;
+
+    # Routes in general are going to override earlier, more default ones.
+    # XXX this is probably bad in the case of the specific content-typed routes, they should be mutex
+    my %roots = $data->routes();
+
+    # Setup the /secure/... versions for logged in users, except for already secured routes.
+    foreach my $route ( keys(%roots) ) {
+        next if index( $route, '/secure/' ) == 0;
+        $roots{"/secure$route"} = $roots{$route};
+    }
+
+    # It is the responsibility of theme authors to setup /secure routes (other than index)
+    my %themed = Trog::Themes::routes();
+
+    %routes                                      = %Trog::Routes::HTML::routes;
+    @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
+    @routes{ keys(%roots) }                      = values(%roots);
+    @routes{ keys(%themed) }                     = values(%themed) if %themed;
+
+    # Add in global routes, here because they *must* know about all other routes
+    # Also, nobody should ever override these.
+    $routes{'/robots.txt'} = {
+        method   => 'GET',
+        callback => \&robots,
+    };
+
+    # Special 'am I authenticated' route for nginx
+    $routes{'/authenticated'} = {
+        method   => 'GET',
+        nocache  => 1,
+        noindex  => 1,
+        callback => sub {
+            my ($query) = @_;
+            return $query->{tpsgi}->ok($query) if $query->{user};
+            return $query->{tpsgi}->forbidden($query);
+        },
+    };
+
+    # Heartbeat route
+    $routes{'/status'} = {
+        method   => 'GET',
+        nocache  => 1,
+        noindex  => 1,
+        callback => sub {
+            my ($query) = @_;
+            return $query->{tpsgi}->ok($query);
+        },
+    };
+
+    # The Various aliases for directory indices
+    foreach my $index (qw{ / /index.html /index.htm}) {
+        $routes{$index}          = $routes{'/index'} unless exists $routes{$index};
+        $routes{"/secure$index"} = $routes{'/index'} unless exists $routes{"/secure$index"};
+    }
+
+    return clone( \%routes );
+}
+
 # Troglodyne philosophy - simple as possible
 
 # Build routes
@@ -170,71 +235,6 @@ sub generic_route ( $rname, $code, $title, $query ) {
 
 our @routes  = @{ build_routes() };
 our %aliases = aliases();
-
-#XXX Return a clone of the routing table ref, because code modifies it later
-sub _routes ( $data = {} ) {
-    state %routes;
-    return clone( \%routes ) if %routes;
-
-    my $conf = Trog::Config::get();
-    $data = Trog::Data->new($conf) unless $data;
-
-    # Routes in general are going to override earlier, more default ones.
-    # XXX this is probably bad in the case of the specific content-typed routes, they should be mutex
-    my %roots = $data->routes();
-
-    # Setup the /secure/... versions for logged in users, except for already secured routes.
-    foreach my $route ( keys(%roots) ) {
-        next if index( $route, '/secure/' ) == 0;
-        $roots{"/secure$route"} = $roots{$route};
-    }
-
-    # It is the responsibility of theme authors to setup /secure routes (other than index)
-    my %themed = Trog::Themes::routes();
-
-    %routes                                      = %Trog::Routes::HTML::routes;
-    @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
-    @routes{ keys(%roots) }                      = values(%roots);
-    @routes{ keys(%themed) }                     = values(%themed) if %themed;
-
-    # Add in global routes, here because they *must* know about all other routes
-    # Also, nobody should ever override these.
-    $routes{'/robots.txt'} = {
-        method   => 'GET',
-        callback => \&robots,
-    };
-
-    # Special 'am I authenticated' route for nginx
-    $routes{'/authenticated'} = {
-        method   => 'GET',
-        nocache  => 1,
-        noindex  => 1,
-        callback => sub {
-            my ($query) = @_;
-            return $query->{tpsgi}->ok($query) if $query->{user};
-            return $query->{tpsgi}->forbidden($query);
-        },
-    };
-
-    # Heartbeat route
-    $routes{'/status'} = {
-        method   => 'GET',
-        nocache  => 1,
-        noindex  => 1,
-        callback => sub {
-            my ($query) = @_;
-            return $query->{tpsgi}->ok($query);
-        },
-    };
-
-    # The Various aliases for directory indices
-    foreach my $index (qw{ / /index.html /index.htm}) {
-        $routes{$index}          = $routes{'/index'} unless exists $routes{$index};
-        $routes{"/secure$index"} = $routes{'/index'} unless exists $routes{"/secure$index"};
-    }
-
-    return clone( \%routes );
-}
 
 sub aliases {
     my $conf = Trog::Config::get();

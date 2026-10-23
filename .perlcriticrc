@@ -83,7 +83,7 @@ formats = #!/usr/bin/env perl
 [RegularExpressions::ProhibitRegexToChomp]
 [BuiltinFunctions::ProhibitChainingSameListSub]
 [RegularExpressions::ProhibitRegexForStringEquality]
-#[Subroutines::ProhibitUnderscorePrivateSubs]
+[Subroutines::ProhibitUnderscorePrivateSubs]
 #[Subroutines::ProhibitSingleUseLexicalSubs]
 #[ValuesAndExpressions::ProhibitLiteralArithmetic]
 [BuiltinFunctions::ProhibitIndirectBooleanGrep]
@@ -234,7 +234,7 @@ allow = re Exporter
 [Subroutines::ProhibitNestedSubs]
 #[Subroutines::ProhibitReturnSort]
 [Subroutines::ProhibitSubroutinePrototypes]
-#[Subroutines::ProtectPrivateSubs]
+[Subroutines::ProtectPrivateSubs]
 #[Subroutines::RequireArgUnpacking]
 [Subroutines::RequireFinalReturn]
 # tCMS: a sub that forks ends its child with POSIX::_exit, which never returns.

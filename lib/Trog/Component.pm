@@ -47,6 +47,58 @@ our $depth     = 0;
 # does not stop an Xslate render.  Always read through a local() in the caller.
 our $error;
 
+# Resolved at call time rather than compile time, so that components are free to
+# use Trog::Renderer without cycling back through us.  require() memoizes in
+# %INC; %loaded only saves us the repeat eval and string munging.
+my sub load ($name) {
+    state %loaded;
+
+    die "Component name must be given\n"   unless $name;
+    die "Invalid component name '$name'\n" unless $name =~ m/^[A-Za-z][A-Za-z0-9_]*$/;
+
+    my $module = "Trog::Component::$name";
+    return $module if $loaded{$module};
+
+    local $@;
+    eval {
+        require "Trog/Component/$name.pm";    ## no critic (RequireBarewordIncludes) -- $name is validated above
+        1;
+    } or do {
+        die "Could not load component '$name': $@";
+    };
+
+    die "Component '$name' has no render()\n" unless $module->can('render');
+
+    $loaded{$module} = 1;
+    return $module;
+}
+
+my sub _component ( $name, $args ) {
+    my $module = load($name);
+
+    die "Component '$name' recursed more than $MAX_DEPTH deep\n" if $depth >= $MAX_DEPTH;
+    local $depth = $depth + 1;
+
+    $args = {} unless ref $args eq 'HASH';
+
+    my $out;
+    local $@;
+    eval {
+        $out = $module->can('render')->(%$args);
+        1;
+    } or do {
+        die "Component '$name' failed to render: $@";
+    };
+
+    # Trog::Renderer::render() answers failure with a PSGI triplet from _yeet(),
+    # which is meaningless halfway through a template.  Catching it here is what
+    # saves every call site from the 'return $it if ref $it eq ARRAY' dance.
+    die "Component '$name' returned a " . ref($out) . " rather than a string\n" if ref $out;
+    die "Component '$name' rendered nothing\n"                                  if !defined $out;
+
+    return Text::Xslate::mark_raw($out);
+}
+
 =head2 component($name, $args) = STRING
 
 Render the named component, marked raw so that callers need no C<| mark_raw>.
@@ -78,32 +130,6 @@ sub component ( $name, $args = {} ) {
     die $err;
 }
 
-sub _component ( $name, $args ) {
-    my $module = _load($name);
-
-    die "Component '$name' recursed more than $MAX_DEPTH deep\n" if $depth >= $MAX_DEPTH;
-    local $depth = $depth + 1;
-
-    $args = {} unless ref $args eq 'HASH';
-
-    my $out;
-    local $@;
-    eval {
-        $out = $module->can('render')->(%$args);
-        1;
-    } or do {
-        die "Component '$name' failed to render: $@";
-    };
-
-    # Trog::Renderer::render() answers failure with a PSGI triplet from _yeet(),
-    # which is meaningless halfway through a template.  Catching it here is what
-    # saves every call site from the 'return $it if ref $it eq ARRAY' dance.
-    die "Component '$name' returned a " . ref($out) . " rather than a string\n" if ref $out;
-    die "Component '$name' rendered nothing\n"                                  if !defined $out;
-
-    return Text::Xslate::mark_raw($out);
-}
-
 =head2 render_template($template, $data) = STRING
 
 Render a component template and hand back the body, for the many components
@@ -130,32 +156,6 @@ sub render_template ( $template, $data = {} ) {
 
     die "Could not render component template '$template'\n" if ref $out;
     return $out;
-}
-
-# Resolved at call time rather than compile time, so that components are free to
-# use Trog::Renderer without cycling back through us.  require() memoizes in
-# %INC; %loaded only saves us the repeat eval and string munging.
-sub _load ($name) {
-    state %loaded;
-
-    die "Component name must be given\n"   unless $name;
-    die "Invalid component name '$name'\n" unless $name =~ m/^[A-Za-z][A-Za-z0-9_]*$/;
-
-    my $module = "Trog::Component::$name";
-    return $module if $loaded{$module};
-
-    local $@;
-    eval {
-        require "Trog/Component/$name.pm";    ## no critic (RequireBarewordIncludes) -- $name is validated above
-        1;
-    } or do {
-        die "Could not load component '$name': $@";
-    };
-
-    die "Component '$name' has no render()\n" unless $module->can('render');
-
-    $loaded{$module} = 1;
-    return $module;
 }
 
 1;

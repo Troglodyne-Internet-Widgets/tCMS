@@ -42,7 +42,7 @@ use constant EDITABLE => 0;
 
 =head2 CACHEABLE
 
-True, which is only defensible because of the watch _watch() registers.  A
+True, which is only defensible because of the watch watch() registers.  A
 listing is cheap to build but there is no reason to build it per request, and the
 one thing that would make a cached copy wrong -- the directory changing -- is
 exactly the thing inotify tells us about.
@@ -96,55 +96,17 @@ left out of the listing rather than shown with a link that will not work.
 our $root    = 'www';
 our @refused = ('www/assets/private');
 
-=head1 FUNCTIONS
-
-=head2 posts($series, $query) = @posts
-
-One post per entry in the series' directory.
-
-Each carries, beyond what every post has:
-
-    name        the entry's own name, as on disk
-    path        its path relative to www/
-    is_dir      whether it is a directory
-    size        bytes, 0 for a directory
-    size_human  the same, as a human reads it
-    mtime       last modification, which is also the post's created
-    extension   lowercased, without the dot, empty for a directory
-    is_image / is_video / is_audio    from the content type, as a stored post gets
-
-Registers an inotify watch on the directory the first time it is asked, so that
-the static render of this page is thrown away when the directory changes.  See
-_watch().
-
-=cut
-
-sub posts ( $series, $query ) {
-    my $dir = _resolve( $series->{directory} );
-    return () unless $dir;
-
-    _watch( $query, $dir->{relative} );
-
-    opendir( my $dh, $dir->{absolute} ) or do {
-        WARN("Could not read $dir->{relative}: $!");
-        return ();
-    };
-    my @entries = grep { $_ ne '.' && $_ ne '..' && index( $_, '.' ) != 0 } readdir($dh);
-    closedir($dh);
-
-    my @out;
-    foreach my $entry ( sort @entries ) {
-        my $post = _post_for( $entry, $dir, $series );
-        push( @out, $post ) if $post;
-    }
-
-    return @out;
+# Path containment, done on the resolved paths rather than on the strings the
+# caller handed us: /www-backup is not inside /www, however it reads.
+my sub within ( $path, $within ) {
+    return 1 if $path eq $within;
+    return index( $path, "$within/" ) == 0;
 }
 
 # Everything this is allowed to look at, or nothing.  Returns the absolute path
 # and the path relative to the tCMS root, since the first is what we read and
 # the second is what we log and watch.
-sub _resolve ($directory) {
+my sub resolve ($directory) {
     return undef unless $directory;
 
     # Before abs_path, which would happily resolve one for us.
@@ -171,7 +133,7 @@ sub _resolve ($directory) {
         return undef;
     }
 
-    if ( !_within( $absolute, $base ) ) {
+    if ( !within( $absolute, $base ) ) {
         WARN("Refusing to index '$directory': it resolves outside $root");
         return undef;
     }
@@ -179,7 +141,7 @@ sub _resolve ($directory) {
     foreach my $refused (@refused) {
         my $forbidden = Cwd::abs_path($refused);
         next unless $forbidden;
-        next unless _within( $absolute, $forbidden );
+        next unless within( $absolute, $forbidden );
 
         WARN("Refusing to index '$directory': $refused holds files the webserver gates, so its names are gated too");
         return undef;
@@ -191,20 +153,26 @@ sub _resolve ($directory) {
     return { absolute => $absolute, relative => $relative ne q{} ? "$root/$relative" : $root };
 }
 
-# Path containment, done on the resolved paths rather than on the strings the
-# caller handed us: /www-backup is not inside /www, however it reads.
-sub _within ( $path, $within ) {
-    return 1 if $path eq $within;
-    return index( $path, "$within/" ) == 0;
+my sub human_size ($bytes) {
+    return '' unless defined $bytes;
+    return "$bytes B" if $bytes < 1024;
+
+    my @units = qw{KB MB GB TB PB};
+    my $size  = $bytes / 1024;
+    foreach my $unit (@units) {
+        return sprintf( '%.1f %s', $size, $unit ) if $size < 1024 || $unit eq $units[-1];
+        $size /= 1024;
+    }
+    return "$bytes B";
 }
 
-sub _post_for ( $name, $dir, $series ) {
+my sub post_for ( $name, $dir, $series ) {
     my $absolute = "$dir->{absolute}/$name";
 
     # Resolved, so a symlink pointing out of the tree is left out rather than
     # listed with a link the webserver will not honour.
     my $real = Cwd::abs_path($absolute);
-    if ( !$real || !_within( $real, Cwd::abs_path($root) ) ) {
+    if ( !$real || !within( $real, Cwd::abs_path($root) ) ) {
         DEBUG("Skipping $name: it points outside $root");
         return undef;
     }
@@ -247,7 +215,7 @@ sub _post_for ( $name, $dir, $series ) {
 
         is_dir     => $is_dir,
         size       => $size,
-        size_human => _human_size($size),
+        size_human => human_size($size),
         mtime      => $mtime,
         extension  => $extension,
 
@@ -275,17 +243,49 @@ sub _post_for ( $name, $dir, $series ) {
     return $post;
 }
 
-sub _human_size ($bytes) {
-    return '' unless defined $bytes;
-    return "$bytes B" if $bytes < 1024;
+=head1 FUNCTIONS
 
-    my @units = qw{KB MB GB TB PB};
-    my $size  = $bytes / 1024;
-    foreach my $unit (@units) {
-        return sprintf( '%.1f %s', $size, $unit ) if $size < 1024 || $unit eq $units[-1];
-        $size /= 1024;
+=head2 posts($series, $query) = @posts
+
+One post per entry in the series' directory.
+
+Each carries, beyond what every post has:
+
+    name        the entry's own name, as on disk
+    path        its path relative to www/
+    is_dir      whether it is a directory
+    size        bytes, 0 for a directory
+    size_human  the same, as a human reads it
+    mtime       last modification, which is also the post's created
+    extension   lowercased, without the dot, empty for a directory
+    is_image / is_video / is_audio    from the content type, as a stored post gets
+
+Registers an inotify watch on the directory the first time it is asked, so that
+the static render of this page is thrown away when the directory changes.  See
+watch().
+
+=cut
+
+sub posts ( $series, $query ) {
+    my $dir = resolve( $series->{directory} );
+    return () unless $dir;
+
+    watch( $query, $dir->{relative} );
+
+    opendir( my $dh, $dir->{absolute} ) or do {
+        WARN("Could not read $dir->{relative}: $!");
+        return ();
+    };
+    my @entries = grep { $_ ne '.' && $_ ne '..' && index( $_, '.' ) != 0 } readdir($dh);
+    closedir($dh);
+
+    my @out;
+    foreach my $entry ( sort @entries ) {
+        my $post = post_for( $entry, $dir, $series );
+        push( @out, $post ) if $post;
     }
-    return "$bytes B";
+
+    return @out;
 }
 
 =head2 filter($query, @posts) = @posts
@@ -338,7 +338,7 @@ Where to read about it.
 sub lang { return 'Case insensitive substring of a file name, path or extension' }
 sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
-=head2 _watch($query, $directory)
+=head2 watch($query, $directory)
 
 Ask tPSGI to tell us when the directory changes, and throw the static renders
 away when it does.
@@ -361,7 +361,7 @@ worker notices the change is the one that must do the invalidating.
 
 =cut
 
-sub _watch ( $query, $directory ) {
+sub watch ( $query, $directory ) {
     my $tpsgi = $query->{tpsgi};
     return 0 unless $tpsgi;
 

@@ -269,7 +269,7 @@ subtest 'no tPSGI, or one without watches, is not fatal' => sub {
 subtest 'the wizard can find it' => sub {
     require Trog::Routes::HTML;
 
-    my $sources = Trog::Routes::HTML::_get_datasources();
+    my $sources = Trog::Routes::HTML::get_datasources();
     ok( scalar( grep { $_ eq 'Trog::DataSource::DirIndex' } @$sources ), 'it is offered as a datasource' );
 
     is( Trog::DataSource::DirIndex->EDITABLE, 0, 'and declares it wants no editor' );

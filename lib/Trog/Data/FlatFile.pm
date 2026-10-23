@@ -36,6 +36,14 @@ our $parser = JSON::MaybeXS->new( utf8 => 1 );
 our @tags = Trog::SQLite::TagIndex::tags();
 our %posts_by_tag;
 
+my sub _index {
+    confess "Can't find datastore in $datastore !" unless -d $datastore;
+    opendir( my $dh, $datastore ) or confess;
+    my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
+    closedir $dh;
+    return sort { $b cmp $a } @index;
+}
+
 sub read ( $self, $query = {} ) {
     $query->{limit} //= 25;
 
@@ -68,7 +76,7 @@ sub read ( $self, $query = {} ) {
             @index = map { "$datastore/$_" } Trog::SQLite::TagIndex::posts_for_tags( @{ $query->{tags} } );
             $posts_by_tag{$tagkey} = \@index;
         }
-        @index = $self->_index() unless @index;
+        @index = _index() unless @index;
     }
 
     my @items;
@@ -116,14 +124,6 @@ sub read ( $self, $query = {} ) {
     }
 
     return \@items;
-}
-
-sub _index {
-    confess "Can't find datastore in $datastore !" unless -d $datastore;
-    opendir( my $dh, $datastore ) or confess;
-    my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
-    closedir $dh;
-    return sort { $b cmp $a } @index;
 }
 
 sub routes {
@@ -182,8 +182,8 @@ sub write ( $self, $data ) {
     return 1;
 }
 
-sub count ($self) {
-    my @index = $self->_index();
+sub count {
+    my @index = _index();
     return scalar(@index);
 }
 

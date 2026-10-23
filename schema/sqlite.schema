@@ -109,7 +109,7 @@ END;
 /* step with the blob on its own.                                               */
 /*                                                                              */
 /* Tags only, and deliberately.  A post's acls are folded into its tags by       */
-/* Trog::DataModule::_process(), which then deletes the acls field outright, so  */
+/* Trog::DataModule::process(), which then deletes the acls field outright, so  */
 /* tags is the whole truth about who may see a post -- and get() has always      */
 /* answered the acls filter by looking at tags.  Indexing an acls field here as  */
 /* well would let a post carrying one be found by a caller holding that acl even */
@@ -127,7 +127,7 @@ CREATE TRIGGER posts_tags_insert AFTER INSERT ON posts BEGIN
     INSERT INTO post_tags (post_id, tag)
         SELECT new.id, value FROM json_each(json_extract(new.post_data, '$.tags'))
         WHERE json_type(new.post_data, '$.tags') = 'array'
-        /* A null in the array is not a tag.  Trog::DataModule::_process() used  */
+        /* A null in the array is not a tag.  Trog::DataModule::process() used  */
         /* to push a post's visibility into its tags without defaulting it       */
         /* first, so posts written before that carry a null there -- and a null  */
         /* tag is one no query ever matches, which is exactly what leaving it    */

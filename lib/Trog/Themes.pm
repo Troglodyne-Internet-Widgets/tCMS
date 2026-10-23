@@ -82,7 +82,7 @@ sub td {
 # The theme's template dir and the stock one, in that order of preference.
 # The theme entry is empty when no theme is configured, so callers can just
 # grep for truth rather than repeating the "is there a theme" dance.
-sub _template_dirs ( $content_type, $is_component = 0 ) {
+my sub _template_dirs ( $content_type, $is_component = 0 ) {
     my $ct    = $Trog::Vars::byct{$content_type};
     my $theme = get_dir();
 
@@ -128,7 +128,7 @@ sub template_dir ( $template, $content_type, $is_component = 0, $is_dir = 0 ) {
 }
 
 # Pick appropriate dir based on whether theme override exists
-sub _dir_for_resource ($resource) {
+my sub dir_for_resource ($resource) {
     my $theme_dir = get_dir();
     return $theme_dir && -f "$theme_dir/$resource" ? $theme_dir : '';    ## no critic (ProhibitFiletest_f) -- theme override, else stock
 }
@@ -140,7 +140,7 @@ Path to a www/-relative resource, preferring the theme's copy.
 =cut
 
 sub themed ($resource) {
-    return _dir_for_resource("$resource") . "/$resource";
+    return dir_for_resource("$resource") . "/$resource";
 }
 
 =head2 themed_style($resource) = @hrefs
@@ -154,7 +154,7 @@ rules without restating the whole thing.
 # For style we want to load *both* style files and have the override come later.
 sub themed_style ($resource) {
     my @styles = ("/styles/$resource");
-    my $styled = _dir_for_resource("styles/$resource");
+    my $styled = dir_for_resource("styles/$resource");
     $styled =~ s/^www\///;
     push( @styles, "/$styled/styles/$resource" ) if $styled;
     return @styles;
@@ -167,7 +167,7 @@ Path to a script under www/scripts, preferring the theme's copy.
 =cut
 
 sub themed_script ($resource) {
-    return _dir_for_resource("scripts/$resource") . "/scripts/$resource";
+    return dir_for_resource("scripts/$resource") . "/scripts/$resource";
 }
 
 =head2 themed_template($resource)
@@ -177,7 +177,7 @@ Path to a template under www/templates, preferring the theme's copy.
 =cut
 
 sub themed_template ($resource) {
-    return _dir_for_resource("templates/$resource") . "/templates/$resource";
+    return dir_for_resource("templates/$resource") . "/templates/$resource";
 }
 
 =head2 dir_for($path, $content_type, $is_component)
@@ -204,18 +204,7 @@ sub forms_dir {
     return dir_for( 'forms', 'text/html', 1 );
 }
 
-=head2 files_in_dir($path, $content_type, $is_component, $ext)
-
-Bare filenames with the given extension in whichever single directory dir_for()
-picks.  See themed_templates_in_dir() for the version which spans both.
-
-=cut
-
-sub files_in_dir ( $path, $ct, $is_component = 0, $ext = 'tx' ) {
-    return _read_dir( dir_for( $path, $ct, $is_component ), $ext );
-}
-
-sub _read_dir ( $dir, $ext ) {
+my sub read_dir ( $dir, $ext ) {
     my $files = [];
     return $files unless -d $dir;
     opendir( my $dh, $dir ) or return $files;
@@ -224,6 +213,17 @@ sub _read_dir ( $dir, $ext ) {
     }
     closedir($dh);
     return $files;
+}
+
+=head2 files_in_dir($path, $content_type, $is_component, $ext)
+
+Bare filenames with the given extension in whichever single directory dir_for()
+picks.  See themed_templates_in_dir() for the version which spans both.
+
+=cut
+
+sub files_in_dir ( $path, $ct, $is_component = 0, $ext = 'tx' ) {
+    return read_dir( dir_for( $path, $ct, $is_component ), $ext );
 }
 
 =head2 templates_in_dir($path, $content_type, $is_component)
@@ -260,7 +260,7 @@ sub themed_templates_in_dir ( $path, $ct, $is_component = 0 ) {
 
     my ( @templates, %seen );
     foreach my $dir (@dirs) {
-        foreach my $template ( @{ _read_dir( $dir, 'tx' ) } ) {
+        foreach my $template ( @{ read_dir( $dir, 'tx' ) } ) {
 
             # First one wins, and the theme's dir comes first.
             push( @templates, $template ) unless $seen{$template}++;

@@ -51,7 +51,7 @@ BEGIN {
 
 # name => (size, mtime) for every file under the repo dirs this test could
 # plausibly disturb.  Cheap enough, and it is the only real proof of isolation.
-sub _snapshot {
+state sub snapshot {
     my ($dir) = @_;
     my %seen;
     File::Find::find(
@@ -68,7 +68,7 @@ sub _snapshot {
     return %seen;
 }
 
-sub _copy_tree {
+state sub copy_tree {
     my ( $from, $to ) = @_;
     File::Path::make_path($to);
     File::Find::find(
@@ -96,7 +96,7 @@ BEGIN {
     $REPO   = Cwd::abs_path("$FindBin::Bin/..");
     $OLDCWD = Cwd::getcwd();
 
-    %REPO_BEFORE = map { _snapshot("$REPO/$_") } qw{config data www/templates www/assets logs totp};
+    %REPO_BEFORE = map { snapshot("$REPO/$_") } qw{config data www/templates www/assets logs totp};
 
     $ROOT = File::Temp::tempdir( 'tcms-lifecycle-XXXXXX', TMPDIR => 1, CLEANUP => 0 );
 
@@ -123,7 +123,7 @@ BEGIN {
 
     # COPY, don't symlink: post_wizard_save() writes into Trog::Themes::forms_dir(),
     # and a symlink would land the generated post type in the real repo.
-    _copy_tree( "$REPO/www/templates", "$ROOT/www/templates" );
+    copy_tree( "$REPO/www/templates", "$ROOT/www/templates" );
 
     # posts.tx pulls in the EmojiPicker component for an editor, and EmojiPicker
     # dies outright if this file is missing.  Only category and emoji are read.
@@ -202,12 +202,12 @@ require Trog::Routes::JSON;
     sub redirect           { return [ 302, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
     sub redirect_permanent { return [ 301, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
 
-    sub _reply     { return [ $_[1], [ 'Content-type' => 'text/html' ], [ defined $_[2] ? $_[2] : '' ] ] }
-    sub ok         { return $_[0]->_reply( 200, $_[2] ) }
-    sub notfound   { return $_[0]->_reply( 404, $_[2] // 'Not Found' ) }
-    sub forbidden  { return $_[0]->_reply( 403, $_[2] // 'Forbidden' ) }
-    sub badrequest { return $_[0]->_reply( 400, $_[2] // 'Bad Request' ) }
-    sub error      { return $_[0]->_reply( 500, $_[2] // 'Error' ) }
+    sub reply      { return [ $_[1], [ 'Content-type' => 'text/html' ], [ defined $_[2] ? $_[2] : '' ] ] }
+    sub ok         { return $_[0]->reply( 200, $_[2] ) }
+    sub notfound   { return $_[0]->reply( 404, $_[2] // 'Not Found' ) }
+    sub forbidden  { return $_[0]->reply( 403, $_[2] // 'Forbidden' ) }
+    sub badrequest { return $_[0]->reply( 400, $_[2] // 'Bad Request' ) }
+    sub error      { return $_[0]->reply( 500, $_[2] // 'Error' ) }
     sub serve      { return [ 200, [], [''] ] }
 
     # These two must be inert.
@@ -256,7 +256,7 @@ our $ADMIN_PASS    = 'spec-password';
 
 # Always build a fresh query: posts() pushes onto user_acls, and series()
 # rewrites route/aclname/tag/in_series/primary_post in place.
-sub _query {
+my sub query {
     my (%over) = @_;
     my %q = (
         route        => '/',
@@ -280,13 +280,13 @@ sub _query {
     return \%q;
 }
 
-sub _anon  { return _query( user => undef,       user_acls => [],        @_ ) }
-sub _admin { return _query( user => $ADMIN_USER, user_acls => ['admin'], @_ ) }
+my sub anon  { return query( user => undef,       user_acls => [],        @_ ) }
+my sub admin { return query( user => $ADMIN_USER, user_acls => ['admin'], @_ ) }
 
 # Returns ($code, $body, $error).  Never dies, so one bad post type cannot take
 # the rest of the file with it -- which matters because a failed render inside
 # index() dies rather than returning a 500 (there is no www/templates/html/500.tx).
-sub _render {
+my sub render {
     my ( $query, $how ) = @_;
     $how ||= \&Trog::Routes::HTML::index;
 
@@ -308,7 +308,7 @@ sub _render {
 # Nothing to do for a model that asks the database each time, which is the
 # point: this helper exists to paper over a cache, and a model without one
 # needs no paper.
-sub _reindex {
+my sub reindex {
     return unless $MODEL eq 'FlatFile';
 
     no warnings 'once';
@@ -317,11 +317,11 @@ sub _reindex {
     return;
 }
 
-sub _data { return Trog::Data->new( Trog::Config::get() ) }
+my sub _data { return Trog::Data->new( Trog::Config::get() ) }
 
 # categories.tx renders into <span id="categories">.  Scope to it -- index.tx
 # emits other class="topbar" anchors outside that span.
-sub _topbar_titles {
+my sub topbar_titles {
     my ($body) = @_;
     my ($span) = $body =~ m{<span[ ]id="categories">(.*?)</span>}s;
     return () unless defined $span;
@@ -329,13 +329,13 @@ sub _topbar_titles {
 }
 
 # post_title.tx emits exactly one of these per displayed post.
-sub _post_count {
+my sub post_count {
     my $n = () = $_[0] =~ m{<h3[ ]class='blogtitles'>}g;
     return $n;
 }
 
 # The rendered page is ~40KB and mostly JavaScript.  Show the content well.
-sub _kontent {
+my sub kontent {
     my ($body) = @_;
     my ($k)    = $body =~ m{<div[ ]id="kontent"[ ]class="kontained">(.*?)<div[ ]id="rightbar"}s;
     $k //= $body;
@@ -347,11 +347,11 @@ sub _kontent {
 # arrayref of validator errors, whereas post_save catches them and hands back a
 # 400 with the field-level detail in the body -- which is the single most
 # useful thing to see when a fixture is wrong.
-sub _save_post {
+my sub save_post {
     my ( $label, %post ) = @_;
     my $to = delete $post{to};
 
-    my $res = eval { Trog::Routes::HTML::post_save( _admin( route => '/post/save', method => 'POST', to => $to, %post ) ) };
+    my $res = eval { Trog::Routes::HTML::post_save( admin( route => '/post/save', method => 'POST', to => $to, %post ) ) };
 
     if ( !$res || ref $res ne 'ARRAY' ) {
         fail("$label: saved");
@@ -372,14 +372,14 @@ sub _save_post {
     }
     pass("$label: saved");
 
-    _reindex();    # mandatory: see the comment on _reindex
+    reindex();    # mandatory: see the comment on reindex
 
-    my $saved = _find_post( $post{title} );
+    my $saved = find_post( $post{title} );
     ok( $saved, "$label: readable back out of the datastore" ) or return undef;
     return $saved;
 }
 
-sub _find_post {
+sub find_post {
     my ($title) = @_;
 
     # filter() short-circuits on title; the admin acl skips the visibility filter.
@@ -406,8 +406,8 @@ subtest 'the sandbox is what we are actually running against' => sub {
 subtest 'registering the first admin bootstraps the install' => sub {
     ok( !-f 'config/has_users', 'no users yet, so login() is in register mode' );
 
-    my ( $code, undef, $err, $headers ) = _render(
-        _anon(
+    my ( $code, undef, $err, $headers ) = render(
+        anon(
             route         => '/login',
             method        => 'POST',
             username      => $ADMIN_USER,
@@ -426,7 +426,7 @@ subtest 'registering the first admin bootstraps the install' => sub {
     ok( -f 'config/has_users', 'registration is now closed' );
     is_deeply( Trog::Auth::acls4user($ADMIN_USER), ['admin'], 'the new user is an admin' );
 
-    _reindex();
+    reindex();
 
     my @seeded = _data()->get( acls => ['admin'], limit => 0 );
     is( scalar @seeded, 4, 'the four seed posts were written' )
@@ -453,8 +453,8 @@ subtest 'the post wizard invents a new post type' => sub {
         display           => q{<div class="postData responsive-text" id="postData-<: $post.id :>">} . q{<span class="spec-flavor"><: $post.flavor :></span>} . q{<: render_it($post.data) | mark_raw :></div>},
     );
 
-    my ( $code, $body, $err ) = _render(
-        _admin( route => '/admin/wyzzerdd/save', method => 'POST', %wizard ),
+    my ( $code, $body, $err ) = render(
+        admin( route => '/admin/wyzzerdd/save', method => 'POST', %wizard ),
         \&Trog::Routes::HTML::post_wizard_save,
     );
     is( $code, 200, 'wizard save rendered' ) or diag($err);
@@ -508,8 +508,8 @@ subtest 'a datasource-backed type gets no editor' => sub {
     # A datasource whose posts are built rather than written has nothing behind
     # a form to save, so generating one would produce an editor that writes
     # real posts to sit alongside the synthesized ones.
-    my ( $code, $body, $err ) = _render(
-        _admin(
+    my ( $code, $body, $err ) = render(
+        admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
             name           => 'spec_sourced',
@@ -532,8 +532,8 @@ subtest 'a datasource-backed type gets no editor' => sub {
     is( $sidecar->{'x-tcms-datasource'}, 'Trog::DataSource::Virt', 'and the sidecar records the datasource' );
 
     # The same type without one keeps its editor.
-    _render(
-        _admin(
+    render(
+        admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
             name           => 'spec_stored',
@@ -548,13 +548,67 @@ subtest 'a datasource-backed type gets no editor' => sub {
     like( $stored, qr{action="/post/save"}, 'a type on the datastore still gets one' );
 
     # The name is require()d later, so it has to be one we found.
-    ( $code, $body ) = _render(
-        _admin( route => '/admin/wyzzerdd/save', method => 'POST', name => 'spec_bogus', datasource => 'Evil::Module' ),
+    ( $code, $body ) = render(
+        admin( route => '/admin/wyzzerdd/save', method => 'POST', name => 'spec_bogus', datasource => 'Evil::Module' ),
         \&Trog::Routes::HTML::post_wizard_save,
     );
     like( $body, qr/not[ ]a[ ]datasource[ ]I[ ]can[ ]find/, 'a datasource we did not find is refused' );
     ok( !-e 'www/templates/html/components/forms/spec_bogus.tx', 'and nothing was written' );
 };
+
+#--------------------------------------------------------------------------
+# The matrix.
+#
+# Per type: build a topbar series whose child_form is that type, check it shows
+# up in the nav, add a child post, check the child renders on the series page.
+#
+# Everything is verified ANONYMOUSLY.  can_edit is then false, so the editor
+# half of each form never renders and a title appears exactly once -- which is
+# what makes like($body, qr/$title/) mean anything.  It also sidesteps the
+# /secure prefixing that both post_helper and categories.tx apply when a user
+# is set.
+#--------------------------------------------------------------------------
+
+my sub make_series {
+    my ( $label, $aclname, $child_form, $title, %opt ) = @_;
+
+    # _get_series caps the bar at 10 and the seeds already use two, so only the
+    # series whose topbar behaviour we actually care about get tagged.
+    my @tags = $opt{no_topbar} ? ('series') : ( 'series', 'topbar' );
+
+    my %extra = map { $_ => $opt{$_} } grep { $_ ne 'no_topbar' } keys(%opt);
+
+    my $series = save_post(
+        "$label series",
+        %extra,
+        form       => 'series.tx',
+        title      => $title,
+        aclname    => $aclname,                       # required by series.json
+        child_form => $child_form,                    # required by series.json
+        local_href => "/$aclname",
+        href       => "/$aclname",
+        data       => "$title subhead",
+        callback   => 'Trog::Routes::HTML::series',
+        visibility => 'public',
+        tags       => \@tags,
+        tiled      => 0,
+        to         => '/',
+    ) or return undef;
+
+    return $series if $opt{no_topbar};
+
+    # The topbar comes from _get_series(), which index() renders through
+    # categories.tx.  Check it on / -- the series has no children yet, and
+    # posts() 404s on an empty series.
+    my ( $code, $body, $err ) = render( anon( route => '/' ) );
+    is( $code, 200, "$label: / renders" ) or diag($err);
+
+    my @titles = topbar_titles($body);
+    ok( ( grep { $_ eq $title } @titles ), "$label: series is in the topbar" )
+      or diag( 'topbar was: ' . join( ', ', @titles ) );
+
+    return $series;
+}
 
 subtest 'a datasource-backed series searches and paginates' => sub {
 
@@ -565,8 +619,8 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     require Test::MockModule;
     require Trog::DataSource::Virt;
 
-    my ( $code, undef, $err ) = _render(
-        _admin(
+    my ( $code, undef, $err ) = render(
+        admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
             name           => 'spec_guests',
@@ -580,8 +634,8 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     );
     is( $code, 200, 'the datasource-backed type was created' ) or diag($err);
 
-    _reindex();
-    _make_series( qw{spec_guests specguests spec_guests.tx}, 'Spec Guests Series', no_topbar => 1 ) or return;
+    reindex();
+    make_series( qw{spec_guests specguests spec_guests.tx}, 'Spec Guests Series', no_topbar => 1 ) or return;
 
     # Twelve guests, every one stamped with the same created -- which is what
     # libvirt guests really are, and precisely what the cursor paginator cannot
@@ -613,7 +667,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
 
     my $page_of = sub {
         my (%q) = @_;
-        my ( $c, $b, $e ) = _render( _anon( route => '/specguests', %q ), \&Trog::Routes::HTML::series );
+        my ( $c, $b, $e ) = render( anon( route => '/specguests', %q ), \&Trog::Routes::HTML::series );
         is( $c, 200, 'guests page renders' ) or diag($e);
         return $b // '';
     };
@@ -641,7 +695,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     # cached copy: a guest starting is not a post being saved, and libvirt is
     # not going to tell us about it.
     my $vtpsgi = Test::TPSGI->new( run_callbacks => 1 );
-    _render( _anon( route => '/specguests', tpsgi => $vtpsgi ), \&Trog::Routes::HTML::series );
+    render( anon( route => '/specguests', tpsgi => $vtpsgi ), \&Trog::Routes::HTML::series );
     is_deeply( [ keys %{ $vtpsgi->{renders} } ], [], 'a guests page is never saved as a static' );
 
     # The cursor paginator would be worse than useless here: every guest shares
@@ -671,11 +725,11 @@ subtest 'an ordinary series survives a page number in its URL' => sub {
     # of one post being nothing, the series could not find itself and 404'd on
     # its own page.  Latent until the datasource paginator started emitting page
     # numbers, and it was never about datasources.
-    _reindex();
-    _make_series( qw{spec_paged specpaged blog.tx}, 'Spec Paged Series', no_topbar => 1 ) or return;
+    reindex();
+    make_series( qw{spec_paged specpaged blog.tx}, 'Spec Paged Series', no_topbar => 1 ) or return;
 
     foreach my $n ( 1, 2 ) {
-        _save_post(
+        save_post(
             "spec_paged child $n",
             form       => 'blog.tx',
             title      => "Spec Paged Child $n",
@@ -687,11 +741,11 @@ subtest 'an ordinary series survives a page number in its URL' => sub {
     }
 
     # One child a page, so page two exists and holds the other one.
-    my ( $code, $body, $err ) = _render( _anon( route => '/specpaged', limit => 1, page => 2 ), \&Trog::Routes::HTML::series );
+    my ( $code, $body, $err ) = render( anon( route => '/specpaged', limit => 1, page => 2 ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'a series page with ?page=2 still finds its series' ) or diag($err);
     like( $body, qr/Spec[ ]Paged[ ]Series/, 'and is the right one' );
 
-    ( $code, $body, $err ) = _render( _anon( route => '/specpaged', limit => 1, page => 1 ), \&Trog::Routes::HTML::series );
+    ( $code, $body, $err ) = render( anon( route => '/specpaged', limit => 1, page => 1 ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'as does page one' ) or diag($err);
 
     # A stored series still pages by cursor, not by number: nothing about this
@@ -705,8 +759,8 @@ subtest 'a directory index series' => sub {
     # route, on whichever data model this run is using.
     require Trog::DataSource::DirIndex;
 
-    my ( $code, $body, $err ) = _render(
-        _admin(
+    my ( $code, $body, $err ) = render(
+        admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
             name           => 'spec_files',
@@ -727,8 +781,8 @@ subtest 'a directory index series' => sub {
         close $fh;
     }
 
-    _reindex();
-    my $series = _make_series(
+    reindex();
+    my $series = make_series(
         qw{spec_files specfiles spec_files.tx}, 'Spec Files Series',
         no_topbar => 1,
         directory => 'assets/spec_downloads',
@@ -741,7 +795,7 @@ subtest 'a directory index series' => sub {
         return [ $html =~ m{<div[ ]class="entry">(file\d+\.txt)[ ]\(}g ];
     };
 
-    ( $code, $body, $err ) = _render( _anon( route => '/specfiles' ), \&Trog::Routes::HTML::series );
+    ( $code, $body, $err ) = render( anon( route => '/specfiles' ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'the listing renders' ) or diag($err);
     is_deeply( $names->($body), [ map { "file$_.txt" } 1 .. 7 ], 'listing the directory, in name order' );
     like( $body, qr/\(10[ ]B\)/, 'with each entry\'s size' );
@@ -750,20 +804,20 @@ subtest 'a directory index series' => sub {
     like( $body, qr{href=['"]/assets/spec_downloads/file1\.txt['"]}, 'and a link to the file itself' );
 
     # It paginates like any other datasource page.
-    ( $code, $body, $err ) = _render( _anon( route => '/specfiles', limit => 3, page => 2 ), \&Trog::Routes::HTML::series );
+    ( $code, $body, $err ) = render( anon( route => '/specfiles', limit => 3, page => 2 ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'page two renders' ) or diag($err);
     is_deeply( $names->($body), [qw{file4.txt file5.txt file6.txt}], 'holding the next three' );
     like( $body, qr/Page[ ]2[ ]of[ ]3/, 'and saying so' );
 
     # And searches like one.
-    ( $code, $body, $err ) = _render( _anon( route => '/specfiles', limit => 25, like => 'file3' ), \&Trog::Routes::HTML::series );
+    ( $code, $body, $err ) = render( anon( route => '/specfiles', limit => 25, like => 'file3' ), \&Trog::Routes::HTML::series );
     is_deeply( $names->($body), ['file3.txt'], 'searching the listing searches the filenames' );
 
     # The point of the exercise: this page is cached like any other, and
     # nothing else would ever throw that cache away, because no post is saved
     # when somebody drops a file in a directory.
     my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
-    _render( _anon( route => '/specfiles', tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
+    render( anon( route => '/specfiles', tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
 
     # And it really is cached, rather than merely being cacheable in principle:
     # the renderer hands anonymous, unparameterised, successful renders to tPSGI
@@ -784,8 +838,8 @@ subtest 'the wizard offers the types that exist, and can reopen one' => sub {
 
     # Make a type with everything the form can carry, then check the wizard
     # hands it back as the form that would have produced it.
-    my ( $code, $body, $err ) = _render(
-        _admin(
+    my ( $code, $body, $err ) = render(
+        admin(
             route               => '/admin/wyzzerdd/save',
             method              => 'POST',
             name                => 'spec_reopen',
@@ -816,7 +870,7 @@ subtest 'the wizard offers the types that exist, and can reopen one' => sub {
     like( $sidecar->{'x-tcms-post-type'}{display}, qr/widget_size/, 'and so is the display template' );
 
     # Now the wizard page itself.
-    ( $code, $body, $err ) = _render( _admin( route => '/admin/wyzzerdd' ), \&Trog::Routes::HTML::post_wizard );
+    ( $code, $body, $err ) = render( admin( route => '/admin/wyzzerdd' ), \&Trog::Routes::HTML::post_wizard );
     is( $code, 200, 'the wizard renders' ) or diag($err);
 
     like( $body, qr/id="wizard-existing"/,                     'the existing types are a dropdown' );
@@ -852,8 +906,8 @@ subtest 'the wizard offers the types that exist, and can reopen one' => sub {
 };
 
 subtest 'a field can be declared indexed' => sub {
-    my ( $code, undef, $err ) = _render(
-        _admin(
+    my ( $code, undef, $err ) = render(
+        admin(
             route          => '/admin/wyzzerdd/save',
             method         => 'POST',
             name           => 'spec_indexed',
@@ -904,9 +958,9 @@ subtest 'a field can be declared indexed' => sub {
     }
 
     # A post of the type still saves and reads back the same as any other.
-    _reindex();
-    _make_series( qw{spec_indexed specindexed spec_indexed.tx}, 'Spec Indexed Series', no_topbar => 1 ) or return;
-    my $child = _save_post(
+    reindex();
+    make_series( qw{spec_indexed specindexed spec_indexed.tx}, 'Spec Indexed Series', no_topbar => 1 ) or return;
+    my $child = save_post(
         'spec_indexed child',
         form       => 'spec_indexed.tx',
         title      => 'Spec Indexed Child',
@@ -922,8 +976,8 @@ subtest 'a field can be declared indexed' => sub {
 };
 
 subtest 'a field can be declared editors-only' => sub {
-    my ( $code, undef, $err ) = _render(
-        _admin(
+    my ( $code, undef, $err ) = render(
+        admin(
             route               => '/admin/wyzzerdd/save',
             method              => 'POST',
             name                => 'spec_secretive',
@@ -952,10 +1006,10 @@ subtest 'a field can be declared editors-only' => sub {
     ok( $sidecar->{properties}{hidden}{'x-tcms-private'},        'the private field is marked so' );
     ok( !exists $sidecar->{properties}{shown}{'x-tcms-private'}, 'and a public one carries no flag at all' );
 
-    _reindex();
+    reindex();
 
-    _make_series( qw{spec_secretive specsecretive spec_secretive.tx}, 'Spec Secretive Series', no_topbar => 1 ) or return;
-    my $child = _save_post(
+    make_series( qw{spec_secretive specsecretive spec_secretive.tx}, 'Spec Secretive Series', no_topbar => 1 ) or return;
+    my $child = save_post(
         'spec_secretive child',
         form       => 'spec_secretive.tx',
         title      => 'Spec Secretive Child',
@@ -969,81 +1023,27 @@ subtest 'a field can be declared editors-only' => sub {
     is( $child->{hidden}, 'private value', 'the value is stored like any other' );
 
     # An editor sees both.
-    my ( $acode, $abody ) = _render( _admin( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
+    my ( $acode, $abody ) = render( admin( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
     is( $acode, 200, 'the series renders for an admin' );
     like( $abody, qr{<div[ ]class="h">private[ ]value</div>}, 'who sees the private field' );
 
     # A logged out reader sees only the public one, without the template
     # having guarded anything.
-    my ( $ncode, $nbody ) = _render( _anon( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
+    my ( $ncode, $nbody ) = render( anon( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
     is( $ncode, 200, 'and for everyone else' );
     like( $nbody, qr{<div[ ]class="s">public[ ]value</div>}, 'who still sees the public field' );
     unlike( $nbody, qr/private[ ]value/, 'but not the private one' );
 };
 
-#--------------------------------------------------------------------------
-# The matrix.
-#
-# Per type: build a topbar series whose child_form is that type, check it shows
-# up in the nav, add a child post, check the child renders on the series page.
-#
-# Everything is verified ANONYMOUSLY.  can_edit is then false, so the editor
-# half of each form never renders and a title appears exactly once -- which is
-# what makes like($body, qr/$title/) mean anything.  It also sidesteps the
-# /secure prefixing that both _post_helper and categories.tx apply when a user
-# is set.
-#--------------------------------------------------------------------------
-
-sub _make_series {
-    my ( $label, $aclname, $child_form, $title, %opt ) = @_;
-
-    # _get_series caps the bar at 10 and the seeds already use two, so only the
-    # series whose topbar behaviour we actually care about get tagged.
-    my @tags = $opt{no_topbar} ? ('series') : ( 'series', 'topbar' );
-
-    my %extra = map { $_ => $opt{$_} } grep { $_ ne 'no_topbar' } keys(%opt);
-
-    my $series = _save_post(
-        "$label series",
-        %extra,
-        form       => 'series.tx',
-        title      => $title,
-        aclname    => $aclname,                       # required by series.json
-        child_form => $child_form,                    # required by series.json
-        local_href => "/$aclname",
-        href       => "/$aclname",
-        data       => "$title subhead",
-        callback   => 'Trog::Routes::HTML::series',
-        visibility => 'public',
-        tags       => \@tags,
-        tiled      => 0,
-        to         => '/',
-    ) or return undef;
-
-    return $series if $opt{no_topbar};
-
-    # The topbar comes from _get_series(), which index() renders through
-    # categories.tx.  Check it on / -- the series has no children yet, and
-    # posts() 404s on an empty series.
-    my ( $code, $body, $err ) = _render( _anon( route => '/' ) );
-    is( $code, 200, "$label: / renders" ) or diag($err);
-
-    my @titles = _topbar_titles($body);
-    ok( ( grep { $_ eq $title } @titles ), "$label: series is in the topbar" )
-      or diag( 'topbar was: ' . join( ', ', @titles ) );
-
-    return $series;
-}
-
-sub _series_page {
+my sub series_page {
     my ( $label, $aclname, $series_title, $expected_posts ) = @_;
 
-    my ( $code, $body, $err ) = _render( _anon( route => "/$aclname" ), \&Trog::Routes::HTML::series );
+    my ( $code, $body, $err ) = render( anon( route => "/$aclname" ), \&Trog::Routes::HTML::series );
     is( $code, 200, "$label: series page renders" ) or do { diag($err); return '' };
 
     like( $body, qr{<title>[^<]*\Q$series_title\E}, "$label: series page is the right series" );
-    is( _post_count($body), $expected_posts, "$label: exactly $expected_posts post(s) listed" )
-      or diag( _kontent($body) );
+    is( post_count($body), $expected_posts, "$label: exactly $expected_posts post(s) listed" )
+      or diag( kontent($body) );
 
     return $body;
 }
@@ -1054,9 +1054,9 @@ our ( $PAYEE, $PAYOR );
 
 subtest 'entities' => sub {
     my $title = 'Spec Entities Series';
-    _make_series( qw{entities specentities entities.tx}, $title ) or return;
+    make_series( qw{entities specentities entities.tx}, $title ) or return;
 
-    $PAYEE = _save_post(
+    $PAYEE = save_post(
         'entities payee child',
         form            => 'entities.tx',
         title           => 'Spec Payee Entity',
@@ -1068,7 +1068,7 @@ subtest 'entities' => sub {
         to              => '/specentities',
     ) or return;
 
-    $PAYOR = _save_post(
+    $PAYOR = save_post(
         'entities payor child',
         form            => 'entities.tx',
         title           => 'Spec Payor Entity',
@@ -1080,7 +1080,7 @@ subtest 'entities' => sub {
         to              => '/specentities',
     ) or return;
 
-    my $body = _series_page( 'entities', 'specentities', $title, 2 ) or return;
+    my $body = series_page( 'entities', 'specentities', $title, 2 ) or return;
 
     like( $body, qr{id="postData-\Q$PAYEE->{id}\E"}, 'payee body rendered' );
     like( $body, qr/Acme[ ]Payments[ ]LLC/,          'payee data rendered' );
@@ -1089,14 +1089,14 @@ subtest 'entities' => sub {
     # entity_details.tx is included only in the editor half, so these are stored
     # but never displayed.  Pinning that so a template change is noticed.
     unlike( $body, qr/Carrier[ ]Pigeon/, 'payment details are not shown to anonymous readers' );
-    is( _find_post('Spec Payee Entity')->{payment_method}, 'ACH', 'but payment_method did survive the schema' );
+    is( find_post('Spec Payee Entity')->{payment_method}, 'ACH', 'but payment_method did survive the schema' );
 };
 
 subtest 'blog' => sub {
     my $title = 'Spec Blog Series';
-    _make_series( qw{blog specblog blog.tx}, $title ) or return;
+    make_series( qw{blog specblog blog.tx}, $title ) or return;
 
-    my $child = _save_post(
+    my $child = save_post(
         'blog child',
         form       => 'blog.tx',
         title      => 'Spec Blog Child',
@@ -1106,7 +1106,7 @@ subtest 'blog' => sub {
         to         => '/specblog',
     ) or return;
 
-    my $body = _series_page( 'blog', 'specblog', $title, 1 ) or return;
+    my $body = series_page( 'blog', 'specblog', $title, 1 ) or return;
 
     like( $body, qr/Spec[ ]Blog[ ]Child/,            'child title rendered' );
     like( $body, qr{href='/posts/\Q$child->{id}\E'}, 'child permalink rendered' );
@@ -1117,9 +1117,9 @@ subtest 'blog' => sub {
 
 subtest 'microblog' => sub {
     my $title = 'Spec Microblog Series';
-    _make_series( qw{microblog specmicroblog microblog.tx}, $title ) or return;
+    make_series( qw{microblog specmicroblog microblog.tx}, $title ) or return;
 
-    my $child = _save_post(
+    my $child = save_post(
         'microblog child',
         form       => 'microblog.tx',
         title      => 'Spec Microblog Child',
@@ -1130,7 +1130,7 @@ subtest 'microblog' => sub {
         to         => '/specmicroblog',
     ) or return;
 
-    my $body = _series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
+    my $body = series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
 
     like( $body, qr{href='https://example\.com/spec'[ ]>Spec[ ]Microblog[ ]Child</a>}, 'title links out to href' );
     like( $body, qr{id="postData-\Q$child->{id}\E"},                                   'body block rendered' );
@@ -1139,7 +1139,7 @@ subtest 'microblog' => sub {
 
 subtest 'file' => sub {
     my $title = 'Spec File Series';
-    _make_series( qw{file specfile file.tx}, $title ) or return;
+    make_series( qw{file specfile file.tx}, $title ) or return;
 
     # _handle_upload MOVES the file, so it has to be created fresh here.
     my $src = "$ROOT/upload-src/spec-upload.txt";
@@ -1147,7 +1147,7 @@ subtest 'file' => sub {
     print {$fh} "spec upload contents\n";
     close $fh;
 
-    my $child = _save_post(
+    my $child = save_post(
         'file child',
         form       => 'file.tx',
         title      => 'Spec File Child',
@@ -1161,7 +1161,7 @@ subtest 'file' => sub {
     ok( !-e $src,                                     'the upload was moved out of its temp location, not copied' );
     ok( -f "www/assets/$child->{id}.spec-upload.txt", 'and it landed in www/assets' );
 
-    my $body = _series_page( 'file', 'specfile', $title, 1 ) or return;
+    my $body = series_page( 'file', 'specfile', $title, 1 ) or return;
 
     like( $body, qr{href='/assets/\Q$child->{id}\E\.spec-upload\.txt'}, 'title links to the asset' );
     like( $body, qr{id="postData-\Q$child->{id}\E"},                    'body block carries a unique id, like every other form' );
@@ -1179,9 +1179,9 @@ subtest 'file' => sub {
 
 subtest 'presentation' => sub {
     my $title = 'Spec Presentation Series';
-    _make_series( qw{presentation specpresentation presentation.tx}, $title ) or return;
+    make_series( qw{presentation specpresentation presentation.tx}, $title ) or return;
 
-    my $child = _save_post(
+    my $child = save_post(
         'presentation child',
         form          => 'presentation.tx',
         title         => 'Spec Presentation Child',
@@ -1194,7 +1194,7 @@ subtest 'presentation' => sub {
 
     is_deeply( $child->{data}, [ 'Slide one body.', 'Slide two body.' ], 'the multi-page data round-tripped as an array' );
 
-    my $body = _series_page( 'presentation', 'specpresentation', $title, 1 ) or return;
+    my $body = series_page( 'presentation', 'specpresentation', $title, 1 ) or return;
 
     # Slides only render under nochrome; the series page just links to the deck.
     like( $body, qr{<a[ ]href="/posts/\Q$child->{id}\E\?embed=1&nochrome=1">Click[ ]Here[ ]to[ ]view</a>}, 'deck link rendered' );
@@ -1203,7 +1203,7 @@ subtest 'presentation' => sub {
 
 subtest 'invoice' => sub {
     my $title = 'Spec Invoice Series';
-    _make_series( qw{invoice specinvoice invoice.tx}, $title ) or return;
+    make_series( qw{invoice specinvoice invoice.tx}, $title ) or return;
 
     my %invoice = (
         form          => 'invoice.tx',
@@ -1219,15 +1219,15 @@ subtest 'invoice' => sub {
     );
 
     my $sent  = time() - 10 * 86400;
-    my $child = do { local $NOW = $sent; _save_post( 'invoice child', %invoice ) }
+    my $child = do { local $NOW = $sent; save_post( 'invoice child', %invoice ) }
       or return;
     is( $child->{created}, $sent, 'the first save is stamped with the clock the test set' );
 
-    $child = _save_post( 'invoice child, edited', %invoice, id => $child->{id} ) or return;
+    $child = save_post( 'invoice child, edited', %invoice, id => $child->{id} ) or return;
     is( $child->{created}, $sent, 'an edit keeps the date the invoice was first made' );
     cmp_ok( $child->{modified}, '>', $sent, 'and the edit carries a later one' );
 
-    my $body = _series_page( 'invoice', 'specinvoice', $title, 1 ) or return;
+    my $body = series_page( 'invoice', 'specinvoice', $title, 1 ) or return;
 
     like( $body, qr/Invoice[ ]ID[#][ ]\Q$child->{id}\E/, 'invoice header rendered' );
 
@@ -1245,7 +1245,7 @@ subtest 'invoice' => sub {
 };
 
 subtest 'a private post is not served to a visitor who asks for it by id' => sub {
-    my $secret = _save_post(
+    my $secret = save_post(
         'private post',
         form       => 'blog.tx',
         title      => 'Spec Private Post',
@@ -1254,20 +1254,20 @@ subtest 'a private post is not served to a visitor who asks for it by id' => sub
         to         => '/posts',
     ) or return;
 
-    my ( $code, $body ) = _render( _anon( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
+    my ( $code, $body ) = render( anon( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
     is( $code, 404, 'a visitor gets a 404' );
     unlike( $body, qr/Spec[ ]private[ ]body/, 'and none of the post' );
 
-    ( $code, $body ) = _render( _admin( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
+    ( $code, $body ) = render( admin( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'an admin gets the post' );
     like( $body, qr/Spec[ ]private[ ]body/, 'with its body' );
 };
 
 subtest 'spec_widget (the wizard-built type)' => sub {
     my $title = 'Spec Widget Series';
-    _make_series( qw{spec_widget specwidget spec_widget.tx}, $title ) or return;
+    make_series( qw{spec_widget specwidget spec_widget.tx}, $title ) or return;
 
-    my $child = _save_post(
+    my $child = save_post(
         'spec_widget child',
         form        => 'spec_widget.tx',
         title       => 'Spec Widget Child',
@@ -1282,7 +1282,7 @@ subtest 'spec_widget (the wizard-built type)' => sub {
     is( $child->{flavor}, 'Strawberry', 'the custom field survived validation' );
     ok( !exists $child->{bogus_field}, 'an undeclared field was still stripped' );
 
-    my $body = _series_page( 'spec_widget', 'specwidget', $title, 1 ) or return;
+    my $body = series_page( 'spec_widget', 'specwidget', $title, 1 ) or return;
 
     # The payoff: this can only render if the wizard wrote spec_widget.json,
     # schema_for merged it over the base post schema, and validate() therefore
@@ -1295,8 +1295,8 @@ subtest 'a wizard-built type can depend on another type' => sub {
 
     # The type we will point at.  The relation is what is under test, so keep
     # the target itself boring.
-    my ( $code, $body, $err ) = _render(
-        _admin(
+    my ( $code, $body, $err ) = render(
+        admin(
             route           => '/admin/wyzzerdd/save',
             method          => 'POST',
             name            => 'spec_target',
@@ -1314,8 +1314,8 @@ subtest 'a wizard-built type can depend on another type' => sub {
 
     # ...and the type that depends on it: one picked by id, one pulling in the
     # whole set.
-    ( $code, $body, $err ) = _render(
-        _admin(
+    ( $code, $body, $err ) = render(
+        admin(
             route               => '/admin/wyzzerdd/save',
             method              => 'POST',
             name                => 'spec_relator',
@@ -1361,11 +1361,11 @@ subtest 'a wizard-built type can depend on another type' => sub {
         'string', "'relation' expands to a real schema type"
     );
 
-    _reindex();
+    reindex();
 
     # Now exercise it end to end.
-    _make_series( qw{spec_target spectarget spec_target.tx}, 'Spec Target Series', no_topbar => 1 ) or return;
-    my $target = _save_post(
+    make_series( qw{spec_target spectarget spec_target.tx}, 'Spec Target Series', no_topbar => 1 ) or return;
+    my $target = save_post(
         'spec_target child',
         form       => 'spec_target.tx',
         title      => 'Spec Target Post',
@@ -1375,8 +1375,8 @@ subtest 'a wizard-built type can depend on another type' => sub {
         to         => '/spectarget',
     ) or return;
 
-    _make_series( qw{spec_relator specrelator spec_relator.tx}, 'Spec Relator Series', no_topbar => 1 ) or return;
-    my $relator = _save_post(
+    make_series( qw{spec_relator specrelator spec_relator.tx}, 'Spec Relator Series', no_topbar => 1 ) or return;
+    my $relator = save_post(
         'spec_relator child',
         form       => 'spec_relator.tx',
         title      => 'Spec Relator Post',
@@ -1389,7 +1389,7 @@ subtest 'a wizard-built type can depend on another type' => sub {
 
     is( $relator->{chosen}, $target->{id}, 'the referenced id survived validation' );
 
-    my $page = _series_page( 'spec_relator', 'specrelator', 'Spec Relator Series', 1 ) or return;
+    my $page = series_page( 'spec_relator', 'specrelator', 'Spec Relator Series', 1 ) or return;
 
     # Both halves of the relation resolved: the one we picked, and the set.
     like( $page, qr{<span[ ]class="chosen">Spec[ ]Target[ ]Post</span>}, 'the picked post resolved into the page' );
@@ -1397,10 +1397,10 @@ subtest 'a wizard-built type can depend on another type' => sub {
 };
 
 subtest '/api/posts_of_form feeds the relation picker' => sub {
-    my $target = _find_post('Spec Target Post');
+    my $target = find_post('Spec Target Post');
     ok( $target, 'the target post is there to be listed' ) or return;
 
-    my $res = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'spec_target.tx' ) );
+    my $res = Trog::Routes::JSON::posts_of_form( admin( route => '/api/posts_of_form', form => 'spec_target.tx' ) );
     is( ref $res, 'ARRAY', 'a PSGI response came back' ) or return;
 
     my ( $code, undef, $body ) = @$res;
@@ -1415,13 +1415,13 @@ subtest '/api/posts_of_form feeds the relation picker' => sub {
 
     # An editor who is not an admin holds only acls of their own, which no
     # public post carries.
-    $res     = Trog::Routes::JSON::posts_of_form( _query( user => 'spec-editor', user_acls => ['spec-editors'], route => '/api/posts_of_form', form => 'spec_target.tx' ) );
+    $res     = Trog::Routes::JSON::posts_of_form( query( user => 'spec-editor', user_acls => ['spec-editors'], route => '/api/posts_of_form', form => 'spec_target.tx' ) );
     $payload = JSON::MaybeXS::decode_json( join( '', @{ $res->[2] } ) );
     is_deeply( [ map { $_->{id} } @{ $payload->{posts} } ], [ $target->{id} ], 'an editor who is not an admin can pick a public post too' );
 
     # An unknown type is an empty list, not an error -- a type with no posts
     # yet is the normal state of affairs right after you create it.
-    $res     = Trog::Routes::JSON::posts_of_form( _admin( route => '/api/posts_of_form', form => 'nosuchtype.tx' ) );
+    $res     = Trog::Routes::JSON::posts_of_form( admin( route => '/api/posts_of_form', form => 'nosuchtype.tx' ) );
     $payload = JSON::MaybeXS::decode_json( join( '', @{ $res->[2] } ) );
     is_deeply( $payload->{posts}, [], 'an unknown type lists nothing rather than failing' );
 
@@ -1439,10 +1439,10 @@ subtest 'a series resolves its relations for logged out visitors too' => sub {
     # datasource reads to find its hypervisors -- so assert on that rather than
     # on the rendered children, whose relations posts() resolves later, after
     # it has widened user_acls and thus by a path that was never broken.
-    foreach my $case ( [ 'anonymously', _anon( route => '/specrelator' ) ], [ 'as an admin', _admin( route => '/specrelator' ) ] ) {
+    foreach my $case ( [ 'anonymously', anon( route => '/specrelator' ) ], [ 'as an admin', admin( route => '/specrelator' ) ] ) {
         my ( $label, $query ) = @$case;
 
-        my ( $code, undef, $err ) = _render( $query, \&Trog::Routes::HTML::series );
+        my ( $code, undef, $err ) = render( $query, \&Trog::Routes::HTML::series );
         is( $code, 200, "the series renders $label" ) or do { diag($err); next };
 
         my $resolved = $query->{primary_post}{everything};
@@ -1455,7 +1455,7 @@ subtest 'saves report back through the jsalert banner' => sub {
 
     # A good save redirects to where you came from, carrying the outcome.
     my $res = Trog::Routes::HTML::post_save(
-        _admin(
+        admin(
             route      => '/post/save',
             method     => 'POST',
             to         => '/specblog',
@@ -1480,14 +1480,14 @@ subtest 'saves report back through the jsalert banner' => sub {
     like( $h{'Set-Cookie'}, qr/^tcmsfeedback=0:/, 'the outcome is in a cookie instead' );
     unlike( $h{'Set-Cookie'}, qr/\n/, 'and the message is one line, since it lands in a JS string' );
 
-    _reindex();
+    reindex();
 
     # Follow the redirect the way a browser would: same destination, carrying
     # the cookie it was just handed.
     my $feedback = ( split( /;/, $h{'Set-Cookie'} ) )[0];
 
-    my ( $rcode, $body, $err ) = _render(
-        _admin( route => '/specblog', cookies => $feedback ),
+    my ( $rcode, $body, $err ) = render(
+        admin( route => '/specblog', cookies => $feedback ),
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination renders' ) or diag($err);
@@ -1499,7 +1499,7 @@ subtest 'saves report back through the jsalert banner' => sub {
 
     # A rejected save comes back the same way, in red.
     $res = Trog::Routes::HTML::post_save(
-        _admin(
+        admin(
             route      => '/post/save',
             method     => 'POST',
             to         => '/specblog',
@@ -1516,12 +1516,12 @@ subtest 'saves report back through the jsalert banner' => sub {
     like( $h{'Set-Cookie'},                              qr/^tcmsfeedback=1:/,       'flagged as failed' );
     like( URI::Escape::uri_unescape( $h{'Set-Cookie'} ), qr/Not[ ]in[ ]enum[ ]list/, 'carrying the validator error' );
 
-    ok( !_find_post('Spec Rejected Child'), 'and the bad post was not written' );
+    ok( !find_post('Spec Rejected Child'), 'and the bad post was not written' );
 
     $feedback = ( split( /;/, $h{'Set-Cookie'} ) )[0];
 
-    ( $rcode, $body, $err ) = _render(
-        _admin( route => '/specblog', cookies => $feedback ),
+    ( $rcode, $body, $err ) = render(
+        admin( route => '/specblog', cookies => $feedback ),
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination still renders' ) or diag($err);
@@ -1530,8 +1530,8 @@ subtest 'saves report back through the jsalert banner' => sub {
 
     # Read once: the cookie is expired by the page that rendered it, or the
     # banner follows the reader around until it times out on its own.
-    my ( undef, undef, undef, $rheaders ) = _render(
-        _admin( route => '/specblog', cookies => $feedback ),
+    my ( undef, undef, undef, $rheaders ) = render(
+        admin( route => '/specblog', cookies => $feedback ),
         \&Trog::Routes::HTML::series,
     );
     my %rh = @{ $rheaders || [] };
@@ -1541,7 +1541,7 @@ subtest 'saves report back through the jsalert banner' => sub {
     # something has their message served to everybody.  The query parameter
     # form was accidentally safe here; a cookie is not.
     my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
-    _render( _anon( route => '/specblog', cookies => $feedback, tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
+    render( anon( route => '/specblog', cookies => $feedback, tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
     is_deeply( [ keys %{ $tpsgi->{renders} } ], [], 'and it is never saved as a static' );
 };
 
@@ -1554,7 +1554,7 @@ subtest 'a hidden id that was never filled in' => sub {
     # directory rather than a post in it.  The error named File::Slurper, and
     # its stack trace then went into the redirect URL and produced a 419.
     my $res = Trog::Routes::HTML::post_save(
-        _admin(
+        admin(
             route      => '/post/save',
             method     => 'POST',
             to         => '/specblog',
@@ -1571,8 +1571,8 @@ subtest 'a hidden id that was never filled in' => sub {
     is( $code, 303, 'the save succeeds' );
     like( $h{'Set-Cookie'}, qr/^tcmsfeedback=0:/, 'and reports success' );
 
-    _reindex();
-    my $saved = _find_post('Spec Empty Id Child');
+    reindex();
+    my $saved = find_post('Spec Empty Id Child');
     ok( $saved,                       'the post was written' ) or return;
     ok( length( $saved->{id} // '' ), 'with an id of its own' );
     isnt( $saved->{id}, '', 'rather than the empty one it was handed' );
@@ -1582,10 +1582,10 @@ subtest 'a hidden id that was never filled in' => sub {
 };
 
 subtest 'the topbar did not silently overflow' => sub {
-    my ( $code, $body, $err ) = _render( _anon( route => '/' ) );
+    my ( $code, $body, $err ) = render( anon( route => '/' ) );
     is( $code, 200, '/ renders' ) or diag($err);
 
-    my @titles = _topbar_titles($body);
+    my @titles = topbar_titles($body);
 
     # 2 seeded series (Series, About) + the 7 we built.  _get_series() caps at
     # 10 (HTML.pm), so an eighth post type would start silently dropping one.
@@ -1608,7 +1608,7 @@ subtest 'the tpsgi side effects stayed inert' => sub {
 };
 
 subtest 'the real repo was not touched' => sub {
-    my %after = map { _snapshot("$REPO/$_") } qw{config data www/templates www/assets logs totp};
+    my %after = map { snapshot("$REPO/$_") } qw{config data www/templates www/assets logs totp};
 
     my @changed = grep { ( $REPO_BEFORE{$_} // '' ) ne ( $after{$_} // '' ) } keys %after;
     my @removed = grep { !exists $after{$_} } keys %REPO_BEFORE;

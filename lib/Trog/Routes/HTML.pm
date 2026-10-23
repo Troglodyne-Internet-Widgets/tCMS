@@ -326,7 +326,7 @@ if ($theme_dir) {
 
 =head1 PRIMARY ROUTE
 
-=head2 _feedback_redirect($query, $to, $failure, $message)
+=head2 feedback_redirect($query, $to, $failure, $message)
 
 Redirect to $to, carrying the outcome of a save so the destination page can put
 it in the jsalert banner.
@@ -338,8 +338,8 @@ else to put it.
 
 =cut
 
-sub _feedback_redirect ( $query, $to, $failure, $message ) {
-    my $cookie = _feedback_cookie( $failure, $message );
+my sub feedback_redirect ( $query, $to, $failure, $message ) {
+    my $cookie = feedback_cookie( $failure, $message );
 
     # Appended to what see_also() built rather than replacing it, so this still
     # logs and still redirects the way every other redirect in here does.
@@ -349,7 +349,7 @@ sub _feedback_redirect ( $query, $to, $failure, $message ) {
     return $response;
 }
 
-=head2 _feedback_cookie($failure, $message) = STRING
+=head2 feedback_cookie($failure, $message) = STRING
 
 The Set-Cookie which carries a save's outcome to the page it redirects to.
 
@@ -369,7 +369,7 @@ the log either way.
 
 our $feedback_max = 512;
 
-sub _feedback_cookie ( $failure, $message ) {
+sub feedback_cookie ( $failure, $message ) {
     $message //= '';
     $message =~ s/\s*\n+\s*/; /g;
     $message =~ s/;\s*$//;
@@ -383,9 +383,9 @@ sub _feedback_cookie ( $failure, $message ) {
     return "tcmsfeedback=$value; Path=/; HttpOnly; SameSite=Lax; Max-Age=30";
 }
 
-=head2 _absorb_feedback($query)
+=head2 absorb_feedback($query)
 
-Turn the parameters _feedback_redirect() put in the URL back into the failure
+Turn the parameters feedback_redirect() put in the URL back into the failure
 and message the jsalert banner reads.
 
 Done in index() rather than in each route, so that a save can hand feedback to
@@ -393,8 +393,8 @@ any destination that renders a page, whichever route ends up serving it.
 
 =cut
 
-sub _absorb_feedback ($query) {
-    my ( $failure, $message ) = _feedback_from_cookie( $query->{cookies} );
+my sub absorb_feedback ($query) {
+    my ( $failure, $message ) = feedback_from_cookie( $query->{cookies} );
 
     # The query parameters are still read, for a redirect issued by a worker
     # which had not been restarted yet, and for anyone who has one bookmarked.
@@ -425,16 +425,16 @@ sub _absorb_feedback ($query) {
     return;
 }
 
-=head2 _feedback_from_cookie($cookies) = ($failure, $message)
+=head2 feedback_from_cookie($cookies) = ($failure, $message)
 
-Pull a save's outcome back out of the cookie _feedback_redirect set.
+Pull a save's outcome back out of the cookie feedback_redirect set.
 
 Returns nothing when there isn't one, so that the caller can fall back to the
 query parameters this replaced.
 
 =cut
 
-sub _feedback_from_cookie ($cookies) {
+sub feedback_from_cookie ($cookies) {
     return () unless $cookies;
 
     local $@;
@@ -448,81 +448,7 @@ sub _feedback_from_cookie ($cookies) {
     return ( int($failure), URI::Escape::uri_unescape($message) );
 }
 
-=head2 index
-
-Implements the primary route used by all pages not behind auth.
-Most subsequent functions simply pass content to this function.
-
-=cut
-
-sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
-    $query->{theme_dir} = Trog::Themes::td();
-
-    _absorb_feedback($query);
-
-    my $to_render = $query->{template} // $landing_page;
-
-    $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
-    return $content if ref $content eq "ARRAY";
-
-    my @styles;
-    unshift( @styles, qw{embed.css} ) if $query->{embed};
-    unshift( @styles, qw{screen.css structure.css} );
-    push( @styles, @$i_styles );
-    my @p_styles = qw{structure.css print.css};
-    unshift( @p_styles, qw{embed.css} ) if $query->{embed};
-
-    my @series = _get_series(0);
-
-    my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
-
-    # Handle link "unfurling" correctly
-    my ( $default_tags, $meta_desc, $meta_tags ) = _build_social_meta( $query, $title );
-
-    #Do embed content
-    my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
-    $query->{theme_dir} =~ s/^\/www\///;
-
-    # Grab the avatar class for the logged in user
-    if ( $query->{user} ) {
-        $query->{user_class} = Trog::Auth::username2classname( $query->{user} );
-    }
-
-    state $data;
-    $data //= Trog::Data->new( Trog::Config::get() );
-
-    my ( $search_lang, $search_help ) = _search_language($query);
-
-    # Consumed, so expire it: otherwise the banner reappears on every page the
-    # reader visits until the cookie times out on its own.
-    my %headers;
-    %headers = ( 'Set-Cookie' => 'tcmsfeedback=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' ) if $query->{feedback_seen};
-
-    return finish_render(
-        $tmpl,
-        {
-            %$query,
-            search_lang  => $search_lang,
-            search_help  => $search_help,
-            theme_dir    => Trog::Themes::td(),
-            content      => $content,
-            title        => $title,
-            categories   => \@series,
-            stylesheets  => \@styles,
-            print_styles => \@p_styles,
-            scripts      => $i_scripts,
-            show_madeby  => $Theme::show_madeby ? 1 : 0,
-            embed        => $query->{embed}     ? 1 : 0,
-            embed_video  => $query->{primary_post}{is_video},
-            default_tags => $default_tags,
-            meta_desc    => $meta_desc,
-            meta_tags    => $meta_tags,
-        },
-        %headers,
-    );
-}
-
-sub _build_social_meta ( $query, $title ) {
+my sub build_social_meta ( $query, $title ) {
     return ( undef, undef, undef ) unless $query->{social_meta} && $query->{route} && $query->{domain};
 
     my $default_tags = $Theme::default_tags;
@@ -578,6 +504,99 @@ sub _build_social_meta ( $query, $title ) {
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 
+my sub get_series ( $edit = 0 ) {
+    state $data;
+    $data //= Trog::Data->new( Trog::Config::get() );
+
+    my @series = $data->get(
+        acls  => [qw{public}],
+        tags  => [qw{topbar}],
+        limit => 10,
+        page  => 1,
+    );
+    @series = map { $_->{local_href} = "/post$_->{local_href}"; $_ } @series if $edit;
+    return @series;
+}
+
+=head2 index
+
+Implements the primary route used by all pages not behind auth.
+Most subsequent functions simply pass content to this function.
+
+=cut
+
+sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
+    $query->{theme_dir} = Trog::Themes::td();
+
+    absorb_feedback($query);
+
+    my $to_render = $query->{template} // $landing_page;
+
+    $content ||= Trog::Renderer->render( template => $to_render, data => $query, component => 1, contenttype => 'text/html' );
+    return $content if ref $content eq "ARRAY";
+
+    my @styles;
+    unshift( @styles, qw{embed.css} ) if $query->{embed};
+    unshift( @styles, qw{screen.css structure.css} );
+    push( @styles, @$i_styles );
+    my @p_styles = qw{structure.css print.css};
+    unshift( @p_styles, qw{embed.css} ) if $query->{embed};
+
+    my @series = get_series(0);
+
+    my $title = $query->{primary_post}{title} // $query->{title} // $Theme::default_title // 'tCMS';
+
+    # Handle link "unfurling" correctly
+    my ( $default_tags, $meta_desc, $meta_tags ) = build_social_meta( $query, $title );
+
+    #Do embed content
+    my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
+    $query->{theme_dir} =~ s/^\/www\///;
+
+    # Grab the avatar class for the logged in user
+    if ( $query->{user} ) {
+        $query->{user_class} = Trog::Auth::username2classname( $query->{user} );
+    }
+
+    state $data;
+    $data //= Trog::Data->new( Trog::Config::get() );
+
+    my ( $search_lang, $search_help ) = search_language($query);
+
+    # Consumed, so expire it: otherwise the banner reappears on every page the
+    # reader visits until the cookie times out on its own.
+    my %headers;
+    %headers = ( 'Set-Cookie' => 'tcmsfeedback=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' ) if $query->{feedback_seen};
+
+    return finish_render(
+        $tmpl,
+        {
+            %$query,
+            search_lang  => $search_lang,
+            search_help  => $search_help,
+            theme_dir    => Trog::Themes::td(),
+            content      => $content,
+            title        => $title,
+            categories   => \@series,
+            stylesheets  => \@styles,
+            print_styles => \@p_styles,
+            scripts      => $i_scripts,
+            show_madeby  => $Theme::show_madeby ? 1 : 0,
+            embed        => $query->{embed}     ? 1 : 0,
+            embed_video  => $query->{primary_post}{is_video},
+            default_tags => $default_tags,
+            meta_desc    => $meta_desc,
+            meta_tags    => $meta_tags,
+        },
+        %headers,
+    );
+}
+
+my sub build_themed_styles ($styles) {
+    my @styles = map { ( Trog::Themes::themed_style("$_") ) } @{ Trog::Utils::coerce_array($styles) };
+    return \@styles;
+}
+
 =head1 NORMAL ROUTES
 
 These are expected to either return a 200, or redirect to something which does.
@@ -594,7 +613,7 @@ sub setup ($query) {
         template => 'notconfigured.tx',
         data     => {
             title       => 'tCMS Requires Setup to Continue...',
-            stylesheets => _build_themed_styles( ['notconfigured.css'] ),
+            stylesheets => build_themed_styles( ['notconfigured.css'] ),
             %$query,
         },
         contenttype => 'text/html',
@@ -641,85 +660,7 @@ sub totp ($query) {
     );
 }
 
-=head2 login
-
-Sets the user cookie if the provided user exists, or sets up the user as an admin with the provided credentials in the event that no users exist.
-
-=cut
-
-sub login ($query) {
-
-    # Redirect if we actually have a logged in user.
-    # Note to future me -- this user value is overwritten explicitly in server.psgi.
-    # If that ever changes, you will die
-    $query->{to} //= $query->{route};
-    $query->{to} = '/config' if List::Util::any { $query->{to} eq $_ } qw{/login /logout};
-    if ( $query->{user} ) {
-        DEBUG("Login by $query->{user}, redirecting to $query->{to}");
-        return $query->{tpsgi}->see_also( $query->{to} );
-    }
-
-    #Check and see if we have no users.  If so we will just accept whatever creds are passed.
-    my $hasusers = -f "config/has_users";               ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
-    my $btnmsg   = $hasusers ? "Log In" : "Register";
-
-    my $headers;
-    if ( $query->{username} && $query->{password} ) {
-        if ( !$hasusers ) {
-
-            # Make the first user
-            Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
-
-            # Add a stub user page and the initial series.
-            my $dat = Trog::Data->new( Trog::Config::get() );
-            _setup_initial_db( $dat, $query->{username}, $query->{display_name}, $query->{contact_email} );
-
-            # Ensure we stop registering new users
-            File::Touch::touch("config/has_users");
-        }
-
-        $query->{failed} = 1;
-        my $cookie = Trog::Auth::mksession( $query->{username}, $query->{password}, $query->{token}, $query->{ip} // '' );
-        if ($cookie) {
-
-            # A login is how you get to enrol, since the QR is not something to
-            # hand out to whoever asks for it -- so a user with no enrolment yet
-            # gets a session and goes straight there rather than where they were
-            # headed.  The dispatcher keeps them there until they have one.
-            $query->{to} = '/totp' unless Trog::Auth::has_totp( $query->{username} );
-
-            # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
-            my $secure = '';
-            $secure  = '; Secure' if $query->{scheme} eq 'https';
-            $headers = {
-                "Set-Cookie" => "tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
-            };
-            $query->{failed} = 0;
-        }
-    }
-
-    $query->{failed} //= -1;
-    return Trog::Renderer->render(
-        template => 'login.tx',
-        data     => {
-            title       => 'tCMS 2 ~ Login',
-            to          => $query->{to},
-            failure     => int( $query->{failed} ),
-            message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
-            btnmsg      => $btnmsg,
-            stylesheets => _build_themed_styles( [qw{structure.css screen.css login.css}] ),
-            theme_dir   => Trog::Themes::td(),
-            has_users   => $hasusers,
-            %$query,
-        },
-        headers     => $headers,
-        contenttype => 'text/html',
-        code        => 200,
-        nocache     => $query->{nocache},
-    );
-}
-
-sub _setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
+my sub setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
     $dat->add(
         {
             "aclname"    => "series",
@@ -792,6 +733,84 @@ sub _setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
     return 1;
 }
 
+=head2 login
+
+Sets the user cookie if the provided user exists, or sets up the user as an admin with the provided credentials in the event that no users exist.
+
+=cut
+
+sub login ($query) {
+
+    # Redirect if we actually have a logged in user.
+    # Note to future me -- this user value is overwritten explicitly in server.psgi.
+    # If that ever changes, you will die
+    $query->{to} //= $query->{route};
+    $query->{to} = '/config' if List::Util::any { $query->{to} eq $_ } qw{/login /logout};
+    if ( $query->{user} ) {
+        DEBUG("Login by $query->{user}, redirecting to $query->{to}");
+        return $query->{tpsgi}->see_also( $query->{to} );
+    }
+
+    #Check and see if we have no users.  If so we will just accept whatever creds are passed.
+    my $hasusers = -f "config/has_users";               ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
+    my $btnmsg   = $hasusers ? "Log In" : "Register";
+
+    my $headers;
+    if ( $query->{username} && $query->{password} ) {
+        if ( !$hasusers ) {
+
+            # Make the first user
+            Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
+
+            # Add a stub user page and the initial series.
+            my $dat = Trog::Data->new( Trog::Config::get() );
+            setup_initial_db( $dat, $query->{username}, $query->{display_name}, $query->{contact_email} );
+
+            # Ensure we stop registering new users
+            File::Touch::touch("config/has_users");
+        }
+
+        $query->{failed} = 1;
+        my $cookie = Trog::Auth::mksession( $query->{username}, $query->{password}, $query->{token}, $query->{ip} // '' );
+        if ($cookie) {
+
+            # A login is how you get to enrol, since the QR is not something to
+            # hand out to whoever asks for it -- so a user with no enrolment yet
+            # gets a session and goes straight there rather than where they were
+            # headed.  The dispatcher keeps them there until they have one.
+            $query->{to} = '/totp' unless Trog::Auth::has_totp( $query->{username} );
+
+            # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
+            my $secure = '';
+            $secure  = '; Secure' if $query->{scheme} eq 'https';
+            $headers = {
+                "Set-Cookie" => "tcmslogin=$cookie; HttpOnly; SameSite=Strict$secure",
+            };
+            $query->{failed} = 0;
+        }
+    }
+
+    $query->{failed} //= -1;
+    return Trog::Renderer->render(
+        template => 'login.tx',
+        data     => {
+            title       => 'tCMS 2 ~ Login',
+            to          => $query->{to},
+            failure     => int( $query->{failed} ),
+            message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
+            btnmsg      => $btnmsg,
+            stylesheets => build_themed_styles( [qw{structure.css screen.css login.css}] ),
+            theme_dir   => Trog::Themes::td(),
+            has_users   => $hasusers,
+            %$query,
+        },
+        headers     => $headers,
+        contenttype => 'text/html',
+        code        => 200,
+        nocache     => $query->{nocache},
+    );
+}
+
 =head2 logout
 
 Deletes your users' session and opens the index.
@@ -802,6 +821,14 @@ sub logout ($query) {
     Trog::Auth::killsession( $query->{user}, $query->{ip} // '' ) if $query->{user};
     delete $query->{user};
     return Trog::Routes::HTML::index($query);
+}
+
+my sub get_themes {
+    my $dir = 'www/themes';
+    opendir( my $dh, $dir ) || do { die "Can't opendir $dir: $!" unless $!{ENOENT} };
+    my @tdirs = grep { !/^\./ && -d "$dir/$_" } readdir($dh);
+    closedir $dh;
+    return \@tdirs;
 }
 
 =head2 config
@@ -822,8 +849,8 @@ sub config ( $query = {} ) {
             theme_dir       => Trog::Themes::td(),
             stylesheets     => [qw{config.css}],
             scripts         => [qw{post.js}],
-            themes          => _get_themes() || [],
-            config_sections => _config_sections(),
+            themes          => get_themes() || [],
+            config_sections => config_sections(),
             message         => $query->{message},
             failure         => $query->{failure},
             to              => '/config',
@@ -837,15 +864,50 @@ sub config ( $query = {} ) {
     );
 }
 
+my sub get_data_models {
+    foreach my $incdir (@INC) {
+        my $dir = "$incdir/Trog/Data";
+        next unless -d $dir;
+        opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
+        my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building a menu of module names
+        closedir $dh;
+        return \@dmods;
+    }
+    die "Could not find tCMS data modules!  Is tCMS in \@INC?";
+}
+
 # The settings which are a choice among what this instance actually has
 # installed rather than free text.  default.cfg can say a key exists, but not
 # that it has to be one of the themes on disk, so that part lives here.
 my %config_choices = (
-    'general.theme'      => sub { return [ '', @{ _get_themes() || [] } ] },
-    'general.data_model' => \&_get_data_models,
+    'general.theme'      => sub { return [ '', @{ get_themes() || [] } ] },
+    'general.data_model' => \&get_data_models,
 );
 
-=head2 _config_sections() = ARRAYREF
+# What this instance has configured a setting as, or undef if it never has --
+# which is not the same thing as having set it to nothing, or the editor would
+# hand back the shipped default to anyone who deliberately cleared a setting,
+# and quietly restore it on the next save.
+#
+# XXX ACHTUNG config::simple's param() answers a key which does not exist with a
+# multi element array, so it can never tell you those two apart; vars() can, and
+# is the only reason this does not just ask for the one key.  A key holding
+# commas comes back as an arrayref too, hence the join.
+my sub config_value ( $configured, $name ) {
+    return undef unless exists $configured->{$name};    ## no critic (ProhibitExplicitReturnUndef) -- 'never configured' has to be distinguishable from ''
+
+    my $value = $configured->{$name};
+    return '' unless defined $value;
+    return join( ', ', @$value ) if ref $value eq 'ARRAY';
+    return ref $value ? '' : $value;
+}
+
+my sub config_title ($name) {
+    $name =~ s/[_-]/ /g;
+    return join( ' ', map { ucfirst } split( ' ', $name ) );
+}
+
+=head2 config_sections() = ARRAYREF
 
 The configuration editor's form, one entry per section of config/default.cfg,
 each holding the fields that section describes:
@@ -859,19 +921,19 @@ through a one line input.
 
 =cut
 
-sub _config_sections {
+sub config_sections {
     my %configured = Trog::Config::get()->vars();
 
     my @sections;
     foreach my $section ( @{ Trog::Config::schema() } ) {
         my @fields;
         foreach my $field ( @{ $section->{fields} } ) {
-            my $value = _config_value( \%configured, $field->{name} );
+            my $value = config_value( \%configured, $field->{name} );
             $value = $field->{default} unless defined $value;
 
             my %rendered = (
                 %$field,
-                title => _config_title( $field->{key} ),
+                title => config_title( $field->{key} ),
                 value => $value,
             );
 
@@ -898,7 +960,7 @@ sub _config_sections {
             @sections,
             {
                 section => $section->{section},
-                title   => _config_title( $section->{section} ),
+                title   => config_title( $section->{section} ),
                 fields  => \@fields,
             }
         );
@@ -906,27 +968,9 @@ sub _config_sections {
     return \@sections;
 }
 
-# What this instance has configured a setting as, or undef if it never has --
-# which is not the same thing as having set it to nothing, or the editor would
-# hand back the shipped default to anyone who deliberately cleared a setting,
-# and quietly restore it on the next save.
-#
-# XXX ACHTUNG config::simple's param() answers a key which does not exist with a
-# multi element array, so it can never tell you those two apart; vars() can, and
-# is the only reason this does not just ask for the one key.  A key holding
-# commas comes back as an arrayref too, hence the join.
-sub _config_value ( $configured, $name ) {
-    return undef unless exists $configured->{$name};    ## no critic (ProhibitExplicitReturnUndef) -- 'never configured' has to be distinguishable from ''
-
-    my $value = $configured->{$name};
-    return '' unless defined $value;
-    return join( ', ', @$value ) if ref $value eq 'ARRAY';
-    return ref $value ? '' : $value;
-}
-
-sub _config_title ($name) {
-    $name =~ s/[_-]/ /g;
-    return join( ' ', map { ucfirst } split( ' ', $name ) );
+my sub stamp ($epoch) {
+    my @t = localtime($epoch);
+    return sprintf( '%04d-%02d-%02d %02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1] );
 }
 
 =head2 resetpass
@@ -971,8 +1015,8 @@ sub secrets ($query) {
 
     my @secrets = map {
         my $secret = {%$_};
-        $secret->{stored} = _stamp( $secret->{created} );
-        $secret->{used}   = $secret->{last_used} ? _stamp( $secret->{last_used} ) : 'never';
+        $secret->{stored} = stamp( $secret->{created} );
+        $secret->{used}   = $secret->{last_used} ? stamp( $secret->{last_used} ) : 'never';
         $secret
     } @{ Trog::Vault::list( $query->{user} ) };
 
@@ -992,11 +1036,6 @@ sub secrets ($query) {
     );
 }
 
-sub _stamp ($epoch) {
-    my @t = localtime($epoch);
-    return sprintf( '%04d-%02d-%02d %02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1] );
-}
-
 sub secrets_save ($query) {
     require Trog::Vault;
 
@@ -1005,7 +1044,7 @@ sub secrets_save ($query) {
     # This hash is cloned, logged around and handed to renderers.
     delete $query->{secret};
 
-    return _feedback_redirect( $query, '/secrets', $ok ? 0 : 1, $message );
+    return feedback_redirect( $query, '/secrets', $ok ? 0 : 1, $message );
 }
 
 sub secrets_forget ($query) {
@@ -1014,7 +1053,7 @@ sub secrets_forget ($query) {
     my $name = $query->{name} // '';
     my $gone = Trog::Vault::forget( $query->{user}, $name );
 
-    return _feedback_redirect( $query, '/secrets', $gone ? 0 : 1, $gone ? "'$name' forgotten" : "there was nothing stored as '$name'" );
+    return feedback_redirect( $query, '/secrets', $gone ? 0 : 1, $gone ? "'$name' forgotten" : "there was nothing stored as '$name'" );
 }
 
 sub resetpass ($query) {
@@ -1067,41 +1106,7 @@ sub do_resetpass ($query) {
     return $query->{tpsgi}->see_also("/processed");
 }
 
-sub _get_series ( $edit = 0 ) {
-    state $data;
-    $data //= Trog::Data->new( Trog::Config::get() );
-
-    my @series = $data->get(
-        acls  => [qw{public}],
-        tags  => [qw{topbar}],
-        limit => 10,
-        page  => 1,
-    );
-    @series = map { $_->{local_href} = "/post$_->{local_href}"; $_ } @series if $edit;
-    return @series;
-}
-
-sub _get_themes {
-    my $dir = 'www/themes';
-    opendir( my $dh, $dir ) || do { die "Can't opendir $dir: $!" unless $!{ENOENT} };
-    my @tdirs = grep { !/^\./ && -d "$dir/$_" } readdir($dh);
-    closedir $dh;
-    return \@tdirs;
-}
-
-sub _get_data_models {
-    foreach my $incdir (@INC) {
-        my $dir = "$incdir/Trog/Data";
-        next unless -d $dir;
-        opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
-        my @dmods = map { s/\.pm$//g; $_ } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building a menu of module names
-        closedir $dh;
-        return \@dmods;
-    }
-    die "Could not find tCMS data modules!  Is tCMS in \@INC?";
-}
-
-=head2 _get_datasources
+=head2 get_datasources
 
 Every Trog::DataSource::* module on disk.
 
@@ -1112,7 +1117,7 @@ something we found rather than something we were told.
 
 =cut
 
-sub _get_datasources {
+sub get_datasources {
     my %found;
     foreach my $incdir (@INC) {
         my $dir = "$incdir/Trog/DataSource";
@@ -1124,7 +1129,7 @@ sub _get_datasources {
     return [ sort keys(%found) ];
 }
 
-=head2 _datasource_editable($module)
+=head2 datasource_editable($module)
 
 Whether a post type backed by $module should be given an editor.
 
@@ -1134,7 +1139,7 @@ to be.
 
 =cut
 
-sub _datasource_editable ($module) {
+sub datasource_editable ($module) {
     return 1 unless $module;
     return 1 unless Trog::DataSource::load($module);
     return 1 unless $module->can('EDITABLE');
@@ -1156,7 +1161,7 @@ sub config_save ($query) {
     return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $conf = Trog::Config::get();
-    _config_apply( $conf, $query );
+    config_apply( $conf, $query );
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
@@ -1171,7 +1176,7 @@ sub config_save ($query) {
     return config($query);
 }
 
-=head2 _config_apply( Config::Simple conf, HASHREF query )
+=head2 config_apply( Config::Simple conf, HASHREF query )
 
 Copy whatever settings the form posted onto $conf, keyed by their full
 'section.key' name.
@@ -1183,7 +1188,7 @@ you go back to having none.
 
 =cut
 
-sub _config_apply ( $conf, $query ) {
+sub config_apply ( $conf, $query ) {
     foreach my $section ( @{ Trog::Config::schema() } ) {
         foreach my $field ( @{ $section->{fields} } ) {
             my $value = $query->{ $field->{name} };
@@ -1264,12 +1269,12 @@ sub post_save ($qq) {
     local $@;
     eval { $data->add($query); 1 } or do {
         my @errors = Ref::Util::is_arrayref($@) ? @{$@} : ($@);
-        my $why    = "Post failed validation:\n" . join( "\n", map { _short_error($_) } @errors );
+        my $why    = "Post failed validation:\n" . join( "\n", map { short_error($_) } @errors );
 
         # The full detail goes to the log; the user gets it in the banner on
         # the page they came from, rather than a dead-end 400.
         WARN("Rejected post from $qq->{user}: $why");
-        return _feedback_redirect( $qq, '/secure' . $to, 1, $why );
+        return feedback_redirect( $qq, '/secure' . $to, 1, $why );
     };
 
     # Instruct tpsgi to invalidate the cached render.
@@ -1284,7 +1289,7 @@ sub post_save ($qq) {
     # Force a reload of the routing table
     $qq->{tpsgi}->signal_restart_parent();
 
-    return _feedback_redirect( $qq, '/secure' . $to, 0, "Saved post '$query->{title}'." );
+    return feedback_redirect( $qq, '/secure' . $to, 0, "Saved post '$query->{title}'." );
 }
 
 =head2 profile
@@ -1367,54 +1372,10 @@ sub post_delete ($query) {
     return $query->{tpsgi}->see_also( $query->{to} );
 }
 
-=head2 _enrich_post($post, $query, $cache)
-
-Resolve a post type's declared relations onto the post, and run its enrich sub
-if it has one.
-
-A type says what it depends on in its sidecar rather than in code here -- see
-Trog::DataModule::relations_for.  An entry naming a 'from' field resolves the
-UUID in that field into the post it refers to; one without gets every post of
-the target type, which is what an editor picker or a "show me all of these"
-display wants.
-
-$cache is a per-request memo of the per-type lookups.  Without it a page of
-invoices re-scans every entities post once per invoice.
-
-=cut
-
-sub _enrich_post ( $post, $query, $cache = {} ) {
-    return unless Ref::Util::is_hashref($post) && $post->{form};
-
-    my $relations = Trog::DataModule::relations_for( $post->{form} );
-    foreach my $as ( keys(%$relations) ) {
-        my $relation = $relations->{$as};
-        next unless Ref::Util::is_hashref($relation);
-
-        my ($target) = ( $relation->{form} // '' ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
-        next unless $target;
-
-        $cache->{$target} //= [ _post_helper( { form => $target }, [], $query->{user_acls} ) ];
-
-        # No 'from' means the relation is the whole set rather than one of them.
-        my $from = $relation->{from};
-        if ( !$from ) {
-            $post->{$as} = $cache->{$target};
-            next;
-        }
-
-        my $wanted = $post->{$from};
-        $post->{$as} = defined $wanted ? List::Util::first { $_->{id} eq $wanted } @{ $cache->{$target} } : undef;
-    }
-
-    _enrich_callback( $post, $query );
-    return;
-}
-
 # Anything a type needs computed rather than merely fetched.  The sub is named
 # in the sidecar, so validate it the same way a post's own callback field is --
 # a sidecar naming an arbitrary sub is a privilege question, not a typo.
-sub _enrich_callback ( $post, $query ) {
+my sub enrich_callback ( $post, $query ) {
     my $meta = Trog::DataModule::type_meta_for( $post->{form} );
     my $sub  = $meta->{'x-tcms-post-type'}{enrich};
     return unless $sub && !ref $sub;
@@ -1445,6 +1406,50 @@ sub _enrich_callback ( $post, $query ) {
     use strict;
 
     @$post{ keys(%extra) } = values(%extra);
+    return;
+}
+
+=head2 enrich_post($post, $query, $cache)
+
+Resolve a post type's declared relations onto the post, and run its enrich sub
+if it has one.
+
+A type says what it depends on in its sidecar rather than in code here -- see
+Trog::DataModule::relations_for.  An entry naming a 'from' field resolves the
+UUID in that field into the post it refers to; one without gets every post of
+the target type, which is what an editor picker or a "show me all of these"
+display wants.
+
+$cache is a per-request memo of the per-type lookups.  Without it a page of
+invoices re-scans every entities post once per invoice.
+
+=cut
+
+sub enrich_post ( $post, $query, $cache = {} ) {
+    return unless Ref::Util::is_hashref($post) && $post->{form};
+
+    my $relations = Trog::DataModule::relations_for( $post->{form} );
+    foreach my $as ( keys(%$relations) ) {
+        my $relation = $relations->{$as};
+        next unless Ref::Util::is_hashref($relation);
+
+        my ($target) = ( $relation->{form} // '' ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
+        next unless $target;
+
+        $cache->{$target} //= [ post_helper( { form => $target }, [], $query->{user_acls} ) ];
+
+        # No 'from' means the relation is the whole set rather than one of them.
+        my $from = $relation->{from};
+        if ( !$from ) {
+            $post->{$as} = $cache->{$target};
+            next;
+        }
+
+        my $wanted = $post->{$from};
+        $post->{$as} = defined $wanted ? List::Util::first { $_->{id} eq $wanted } @{ $cache->{$target} } : undef;
+    }
+
+    enrich_callback( $post, $query );
     return;
 }
 
@@ -1481,8 +1486,8 @@ sub series ($query) {
     # the route, and handing it the reader's pagination pages *that* lookup.
     # Asking for page two of a single post gets nothing, so a series carrying a
     # ?page= in its URL could not find itself and 404'd on its own page.  Latent
-    # until something started emitting page numbers -- see _paginate_offset.
-    my @posts = _post_helper( { %$query, page => 1, limit => 1 }, ['series'], [ _viewer_acls( $query, 1 ) ] );
+    # until something started emitting page numbers -- see paginate_offset.
+    my @posts = post_helper( { %$query, page => 1, limit => 1 }, ['series'], [ viewer_acls( $query, 1 ) ] );
 
     # The series post carries its *children's* relations, so that an editor
     # picker rendered on this page has something to populate from -- that is
@@ -1498,7 +1503,7 @@ sub series ($query) {
             # post gets overwritten.
             my $stand_in = { %{ $posts[0] }, form => $posts[0]{child_form} };
 
-            _enrich_post( $stand_in, { %$query, user_acls => [ _viewer_acls($query) ] } );
+            enrich_post( $stand_in, { %$query, user_acls => [ viewer_acls($query) ] } );
             @{ $posts[0] }{ keys(%$relations) } = @{$stand_in}{ keys(%$relations) };
         }
     }
@@ -1522,10 +1527,10 @@ Returns the avatars.css.
 =cut
 
 sub avatars ($query) {
-    $query->{user_acls} = [ _viewer_acls($query) ];
+    $query->{user_acls} = [ viewer_acls($query) ];
     my $tags = Trog::Utils::coerce_array( $query->{tag} );
 
-    my @posts = _post_helper( $query, $tags, $query->{user_acls} );
+    my @posts = post_helper( $query, $tags, $query->{user_acls} );
     if (@posts) {
 
         # Set the eTag so that we don't get a re-fetch
@@ -1570,7 +1575,7 @@ sub libravatar ($query) {
 
     return $query->{tpsgi}->notfound($query) unless $matched_user;
 
-    my @posts   = _post_helper( { author => $matched_user }, ['about'], [qw{public admin}] );
+    my @posts   = post_helper( { author => $matched_user }, ['about'], [qw{public admin}] );
     my $preview = @posts ? $posts[0]->{preview} : '';
 
     return $query->{tpsgi}->notfound($query) unless $preview;
@@ -1597,14 +1602,14 @@ sub users ($query) {
     return $query->{tpsgi}->notfound($query) unless $username;
 
     $query->{username} //= $username;
-    $query->{user_acls}    = [ _viewer_acls($query) ];
+    $query->{user_acls}    = [ viewer_acls($query) ];
     $query->{exclude_tags} = ['about'];
 
     # Don't show topbar series on the series page.  That said, don't exclude it from direct series view.
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
     push( @{ $query->{exclude_tags} }, 'topbar' ) if !$is_admin;
 
-    my @posts = _post_helper( { author => $query->{username} }, ['about'], $query->{user_acls} );
+    my @posts = post_helper( { author => $query->{username} }, ['about'], $query->{user_acls} );
     $query->{id}           = $posts[0]->{id};
     $query->{title}        = $posts[0]->{display_name};
     $posts[0]->{title}     = $posts[0]->{display_name};
@@ -1612,6 +1617,74 @@ sub users ($query) {
     $query->{primary_post} = $posts[0];
     $query->{in_series}    = 1;
     return posts($query);
+}
+
+my sub themed_title ($path) {
+    return $path unless %Theme::paths;
+    return $Theme::paths{$path} ? $Theme::paths{$path} : $path;
+}
+
+my sub post2rss ( $rss, $url, $post ) {
+    $rss->add_item(
+        title       => $post->{title},
+        permaLink   => $url,
+        link        => $url,
+        enclosure   => { url => $url, type => "text/html" },
+        description => "<![CDATA[$post->{data}]]>",
+        pubDate     => DateTime->from_epoch( epoch => $post->{created} ),    #TODO format like Thu, 23 Aug 1999 07:00:00 GMT
+        author      => $post->{user},                                        #TODO translate to "email (user)" format
+    );
+    return 1;
+}
+
+my sub _rss ( $query, $subtitle, $posts ) {
+
+    require XML::RSS;
+    my $rss  = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
+    my $now  = DateTime->from_epoch( epoch => time() );
+    my $port = $query->{port} ? ":$query->{port}" : '';
+    $rss->channel(
+        title         => "$query->{domain}",
+        subtitle      => $subtitle,
+        link          => "http://$query->{domain}$port/$query->{route}?format=xml",
+        language      => 'en',                                                        #TODO localization
+        description   => "$query->{domain} : $query->{route}",
+        pubDate       => $now,
+        lastBuildDate => $now,
+    );
+
+    $rss->image(
+        title       => $query->{domain},
+        url         => "/favicon.ico",
+        link        => "http://$query->{domain}$port",
+        width       => 32,
+        height      => 32,
+        description => "$query->{domain} favicon",
+    );
+
+    foreach my $post (@$posts) {
+        my $url = "http://$query->{domain}$port$post->{local_href}";
+        post2rss( $rss, $url, $post );
+        next unless ref $post->{aliases} eq 'ARRAY';
+        foreach my $alias ( @{ $post->{aliases} } ) {
+            $url = "http://$query->{domain}$port$alias";
+            post2rss( $rss, $url, $post );
+        }
+    }
+
+    return Trog::Renderer->render(
+        template => 'raw.tx',
+        data     => {
+            etag   => $query->{etag},
+            body   => encode_utf8( $rss->as_string ),
+            scheme => $query->{scheme},
+        },
+        headers => { 'Content-Disposition' => 'inline; filename="rss.xml"' },
+
+        #XXX if you do the "proper" content-type of application/rss+xml, browsers download rather than display.
+        contenttype => "text/xml",
+        code        => 200,
+    );
 }
 
 =head2 posts
@@ -1624,7 +1697,7 @@ sub posts ( $query, $direct = 0 ) {
 
     # Before we build the render data, not after: posts.tx is rendered here and
     # handed to index() as content, so index()'s own absorb would be too late.
-    _absorb_feedback($query);
+    absorb_feedback($query);
 
     # Allow rss.xml to tell what posts to loop over
     my $fmt = $query->{format} || '';
@@ -1641,7 +1714,7 @@ sub posts ( $query, $direct = 0 ) {
     $query->{id} = $id if $id && !$query->{in_series};
 
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
-    $query->{user_acls} = [ _viewer_acls( $query, $query->{id} ) ];
+    $query->{user_acls} = [ viewer_acls( $query, $query->{id} ) ];
     my @posts;
 
     # Discover this user's visibility, so we can make them post in this category by default
@@ -1655,17 +1728,17 @@ sub posts ( $query, $direct = 0 ) {
     }
     else {
         if ( $query->{user} ) {
-            my @me = _post_helper( { author => $query->{user} }, ['about'], $query->{user_acls} );
+            my @me = post_helper( { author => $query->{user} }, ['about'], $query->{user_acls} );
             $user_visibility = $me[0]->{visibility};
         }
-        @posts = _post_helper( $query, $tags, $query->{user_acls} );
+        @posts = post_helper( $query, $tags, $query->{user_acls} );
     }
 
     # A post type can say its posts come from somewhere other than the
     # datastore -- see Trog::DataSource::Virt, which builds them out of libvirt
     # guests.  The series is still an ordinary post; only its children are
     # synthesized, and they are rebuilt on every view rather than stored.
-    @posts = _datasource_posts( $query, \@posts );
+    @posts = datasource_posts( $query, \@posts );
 
     if ( $query->{id} ) {
         $query->{primary_post} = $posts[0] if @posts;
@@ -1676,7 +1749,7 @@ sub posts ( $query, $direct = 0 ) {
         my $user = shift(@posts);
         my $id   = delete $query->{id};
         $query->{author} = $user->{user};
-        @posts           = _post_helper( $query, $tags, $query->{user_acls} );
+        @posts           = post_helper( $query, $tags, $query->{user_acls} );
         @posts           = grep { $_->{id} ne $id } @posts;
         unshift @posts, $user;
     }
@@ -1689,7 +1762,7 @@ sub posts ( $query, $direct = 0 ) {
     $query->{etag} = "$posts[0]{id}-$posts[0]{version}" if @posts;
 
     #Correct page headers
-    my $ph = $themed ? _themed_title( $query->{route} ) : $query->{route};
+    my $ph = $themed ? themed_title( $query->{route} ) : $query->{route};
 
     return _rss( $query, $ph, \@posts ) if $fmt eq 'rss';
 
@@ -1711,11 +1784,11 @@ sub posts ( $query, $direct = 0 ) {
     my $oldest_year = $now_year - 20;                  #XXX actually find oldest post year
 
     # Datasource pages page by offset, everything else by the created cursor.
-    # See _paginate_offset() for why they cannot share.
+    # See paginate_offset() for why they cannot share.
     my ( $paginate_offset, $page_of, $pages_total ) = ( 0, 1, 1 );
     if ( $query->{is_datasource} ) {
         $paginate_offset = 1;
-        ( $page_of, $pages_total, @posts ) = _paginate_offset( $query, $limit, @posts );
+        ( $page_of, $pages_total, @posts ) = paginate_offset( $query, $limit, @posts );
     }
 
     my $older = !@posts ? 0 : $posts[-1]->{created};
@@ -1740,7 +1813,7 @@ sub posts ( $query, $direct = 0 ) {
     my @acls        = map {
         $_->{selected} = $_->{aclname} eq $aclselected ? 'selected' : '';
         $_
-    } _post_helper( {}, ['series'], $query->{user_acls} );
+    } post_helper( {}, ['series'], $query->{user_acls} );
 
     my $forms = Trog::Themes::themed_templates_in_dir( "forms", 'text/html', 1 );
 
@@ -1776,7 +1849,7 @@ sub posts ( $query, $direct = 0 ) {
     # Resolve each post's declared relations.  One cache for the whole page, so
     # 25 invoices don't mean 25 scans of every entities post.
     my %relation_cache;
-    _enrich_post( $_, $query, \%relation_cache ) foreach @posts;
+    enrich_post( $_, $query, \%relation_cache ) foreach @posts;
 
     #XXX the only reason this is needed is due to direct=1
     # Last thing before the data becomes a page: anything a type marks private
@@ -1786,7 +1859,7 @@ sub posts ( $query, $direct = 0 ) {
     # at all.
     if ( !$is_admin ) {
         my %seen;
-        _redact_private( $_, \%seen ) foreach ( @posts, $query->{primary_post} );
+        redact_private( $_, \%seen ) foreach ( @posts, $query->{primary_post} );
     }
 
     #XXX is this even used?
@@ -1840,12 +1913,7 @@ sub posts ( $query, $direct = 0 ) {
     return Trog::Routes::HTML::index( $query, $content, $styles );
 }
 
-sub _themed_title ($path) {
-    return $path unless %Theme::paths;
-    return $Theme::paths{$path} ? $Theme::paths{$path} : $path;
-}
-
-=head2 _redact_private($post, $seen)
+=head2 redact_private($post, $seen)
 
 Drop the fields a post type marks private, for a reader who isn't an editor.
 
@@ -1857,7 +1925,7 @@ posts too and carry their own private fields.
 
 =cut
 
-sub _redact_private ( $post, $seen = {} ) {
+sub redact_private ( $post, $seen = {} ) {
     return unless Ref::Util::is_hashref($post);
 
     # Relations can point back at what pulled them in.
@@ -1868,13 +1936,13 @@ sub _redact_private ( $post, $seen = {} ) {
     }
 
     foreach my $value ( values(%$post) ) {
-        if    ( Ref::Util::is_hashref($value) )  { _redact_private( $value, $seen ) }
-        elsif ( Ref::Util::is_arrayref($value) ) { _redact_private( $_,     $seen ) foreach @$value }
+        if    ( Ref::Util::is_hashref($value) )  { redact_private( $value, $seen ) }
+        elsif ( Ref::Util::is_arrayref($value) ) { redact_private( $_,     $seen ) foreach @$value }
     }
     return;
 }
 
-=head2 _datasource_posts($query, $posts)
+=head2 datasource_posts($query, $posts)
 
 Swap a series' children for whatever its datasource says they are, if its child
 type declares one.
@@ -1884,7 +1952,7 @@ them -- this is a hook, not a detour every page takes.
 
 =cut
 
-sub _datasource_posts ( $query, $posts ) {
+sub datasource_posts ( $query, $posts ) {
     my $series = $query->{primary_post};
     return @$posts unless Ref::Util::is_hashref($series) && $series->{child_form};
 
@@ -1943,7 +2011,7 @@ sub _datasource_posts ( $query, $posts ) {
     return @ordered;
 }
 
-=head2 _paginate_offset($query, $limit, @posts) = ($page, $pages_total, @page_of_posts)
+=head2 paginate_offset($query, $limit, @posts) = ($page, $pages_total, @page_of_posts)
 
 The slice of @posts the reader asked for, by page number.
 
@@ -1960,7 +2028,7 @@ nothing.  Offset costs nothing here and moves.
 
 =cut
 
-sub _paginate_offset ( $query, $limit, @posts ) {
+sub paginate_offset ( $query, $limit, @posts ) {
     $limit = 25 if !$limit || $limit < 1;
 
     my $total       = scalar(@posts);
@@ -1981,7 +2049,7 @@ sub _paginate_offset ( $query, $limit, @posts ) {
     return ( $page, $pages_total, @slice );
 }
 
-=head2 _search_language($query)
+=head2 search_language($query)
 
 What to tell the reader the search box searches, as (language, help link).
 
@@ -1992,7 +2060,7 @@ gets to say so.
 
 =cut
 
-sub _search_language ($query) {
+sub search_language ($query) {
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
 
@@ -2007,7 +2075,7 @@ sub _search_language ($query) {
     return ( scalar $lang->(), scalar $help->() );
 }
 
-=head2 _viewer_acls($query, $direct) = LIST
+=head2 viewer_acls($query, $direct) = LIST
 
 The acls to fetch posts for this viewer with: their own, and public, plus
 unlisted when the route names one post directly, plus private for an admin.
@@ -2016,14 +2084,22 @@ this.
 
 =cut
 
-sub _viewer_acls ( $query, $direct = 0 ) {
+sub viewer_acls ( $query, $direct = 0 ) {
     my @acls = ( @{ $query->{user_acls} // [] }, 'public' );
     push( @acls, 'unlisted' ) if $direct;
     push( @acls, 'private' )  if grep { $_ eq 'admin' } @acls;
     return List::Util::uniq(@acls);
 }
 
-sub _post_helper ( $query, $tags, $acls ) {
+=head2 post_helper($query, $tags, $acls) = LIST
+
+The posts that a listing shows: those tagged one of @$tags that @$acls can
+see, filtered and paged by the fields of $query.  page defaults to 1 and limit
+to 25.  For a logged in user, each local_href is under /secure.
+
+=cut
+
+sub post_helper ( $query, $tags, $acls ) {
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
 
@@ -2105,7 +2181,7 @@ sub sitemap ($query) {
         # Return the map of the particular range of dynamic posts
         $query->{limit} = 50000;
         $query->{page}  = $query->{map};
-        @to_map         = _post_helper( $query, [], ['public'] );
+        @to_map         = post_helper( $query, [], ['public'] );
     }
 
     if ( $query->{xml} ) {
@@ -2205,69 +2281,6 @@ sub sitemap ($query) {
       $query->{etag}       = $etag;
 
     return Trog::Routes::HTML::index( $query, undef, $styles );
-}
-
-sub _rss ( $query, $subtitle, $posts ) {
-
-    require XML::RSS;
-    my $rss  = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
-    my $now  = DateTime->from_epoch( epoch => time() );
-    my $port = $query->{port} ? ":$query->{port}" : '';
-    $rss->channel(
-        title         => "$query->{domain}",
-        subtitle      => $subtitle,
-        link          => "http://$query->{domain}$port/$query->{route}?format=xml",
-        language      => 'en',                                                        #TODO localization
-        description   => "$query->{domain} : $query->{route}",
-        pubDate       => $now,
-        lastBuildDate => $now,
-    );
-
-    $rss->image(
-        title       => $query->{domain},
-        url         => "/favicon.ico",
-        link        => "http://$query->{domain}$port",
-        width       => 32,
-        height      => 32,
-        description => "$query->{domain} favicon",
-    );
-
-    foreach my $post (@$posts) {
-        my $url = "http://$query->{domain}$port$post->{local_href}";
-        _post2rss( $rss, $url, $post );
-        next unless ref $post->{aliases} eq 'ARRAY';
-        foreach my $alias ( @{ $post->{aliases} } ) {
-            $url = "http://$query->{domain}$port$alias";
-            _post2rss( $rss, $url, $post );
-        }
-    }
-
-    return Trog::Renderer->render(
-        template => 'raw.tx',
-        data     => {
-            etag   => $query->{etag},
-            body   => encode_utf8( $rss->as_string ),
-            scheme => $query->{scheme},
-        },
-        headers => { 'Content-Disposition' => 'inline; filename="rss.xml"' },
-
-        #XXX if you do the "proper" content-type of application/rss+xml, browsers download rather than display.
-        contenttype => "text/xml",
-        code        => 200,
-    );
-}
-
-sub _post2rss ( $rss, $url, $post ) {
-    $rss->add_item(
-        title       => $post->{title},
-        permaLink   => $url,
-        link        => $url,
-        enclosure   => { url => $url, type => "text/html" },
-        description => "<![CDATA[$post->{data}]]>",
-        pubDate     => DateTime->from_epoch( epoch => $post->{created} ),    #TODO format like Thu, 23 Aug 1999 07:00:00 GMT
-        author      => $post->{user},                                        #TODO translate to "email (user)" format
-    );
-    return 1;
 }
 
 =head2 manual
@@ -2443,7 +2456,7 @@ our @wizard_optional_includes = grep {
 
 # The checkboxes which are not editor includes: the wrapper div, and the two
 # canned blocks a type splices into its display half.  Read back out of the
-# template by _wizard_display_of(), since %wizard_includes covers only the
+# template by wizard_display_of(), since %wizard_includes covers only the
 # blocks that go into the editor.
 our @wizard_display_checkboxes = qw{wrapper inc_post_title inc_post_tags};
 
@@ -2451,7 +2464,7 @@ our @wizard_checkboxes         = ( @wizard_display_checkboxes, @wizard_optional_
 our %wizard_checked_by_default = map { $_ => 1 } qw{wrapper inc_post_title inc_post_tags inc_preview inc_tags inc_aliases};
 
 # Which HTML input the wizard emits, and what that field is in the sidecar's
-# OpenAPIv3 schema.  No 'file': _process() in Trog::DataModule only knows how to
+# OpenAPIv3 schema.  No 'file': process() in Trog::DataModule only knows how to
 # turn the four hardcoded upload fields into hrefs, so a custom file field would
 # store an HTTP::Body::OctetStream that nothing ever picks up.  Point folks at
 # the attachment uploader instead.
@@ -2468,6 +2481,16 @@ our %wizard_field_types = (
 # Field names which aren't in %schema but would still collide with something.
 our @wizard_reserved = qw{app to form data_is_array addpost extra_tags is_image is_video is_audio is_profile content_type version};
 
+# The hypervisor post a guest route was asked about.  Looked up rather than
+# taken from the request: the connection URI is not something a form gets to
+# hand us.
+my sub guest_hypervisor ( $query, $id ) {
+    return undef unless $id;
+    my @found = post_helper( { id => $id }, [], $query->{user_acls} );
+    return undef unless @found && ( $found[0]{conn_uri} // '' );
+    return $found[0];
+}
+
 =head2 guest_screenshot
 
 Implements GET /guest/screenshot/$hypervisor/$guest.  Admin only.
@@ -2482,7 +2505,7 @@ sub guest_screenshot ($query) {
     return $query->{tpsgi}->see_also('/login') unless $query->{user};
     return $query->{tpsgi}->forbidden($query)  unless grep { $_ eq 'admin' } @{ $query->{user_acls} };
 
-    my $hypervisor = _guest_hypervisor( $query, $query->{hypervisor} );
+    my $hypervisor = guest_hypervisor( $query, $query->{hypervisor} );
     return $query->{tpsgi}->notfound($query) unless $hypervisor;
 
     require Trog::DataSource::Virt;
@@ -2514,8 +2537,8 @@ sub guest_act ($query) {
 
     my $to = $query->{to} || '/';
 
-    my $hypervisor = _guest_hypervisor( $query, $query->{hypervisor} );
-    return _feedback_redirect( $query, $to, 1, 'No such hypervisor.' ) unless $hypervisor;
+    my $hypervisor = guest_hypervisor( $query, $query->{hypervisor} );
+    return feedback_redirect( $query, $to, 1, 'No such hypervisor.' ) unless $hypervisor;
 
     require Trog::DataSource::Virt;
 
@@ -2525,7 +2548,7 @@ sub guest_act ($query) {
         $query->{action}, $hypervisor->{conn_uri}, $query->{guest}, $query->{user},
     );
 
-    return _feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{guest}: $message" );
+    return feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{guest}: $message" );
 }
 
 =head2 guest_reprovision
@@ -2572,7 +2595,7 @@ sub guest_reprovision ($query) {
     # in a log is still a code somebody wrote down.
     delete $query->{$_} foreach qw{passphrase sudo totp};
 
-    return _feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
+    return feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
 }
 
 =head2 guest_reprovision_log
@@ -2606,14 +2629,10 @@ sub guest_reprovision_log ($query) {
     );
 }
 
-# The hypervisor post a guest route was asked about.  Looked up rather than
-# taken from the request: the connection URI is not something a form gets to
-# hand us.
-sub _guest_hypervisor ( $query, $id ) {
-    return undef unless $id;
-    my @found = _post_helper( { id => $id }, [], $query->{user_acls} );
-    return undef unless @found && ( $found[0]{conn_uri} // '' );
-    return $found[0];
+# Repeated params arrive as arrayrefs; anywhere we want one string, insist on one string.
+my sub wizard_scalar ( $value = '' ) {
+    return '' if !defined $value || ref $value;
+    return $value;
 }
 
 =head2 post_wizard
@@ -2655,16 +2674,16 @@ sub post_wizard ($query) {
             is_admin          => 1,
             forms             => $forms,
             forms_dir         => Trog::Themes::forms_dir(),
-            types             => _wizard_types_json($forms),
+            types             => wizard_types_json($forms),
             type_names        => [ map { ( $_ =~ s/\.tx$//r ) } @$forms ],
-            description       => _wizard_description( $query->{description} ),
-            datasources       => _get_datasources(),
-            datasource        => _wizard_scalar( $query->{datasource} ),
+            description       => wizard_description( $query->{description} ),
+            datasources       => get_datasources(),
+            datasource        => wizard_scalar( $query->{datasource} ),
             checked           => \%checked,
-            name              => _wizard_scalar( $query->{name} ),
-            title_placeholder => _wizard_scalar( $query->{title_placeholder} ),
-            body_form         => _wizard_scalar( $query->{body_form} ),
-            display           => _wizard_scalar( $query->{display} ),
+            name              => wizard_scalar( $query->{name} ),
+            title_placeholder => wizard_scalar( $query->{title_placeholder} ),
+            body_form         => wizard_scalar( $query->{body_form} ),
+            display           => wizard_scalar( $query->{display} ),
             failure           => $query->{failure},
             message           => $query->{message} // '',
             to                => $query->{to}      // '',
@@ -2672,6 +2691,147 @@ sub post_wizard ($query) {
         undef,
         ['post.css'],
     );
+}
+
+=head2 wizard_reindex($name, $fields)
+
+Bring the data model's idea of which custom fields are queryable into line with
+what the post types on disk declare.
+
+Every type's indexed fields, not just the one that was saved: two types can
+declare a field of the same name, so reconciling against one of them alone would
+have saving that type drop the other's index.
+
+The type being saved is taken from the field list in hand rather than by reading
+back the sidecar just written.  schema_for() caches on the mtime of the forms
+directory, which has one second of resolution, so a read here can legitimately
+land on the generation before this save.
+
+Returns the error if there was one, and nothing if all was well.  A failure to
+index is not a failure to create the post type: the type is written by this
+point, works, and is only missing an optimisation.
+
+=cut
+
+my sub wizard_reindex ( $name, $fields ) {
+    my %indexed = map { $_->{name} => 1 } grep { $_->{indexed} } @$fields;
+
+    my $this_type = "$name.tx";
+    foreach my $form ( @{ Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 ) } ) {
+        next if $form eq $this_type;
+        $indexed{$_} = 1 foreach @{ Trog::DataModule::indexed_fields_for($form) };
+    }
+
+    local $@;
+    eval {
+        my $data = Trog::Data->new( Trog::Config::get() );
+        $data->index_fields( sort keys %indexed );
+        1;
+    } or do {
+        my $error = $@;
+        WARN("Could not reconcile custom field indexes: $error");
+        return $error;
+    };
+
+    return;
+}
+
+my sub wizard_fail ( $query, $message ) {
+    WARN($message);
+    return post_wizard(
+        {
+            %$query,
+            wizard_submitted => 1,
+            failure          => 1,
+            message          => $message,
+        }
+    );
+}
+
+my sub wizard_field_html ($field) {
+    my ( $n, $t, $l, $p ) = @$field{qw{name type label placeholder}};
+    my $required = $field->{required} ? 'required ' : '';
+
+    if ( $t eq 'relation' ) {
+
+        # 'all' relations aren't stored, so there is nothing to edit.
+        return '' if $field->{relation_mode} eq 'all';
+
+        # Left empty on purpose: post_relations.js fills it from
+        # /api/posts_of_form, so the picker can't go stale against the
+        # generated template.
+        return qq|            $l<br /><select ${required}class="cooltext relation-picker" name="$n" data-relation-form="$field->{relation_form}" data-selected="<: \$post.$n :>"></select>\n|;
+    }
+
+    return qq|            $l<br /><textarea ${required}class="cooltext" name="$n" placeholder="$p"><: \$post.$n :></textarea>\n|
+      if $t eq 'textarea';
+
+    return qq|            <label for="<: \$post.id :>-$n">$l<input id="<: \$post.id :>-$n" class="coolcb" type="checkbox" name="$n" value="1" <: if ( \$post.$n ) { "checked" } :> /></label><br />\n|
+      if $t eq 'checkbox';
+
+    return qq|            $l<br /><input ${required}class="cooltext" type="$t" name="$n" placeholder="$p" value="<: \$post.$n :>" />\n|;
+}
+
+=head2 wizard_template
+
+Assemble the actual .tx file, following the shape of the hand-written forms:
+a display half guarded by !$post.addpost, and an edit half guarded by $can_edit.
+
+=cut
+
+my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {
+    my $placeholder = kolon_safe( $query->{title_placeholder} ) || 'Iowa Man Destroys Moon';
+
+    # NOT escaped, on purpose.  Letting an admin write template code is the
+    # entire point of the wizard, and it is no more privileged than the data
+    # field of any post, which already gets run through render_it().  Both
+    # sides of this route are behind the admin ACL.
+    my $display = wizard_scalar( $query->{display} );
+
+    my $out = "<!-- Generated by the tCMS Post Type Wizard.  Regenerating this type will overwrite any hand edits. -->\n";
+
+    # A series can ask for its children to be tiled, which is a layout the
+    # wrapper has to carry -- see how file.tx and series.tx do it.  Harmless
+    # when the series hasn't asked, and it means a generated type gets tiling
+    # for free rather than being the one kind of post that ignores the setting.
+    $out .= qq|<div class="post <: \$style :> <: \$tiled ? 'tile' : '' :>">\n| if $query->{wrapper};
+    $out .= qq|    : if ( !\$post.addpost ) {\n|;
+    $out .= qq|        : include "post_title.tx";\n| if $query->{inc_post_title};
+    $out .= qq|        : include "post_tags.tx";\n|  if $query->{inc_post_tags};
+    $out .= "$display\n"                             if $display;
+    $out .= qq|    : }\n|;
+
+    # A datasource can say its posts are built rather than written, in which
+    # case an editor would be a form saving something nobody can edit -- and
+    # for Trog::DataSource::Virt, one that writes a real post to sit alongside
+    # the synthesized ones and collide with them.
+    if ( !datasource_editable($datasource) ) {
+        $out .= qq|</div>\n| if $query->{wrapper};
+        return $out;
+    }
+
+    $out .= qq|\n|;
+    $out .= qq|    : if ( \$can_edit ) {\n|;
+    $out .= qq|        <div class="postedit">\n|;
+    $out .= qq|        : include "edit_head.tx";\n|;
+    $out .= qq|        <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">\n|;
+    $out .= qq|            Title *<br /><input required class="cooltext" type="text" name="title" placeholder="$placeholder" value="<: \$post.title :>" />\n|
+      if $query->{inc_title_input};
+    $out .= wizard_field_html($_) foreach @$fields;
+
+    foreach my $include (@$includes) {
+        $out .= qq|            : include "$wizard_includes{$include}";\n|;
+    }
+
+    # Always last, and never optional: this is what carries the post body, the
+    # app/to/id/form hiddens and the submit button.
+    $out .= qq|            : include "$body_form";\n|;
+    $out .= qq|        </form>\n|;
+    $out .= qq|        : include "edit_foot.tx";\n|;
+    $out .= qq|        </div>\n|;
+    $out .= qq|    : }\n|;
+    $out .= qq|</div>\n| if $query->{wrapper};
+    return $out;
 }
 
 =head2 post_wizard_save
@@ -2692,8 +2852,8 @@ sub post_wizard_save ($query) {
     # Anchored capture rather than a substitution, so anything containing a '/'
     # or a '..' simply fails to match instead of being silently scrubbed into
     # something that still escapes the directory.
-    my ($name) = _wizard_scalar( $query->{name} ) =~ m/^([A-Za-z0-9_-]+)$/;
-    return _wizard_fail( $query, "Post type names may only contain letters, numbers, '-' and '_'." ) unless $name;
+    my ($name) = wizard_scalar( $query->{name} ) =~ m/^([A-Za-z0-9_-]+)$/;
+    return wizard_fail( $query, "Post type names may only contain letters, numbers, '-' and '_'." ) unless $name;
 
     # Whichever forms dir is in use: the theme's if it has one, the stock one
     # otherwise.  Never mkdir it -- silently conjuring a forms/ dir inside a
@@ -2704,26 +2864,26 @@ sub post_wizard_save ($query) {
     # nothing about read-only mounts, ACLs or immutable flags -- and it is the
     # files, not the directory, that get written.  The eval around the two
     # spew_utf8 calls below reports the real errno when a write actually fails.
-    return _wizard_fail( $query, "Forms directory '$dir' does not exist." ) unless -d $dir;
+    return wizard_fail( $query, "Forms directory '$dir' does not exist." ) unless -d $dir;
 
     my $tx_file   = "$dir/$name.tx";
     my $json_file = "$dir/$name.json";
 
     my $overwriting = -e $tx_file;
-    return _wizard_fail( $query, "Post type '$name.tx' already exists.  Tick 'Overwrite' if you meant to replace it." )
+    return wizard_fail( $query, "Post type '$name.tx' already exists.  Tick 'Overwrite' if you meant to replace it." )
       if $overwriting && !$query->{overwrite};
 
     # Whitelisted against what is actually on disk: this name goes into a
     # sidecar and is require()d later, so a regex is not enough.
-    my $datasource = _wizard_scalar( $query->{datasource} );
-    if ( $datasource && !grep { $_ eq $datasource } @{ _get_datasources() } ) {
-        return _wizard_fail( $query, "'$datasource' is not a datasource I can find." );
+    my $datasource = wizard_scalar( $query->{datasource} );
+    if ( $datasource && !grep { $_ eq $datasource } @{ get_datasources() } ) {
+        return wizard_fail( $query, "'$datasource' is not a datasource I can find." );
     }
 
-    my $fields = _wizard_fields($query);
+    my $fields = wizard_fields($query);
 
     # Not up for discussion.  A post with no visibility gets an undef pushed
-    # into its tags by _process, which is a tag nothing matches -- so the post
+    # into its tags by process, which is a tag nothing matches -- so the post
     # is invisible to everyone but an admin, for no reason anybody chose.  A
     # title and a set of acls are equally non-negotiable: every other form has
     # them, and a type whose editor cannot set them produces posts nobody can
@@ -2731,31 +2891,31 @@ sub post_wizard_save ($query) {
     $query->{$_} = 1 foreach @wizard_mandatory;
 
     my @includes  = grep { $query->{$_} } @wizard_include_order;
-    my $body_form = _wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
+    my $body_form = wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
 
-    my $spec = _wizard_sidecar(
+    my $spec = wizard_sidecar(
         $name, $fields, \@includes, $body_form, $datasource,
         {
-            description       => _wizard_description( $query->{description} ),
-            display           => _wizard_scalar( $query->{display} ),
-            title_placeholder => _wizard_scalar( $query->{title_placeholder} ),
+            description       => wizard_description( $query->{description} ),
+            display           => wizard_scalar( $query->{display} ),
+            title_placeholder => wizard_scalar( $query->{title_placeholder} ),
             map { $_ => $query->{$_} ? 1 : 0 } qw{wrapper inc_post_title inc_post_tags},
         }
     );
 
     local $@;
     eval {
-        Path::Tiny::path($tx_file)->spew_utf8( _wizard_template( $query, $fields, \@includes, $body_form, $datasource ) );
+        Path::Tiny::path($tx_file)->spew_utf8( wizard_template( $query, $fields, \@includes, $body_form, $datasource ) );
         Path::Tiny::path($json_file)->spew_utf8( JSON::MaybeXS->new( pretty => 1, canonical => 1 )->encode($spec) );
         1;
-    } or return _wizard_fail( $query, "Failed to write post type '$name': $@" );
+    } or return wizard_fail( $query, "Failed to write post type '$name': $@" );
 
     INFO("Post type '$name' written to $tx_file by $query->{user}");
 
     # Whatever the data model makes of an indexed field, it wants the whole
-    # picture rather than this type's share of it -- see _wizard_reindex.
-    my $index_error = _wizard_reindex( $name, $fields );
-    return _wizard_fail( $query, "Post type '$name' was written, but indexing its fields failed: $index_error" ) if $index_error;
+    # picture rather than this type's share of it -- see wizard_reindex.
+    my $index_error = wizard_reindex( $name, $fields );
+    return wizard_fail( $query, "Post type '$name' was written, but indexing its fields failed: $index_error" ) if $index_error;
 
     # Nothing else is needed to publish a new type: themed_templates_in_dir()
     # re-reads
@@ -2782,7 +2942,7 @@ sub post_wizard_save ($query) {
     );
 }
 
-=head2 _short_error($error) = STRING
+=head2 short_error($error) = STRING
 
 An error as a person should see it: the first line, without the file and line
 number Perl glued onto the end.
@@ -2796,129 +2956,18 @@ The undecorated original is logged; this is only what reaches the banner.
 
 =cut
 
-sub _short_error ( $error = '' ) {
+sub short_error ( $error = '' ) {
     $error = "$error";
     $error =~ s/\n.*//s;
     $error =~ s/\s+at\s+\S+\s+line\s+\d+\.?\s*$//;
     return $error;
 }
 
-=head2 _wizard_reindex($name, $fields)
-
-Bring the data model's idea of which custom fields are queryable into line with
-what the post types on disk declare.
-
-Every type's indexed fields, not just the one that was saved: two types can
-declare a field of the same name, so reconciling against one of them alone would
-have saving that type drop the other's index.
-
-The type being saved is taken from the field list in hand rather than by reading
-back the sidecar just written.  schema_for() caches on the mtime of the forms
-directory, which has one second of resolution, so a read here can legitimately
-land on the generation before this save.
-
-Returns the error if there was one, and nothing if all was well.  A failure to
-index is not a failure to create the post type: the type is written by this
-point, works, and is only missing an optimisation.
-
-=cut
-
-sub _wizard_reindex ( $name, $fields ) {
-    my %indexed = map { $_->{name} => 1 } grep { $_->{indexed} } @$fields;
-
-    my $this_type = "$name.tx";
-    foreach my $form ( @{ Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 ) } ) {
-        next if $form eq $this_type;
-        $indexed{$_} = 1 foreach @{ Trog::DataModule::indexed_fields_for($form) };
-    }
-
-    local $@;
-    eval {
-        my $data = Trog::Data->new( Trog::Config::get() );
-        $data->index_fields( sort keys %indexed );
-        1;
-    } or do {
-        my $error = $@;
-        WARN("Could not reconcile custom field indexes: $error");
-        return $error;
-    };
-
-    return;
-}
-
-=head2 _wizard_types($forms) = HASHREF
-
-Every post type on disk, in the shape the wizard's form is in.
-
-This is the other direction from _wizard_sidecar: it reads a type back out and
-says what the wizard would have had to be told to produce it, so that picking one
-from the dropdown can put the form into that state.
-
-Everything but the display template and the canned includes comes out of the
-sidecar.  The display comes out of the sidecar too for anything written since it
-started being recorded there, and is read back out of the template itself
-otherwise -- see _wizard_display_from_template, and note that a hand-written type
-will often yield nothing, which is honest: there is no wizard form that produces
-it.
-
-The includes always come out of the template, via
-Trog::DataModule::includes_for(), since only a generated sidecar ever recorded
-them.  That is also what tells the field list apart from the checkboxes: a
-preview image is a field of every type which includes preview.tx, so it is that
-box being ticked rather than a custom field somebody added.
-
-=cut
-
-sub _wizard_types ($forms) {
-    my %types;
-
-    foreach my $form (@$forms) {
-        my $schema = Trog::DataModule::schema_for($form);
-        my $meta   = Trog::DataModule::type_meta_for($form);
-        my $type   = $meta->{'x-tcms-post-type'};
-        $type = {} unless Ref::Util::is_hashref($type);
-
-        # What the editor actually splices in, which for a hand-written type is
-        # the only account there is -- nothing but a generated sidecar records
-        # the list.  Keyed on the template name, which is what %wizard_includes
-        # maps a checkbox to.
-        my %includes = map { $_ => 1 } @{ Trog::DataModule::includes_for($form) };
-
-        my $display = $type->{display};
-        $display = _wizard_display_from_template($form) unless $display;
-
-        # The wrapper div and the two blocks which belong to a type's display
-        # half rather than to its editor.  Same reading as the includes, and for
-        # the same reason: a hand-written type recorded none of it, and the
-        # generated ones written before these were recorded did not either.
-        my $shown = _wizard_display_of($form) // { map { $_ => $type->{$_} ? 1 : 0 } @wizard_display_checkboxes };
-
-        $types{$form} = {
-            name              => ( $form =~ s/\.tx$//r ),
-            description       => $type->{description} // '',
-            display           => $display             // '',
-            body_form         => _wizard_body_form_of( \%includes, $type ),
-            datasource        => $meta->{'x-tcms-datasource'} // '',
-            title_placeholder => $type->{title_placeholder}   // '',
-            generated         => $type->{generated} ? 1 : 0,
-
-            # The wizard's own checkboxes, every one of them an answer about
-            # what the template does rather than about what the sidecar says.
-            %$shown,
-            ( map { $_ => $includes{ $wizard_includes{$_} } ? 1 : 0 } @wizard_optional_includes ),
-
-            fields => _wizard_fields_of( $schema, $meta, \%includes ),
-        };
-    }
-
-    return \%types;
-}
-
 # Which body form a type carries, which is an include like any other -- see the
-# bottom of _wizard_template.  The sidecar is the fallback for a type whose
+# bottom of wizard_template.  The sidecar is the fallback for a type whose
 # template says nothing, which is what a datasource type with no editor at all
 # looks like.
-sub _wizard_body_form_of ( $includes, $type ) {
+my sub wizard_body_form_of ( $includes, $type ) {
     return 'form_multi.tx'  if $includes->{'form_multi.tx'};
     return 'form_common.tx' if $includes->{'form_common.tx'};
     return $type->{body_form} // 'form_common.tx';
@@ -2932,7 +2981,7 @@ sub _wizard_body_form_of ( $includes, $type ) {
 # sidecar as the fallback rather than making it a second opinion.  The template
 # is what actually renders, so where the two disagree it is the template which
 # is telling the truth.
-sub _wizard_display_of ($form) {
+my sub wizard_display_of ($form) {
     my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
     return undef unless $path;
 
@@ -2946,7 +2995,7 @@ sub _wizard_display_of ($form) {
     );
 
     # The wrapper is the first thing a type that has one emits, ahead of any
-    # Kolon at all -- see _wizard_template.  So only the first line with
+    # Kolon at all -- see wizard_template.  So only the first line with
     # anything on it is asked, and a type which opens with its own markup or its
     # own directive is one that ticked the box off.
     foreach my $line ( split( "\n", $template ) ) {
@@ -2960,7 +3009,7 @@ sub _wizard_display_of ($form) {
 }
 
 # The custom fields of a type, as rows the wizard would have submitted.
-sub _wizard_fields_of ( $schema, $meta, $includes = {} ) {
+my sub wizard_fields_of ( $schema, $meta, $includes = {} ) {
     my $properties = $schema->{properties} // {};
     my %required   = map { $_ => 1 } @{ $schema->{required} // [] };
     my $relations  = $meta->{'x-tcms-relations'};
@@ -3033,19 +3082,19 @@ sub _wizard_fields_of ( $schema, $meta, $includes = {} ) {
     return \@fields;
 }
 
-=head2 _wizard_display_from_template($form)
+=head2 wizard_display_from_template($form)
 
 Recover a generated type's display template from the template itself.
 
 For types written before the wizard started recording it in the sidecar.  Only
 attempted for a file carrying the generated marker, and only between the two
-lines _wizard_template puts around it, so this either finds exactly what was
+lines wizard_template puts around it, so this either finds exactly what was
 submitted or finds nothing.  A hand-written type finds nothing, which is correct:
 there is no wizard form that produces one.
 
 =cut
 
-sub _wizard_display_from_template ($form) {
+my sub wizard_display_from_template ($form) {
     my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
     return '' unless $path;
 
@@ -3079,9 +3128,77 @@ sub _wizard_display_from_template ($form) {
     return $display;
 }
 
-=head2 _wizard_types_json($forms) = STRING
+=head2 wizard_types($forms) = HASHREF
 
-_wizard_types() as JSON, safe to drop into a script element.
+Every post type on disk, in the shape the wizard's form is in.
+
+This is the other direction from wizard_sidecar: it reads a type back out and
+says what the wizard would have had to be told to produce it, so that picking one
+from the dropdown can put the form into that state.
+
+Everything but the display template and the canned includes comes out of the
+sidecar.  The display comes out of the sidecar too for anything written since it
+started being recorded there, and is read back out of the template itself
+otherwise -- see wizard_display_from_template, and note that a hand-written type
+will often yield nothing, which is honest: there is no wizard form that produces
+it.
+
+The includes always come out of the template, via
+Trog::DataModule::includes_for(), since only a generated sidecar ever recorded
+them.  That is also what tells the field list apart from the checkboxes: a
+preview image is a field of every type which includes preview.tx, so it is that
+box being ticked rather than a custom field somebody added.
+
+=cut
+
+sub wizard_types ($forms) {
+    my %types;
+
+    foreach my $form (@$forms) {
+        my $schema = Trog::DataModule::schema_for($form);
+        my $meta   = Trog::DataModule::type_meta_for($form);
+        my $type   = $meta->{'x-tcms-post-type'};
+        $type = {} unless Ref::Util::is_hashref($type);
+
+        # What the editor actually splices in, which for a hand-written type is
+        # the only account there is -- nothing but a generated sidecar records
+        # the list.  Keyed on the template name, which is what %wizard_includes
+        # maps a checkbox to.
+        my %includes = map { $_ => 1 } @{ Trog::DataModule::includes_for($form) };
+
+        my $display = $type->{display};
+        $display = wizard_display_from_template($form) unless $display;
+
+        # The wrapper div and the two blocks which belong to a type's display
+        # half rather than to its editor.  Same reading as the includes, and for
+        # the same reason: a hand-written type recorded none of it, and the
+        # generated ones written before these were recorded did not either.
+        my $shown = wizard_display_of($form) // { map { $_ => $type->{$_} ? 1 : 0 } @wizard_display_checkboxes };
+
+        $types{$form} = {
+            name              => ( $form =~ s/\.tx$//r ),
+            description       => $type->{description} // '',
+            display           => $display             // '',
+            body_form         => wizard_body_form_of( \%includes, $type ),
+            datasource        => $meta->{'x-tcms-datasource'} // '',
+            title_placeholder => $type->{title_placeholder}   // '',
+            generated         => $type->{generated} ? 1 : 0,
+
+            # The wizard's own checkboxes, every one of them an answer about
+            # what the template does rather than about what the sidecar says.
+            %$shown,
+            ( map { $_ => $includes{ $wizard_includes{$_} } ? 1 : 0 } @wizard_optional_includes ),
+
+            fields => wizard_fields_of( $schema, $meta, \%includes ),
+        };
+    }
+
+    return \%types;
+}
+
+=head2 wizard_types_json($forms) = STRING
+
+wizard_types() as JSON, safe to drop into a script element.
 
 Every '<' is escaped, which is still valid JSON and means the string cannot
 close the element it is sitting in -- a display template is full of markup, and
@@ -3089,8 +3206,8 @@ one containing the characters that end a script tag would otherwise end it.
 
 =cut
 
-sub _wizard_types_json ($forms) {
-    my $json = eval { JSON::MaybeXS->new( canonical => 1 )->encode( _wizard_types($forms) ) };
+sub wizard_types_json ($forms) {
+    my $json = eval { JSON::MaybeXS->new( canonical => 1 )->encode( wizard_types($forms) ) };
     if ( !defined $json ) {
         WARN("Could not describe the existing post types: $@");
         return '{}';
@@ -3100,7 +3217,7 @@ sub _wizard_types_json ($forms) {
     return $json;
 }
 
-=head2 _wizard_description($description)
+=head2 wizard_description($description)
 
 A post type's description, as it goes into the sidecar.
 
@@ -3112,31 +3229,13 @@ sane length and stop it being something other than a string.
 
 our $wizard_description_max = 2048;
 
-sub _wizard_description ( $description = '' ) {
-    $description = _wizard_scalar($description);
+sub wizard_description ( $description = '' ) {
+    $description = wizard_scalar($description);
     $description = substr( $description, 0, $wizard_description_max ) if length($description) > $wizard_description_max;
     return $description;
 }
 
-# Repeated params arrive as arrayrefs; anywhere we want one string, insist on one string.
-sub _wizard_scalar ( $value = '' ) {
-    return '' if !defined $value || ref $value;
-    return $value;
-}
-
-sub _wizard_fail ( $query, $message ) {
-    WARN($message);
-    return post_wizard(
-        {
-            %$query,
-            wizard_submitted => 1,
-            failure          => 1,
-            message          => $message,
-        }
-    );
-}
-
-=head2 _kolon_safe
+=head2 kolon_safe
 
 Make a submitted string safe to splice into a generated Kolon template.
 Newlines have to go, as a ':' at the start of a line is a Kolon directive, and
@@ -3144,8 +3243,8 @@ the angle brackets have to go so that '<:' can never be reassembled.
 
 =cut
 
-sub _kolon_safe ( $string = '' ) {
-    $string = _wizard_scalar($string);
+sub kolon_safe ( $string = '' ) {
+    $string = wizard_scalar($string);
     $string =~ s/[\r\n]+/ /g;
     $string =~ s/&/&amp;/g;
     $string =~ s/</&lt;/g;
@@ -3154,7 +3253,7 @@ sub _kolon_safe ( $string = '' ) {
     return $string;
 }
 
-=head2 _wizard_fields
+=head2 wizard_fields
 
 Zip the parallel param_* arrays submitted by the wizard back into a list of
 field definitions.  Every row always submits exactly one of each param, so the
@@ -3162,7 +3261,7 @@ arrays stay aligned even when a row is left blank.
 
 =cut
 
-sub _wizard_fields ($query) {
+sub wizard_fields ($query) {
     my $names   = Trog::Utils::coerce_array( $query->{param_name} );
     my $types   = Trog::Utils::coerce_array( $query->{param_type} );
     my $labels  = Trog::Utils::coerce_array( $query->{param_label} );
@@ -3175,7 +3274,7 @@ sub _wizard_fields ($query) {
 
     my ( @fields, %seen );
     foreach my $index ( 0 .. $#$names ) {
-        my ($fname) = lc( _wizard_scalar( $names->[$index] ) ) =~ m/^([a-z][a-z0-9_]{0,31})$/;
+        my ($fname) = lc( wizard_scalar( $names->[$index] ) ) =~ m/^([a-z][a-z0-9_]{0,31})$/;
 
         # Blank and bogus rows just get dropped.
         next unless $fname;
@@ -3185,13 +3284,13 @@ sub _wizard_fields ($query) {
         next if exists $Trog::DataModule::post_schema{properties}{$fname};
         next if grep { $fname eq $_ } @wizard_reserved;
 
-        my $type = _wizard_scalar( $types->[$index] );
+        my $type = wizard_scalar( $types->[$index] );
         $type = 'text' unless $wizard_field_types{$type};
 
         # A relation is only a relation if it names a target type that looks
         # like one; anything else falls back to being a plain text field.
-        my ($rform) = _wizard_scalar( $rforms->[$index] ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
-        my $rmode = _wizard_scalar( $rmodes->[$index] ) eq 'all' ? 'all' : 'one';
+        my ($rform) = wizard_scalar( $rforms->[$index] ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
+        my $rmode = wizard_scalar( $rmodes->[$index] ) eq 'all' ? 'all' : 'one';
         $type = 'text' if $type eq 'relation' && !$rform;
 
         push(
@@ -3199,20 +3298,20 @@ sub _wizard_fields ($query) {
             {
                 name          => $fname,
                 type          => $type,
-                label         => _kolon_safe( $labels->[$index] ) || ucfirst($fname),
-                placeholder   => _kolon_safe( $phs->[$index] ),
-                required      => _wizard_scalar( $reqs->[$index] ) ? 1 : 0,
+                label         => kolon_safe( $labels->[$index] ) || ucfirst($fname),
+                placeholder   => kolon_safe( $phs->[$index] ),
+                required      => wizard_scalar( $reqs->[$index] ) ? 1 : 0,
                 relation_form => $rform,
                 relation_mode => $rmode,
-                private       => _wizard_scalar( $private->[$index] ) ? 1 : 0,
-                indexed       => _wizard_scalar( $indexed->[$index] ) ? 1 : 0,
+                private       => wizard_scalar( $private->[$index] ) ? 1 : 0,
+                indexed       => wizard_scalar( $indexed->[$index] ) ? 1 : 0,
             }
         );
     }
     return \@fields;
 }
 
-=head2 _wizard_sidecar
+=head2 wizard_sidecar
 
 Turn the wizard's field list into the post type's JSON sidecar: an OpenAPIv3
 object schema describing what this type ingests, with the wizard's own UI
@@ -3222,7 +3321,7 @@ Trog::DataModule::schema_for() merges this over the base post schema.
 
 =cut
 
-sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $extra = {} ) {
+sub wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $extra = {} ) {
     my %properties;
     my @required;
 
@@ -3291,92 +3390,6 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $
     $spec{'x-tcms-datasource'} = $datasource if $datasource;
 
     return \%spec;
-}
-
-sub _wizard_field_html ($field) {
-    my ( $n, $t, $l, $p ) = @$field{qw{name type label placeholder}};
-    my $required = $field->{required} ? 'required ' : '';
-
-    if ( $t eq 'relation' ) {
-
-        # 'all' relations aren't stored, so there is nothing to edit.
-        return '' if $field->{relation_mode} eq 'all';
-
-        # Left empty on purpose: post_relations.js fills it from
-        # /api/posts_of_form, so the picker can't go stale against the
-        # generated template.
-        return qq|            $l<br /><select ${required}class="cooltext relation-picker" name="$n" data-relation-form="$field->{relation_form}" data-selected="<: \$post.$n :>"></select>\n|;
-    }
-
-    return qq|            $l<br /><textarea ${required}class="cooltext" name="$n" placeholder="$p"><: \$post.$n :></textarea>\n|
-      if $t eq 'textarea';
-
-    return qq|            <label for="<: \$post.id :>-$n">$l<input id="<: \$post.id :>-$n" class="coolcb" type="checkbox" name="$n" value="1" <: if ( \$post.$n ) { "checked" } :> /></label><br />\n|
-      if $t eq 'checkbox';
-
-    return qq|            $l<br /><input ${required}class="cooltext" type="$t" name="$n" placeholder="$p" value="<: \$post.$n :>" />\n|;
-}
-
-=head2 _wizard_template
-
-Assemble the actual .tx file, following the shape of the hand-written forms:
-a display half guarded by !$post.addpost, and an edit half guarded by $can_edit.
-
-=cut
-
-sub _wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {
-    my $placeholder = _kolon_safe( $query->{title_placeholder} ) || 'Iowa Man Destroys Moon';
-
-    # NOT escaped, on purpose.  Letting an admin write template code is the
-    # entire point of the wizard, and it is no more privileged than the data
-    # field of any post, which already gets run through render_it().  Both
-    # sides of this route are behind the admin ACL.
-    my $display = _wizard_scalar( $query->{display} );
-
-    my $out = "<!-- Generated by the tCMS Post Type Wizard.  Regenerating this type will overwrite any hand edits. -->\n";
-
-    # A series can ask for its children to be tiled, which is a layout the
-    # wrapper has to carry -- see how file.tx and series.tx do it.  Harmless
-    # when the series hasn't asked, and it means a generated type gets tiling
-    # for free rather than being the one kind of post that ignores the setting.
-    $out .= qq|<div class="post <: \$style :> <: \$tiled ? 'tile' : '' :>">\n| if $query->{wrapper};
-    $out .= qq|    : if ( !\$post.addpost ) {\n|;
-    $out .= qq|        : include "post_title.tx";\n| if $query->{inc_post_title};
-    $out .= qq|        : include "post_tags.tx";\n|  if $query->{inc_post_tags};
-    $out .= "$display\n"                             if $display;
-    $out .= qq|    : }\n|;
-
-    # A datasource can say its posts are built rather than written, in which
-    # case an editor would be a form saving something nobody can edit -- and
-    # for Trog::DataSource::Virt, one that writes a real post to sit alongside
-    # the synthesized ones and collide with them.
-    if ( !_datasource_editable($datasource) ) {
-        $out .= qq|</div>\n| if $query->{wrapper};
-        return $out;
-    }
-
-    $out .= qq|\n|;
-    $out .= qq|    : if ( \$can_edit ) {\n|;
-    $out .= qq|        <div class="postedit">\n|;
-    $out .= qq|        : include "edit_head.tx";\n|;
-    $out .= qq|        <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">\n|;
-    $out .= qq|            Title *<br /><input required class="cooltext" type="text" name="title" placeholder="$placeholder" value="<: \$post.title :>" />\n|
-      if $query->{inc_title_input};
-    $out .= _wizard_field_html($_) foreach @$fields;
-
-    foreach my $include (@$includes) {
-        $out .= qq|            : include "$wizard_includes{$include}";\n|;
-    }
-
-    # Always last, and never optional: this is what carries the post body, the
-    # app/to/id/form hiddens and the submit button.
-    $out .= qq|            : include "$body_form";\n|;
-    $out .= qq|        </form>\n|;
-    $out .= qq|        : include "edit_foot.tx";\n|;
-    $out .= qq|        </div>\n|;
-    $out .= qq|    : }\n|;
-    $out .= qq|</div>\n| if $query->{wrapper};
-    return $out;
 }
 
 # basically a file rewrite rule for themes
@@ -3448,12 +3461,7 @@ sub rss_style ($query) {
     );
 }
 
-sub _build_themed_styles ($styles) {
-    my @styles = map { ( Trog::Themes::themed_style("$_") ) } @{ Trog::Utils::coerce_array($styles) };
-    return \@styles;
-}
-
-sub _build_themed_scripts ($scripts) {
+my sub build_themed_scripts ($scripts) {
     my @scripts = map { Trog::Themes::themed_script("$_") } @{ Trog::Utils::coerce_array($scripts) };
     return \@scripts;
 }
@@ -3484,9 +3492,9 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{scripts}      //= [];
 
     # Theme-ize the paths
-    $vars->{stylesheets}  = [ @{ _build_themed_styles( $vars->{stylesheets} ) } ];
-    $vars->{print_styles} = [ @{ _build_themed_styles( $vars->{print_styles} ) } ];
-    $vars->{scripts}      = [ map { s/^www\///; $_ } @{ _build_themed_scripts( $vars->{scripts} ) } ];
+    $vars->{stylesheets}  = [ @{ build_themed_styles( $vars->{stylesheets} ) } ];
+    $vars->{print_styles} = [ @{ build_themed_styles( $vars->{print_styles} ) } ];
+    $vars->{scripts}      = [ map { s/^www\///; $_ } @{ build_themed_scripts( $vars->{scripts} ) } ];
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );

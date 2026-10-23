@@ -189,7 +189,7 @@ subtest 'validate() filters, coerces and reports' => sub {
 subtest 'what gets written is checked, not just what was submitted' => sub {
     set_sidecars();
 
-    # validate() runs on the submitted post.  _process() then builds the shape
+    # validate() runs on the submitted post.  process() then builds the shape
     # that is actually stored, and until it was checked too, a post could be
     # made wrong on its way to disk and nobody would ever hear about it.
     my $good = { form => 'blog.tx', title => 'Fine', tags => [qw{blog public}], visibility => 'public' };
@@ -200,7 +200,7 @@ subtest 'what gets written is checked, not just what was submitted' => sub {
     ok( scalar(@errors), 'a null in the tags is caught' );
     like( "$errors[0]", qr{/tags/1}, 'and named by where it is' );
 
-    # It checks rather than filters, unlike validate(): _process() adds fields
+    # It checks rather than filters, unlike validate(): process() adds fields
     # the base schema has never heard of, and throwing those away would discard
     # the work it just did.
     my $built = {
@@ -213,17 +213,17 @@ subtest 'what gets written is checked, not just what was submitted' => sub {
         attachments  => ['/assets/thing.txt'],
         preview      => '/assets/thumb.png',
     };
-    is_deeply( [ Trog::DataModule::validate_built($built) ], [], "the fields _process() invents do not fail it" );
+    is_deeply( [ Trog::DataModule::validate_built($built) ], [], "the fields process() invents do not fail it" );
     ok( exists $built->{is_video},    'and are not deleted' );
     ok( exists $built->{attachments}, 'any of them' );
 };
 
-subtest '_process no longer builds a post wrong' => sub {
+subtest 'process no longer builds a post wrong' => sub {
 
     # The bug: a post saved without a visibility had an undef pushed into its
     # tags, which is a tag no query ever matches -- so the post went invisible
     # to all but an admin, silently, and the bunk tag was written to disk.
-    my $post = Trog::DataModule::_process( { form => 'blog.tx', title => 'No Visibility', tags => ['blog'] } );
+    my $post = Trog::DataModule::process( { form => 'blog.tx', title => 'No Visibility', tags => ['blog'] } );
 
     is_deeply( [ grep { !defined } @{ $post->{tags} } ], [], 'no undef survives into the tags' );
     is( $post->{visibility}, 'private', 'and the visibility is defaulted where the tag is made' );
@@ -233,7 +233,7 @@ subtest '_process no longer builds a post wrong' => sub {
     is_deeply( [ Trog::DataModule::validate_built($post) ], [], 'and the result passes the check' );
 
     # An undef among the acls of a private post went the same way.
-    my $acled = Trog::DataModule::_process( { form => 'blog.tx', title => 'Acled', tags => ['blog'], visibility => 'private', acls => [ 'members', undef ] } );
+    my $acled = Trog::DataModule::process( { form => 'blog.tx', title => 'Acled', tags => ['blog'], visibility => 'private', acls => [ 'members', undef ] } );
     is_deeply( [ grep { !defined } @{ $acled->{tags} } ], [], 'nor from the acls' );
     ok( scalar( grep { $_ eq 'members' } @{ $acled->{tags} } ), 'while the real acl still lands' );
 };
@@ -241,17 +241,17 @@ subtest '_process no longer builds a post wrong' => sub {
 subtest 'add() refuses to store a post it built wrong' => sub {
     set_sidecars();
 
-    # Break _process on purpose: the point is that add() no longer takes its
+    # Break process on purpose: the point is that add() no longer takes its
     # word for it.  This is the shape the real bug produced.
     #
     # One mock object for all three, and unmocked by hand at the end.
     # Test::MockModule keeps one per package, so a second new() on the same
     # package hands back the first -- and leaving it to go out of scope left
-    # _process broken for every subtest after this one.
+    # process broken for every subtest after this one.
     my @written;
     my $mock = Test::MockModule->new('Trog::DataModule');
     $mock->redefine(
-        '_process',
+        'process',
         sub ($post) {
             push( @{ $post->{tags} }, undef );
             return $post;
@@ -271,8 +271,8 @@ subtest 'add() refuses to store a post it built wrong' => sub {
     is_deeply( \@written, [], 'and nothing was written' );
 
     # The mock really is gone, or every subtest after this one is testing it.
-    my $sane = Trog::DataModule::_process( { form => 'blog.tx', title => 'Sane', tags => ['blog'], visibility => 'public' } );
-    is_deeply( [ grep { !defined } @{ $sane->{tags} } ], [], '_process is itself again afterwards' );
+    my $sane = Trog::DataModule::process( { form => 'blog.tx', title => 'Sane', tags => ['blog'], visibility => 'public' } );
+    is_deeply( [ grep { !defined } @{ $sane->{tags} } ], [], 'process is itself again afterwards' );
 };
 
 subtest 'empty inputs are treated as absent, except for strings' => sub {
@@ -336,7 +336,7 @@ subtest 'a post always ends up with a visibility' => sub {
         *VisData::write = sub { $written = $_[1]; return 0 };
     }
 
-    # A post type built without a visibility selector submits none.  _process
+    # A post type built without a visibility selector submits none.  process
     # pushes visibility into the tags, so an undef one puts an undef in there
     # and the post becomes invisible to everyone but an admin.
     bless( {}, 'VisData' )->add( { title => 'No Visibility', tags => ['sometag'] } );
@@ -357,12 +357,12 @@ subtest 'a save message never becomes a URL' => sub {
     # saw neither the page they saved from nor the error.
     my $realistic = "Couldn't rename data/dnZHxmlXE5 to data/files/: Not a directory at /opt/perl5/lib/File/Slurper/Temp.pm line 56.\n" . "\tFile::Slurper::Temp::write_text(\"data/files/\", \"[{...}]\") called at /opt/perl5/lib/File/Slurper/Temp.pm line 63\n" . ( "\tTrog::Routes::HTML::post_save(HASH(0x5e798a626570)) called at lib/TCMS.pm line 130\n" x 40 );
 
-    my $short = Trog::Routes::HTML::_short_error($realistic);
+    my $short = Trog::Routes::HTML::short_error($realistic);
     unlike( $short, qr/\n/,         'the trace is gone' );
     unlike( $short, qr/line[ ]\d+/, 'and so is the file and line Perl glued on' );
     like( $short, qr/^Couldn't[ ]rename[ ]data/, 'leaving what actually went wrong' );
 
-    my $cookie = Trog::Routes::HTML::_feedback_cookie( 1, $realistic );
+    my $cookie = Trog::Routes::HTML::feedback_cookie( 1, $realistic );
     ok( length($cookie) < 2048, 'even the whole untrimmed thing fits in a cookie' )
       or diag( 'cookie was ' . length($cookie) . ' bytes' );
     like( $cookie, qr/^tcmsfeedback=1:/, 'flagged as a failure' );
@@ -374,25 +374,25 @@ subtest 'a save message never becomes a URL' => sub {
     unlike( URI::Escape::uri_unescape($value), qr/\n/, 'the message is one line' );
 
     # Round trips.
-    my ( $failure, $message ) = Trog::Routes::HTML::_feedback_from_cookie($cookie);
+    my ( $failure, $message ) = Trog::Routes::HTML::feedback_from_cookie($cookie);
     is( $failure, 1, 'the outcome comes back out' );
     like( $message, qr/^Couldn't[ ]rename/, 'and so does the message' );
 
-    ( $failure, $message ) = Trog::Routes::HTML::_feedback_from_cookie( Trog::Routes::HTML::_feedback_cookie( 0, "Saved post 'Thing'." ) );
+    ( $failure, $message ) = Trog::Routes::HTML::feedback_from_cookie( Trog::Routes::HTML::feedback_cookie( 0, "Saved post 'Thing'." ) );
     is( $failure, 0,                     'a success comes back as one' );
     is( $message, "Saved post 'Thing'.", 'with its message intact' );
 
     # And nothing at all when there is no cookie to read.
-    is_deeply( [ Trog::Routes::HTML::_feedback_from_cookie('') ],                 [], 'no cookies, no feedback' );
-    is_deeply( [ Trog::Routes::HTML::_feedback_from_cookie('other=thing') ],      [], 'nor other cookies' );
-    is_deeply( [ Trog::Routes::HTML::_feedback_from_cookie('tcmsfeedback=xyz') ], [], 'nor one that is malformed' );
+    is_deeply( [ Trog::Routes::HTML::feedback_from_cookie('') ],                 [], 'no cookies, no feedback' );
+    is_deeply( [ Trog::Routes::HTML::feedback_from_cookie('other=thing') ],      [], 'nor other cookies' );
+    is_deeply( [ Trog::Routes::HTML::feedback_from_cookie('tcmsfeedback=xyz') ], [], 'nor one that is malformed' );
 };
 
-subtest '_wizard_fields zips the parallel arrays' => sub {
+subtest 'wizard_fields zips the parallel arrays' => sub {
 
     # The middle row was left blank.  Dropping it must not shift the type of
     # the row after it -- this is the whole reason param_required is a select.
-    my $fields = Trog::Routes::HTML::_wizard_fields(
+    my $fields = Trog::Routes::HTML::wizard_fields(
         {
             param_name        => [ 'Servings', '', qw{cook_time id servings} ],
             param_type        => [qw{number text textarea text text}],
@@ -409,8 +409,8 @@ subtest '_wizard_fields zips the parallel arrays' => sub {
     is( $fields->[1]{type},     'textarea',  "...with its own type, not the blank row's" );
 };
 
-subtest '_wizard_sidecar emits a usable OpenAPIv3 schema' => sub {
-    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+subtest 'wizard_sidecar emits a usable OpenAPIv3 schema' => sub {
+    my $spec = Trog::Routes::HTML::wizard_sidecar(
         'recipe',
         [
             { name => 'servings', type => 'number',   label => 'Servings', placeholder => '4', required => 1 },
@@ -444,7 +444,7 @@ subtest 'a type records what the wizard was told, where the validator cannot see
         },
     ];
 
-    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+    my $spec = Trog::Routes::HTML::wizard_sidecar(
         'recipe', $fields, ['inc_tags'], 'form_common.tx', '',
         {
             description       => 'A recipe, with its cook time.',
@@ -475,7 +475,7 @@ subtest 'a type records what the wizard was told, where the validator cannot see
 };
 
 subtest 'a type reads back as the form that made it' => sub {
-    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+    my $spec = Trog::Routes::HTML::wizard_sidecar(
         'recipe',
         [
             {
@@ -509,7 +509,7 @@ subtest 'a type reads back as the form that made it' => sub {
     );
     set_sidecars( 'recipe.json' => JSON::MaybeXS::encode_json($spec) );
 
-    my $types = Trog::Routes::HTML::_wizard_types( ['recipe.tx'] );
+    my $types = Trog::Routes::HTML::wizard_types( ['recipe.tx'] );
     my $back  = $types->{'recipe.tx'};
 
     is( $back->{name},              'recipe',                 'the name comes back without the extension' );
@@ -571,7 +571,7 @@ TEMPLATE
         'bare.tx'   => qq|<!-- a comment first, which is not the wrapper -->\n:if ( !\$post.addpost ) {\n: }\n        : include "form_common.tx";\n|,
     );
 
-    my $types = Trog::Routes::HTML::_wizard_types( [ 'deck.tx', 'bare.tx' ] );
+    my $types = Trog::Routes::HTML::wizard_types( [ 'deck.tx', 'bare.tx' ] );
 
     is( $types->{'deck.tx'}{wrapper},        1,               "the wrapper div is seen where a type opens with one" );
     is( $types->{'deck.tx'}{inc_post_title}, 1,               "as is the post title block" );
@@ -587,13 +587,13 @@ TEMPLATE
 subtest 'the types are handed to the page as JSON it cannot break out of' => sub {
     no warnings qw{once};
 
-    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+    my $spec = Trog::Routes::HTML::wizard_sidecar(
         'nasty', [], [], 'form_common.tx', '',
         { description => 'ends a script </script><script>alert(1)</script>', display => '<div>markup</div>' }
     );
     set_sidecars( 'nasty.json' => JSON::MaybeXS::encode_json($spec) );
 
-    my $json = Trog::Routes::HTML::_wizard_types_json( ['nasty.tx'] );
+    my $json = Trog::Routes::HTML::wizard_types_json( ['nasty.tx'] );
     unlike( $json, qr/</, 'no bare < survives, so the script element cannot be closed early' );
 
     my $back = JSON::MaybeXS::decode_json($json);
@@ -601,10 +601,10 @@ subtest 'the types are handed to the page as JSON it cannot break out of' => sub
     is( $back->{'nasty.tx'}{display}, '<div>markup</div>', 'and so is the display template' );
 
     # A description is free text, but it still goes in a file.
-    my $long = Trog::Routes::HTML::_wizard_description( 'x' x 9000 );
+    my $long = Trog::Routes::HTML::wizard_description( 'x' x 9000 );
     ok( length($long) <= $Trog::Routes::HTML::wizard_description_max, 'a very long description is capped' );
-    is( Trog::Routes::HTML::_wizard_description(),                    '', 'and no description at all is empty rather than undef' );
-    is( Trog::Routes::HTML::_wizard_description( [ 'an', 'array' ] ), '', 'as is one that is not a string' );
+    is( Trog::Routes::HTML::wizard_description(),                    '', 'and no description at all is empty rather than undef' );
+    is( Trog::Routes::HTML::wizard_description( [ 'an', 'array' ] ), '', 'as is one that is not a string' );
 };
 
 subtest 'a canned block declares what it collects, and the types including it get it' => sub {
@@ -620,7 +620,7 @@ subtest 'a canned block declares what it collects, and the types including it ge
     # What the wizard writes for a type with 'Preview image upload' ticked: the
     # block spliced into the template, and a sidecar naming only the field
     # somebody actually typed into the form.
-    my $spec = Trog::Routes::HTML::_wizard_sidecar(
+    my $spec = Trog::Routes::HTML::wizard_sidecar(
         'recipe',
         [
             {
@@ -695,7 +695,7 @@ subtest 'the wizard tells a canned field apart from one somebody typed in' => su
         'guests.tx'   => qq|        : include "post_title.tx";\n|,
     );
 
-    my $types = Trog::Routes::HTML::_wizard_types( [ 'blog.tx', 'guests.tx' ] );
+    my $types = Trog::Routes::HTML::wizard_types( [ 'blog.tx', 'guests.tx' ] );
 
     is( $types->{'blog.tx'}{inc_preview}, 1, "the box for a block the template includes comes back ticked" );
     is_deeply(
@@ -712,11 +712,11 @@ subtest 'the wizard tells a canned field apart from one somebody typed in' => su
     );
 };
 
-subtest '_kolon_safe defuses template syntax' => sub {
-    my $safe = Trog::Routes::HTML::_kolon_safe(qq{<: \$post.id :>\n: include "evil.tx";});
+subtest 'kolon_safe defuses template syntax' => sub {
+    my $safe = Trog::Routes::HTML::kolon_safe(qq{<: \$post.id :>\n: include "evil.tx";});
     unlike( $safe, qr/</,      "no angle brackets survive" );
     unlike( $safe, qr/[\r\n]/, "no newlines survive, so ':' can't start a directive" );
-    is( Trog::Routes::HTML::_kolon_safe( [] ), '', "a repeated param can't sneak a ref through" );
+    is( Trog::Routes::HTML::kolon_safe( [] ), '', "a repeated param can't sneak a ref through" );
 };
 
 done_testing();

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # Reprovisioning destroys a machine and builds it again, so the whole of this
-# file is about what has to be true before anything runs.  _spawn is mocked
+# file is about what has to be true before anything runs.  spawn is mocked
 # throughout: nothing here forks, and nothing here executes a provisioner.
 
 use 5.040;
@@ -39,7 +39,7 @@ BEGIN {
     $ENV{TPSGI_VAULT_KEY} = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
 
     # A stand-in for the checkout, with the one program a reprovision runs.
-    # Never executed -- _spawn is mocked -- but it has to be there and
+    # Never executed -- spawn is mocked -- but it has to be there and
     # executable, because reprovision() checks that before it commits to
     # anything.
     File::Path::make_path("$ROOT/trog-provisioner/bin");
@@ -93,7 +93,7 @@ $log->redefine( INFO => sub { note(shift) } );
 # Nothing in this file forks, and nothing in it runs a provisioner.
 our @SPAWNED;
 $log->redefine(
-    _spawn => sub {
+    spawn => sub {
         my ( $domain, $credentials, $dir, $command, $user ) = @_;
         push( @SPAWNED, { domain => $domain, credentials => $credentials, dir => $dir, command => $command, user => $user } );
         return ( 1, 'started' );
@@ -102,7 +102,7 @@ $log->redefine(
 
 # Nor reaches a hypervisor.
 my $virt = Test::MockModule->new('Trog::DataSource::Virt');
-$virt->redefine( _is_self => sub { return $_[0] eq 'thisserver.example.com' ? 1 : 0 } );
+$virt->redefine( is_self => sub { return $_[0] eq 'thisserver.example.com' ? 1 : 0 } );
 
 write_config( trog_provisioner => "$ROOT/trog-provisioner" );
 
@@ -408,12 +408,12 @@ subtest 'the log is read back onto the page' => sub {
     print {$fh} ( 'x' x 9000 ) . "\n=== finished ===\n";
     close $fh;
 
-    my $tail = Trog::DataSource::ProvisionedVirt::_log_tail('guest.example.com');
+    my $tail = Trog::DataSource::ProvisionedVirt::log_tail('guest.example.com');
     ok( length($tail) <= $Trog::DataSource::ProvisionedVirt::log_tail_bytes, 'only the tail of it' );
     like( $tail, qr/===[ ]finished[ ]===/, 'which is the part that says how it went' );
 
-    is( Trog::DataSource::ProvisionedVirt::_log_tail('norecipe.example.com'), undef, 'nothing when it has never run' );
-    is( Trog::DataSource::ProvisionedVirt::_log_tail('../../etc/passwd'),     undef, 'and a name that is not one reads nothing' );
+    is( Trog::DataSource::ProvisionedVirt::log_tail('norecipe.example.com'), undef, 'nothing when it has never run' );
+    is( Trog::DataSource::ProvisionedVirt::log_tail('../../etc/passwd'),     undef, 'and a name that is not one reads nothing' );
 };
 
 subtest 'the state a reprovision leaves behind' => sub {
