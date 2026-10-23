@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -290,7 +291,7 @@ subtest 'the custom types actually bite' => sub {
     set_sidecars();
 
     my ($bad) = Trog::DataModule::validate( { title => 'x', callback => 'Some::Random::Sub' } );
-    like( $bad, qr/cannot be loaded/, "a callback naming a module that isn't there is refused" );
+    like( $bad, qr/cannot[ ]be[ ]loaded/, "a callback naming a module that isn't there is refused" );
 
     is_deeply(
         [ Trog::DataModule::validate( { title => 'x', callback => 'Trog::Routes::HTML::posts' } ) ],
@@ -318,7 +319,7 @@ subtest 'add() rejects a post that does not validate' => sub {
 
     # A string die would come back wearing a Carp::Always stack trace, which is
     # no use at all to whoever just submitted the form.
-    unlike( join( ' ', @$why ), qr/DataModule\.pm line/, "and carries no stack trace" );
+    unlike( join( ' ', @$why ), qr/DataModule\.pm[ ]line/, "and carries no stack trace" );
     ok( !$written, "nothing was written" );
 
     bless( {}, 'TestData' )->add( { form => 'recipe.tx', title => 'Cookies', visibility => 'public', servings => '4' } );
@@ -358,9 +359,9 @@ subtest 'a save message never becomes a URL' => sub {
     my $realistic = "Couldn't rename data/dnZHxmlXE5 to data/files/: Not a directory at /opt/perl5/lib/File/Slurper/Temp.pm line 56.\n" . "\tFile::Slurper::Temp::write_text(\"data/files/\", \"[{...}]\") called at /opt/perl5/lib/File/Slurper/Temp.pm line 63\n" . ( "\tTrog::Routes::HTML::post_save(HASH(0x5e798a626570)) called at lib/TCMS.pm line 130\n" x 40 );
 
     my $short = Trog::Routes::HTML::_short_error($realistic);
-    unlike( $short, qr/\n/,       'the trace is gone' );
-    unlike( $short, qr/line \d+/, 'and so is the file and line Perl glued on' );
-    like( $short, qr/^Couldn't rename data/, 'leaving what actually went wrong' );
+    unlike( $short, qr/\n/,         'the trace is gone' );
+    unlike( $short, qr/line[ ]\d+/, 'and so is the file and line Perl glued on' );
+    like( $short, qr/^Couldn't[ ]rename[ ]data/, 'leaving what actually went wrong' );
 
     my $cookie = Trog::Routes::HTML::_feedback_cookie( 1, $realistic );
     ok( length($cookie) < 2048, 'even the whole untrimmed thing fits in a cookie' )
@@ -376,7 +377,7 @@ subtest 'a save message never becomes a URL' => sub {
     # Round trips.
     my ( $failure, $message ) = Trog::Routes::HTML::_feedback_from_cookie($cookie);
     is( $failure, 1, 'the outcome comes back out' );
-    like( $message, qr/^Couldn't rename/, 'and so does the message' );
+    like( $message, qr/^Couldn't[ ]rename/, 'and so does the message' );
 
     ( $failure, $message ) = Trog::Routes::HTML::_feedback_from_cookie( Trog::Routes::HTML::_feedback_cookie( 0, "Saved post 'Thing'." ) );
     is( $failure, 0,                     'a success comes back as one' );

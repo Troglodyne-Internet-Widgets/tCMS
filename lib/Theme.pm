@@ -1,7 +1,7 @@
 package Theme;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 =head1 Theme
 

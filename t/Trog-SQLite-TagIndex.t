@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -94,7 +95,7 @@ subtest 'rebuild is one transaction' => sub {
 
     my $broken = Broken::Data->new( post() );
     ok( !eval { Trog::SQLite::TagIndex::rebuild($broken); 1 }, 'a rebuild that fails part way dies' );
-    like( $@, qr/fell over/a, 'with the error that stopped it' );
+    like( $@, qr/fell[ ]over/, 'with the error that stopped it' );
     is_deeply( index_rows(), $before, 'and leaves the index as it was' );
 };
 

@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -36,9 +37,9 @@ subtest 'a line arrives as the syslog of this machine reads it' => sub {
     my $got = received();
 
     # daemon is facility 3 and info is severity 6, so the priority is 3*8+6.
-    like( $got, qr/^<30>/,                                                                                             'as daemon.info' );
-    like( $got, qr/\btcms\[$$\]: /,                                                                                    'tagged with the program name and the pid' );
-    like( $got, qr/: 2026-09-29T12:00:00Z \[INFO\]: RequestId x From 192\.0\.2\.1 \|nobody\| Failed login for user\z/, 'with the line that the file gets, and no newline' );
+    like( $got, qr/^<30>/,                                                                                                                   'as daemon.info' );
+    like( $got, qr/\btcms\[$$\]:[ ]/,                                                                                                        'tagged with the program name and the pid' );
+    like( $got, qr/:[ ]2026-09-29T12:00:00Z[ ]\[INFO\]:[ ]RequestId[ ]x[ ]From[ ]192\.0\.2\.1[ ]\|nobody\|[ ]Failed[ ]login[ ]for[ ]user\z/, 'with the line that the file gets, and no newline' );
 };
 
 subtest 'each level keeps its severity' => sub {
@@ -46,14 +47,14 @@ subtest 'each level keeps its severity' => sub {
     foreach my $level ( sort keys %severity ) {
         $log->log( level => $level, message => "at $level" );
         my $priority = 3 * 8 + $severity{$level};
-        like( received(), qr/^<$priority>.*: at $level$/, "$level is severity $severity{$level}" );
+        like( received(), qr/^<$priority>\N*:[ ]at[ ]$level$/, "$level is severity $severity{$level}" );
     }
 };
 
 subtest 'nothing below the level goes out' => sub {
     $log->debug('too quiet');
     $log->info('loud enough');
-    like( received(), qr/loud enough$/, 'the debug line was not sent' );
+    like( received(), qr/loud[ ]enough$/, 'the debug line was not sent' );
 };
 
 subtest 'a syslog that went away does not take the application with it' => sub {
@@ -92,9 +93,9 @@ subtest 'log_init adds the loggers that tpsgi.ini names' => sub {
 
     no warnings 'once';
     is( $Test::Capture::given{log_dir}, $dir, 'handed the log directory, as tPSGI hands it' );
-    like( $Test::Capture::lines[-1], qr/through every output/, 'and given the lines' );
+    like( $Test::Capture::lines[-1], qr/through[ ]every[ ]output/, 'and given the lines' );
 
-    like( exception { Trog::Log::log_init( "$dir/tcms.log", 'info', ['../../etc/passwd'] ) }, qr/not a module name/, 'a logger that is not a module name is refused' );
+    like( exception { Trog::Log::log_init( "$dir/tcms.log", 'info', ['../../etc/passwd'] ) }, qr/not[ ]a[ ]module[ ]name/, 'a logger that is not a module name is refused' );
 };
 
 Test::NoWarnings::had_no_warnings();

@@ -1,7 +1,7 @@
 package Trog::Log::DBI;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use parent qw{Log::Dispatch::DBI};
 
@@ -82,11 +82,11 @@ sub log_message {
     # Rip apart the message.  If it's got any extended info, lets grab that too.
     my $msg = $params{message};
     my $message;
-    my ( $date, $uuid, $ip, $user, $method, $code, $bytes, $route ) = $msg =~ m!^([\w|\-|:]+) \[INFO\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (\w+) (\d+) (\d+) (.+)!;
+    my ( $date, $uuid, $ip, $user, $method, $code, $bytes, $route ) = $msg =~ m!^([\w|\-|:]+)[ ]\[INFO\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\w+)[ ](\d+)[ ](\d+)[ ](\N+)!;
 
     # Otherwise, let's mark it down in the "messages" table.  This will be deferred until the final write.
     if ( !$date ) {
-        ( $date, $uuid, $ip, $user, $message ) = $msg =~ m!^([\w|\-|:]+) \[\w+\]: RequestId ([\w|\-]+) From ([\w|\.|:]+) \|(\w+)\| (.+)!;
+        ( $date, $uuid, $ip, $user, $message ) = $msg =~ m!^([\w|\-|:]+)[ ]\[\w+\]:[ ]RequestId[ ]([\w|\-]+)[ ]From[ ]([\w|\.|:]+)[ ]\|(\w+)\|[ ](\N+)!;
 
         # If we can't figure out its request, ignore the message
         if ( length $uuid ) {

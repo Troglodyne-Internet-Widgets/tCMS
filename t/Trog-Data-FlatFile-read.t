@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -109,7 +110,7 @@ subtest 'the log works before log_init()' => sub {
 
     @said = ();
     is( exception { Trog::Log::WARN('a warning') }, undef, "WARN does not die" );
-    like( join( '', @said ), qr/\[WARN\].*a warning/, "it lands on stderr instead" );
+    like( join( '', @said ), qr/\[WARN\]\N*a[ ]warning/, "it lands on stderr instead" );
 
     @said = ();
     is( exception { Trog::Log::INFO('a note') },    undef, "INFO does not die" );
@@ -118,10 +119,10 @@ subtest 'the log works before log_init()' => sub {
     # An uninitialized request id used to be spliced into the line as an
     # uninitialized-value warning.
     unlike( join( '', @said ), qr/uninitialized/, "and no uninitialized value creeps in" );
-    like( join( '', @said ), qr/RequestId NONE/, "the request id says it has none" );
+    like( join( '', @said ), qr/RequestId[ ]NONE/, "the request id says it has none" );
 
     # FATAL is fatal either way, or the caller's error handling disappears.
-    like( exception { Trog::Log::FATAL('the roof is on fire') }, qr/the roof is on fire/, "FATAL still dies" );
+    like( exception { Trog::Log::FATAL('the roof is on fire') }, qr/the[ ]roof[ ]is[ ]on[ ]fire/, "FATAL still dies" );
 };
 
 done_testing();

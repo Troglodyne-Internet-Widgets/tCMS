@@ -1,7 +1,7 @@
 package Trog::Routes::JSON;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Clone qw{clone};
 use JSON::MaybeXS();

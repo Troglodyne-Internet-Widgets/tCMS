@@ -1,7 +1,7 @@
 package Trog::Data::DUMMY;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Carp qw{confess};
 use Errno();

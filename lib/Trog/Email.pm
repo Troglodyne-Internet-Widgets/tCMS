@@ -1,7 +1,7 @@
 package Trog::Email;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Email::MIME;
 use Email::Sender::Simple;

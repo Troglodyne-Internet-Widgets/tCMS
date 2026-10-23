@@ -1,7 +1,7 @@
 package Trog::Log;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use POSIX qw{strftime};
 use Module::Runtime();

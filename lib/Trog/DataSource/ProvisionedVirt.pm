@@ -1,7 +1,7 @@
 package Trog::DataSource::ProvisionedVirt;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use parent qw{Trog::DataSource::Virt};
 
@@ -205,7 +205,7 @@ sub status ($domain) {
 
     my %status;
     foreach my $line ( split( "\n", $raw ) ) {
-        my ( $key, $value ) = $line =~ m/^(\w+)=(.*)$/;
+        my ( $key, $value ) = $line =~ m/^(\w+)=(\N*)$/;
         $status{$key} = $value if defined $key;
     }
     return undef unless $status{state};

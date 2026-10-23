@@ -9,6 +9,7 @@
 # series() which delegates to it -- and matches on the returned HTML.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 # FindBin MUST come first.  $FindBin::Bin is derived from $0, which prove hands
@@ -114,7 +115,7 @@ BEGIN {
     # gets run against each of them -- the point being that a data model is only
     # finished when the app cannot tell which one it is talking to.
     my $stock = File::Slurper::read_text("$REPO/config/default.cfg");
-    $stock =~ s/^(\s*data_model=).*$/$1$MODEL/m or die "could not set the data model in default.cfg";
+    $stock =~ s/^(\s*data_model=)\N*$/$1$MODEL/m or die "could not set the data model in default.cfg";
     File::Slurper::write_text( "$ROOT/config/default.cfg", $stock );
 
     # Hardcoded paths in Auth.pm, TagIndex.pm, the data models and Log.pm -- not negotiable.
@@ -322,21 +323,21 @@ sub _data { return Trog::Data->new( Trog::Config::get() ) }
 # emits other class="topbar" anchors outside that span.
 sub _topbar_titles {
     my ($body) = @_;
-    my ($span) = $body =~ m{<span id="categories">(.*?)</span>}s;
+    my ($span) = $body =~ m{<span[ ]id="categories">(.*?)</span>}s;
     return () unless defined $span;
     return $span =~ m{class="topbar">([^<]*)</a>}g;
 }
 
 # post_title.tx emits exactly one of these per displayed post.
 sub _post_count {
-    my $n = () = $_[0] =~ m{<h3 class='blogtitles'>}g;
+    my $n = () = $_[0] =~ m{<h3[ ]class='blogtitles'>}g;
     return $n;
 }
 
 # The rendered page is ~40KB and mostly JavaScript.  Show the content well.
 sub _kontent {
     my ($body) = @_;
-    my ($k)    = $body =~ m{<div id="kontent" class="kontained">(.*?)<div id="rightbar"}s;
+    my ($k)    = $body =~ m{<div[ ]id="kontent"[ ]class="kontained">(.*?)<div[ ]id="rightbar"}s;
     $k //= $body;
     $k =~ s/<script\b.*?<\/script>//gs;
     return length($k) > 2500 ? substr( $k, 0, 2500 ) . "\n...[truncated]" : $k;
@@ -462,7 +463,7 @@ subtest 'the post wizard invents a new post type' => sub {
     ok( -f 'www/templates/html/components/forms/spec_widget.json', 'the schema sidecar was written' );
 
     # The existing types are a dropdown now, not a list.
-    like( $body, qr{<option value="spec_widget\.tx">}, 'and the new type is listed back to us' );
+    like( $body, qr{<option[ ]value="spec_widget\.tx">}, 'and the new type is listed back to us' );
 
     # This is the assertion that the sandbox is real: a symlinked template tree
     # would have put these in the developer's actual checkout.
@@ -470,9 +471,9 @@ subtest 'the post wizard invents a new post type' => sub {
 
     # The relation controls have to be present in every row and always submit,
     # or the parallel param_* arrays de-align server side.
-    like( $body, qr/name="param_relation_form"/, 'the relation target select is in the row template' );
-    like( $body, qr/name="param_relation_mode"/, 'so is the relation mode select' );
-    like( $body, qr/<option value="relation">/,  'and relation is offered as a field type' );
+    like( $body, qr/name="param_relation_form"/,  'the relation target select is in the row template' );
+    like( $body, qr/name="param_relation_mode"/,  'so is the relation mode select' );
+    like( $body, qr/<option[ ]value="relation">/, 'and relation is offered as a field type' );
 
     # A series can ask for its children to be tiled.  A generated type has to
     # carry that on its wrapper like the hand-written forms do, or it is the
@@ -551,7 +552,7 @@ subtest 'a datasource-backed type gets no editor' => sub {
         _admin( route => '/admin/wyzzerdd/save', method => 'POST', name => 'spec_bogus', datasource => 'Evil::Module' ),
         \&Trog::Routes::HTML::post_wizard_save,
     );
-    like( $body, qr/not a datasource I can find/, 'a datasource we did not find is refused' );
+    like( $body, qr/not[ ]a[ ]datasource[ ]I[ ]can[ ]find/, 'a datasource we did not find is refused' );
     ok( !-e 'www/templates/html/components/forms/spec_bogus.tx', 'and nothing was written' );
 };
 
@@ -619,18 +620,18 @@ subtest 'a datasource-backed series searches and paginates' => sub {
 
     my $titles = sub {
         my ($html) = @_;
-        return [ $html =~ m{<div class="guest">(guest\d+) is}g ];
+        return [ $html =~ m{<div[ ]class="guest">(guest\d+)[ ]is}g ];
     };
 
     my $first = $page_of->( limit => 5 );
     is_deeply( $titles->($first), [qw{guest01 guest02 guest03 guest04 guest05}], 'the first page holds the first five, in a settled order' );
-    like( $first, qr/Page 1 of 3/,            'and says which page it is' );
+    like( $first, qr/Page[ ]1[ ]of[ ]3/,      'and says which page it is' );
     like( $first, qr{href="\?page=2&limit=5}, 'offering the next one' );
     unlike( $first, qr/rel="prev"/, 'and no previous one' );
 
     my $second = $page_of->( limit => 5, page => 2 );
     is_deeply( $titles->($second), [qw{guest06 guest07 guest08 guest09 guest10}], 'the second page carries on where the first stopped' );
-    like( $second, qr/Page 2 of 3/, 'and says so' );
+    like( $second, qr/Page[ ]2[ ]of[ ]3/, 'and says so' );
 
     my $third = $page_of->( limit => 5, page => 3 );
     is_deeply( $titles->($third), [qw{guest11 guest12}], 'the last page holds the remainder' );
@@ -659,8 +660,8 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     # And the two compose, which is what a reader paging through a search does.
     my $searched_page = $page_of->( limit => 4, like => 'shut', page => 2 );
     is_deeply( $titles->($searched_page), [qw{guest10 guest12}], 'paging through a search stays inside it' );
-    like( $searched_page, qr/Page 2 of 2/, 'and pages against the matches, not everything' );
-    like( $searched_page, qr/like=shut/,   'carrying the search into the links' );
+    like( $searched_page, qr/Page[ ]2[ ]of[ ]2/, 'and pages against the matches, not everything' );
+    like( $searched_page, qr/like=shut/,         'carrying the search into the links' );
 };
 
 subtest 'an ordinary series survives a page number in its URL' => sub {
@@ -688,14 +689,14 @@ subtest 'an ordinary series survives a page number in its URL' => sub {
     # One child a page, so page two exists and holds the other one.
     my ( $code, $body, $err ) = _render( _anon( route => '/specpaged', limit => 1, page => 2 ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'a series page with ?page=2 still finds its series' ) or diag($err);
-    like( $body, qr/Spec Paged Series/, 'and is the right one' );
+    like( $body, qr/Spec[ ]Paged[ ]Series/, 'and is the right one' );
 
     ( $code, $body, $err ) = _render( _anon( route => '/specpaged', limit => 1, page => 1 ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'as does page one' ) or diag($err);
 
     # A stored series still pages by cursor, not by number: nothing about this
     # fix moves it onto the datasource paginator.
-    unlike( $body, qr/Page 1 of/, 'and it still pages by cursor rather than by number' );
+    unlike( $body, qr/Page[ ]1[ ]of/, 'and it still pages by cursor rather than by number' );
 };
 
 subtest 'a directory index series' => sub {
@@ -737,13 +738,13 @@ subtest 'a directory index series' => sub {
 
     my $names = sub {
         my ($html) = @_;
-        return [ $html =~ m{<div class="entry">(file\d+\.txt) \(}g ];
+        return [ $html =~ m{<div[ ]class="entry">(file\d+\.txt)[ ]\(}g ];
     };
 
     ( $code, $body, $err ) = _render( _anon( route => '/specfiles' ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'the listing renders' ) or diag($err);
     is_deeply( $names->($body), [ map { "file$_.txt" } 1 .. 7 ], 'listing the directory, in name order' );
-    like( $body, qr/\(10 B\)/, 'with each entry\'s size' );
+    like( $body, qr/\(10[ ]B\)/, 'with each entry\'s size' );
 
     # post_title.tx quotes with single quotes; the point is the target, not the quoting.
     like( $body, qr{href=['"]/assets/spec_downloads/file1\.txt['"]}, 'and a link to the file itself' );
@@ -752,7 +753,7 @@ subtest 'a directory index series' => sub {
     ( $code, $body, $err ) = _render( _anon( route => '/specfiles', limit => 3, page => 2 ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'page two renders' ) or diag($err);
     is_deeply( $names->($body), [qw{file4.txt file5.txt file6.txt}], 'holding the next three' );
-    like( $body, qr/Page 2 of 3/, 'and saying so' );
+    like( $body, qr/Page[ ]2[ ]of[ ]3/, 'and saying so' );
 
     # And searches like one.
     ( $code, $body, $err ) = _render( _anon( route => '/specfiles', limit => 25, like => 'file3' ), \&Trog::Routes::HTML::series );
@@ -818,10 +819,10 @@ subtest 'the wizard offers the types that exist, and can reopen one' => sub {
     ( $code, $body, $err ) = _render( _admin( route => '/admin/wyzzerdd' ), \&Trog::Routes::HTML::post_wizard );
     is( $code, 200, 'the wizard renders' ) or diag($err);
 
-    like( $body, qr/id="wizard-existing"/,             'the existing types are a dropdown' );
-    like( $body, qr/<option value="">A new post type/, 'defaulting to a new one' );
-    like( $body, qr/<option value="spec_reopen\.tx">/, 'and offering the one we just made' );
-    like( $body, qr/id="wizard-description-editor"/,   'with a collapsed editor for the description' );
+    like( $body, qr/id="wizard-existing"/,                     'the existing types are a dropdown' );
+    like( $body, qr/<option[ ]value="">A[ ]new[ ]post[ ]type/, 'defaulting to a new one' );
+    like( $body, qr/<option[ ]value="spec_reopen\.tx">/,       'and offering the one we just made' );
+    like( $body, qr/id="wizard-description-editor"/,           'with a collapsed editor for the description' );
 
     my ($json) = $body =~ m{id="wizard-types"[^>]*>(.*?)</script>}s;
     ok( $json, 'the page carries what each type was made from' ) or return;
@@ -970,14 +971,14 @@ subtest 'a field can be declared editors-only' => sub {
     # An editor sees both.
     my ( $acode, $abody ) = _render( _admin( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
     is( $acode, 200, 'the series renders for an admin' );
-    like( $abody, qr{<div class="h">private value</div>}, 'who sees the private field' );
+    like( $abody, qr{<div[ ]class="h">private[ ]value</div>}, 'who sees the private field' );
 
     # A logged out reader sees only the public one, without the template
     # having guarded anything.
     my ( $ncode, $nbody ) = _render( _anon( route => '/specsecretive' ), \&Trog::Routes::HTML::series );
     is( $ncode, 200, 'and for everyone else' );
-    like( $nbody, qr{<div class="s">public value</div>}, 'who still sees the public field' );
-    unlike( $nbody, qr/private value/, 'but not the private one' );
+    like( $nbody, qr{<div[ ]class="s">public[ ]value</div>}, 'who still sees the public field' );
+    unlike( $nbody, qr/private[ ]value/, 'but not the private one' );
 };
 
 #--------------------------------------------------------------------------
@@ -1082,12 +1083,12 @@ subtest 'entities' => sub {
     my $body = _series_page( 'entities', 'specentities', $title, 2 ) or return;
 
     like( $body, qr{id="postData-\Q$PAYEE->{id}\E"}, 'payee body rendered' );
-    like( $body, qr/Acme Payments LLC/,              'payee data rendered' );
-    like( $body, qr/Wile E Coyote/,                  'payor data rendered' );
+    like( $body, qr/Acme[ ]Payments[ ]LLC/,          'payee data rendered' );
+    like( $body, qr/Wile[ ]E[ ]Coyote/,              'payor data rendered' );
 
     # entity_details.tx is included only in the editor half, so these are stored
     # but never displayed.  Pinning that so a template change is noticed.
-    unlike( $body, qr/Carrier Pigeon/, 'payment details are not shown to anonymous readers' );
+    unlike( $body, qr/Carrier[ ]Pigeon/, 'payment details are not shown to anonymous readers' );
     is( _find_post('Spec Payee Entity')->{payment_method}, 'ACH', 'but payment_method did survive the schema' );
 };
 
@@ -1107,11 +1108,11 @@ subtest 'blog' => sub {
 
     my $body = _series_page( 'blog', 'specblog', $title, 1 ) or return;
 
-    like( $body, qr/Spec Blog Child/,                'child title rendered' );
+    like( $body, qr/Spec[ ]Blog[ ]Child/,            'child title rendered' );
     like( $body, qr{href='/posts/\Q$child->{id}\E'}, 'child permalink rendered' );
     like( $body, qr{id="postData-\Q$child->{id}\E"}, 'child body block rendered' );
-    like( $body, qr/Spec blog body text\./,          'child body text rendered' );
-    unlike( $body, qr/Spec Payee Entity/, 'no bleed from the entities series' );
+    like( $body, qr/Spec[ ]blog[ ]body[ ]text\./,    'child body text rendered' );
+    unlike( $body, qr/Spec[ ]Payee[ ]Entity/, 'no bleed from the entities series' );
 };
 
 subtest 'microblog' => sub {
@@ -1131,9 +1132,9 @@ subtest 'microblog' => sub {
 
     my $body = _series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
 
-    like( $body, qr{href='https://example\.com/spec' >Spec Microblog Child</a>}, 'title links out to href' );
-    like( $body, qr{id="postData-\Q$child->{id}\E"},                             'body block rendered' );
-    like( $body, qr/Spec microblog body\./,                                      'body text rendered' );
+    like( $body, qr{href='https://example\.com/spec'[ ]>Spec[ ]Microblog[ ]Child</a>}, 'title links out to href' );
+    like( $body, qr{id="postData-\Q$child->{id}\E"},                                   'body block rendered' );
+    like( $body, qr/Spec[ ]microblog[ ]body\./,                                        'body text rendered' );
 };
 
 subtest 'file' => sub {
@@ -1164,12 +1165,12 @@ subtest 'file' => sub {
 
     like( $body, qr{href='/assets/\Q$child->{id}\E\.spec-upload\.txt'}, 'title links to the asset' );
     like( $body, qr{id="postData-\Q$child->{id}\E"},                    'body block carries a unique id, like every other form' );
-    like( $body, qr/Spec file body\./,                                  'body text rendered' );
+    like( $body, qr/Spec[ ]file[ ]body\./,                              'body text rendered' );
 
     # This form used to emit <div class="postData" id="postData" class="responsive-text">
     # -- a duplicated class attribute, and an id shared by every file post on
     # the page.  Neither should come back.
-    unlike( $body, qr{<div class="postData" id="postData"}, 'no duplicated class attribute' );
+    unlike( $body, qr{<div[ ]class="postData"[ ]id="postData"}, 'no duplicated class attribute' );
 
     # text/plain, so none of the media branches fire.
     unlike( $body, qr/<video/, 'no video block for a text file' );
@@ -1196,8 +1197,8 @@ subtest 'presentation' => sub {
     my $body = _series_page( 'presentation', 'specpresentation', $title, 1 ) or return;
 
     # Slides only render under nochrome; the series page just links to the deck.
-    like( $body, qr{<a href="/posts/\Q$child->{id}\E\?embed=1&nochrome=1">Click Here to view</a>}, 'deck link rendered' );
-    unlike( $body, qr/Slide one body\./, 'slides themselves are not rendered inline' );
+    like( $body, qr{<a[ ]href="/posts/\Q$child->{id}\E\?embed=1&nochrome=1">Click[ ]Here[ ]to[ ]view</a>}, 'deck link rendered' );
+    unlike( $body, qr/Slide[ ]one[ ]body\./, 'slides themselves are not rendered inline' );
 };
 
 subtest 'invoice' => sub {
@@ -1228,19 +1229,19 @@ subtest 'invoice' => sub {
 
     my $body = _series_page( 'invoice', 'specinvoice', $title, 1 ) or return;
 
-    like( $body, qr/Invoice ID# \Q$child->{id}\E/, 'invoice header rendered' );
+    like( $body, qr/Invoice[ ]ID[#][ ]\Q$child->{id}\E/, 'invoice header rendered' );
 
     # These two only resolve because the entities subtest ran first and left
     # public entities.tx posts behind for the enrich hook to find.
-    like( $body, qr/Acme Payments LLC/, 'payee entity resolved' );
-    like( $body, qr/Wile E Coyote/,     'payor entity resolved' );
-    like( $body, qr/ACH/,               'payee payment method pulled through' );
+    like( $body, qr/Acme[ ]Payments[ ]LLC/, 'payee entity resolved' );
+    like( $body, qr/Wile[ ]E[ ]Coyote/,     'payor entity resolved' );
+    like( $body, qr/ACH/,                   'payee payment method pulled through' );
 
-    like( $body, qr/Widget assembly/, 'line items rendered' );
-    like( $body, qr/Total: \$500/,    'total summed from the line item prices' );
+    like( $body, qr/Widget[ ]assembly/, 'line items rendered' );
+    like( $body, qr/Total:[ ]\$500/,    'total summed from the line item prices' );
 
     my $due = $child->{modified} + 30 * 86400;
-    like( $body, qr{Due: <span class="unixtimestamp">\Q$due\E</span>}, 'due date counts from the latest edit, not the first save' );
+    like( $body, qr{Due:[ ]<span[ ]class="unixtimestamp">\Q$due\E</span>}, 'due date counts from the latest edit, not the first save' );
 };
 
 subtest 'a private post is not served to a visitor who asks for it by id' => sub {
@@ -1255,11 +1256,11 @@ subtest 'a private post is not served to a visitor who asks for it by id' => sub
 
     my ( $code, $body ) = _render( _anon( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
     is( $code, 404, 'a visitor gets a 404' );
-    unlike( $body, qr/Spec private body/, 'and none of the post' );
+    unlike( $body, qr/Spec[ ]private[ ]body/, 'and none of the post' );
 
     ( $code, $body ) = _render( _admin( route => "/posts/$secret->{id}" ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'an admin gets the post' );
-    like( $body, qr/Spec private body/, 'with its body' );
+    like( $body, qr/Spec[ ]private[ ]body/, 'with its body' );
 };
 
 subtest 'spec_widget (the wizard-built type)' => sub {
@@ -1286,8 +1287,8 @@ subtest 'spec_widget (the wizard-built type)' => sub {
     # The payoff: this can only render if the wizard wrote spec_widget.json,
     # schema_for merged it over the base post schema, and validate() therefore
     # kept 'flavor' instead of deleting it as an unknown key.
-    like( $body, qr{<span class="spec-flavor">Strawberry</span>}, 'the custom field rendered on the page' );
-    like( $body, qr/Spec widget body\./,                          'and the body came through the generated template' );
+    like( $body, qr{<span[ ]class="spec-flavor">Strawberry</span>}, 'the custom field rendered on the page' );
+    like( $body, qr/Spec[ ]widget[ ]body\./,                        'and the body came through the generated template' );
 };
 
 subtest 'a wizard-built type can depend on another type' => sub {
@@ -1391,8 +1392,8 @@ subtest 'a wizard-built type can depend on another type' => sub {
     my $page = _series_page( 'spec_relator', 'specrelator', 'Spec Relator Series', 1 ) or return;
 
     # Both halves of the relation resolved: the one we picked, and the set.
-    like( $page, qr{<span class="chosen">Spec Target Post</span>}, 'the picked post resolved into the page' );
-    like( $page, qr{<span class="each">Spec Target Post</span>},   'and so did the whole set' );
+    like( $page, qr{<span[ ]class="chosen">Spec[ ]Target[ ]Post</span>}, 'the picked post resolved into the page' );
+    like( $page, qr{<span[ ]class="each">Spec[ ]Target[ ]Post</span>},   'and so did the whole set' );
 };
 
 subtest '/api/posts_of_form feeds the relation picker' => sub {
@@ -1490,8 +1491,8 @@ subtest 'saves report back through the jsalert banner' => sub {
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination renders' ) or diag($err);
-    like( $body, qr/var loginFailure = 0;/,                      'the banner is in success mode' );
-    like( $body, qr/Saved post &#39;Spec Feedback Child&#39;\./, 'and says what was saved' );
+    like( $body, qr/var[ ]loginFailure[ ]=[ ]0;/,                            'the banner is in success mode' );
+    like( $body, qr/Saved[ ]post[ ]&[#]39;Spec[ ]Feedback[ ]Child&[#]39;\./, 'and says what was saved' );
 
     # Nothing to navigate on to, so the banner must not bounce us anywhere.
     unlike( $body, qr/window\.location=/, 'and does not redirect onwards' );
@@ -1512,8 +1513,8 @@ subtest 'saves report back through the jsalert banner' => sub {
     %h = @{ $headers || [] };
     is( $code,        303,                'a rejected save redirects too, rather than dead-ending on a 400' );
     is( $h{Location}, '/secure/specblog', 'to the same place a good one goes' );
-    like( $h{'Set-Cookie'},                              qr/^tcmsfeedback=1:/, 'flagged as failed' );
-    like( URI::Escape::uri_unescape( $h{'Set-Cookie'} ), qr/Not in enum list/, 'carrying the validator error' );
+    like( $h{'Set-Cookie'},                              qr/^tcmsfeedback=1:/,       'flagged as failed' );
+    like( URI::Escape::uri_unescape( $h{'Set-Cookie'} ), qr/Not[ ]in[ ]enum[ ]list/, 'carrying the validator error' );
 
     ok( !_find_post('Spec Rejected Child'), 'and the bad post was not written' );
 
@@ -1524,8 +1525,8 @@ subtest 'saves report back through the jsalert banner' => sub {
         \&Trog::Routes::HTML::series,
     );
     is( $rcode, 200, 'the destination still renders' ) or diag($err);
-    like( $body, qr/var loginFailure = 1;/, 'the banner is in failure mode' );
-    like( $body, qr/Not in enum list/,      'and shows why' );
+    like( $body, qr/var[ ]loginFailure[ ]=[ ]1;/, 'the banner is in failure mode' );
+    like( $body, qr/Not[ ]in[ ]enum[ ]list/,      'and shows why' );
 
     # Read once: the cookie is expired by the page that rendered it, or the
     # banner follows the reader around until it times out on its own.
@@ -1534,7 +1535,7 @@ subtest 'saves report back through the jsalert banner' => sub {
         \&Trog::Routes::HTML::series,
     );
     my %rh = @{ $rheaders || [] };
-    like( $rh{'Set-Cookie'}, qr/^tcmsfeedback=;.*Max-Age=0/, 'and the page that shows it expires it' );
+    like( $rh{'Set-Cookie'}, qr/^tcmsfeedback=;\N*Max-Age=0/, 'and the page that shows it expires it' );
 
     # A page showing a banner must not be cached, or the one person who saved
     # something has their message served to everybody.  The query parameter

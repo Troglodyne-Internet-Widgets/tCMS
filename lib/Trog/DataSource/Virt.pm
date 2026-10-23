@@ -1,7 +1,7 @@
 package Trog::DataSource::Virt;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use File::Path();
 use Sys::Hostname::FQDN();

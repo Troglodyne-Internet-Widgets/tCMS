@@ -1,7 +1,7 @@
 package Trog::Renderer;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Carp::Always;
 

@@ -1,7 +1,7 @@
 package Trog::Log::Metrics;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Trog::SQLite;
 use Trog::Log;

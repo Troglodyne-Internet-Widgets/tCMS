@@ -1,7 +1,7 @@
 package Trog::Renderer::json;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use JSON::MaybeXS;
 

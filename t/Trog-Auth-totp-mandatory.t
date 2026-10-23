@@ -5,6 +5,7 @@
 # and about the fact that there is no longer any way to turn 2fa back off.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;

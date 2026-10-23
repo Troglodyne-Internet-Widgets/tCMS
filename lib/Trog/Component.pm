@@ -1,7 +1,7 @@
 package Trog::Component;
 
 use 5.040;
-use re '/aa';
+use re '/aasx';
 
 use Text::Xslate ();
 

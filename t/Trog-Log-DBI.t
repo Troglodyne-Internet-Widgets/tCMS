@@ -1,4 +1,5 @@
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use Test::More;
@@ -39,7 +40,7 @@ subtest 'a write the database refuses is a warning, not a die' => sub {
 
     is( $died, undef, 'the caller of the log does not die' );
     is( $res,  undef, 'the write reports that it failed' );
-    like( $stderr, qr/Could not record request r-2 in the metrics database: .*refused for the test/, 'and says why on stderr' );
+    like( $stderr, qr/Could[ ]not[ ]record[ ]request[ ]r-2[ ]in[ ]the[ ]metrics[ ]database:[ ]\N*refused[ ]for[ ]the[ ]test/, 'and says why on stderr' );
 };
 
 done_testing();

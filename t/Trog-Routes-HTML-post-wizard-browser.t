@@ -26,6 +26,7 @@
 # NODE_PATH.  A global install under nvm is not one of those places.
 
 use 5.040;
+use re '/aasx';
 use warnings;
 
 use FindBin;

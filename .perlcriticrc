@@ -44,8 +44,8 @@ allow-unsafe = 1
 # thing it tends to catch is a contributor's name in the section Dist::Zilla
 # generates, and spelling somebody's name wrong is not a code standard.
 #[CodeLayout::RequireASCII]
-#[RegularExpressions::RequireDefault]
-#strict = 1
+[RegularExpressions::RequireDefault]
+strict = 1
 #[RegularExpressions::PreventUselessMetacharacterEscapes]
 # PEBCAK catches
 [BuiltinFunctions::ProhibitDeleteOnArrays]
@@ -224,8 +224,8 @@ exclude_functions = print
 [RegularExpressions::ProhibitSingleCharAlternation]
 [RegularExpressions::ProhibitUnusedCapture]
 [RegularExpressions::RequireBracesForMultiline]
-#[RegularExpressions::RequireDotMatchAnything]
-#[RegularExpressions::RequireExtendedFormatting]
+[RegularExpressions::RequireDotMatchAnything]
+[RegularExpressions::RequireExtendedFormatting]
 [Subroutines::ProhibitAmpersandSigils]
 #[Subroutines::ProhibitBuiltinHomonyms]
 [Subroutines::ProhibitManyArgs]
