@@ -6,6 +6,7 @@ use warnings FATAL => 'all';
 
 use Cwd         ();
 use Digest::SHA qw{sha256_hex};
+use Path::Tiny  ();
 use URI::Escape ();
 
 use Trog::DataSource ();
@@ -38,7 +39,7 @@ collide with, the synthesized ones.  Put files in the directory instead.
 
 =cut
 
-use constant EDITABLE => 0;
+sub EDITABLE { return 0 }
 
 =head2 CACHEABLE
 
@@ -52,7 +53,7 @@ way of ever becoming right again.
 
 =cut
 
-use constant CACHEABLE => 1;
+sub CACHEABLE { return 1 }
 
 =head1 WHAT MAY BE INDEXED
 
@@ -272,12 +273,14 @@ sub posts ( $series, $query ) {
 
     watch( $query, $dir->{relative} );
 
-    opendir( my $dh, $dir->{absolute} ) or do {
-        WARN("Could not read $dir->{relative}: $!");
+    my @entries;
+    eval {
+        @entries = map { $_->basename } Path::Tiny::path( $dir->{absolute} )->children(qr/\A[^.]/);
+        1;
+    } or do {
+        WARN("Could not read $dir->{relative}: $@");
         return ();
     };
-    my @entries = grep { $_ ne '.' && $_ ne '..' && index( $_, '.' ) != 0 } readdir($dh);
-    closedir($dh);
 
     my @out;
     foreach my $entry ( sort @entries ) {

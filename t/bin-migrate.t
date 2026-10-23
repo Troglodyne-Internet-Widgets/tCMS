@@ -15,6 +15,7 @@ use FindBin::libs;
 use Test::More;
 use Test::MockModule qw{strict};
 use IPC::Run3();
+use Path::Tiny();
 
 our ( $REPO, $ROOT, $OLDCWD );
 
@@ -193,9 +194,7 @@ subtest 'picking up what was written in between' => sub {
 };
 
 subtest 'the flat files are left alone' => sub {
-    opendir( my $dh, 'data/files' ) or die $!;
-    my @files = grep { !m/^\.\.?$/ } readdir($dh);
-    closedir $dh;
+    my @files = Path::Tiny::path('data/files')->children;
 
     is( scalar(@files), 5, 'every post still has its file' );
     ok( -f 'data/posts.db', "and the flat file model's own index is untouched" );

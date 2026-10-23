@@ -27,13 +27,13 @@ than methods, and named by a post type's sidecar in x-tcms-datasource.
 The children of $series, as post hashrefs.  Enough of a post to survive being
 rendered like one -- see Trog::DataSource::Virt::post_for for the shape.
 
-    EDITABLE                              optional constant
+    EDITABLE                              optional method
 
 Whether the wizard should generate an editor for a type drawn from this source.
-A source which builds its posts from somewhere else has nothing to edit, and
-saying nothing means no.
+A source which builds its posts from somewhere else has nothing to edit, so it
+returns false.  Saying nothing means yes.
 
-    CACHEABLE                             optional constant
+    CACHEABLE                             optional method
 
 Whether a page drawn from this source may be saved as a static render.  Saying
 nothing means no -- see cacheable() for why that is the safe way round.
@@ -202,9 +202,9 @@ example) and declare CACHEABLE.  Or it doesn't, in which case its pages must not
 be cached at all, because the cached copy has no way of ever becoming right
 again.
 
-Absent means not cacheable, which is the same way round as EDITABLE: a source
-whose author has not thought about invalidation gets the answer that is merely
-slow rather than the one that is wrong.
+Absent means not cacheable.  A source whose author has not thought about
+invalidation gets the answer that is merely slow rather than the one that is
+wrong.
 
 =cut
 

@@ -112,6 +112,7 @@ WriteMakefile(
         'HTTP::Body'                          => '0',
         'IO::String'                          => '0',
         'IO::Compress::Gzip'                  => '0',
+        'IO::Prompter'                        => '0',
         'Imager'                              => '0',
         'Imager::File::ICO'                   => '0',
         'Imager::File::PNG'                   => '0',
