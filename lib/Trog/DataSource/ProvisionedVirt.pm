@@ -88,7 +88,7 @@ my sub safe_domain ($domain) {
     return undef if !$domain || length $domain >= 254;
     return undef if $domain =~ m/(?:^|\.)\.\.?(?:\.|$)/;
 
-    my ($safe) = $domain =~ m/^([A-Za-z0-9][A-Za-z0-9._-]*)$/;
+    my ($safe) = $domain =~ m/^([[:alnum:]][\w.-]*)$/;
     return $safe;
 }
 

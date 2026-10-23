@@ -625,8 +625,8 @@ sub setup ($query) {
 Enable 2 factor auth via TOTP for the currently authenticated user.
 Returns a page with a QR code & TOTP uri for pasting into your authenticator app of choice.
 
-Every user has to enrol, so this is where a login without one lands and the only
-page it can reach until it has one.  Showing the same enrolment again is the
+Every user has to enroll, so this is where a login without one lands and the only
+page it can reach until it has one.  Showing the same enrollment again is the
 point rather than a fallback: a user who lost their authenticator scans it again
 and is back where they were.
 
@@ -975,7 +975,7 @@ Routes for user service of their authentication details.
 
 There is no route here for turning TOTP off.  Everybody has it, and losing an
 authenticator is not a reason to stop having a second factor -- bin/totp reads a
-user their existing enrolment back out of band, which is the same enrolment
+user their existing enrollment back out of band, which is the same enrollment
 rather than a new one.
 
 =cut
@@ -1428,7 +1428,7 @@ sub enrich_post ( $post, $query, $cache = {} ) {
         my $relation = $relations->{$as};
         next unless Ref::Util::is_hashref($relation);
 
-        my ($target) = ( $relation->{form} // '' ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
+        my ($target) = ( $relation->{form} // '' ) =~ m/^([\w-]+\.tx)$/;
         next unless $target;
 
         $cache->{$target} //= [ post_helper( { form => $target }, [], $query->{user_acls} ) ];
@@ -2037,7 +2037,7 @@ sub paginate_offset ( $query, $limit, @posts ) {
     # newer get, rather than int() warning its way through a word.  Past the end
     # shows the last page rather than an empty one, which is what a stale
     # bookmark deserves.
-    ( my $wanted = $query->{page} // '' ) =~ s/[^0-9]//g;
+    ( my $wanted = $query->{page} // '' ) =~ s/\D//g;
     my $page = $wanted ? int($wanted) : 1;
     $page = 1            if $page < 1;
     $page = $pages_total if $page > $pages_total;
@@ -2708,7 +2708,7 @@ land on the generation before this save.
 
 Returns the error if there was one, and nothing if all was well.  A failure to
 index is not a failure to create the post type: the type is written by this
-point, works, and is only missing an optimisation.
+point, works, and is only missing an optimization.
 
 =cut
 
@@ -2851,7 +2851,7 @@ sub post_wizard_save ($query) {
     # Anchored capture rather than a substitution, so anything containing a '/'
     # or a '..' simply fails to match instead of being silently scrubbed into
     # something that still escapes the directory.
-    my ($name) = wizard_scalar( $query->{name} ) =~ m/^([A-Za-z0-9_-]+)$/;
+    my ($name) = wizard_scalar( $query->{name} ) =~ m/^([\w-]+)$/;
     return wizard_fail( $query, "Post type names may only contain letters, numbers, '-' and '_'." ) unless $name;
 
     # Whichever forms dir is in use: the theme's if it has one, the stock one
@@ -3273,7 +3273,7 @@ sub wizard_fields ($query) {
 
     my ( @fields, %seen );
     foreach my $index ( 0 .. $#$names ) {
-        my ($fname) = lc( wizard_scalar( $names->[$index] ) ) =~ m/^([a-z][a-z0-9_]{0,31})$/;
+        my ($fname) = lc( wizard_scalar( $names->[$index] ) ) =~ m/^([[:lower:]][[:lower:]\d_]{0,31})$/;
 
         # Blank and bogus rows just get dropped.
         next unless $fname;
@@ -3288,7 +3288,7 @@ sub wizard_fields ($query) {
 
         # A relation is only a relation if it names a target type that looks
         # like one; anything else falls back to being a plain text field.
-        my ($rform) = wizard_scalar( $rforms->[$index] ) =~ m/^([A-Za-z0-9_-]+\.tx)$/;
+        my ($rform) = wizard_scalar( $rforms->[$index] ) =~ m/^([\w-]+\.tx)$/;
         my $rmode = wizard_scalar( $rmodes->[$index] ) eq 'all' ? 'all' : 'one';
         $type = 'text' if $type eq 'relation' && !$rform;
 
@@ -3414,7 +3414,7 @@ Implements the /totp/* routes.
 
 Serves the QR code generated when a user enables TOTP.  These live outside
 www/, so they go out through serve() rather than the static file handler --
-handing someone else's enrolment QR out to the world would be handing them the
+handing someone else's enrollment QR out to the world would be handing them the
 shared secret.
 
 =cut

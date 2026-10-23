@@ -320,10 +320,10 @@ other's console.
 =cut
 
 sub screenshot ( $hypervisor, $guest_name ) {
-    my ($safe) = ( $guest_name // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    my ($safe) = ( $guest_name // '' ) =~ m/^([\w.-]+)$/;
     return ( undef, 'bad guest name' ) unless $safe;
 
-    my ($host) = ( $hypervisor->{id} // '' ) =~ m/^([A-Za-z0-9._-]+)$/;
+    my ($host) = ( $hypervisor->{id} // '' ) =~ m/^([\w.-]+)$/;
     return ( undef, 'bad hypervisor id' ) unless $host;
 
     my $conn_uri = $hypervisor->{conn_uri};
@@ -380,7 +380,7 @@ logged with the user who asked for it.
 =cut
 
 sub act ( $action, $conn_uri, $domain_name, $user ) {
-    my ($safe) = $domain_name =~ m/^([A-Za-z0-9._-]+)$/;
+    my ($safe) = $domain_name =~ m/^([\w.-]+)$/;
     return ( 0, 'bad guest name' ) unless $safe;
 
     # The template draws neither of these buttons for this guest; this is what

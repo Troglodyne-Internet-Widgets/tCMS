@@ -192,9 +192,9 @@ allow = re Exporter
 [ControlStructures::ProhibitUnreachableCode]
 [ControlStructures::ProhibitUntilBlocks]
 [ControlStructures::ProhibitYadaOperator]
-#[Documentation::PodSpelling]
-#spell_command = aspell --lang=en_US list
-#stop_words_file = .pod_stopwords
+[Documentation::PodSpelling]
+spell_command = aspell --lang=en_US list
+stop_words_file = .pod_stopwords
 [Documentation::RequirePackageMatchesPodName]
 [ErrorHandling::RequireCheckingReturnValueOfEval]
 [InputOutput::ProhibitExplicitStdin]
@@ -221,7 +221,7 @@ allow = re Exporter
 #[NamingConventions::Capitalization]
 [RegularExpressions::ProhibitCaptureWithoutTest]
 #[RegularExpressions::ProhibitComplexRegexes]
-#[RegularExpressions::ProhibitEnumeratedClasses]
+[RegularExpressions::ProhibitEnumeratedClasses]
 [RegularExpressions::ProhibitFixedStringMatches]
 [RegularExpressions::ProhibitSingleCharAlternation]
 [RegularExpressions::ProhibitUnusedCapture]

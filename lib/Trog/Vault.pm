@@ -199,7 +199,7 @@ my sub derive ($salt) {
 # a row to its owner, so it is a short plain thing or it is nothing.
 my sub safe_name ($name) {
     return 0 if !$name || length $name > 64;
-    return $name =~ m/^[A-Za-z0-9][A-Za-z0-9._-]*$/ ? 1 : 0;
+    return $name =~ m/^[[:alnum:]][\w.-]*$/ ? 1 : 0;
 }
 
 # The same database the users are in, since a secret belongs to one.

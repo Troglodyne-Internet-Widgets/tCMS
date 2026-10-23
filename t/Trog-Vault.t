@@ -59,7 +59,7 @@ Trog::Auth::useradd( 'eve', 'Eve Evilson', 'letmein', ['public'], 'eve@example.c
 subtest 'the key is taken out of the environment' => sub {
     ok( Trog::Vault::has_key(),        'the key was read' );
     ok( !exists $ENV{TPSGI_VAULT_KEY}, 'and is gone from the environment, so nothing we fork inherits it' );
-    like( Trog::Vault::key_id(), qr/^[0-9a-f]{16}$/, 'and fingerprints to something a row can name' );
+    like( Trog::Vault::key_id(), qr/^[\da-f]{16}$/, 'and fingerprints to something a row can name' );
 };
 
 subtest 'what a secret looks like on disk' => sub {

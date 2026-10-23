@@ -120,7 +120,7 @@ subtest 'ids are stable and opaque' => sub {
 
     # Pagination hands out page 2 of a list keyed on these, and a filename is
     # not a thing to put in a URL.
-    ok( $one{'report.pdf'} =~ m/^dirindex-[0-9a-f]{32}$/, 'and it is opaque rather than the name' );
+    ok( $one{'report.pdf'} =~ m/^dirindex-[\da-f]{32}$/, 'and it is opaque rather than the name' );
     isnt( $one{'report.pdf'}, $one{'notes.txt'}, 'different entries get different ids' );
 };
 
