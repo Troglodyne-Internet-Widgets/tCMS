@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::NoWarnings;
@@ -11,7 +11,7 @@ use Socket qw{SOCK_DGRAM};
 use Log::Dispatch;
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 require_ok('Trog::Log::Syslog') or BAIL_OUT("Can't find SUT");
 

@@ -2,8 +2,9 @@
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
-use lib 'lib';
+use FindBin::libs;
 use Trog::Data;
 use Trog::Config;
 use Trog::SQLite::TagIndex;

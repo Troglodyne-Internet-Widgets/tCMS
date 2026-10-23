@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Cwd        ();
@@ -9,7 +9,7 @@ use File::Path ();
 use File::Temp ();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use_ok('Trog::SQLite::TagIndex') or BAIL_OUT("Can't find SUT");
 

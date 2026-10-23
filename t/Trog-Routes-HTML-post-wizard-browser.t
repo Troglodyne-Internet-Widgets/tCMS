@@ -27,10 +27,10 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 
@@ -148,7 +148,7 @@ foreach my $form ( sort keys(%EXPECT) ) {
         # empty one behind to type the next field into, and a type with no
         # custom fields at all gets that row and nothing else.
         is_deeply(
-            [ sort grep { length } @{ field_names() } ],
+            [ sort grep { $_ } @{ field_names() } ],
             [ sort @{ $expect->{fields} } ],
             'and only the fields somebody typed in are offered as custom ones'
         );

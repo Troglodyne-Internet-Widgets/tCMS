@@ -2,6 +2,7 @@ package Trog::DataSource::Virt;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use File::Path();
 use Sys::Hostname::FQDN();
@@ -99,7 +100,7 @@ sub _connect ( $uri, $cache = {} ) {
 
 # libvirt's numeric domain states, in the order the constants define them.
 my @states = (
-    'no state',      'running',  'blocked', 'paused',
+    'no state', qw{running blocked paused},
     'shutting down', 'shut off', 'crashed', 'suspended',
 );
 
@@ -209,7 +210,7 @@ Trog::DataSource::filter.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( length( $query->{like} // '' ) ) {
+    if ( ( $query->{like} // q{} ) ne q{} ) {
         my $like = $query->{like};
         @posts = grep {
             Trog::DataSource::searchable_match(
@@ -233,8 +234,8 @@ Where to read about it.
 
 =cut
 
-sub lang { 'Case insensitive substring of a guest name, state or hypervisor' }
-sub help { 'https://en.wikipedia.org/wiki/Substring' }
+sub lang { return 'Case insensitive substring of a guest name, state or hypervisor' }
+sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
 sub _post_for ( $domain, $hypervisor, $series, $form ) {
     my $name = $domain->get_name();

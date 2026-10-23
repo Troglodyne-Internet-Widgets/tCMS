@@ -6,10 +6,10 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Test::MockModule qw{strict};
@@ -430,14 +430,14 @@ subtest 'the state a reprovision leaves behind' => sub {
 
     # Nothing waits on the process which does the work, so this file is the
     # whole of what it can say for itself.
-    $write->( 'state=ok', 'started=100', 'finished=200', 'exit=0', 'user=admin' );
+    $write->(qw{state=ok started=100 finished=200 exit=0 user=admin});
     my $got = Trog::DataSource::ProvisionedVirt::status('guest.example.com');
     is( $got->{state},    'ok',    'a finished run reads back as finished' );
     is( $got->{exit},     '0',     'with what it exited' );
     is( $got->{user},     'admin', 'and who asked for it' );
     is( $got->{finished}, '200',   'and when it stopped' );
 
-    $write->( 'state=failed', 'exit=3', 'failed=/x/bin/provision' );
+    $write->(qw{state=failed exit=3 failed=/x/bin/provision});
     is( Trog::DataSource::ProvisionedVirt::status('guest.example.com')->{state}, 'failed', 'a failed one reads back failed' );
 
     # A live pid means it really is going on.  Ours is alive by definition.

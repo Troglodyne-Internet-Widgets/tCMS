@@ -2,6 +2,7 @@ package Trog::Config;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin::libs;
 
@@ -83,7 +84,7 @@ sub schema ( $file = $default ) {
         chomp $line;
         $line =~ s/^\s+//;
         $line =~ s/\s+$//;
-        next unless length $line;
+        next unless $line;
 
         if ( $line =~ m/^\[(\N+)\]$/ ) {
             $section = { section => $1, fields => [] };

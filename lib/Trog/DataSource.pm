@@ -2,6 +2,7 @@ package Trog::DataSource;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Trog::DataModule ();
 use Trog::Log        qw{:all};
@@ -101,7 +102,7 @@ rather than by hoping this one covers it.
 sub filter ( $query, @posts ) {
     $query //= {};
 
-    if ( length( $query->{like} // '' ) ) {
+    if ( ( $query->{like} // q{} ) ne q{} ) {
         my $like = $query->{like};
         @posts = grep { searchable_match( $like, $_->{title}, $_->{data} ) } @posts;
     }
@@ -112,11 +113,11 @@ sub filter ( $query, @posts ) {
     # this arrives straight off a query string.
     if ( $query->{older} ) {
         ( my $older = $query->{older} ) =~ s/[^0-9]//g;
-        @posts = grep { ( $_->{created} // 0 ) < $older } @posts if length $older;
+        @posts = grep { ( $_->{created} // 0 ) < $older } @posts if $older ne q{};
     }
     if ( $query->{newer} ) {
         ( my $newer = $query->{newer} ) =~ s/[^0-9]//g;
-        @posts = grep { ( $_->{created} // 0 ) > $newer } @posts if length $newer;
+        @posts = grep { ( $_->{created} // 0 ) > $newer } @posts if $newer ne q{};
     }
 
     return @posts;
@@ -137,7 +138,7 @@ or a nested structure is passed over rather than matched against its address.
 =cut
 
 sub searchable_match ( $like, @values ) {
-    return 0 unless length( $like // '' );
+    return 0 unless ( $like // q{} ) ne q{};
 
     foreach my $value (@values) {
         next     if !defined $value || ref $value;
@@ -175,7 +176,7 @@ to the datastore, and a datasource page is not being served out of the datastore
 
 =cut
 
-sub lang { 'Case insensitive substring' }
+sub lang { return 'Case insensitive substring' }
 
 =head2 help() = STRING
 
@@ -183,7 +184,7 @@ Where to read about it.
 
 =cut
 
-sub help { 'https://en.wikipedia.org/wiki/Substring' }
+sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
 =head2 cacheable($source) = BOOL
 
@@ -222,7 +223,7 @@ an arbitrary module.  Returns the module name without loading it; see load().
 =cut
 
 sub for_type ( $form = '' ) {
-    return undef unless length( $form // '' );
+    return undef unless $form;
 
     my $meta   = Trog::DataModule::type_meta_for($form);
     my $source = $meta->{'x-tcms-datasource'};

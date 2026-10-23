@@ -4,6 +4,7 @@ package tcms::login;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin::libs;
 use Getopt::Long;
@@ -115,8 +116,8 @@ sub main {
 
     # Omitted entirely or passed with no value both mean "ask me".
     $options{password} = _read_password("Password for '$options{user}': ")
-      unless defined $options{password} && length $options{password};
-    unless ( defined $options{password} && length $options{password} ) {
+      unless ( $options{password} // q{} ) ne q{};
+    unless ( ( $options{password} // q{} ) ne q{} ) {
         print STDERR "No password provided.\n";
         return 2;
     }

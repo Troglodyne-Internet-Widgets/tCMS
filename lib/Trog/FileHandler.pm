@@ -2,6 +2,7 @@ package Trog::FileHandler;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use POSIX qw{strftime};
 use IO::Compress::Gzip;

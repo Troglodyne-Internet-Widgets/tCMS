@@ -2,6 +2,7 @@ package Trog::Themes;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin::libs;
 
@@ -31,11 +32,14 @@ sub routes {
     my $rdir = get_dir();
     return () unless -f "$rdir/routes.pm";    ## no critic (ProhibitFiletest_f) -- theme ships routes, or it does not
 
+    # get_dir() is relative to the tCMS root, which require only searches from '.'.
+    local @INC = ( '.', @INC );
     local $@;
     eval { require "$rdir/routes.pm"; 1; } or do {
         die "Could not load Theme routing package: $@";
     };
 
+    no warnings 'once';
     return %Theme::routes;
 }
 

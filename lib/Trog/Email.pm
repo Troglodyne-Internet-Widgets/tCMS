@@ -2,6 +2,7 @@ package Trog::Email;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Email::MIME;
 use Email::Sender::Simple;

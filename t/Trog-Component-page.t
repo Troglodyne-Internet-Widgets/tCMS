@@ -1,13 +1,13 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
 use Test::Fatal      qw{exception};
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 # The components render real templates through the real renderer, which resolves
 # them relative to the tCMS root.  Xslate also computes its cache dir from $HOME
@@ -86,7 +86,7 @@ subtest 'PostHeader and PostFooter validate the name' => sub {
 
     # The name comes out of post data, and before this it went straight into a
     # path with nothing checking it.
-    foreach my $bad ( '../../etc/passwd', 'headers/../../../etc/passwd', 'nope.tx', 'about_header' ) {
+    foreach my $bad (qw{../../etc/passwd headers/../../../etc/passwd nope.tx about_header}) {
         like(
             exception { Trog::Component::component( 'PostHeader', { name => $bad } ) },
             qr/No[ ]such[ ]header/,

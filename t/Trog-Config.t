@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Cwd();
@@ -9,7 +9,7 @@ use File::Temp();
 use Path::Tiny();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 # $Trog::Config::default is read exactly once below, which is enough for perl
 # to suspect a typo.

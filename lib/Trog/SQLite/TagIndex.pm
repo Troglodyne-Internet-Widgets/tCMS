@@ -2,6 +2,7 @@ package Trog::SQLite::TagIndex;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use URI::Escape;
 use List::Util qw{uniq};
@@ -137,6 +138,7 @@ sub build_index ( $data_obj, $posts = [] ) {
             map { ( $subj->{post_id}, $subj->{created}, $t->{$_} ) } @{ $subj->{tags} }
         } @$posts
     );
+    return 1;
 }
 
 sub _id_for_uuid ( $dbh, @uuids ) {
@@ -180,6 +182,7 @@ sub build_routes ( $data_obj, $posts = [] ) {
         my $route = $post->{local_href};
         Trog::SQLite::bulk_insert( $dbh, 'post_aliases', [qw{route_id alias}], 'IGNORE', map { ( $routes_actual{$route}{id}, $_ ) } @{ $post->{aliases} } );
     }
+    return 1;
 }
 
 # Ensure the db schema is OK, and give us a handle

@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
@@ -13,7 +13,7 @@ use FindBin;
 use feature qw{signatures};
 no warnings qw{experimental::signatures};
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 require_ok('Trog::DataModule') or BAIL_OUT("Can't find SUT");
 require_ok('Trog::Routes::HTML');
@@ -395,11 +395,11 @@ subtest '_wizard_fields zips the parallel arrays' => sub {
     # the row after it -- this is the whole reason param_required is a select.
     my $fields = Trog::Routes::HTML::_wizard_fields(
         {
-            param_name        => [ 'Servings', '',     'cook_time', 'id',   'servings' ],
-            param_type        => [ 'number',   'text', 'textarea',  'text', 'text' ],
-            param_label       => [ 'Servings', '',     'Cook Time', 'ID',   'Dupe' ],
-            param_placeholder => [ '4',        '',     '45 min',    '',     '' ],
-            param_required    => [ 1,          0,      0,           0,      0 ],
+            param_name        => [ 'Servings', '', qw{cook_time id servings} ],
+            param_type        => [qw{number text textarea text text}],
+            param_label       => [ 'Servings', '', 'Cook Time', 'ID', 'Dupe' ],
+            param_placeholder => [ '4',        '', '45 min',    '',   '' ],
+            param_required    => [ 1,          0,  0,           0,    0 ],
         }
     );
 

@@ -2,6 +2,7 @@
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Cwd            ();
 use File::Basename ();

@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Cwd();
@@ -9,7 +9,7 @@ use File::Temp();
 use Path::Tiny();
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 # The config editor is built out of config/default.cfg rather than a hardcoded
 # list of fields, so what it can edit is whatever that file describes.  These

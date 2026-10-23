@@ -2,6 +2,7 @@ package Trog::Data::DUMMY;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Carp qw{confess};
 use Errno();
@@ -19,8 +20,8 @@ Do not use this as a production data model.  It is *not* safe to race conditions
 =cut
 
 our $datastore = 'data/DUMMY.json';
-sub lang { 'Perl Regex in Quotemeta' }
-sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
+sub lang { return 'Perl Regex in Quotemeta' }
+sub help { return 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 our $posts;
 
@@ -64,6 +65,7 @@ sub write ( $self, $data, $overwrite = 0 ) {
     open( my $fh, '>', $datastore ) or confess;
     print $fh JSON::MaybeXS::encode_json($orig);
     close $fh;
+    return 1;
 }
 
 sub delete ( $self, @posts ) {

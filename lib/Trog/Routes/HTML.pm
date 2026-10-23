@@ -2,6 +2,7 @@ package Trog::Routes::HTML;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 no warnings qw{once};
 
@@ -313,7 +314,8 @@ if ($theme_dir) {
 
     my $theme_mod = "$theme_dir/routes.pm";
     if ( -f $theme_mod ) {    ## no critic (ProhibitFiletest_f) -- theme routes, else the default theme
-        use lib '.';
+                              # get_dir() is relative to the tCMS root, which require only searches from '.'.
+        local @INC = ( '.', @INC );
         require $theme_mod;
         @routes{ keys(%Theme::routes) } = values(%Theme::routes);
         $themed = 1;
@@ -590,7 +592,7 @@ One time setup page; should only display to the first user to visit the site whi
 
 sub setup ($query) {
     File::Touch::touch("config/setup");
-    Trog::Renderer->render(
+    return Trog::Renderer->render(
         template => 'notconfigured.tx',
         data     => {
             title       => 'tCMS Requires Setup to Continue...',
@@ -790,6 +792,7 @@ sub _setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
             aliases       => [],
         },
     );
+    return 1;
 }
 
 =head2 logout
@@ -880,7 +883,7 @@ sub _config_sections {
                     map {
                         {
                             value    => $_,
-                            label    => length($_)   ? $_ : 'default',
+                            label    => $_ ne q{}    ? $_ : 'default',
                             selected => $_ eq $value ? 1  : 0,
                         }
                     } @{ $choices->() }
@@ -1977,7 +1980,7 @@ sub _paginate_offset ( $query, $limit, @posts ) {
     # shows the last page rather than an empty one, which is what a stale
     # bookmark deserves.
     ( my $wanted = $query->{page} // '' ) =~ s/[^0-9]//g;
-    my $page = length($wanted) ? int($wanted) : 1;
+    my $page = $wanted ne q{} ? int($wanted) : 1;
     $page = 1            if $page < 1;
     $page = $pages_total if $page > $pages_total;
 
@@ -2273,6 +2276,7 @@ sub _post2rss ( $rss, $url, $post ) {
         pubDate     => DateTime->from_epoch( epoch => $post->{created} ),    #TODO format like Thu, 23 Aug 1999 07:00:00 GMT
         author      => $post->{user},                                        #TODO translate to "email (user)" format
     );
+    return 1;
 }
 
 =head2 manual
@@ -2890,7 +2894,7 @@ sub _wizard_types ($forms) {
         my %includes = map { $_ => 1 } @{ Trog::DataModule::includes_for($form) };
 
         my $display = $type->{display};
-        $display = _wizard_display_from_template($form) unless length( $display // '' );
+        $display = _wizard_display_from_template($form) unless $display;
 
         # The wrapper div and the two blocks which belong to a type's display
         # half rather than to its editor.  Same reading as the includes, and for
@@ -3246,7 +3250,7 @@ sub _wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $
         my $property = { %{ $wizard_field_types{ $field->{type} } } };
         $property->{'x-tcms-input'}       = $field->{type};
         $property->{'x-tcms-label'}       = $field->{label};
-        $property->{'x-tcms-placeholder'} = $field->{placeholder} if length $field->{placeholder};
+        $property->{'x-tcms-placeholder'} = $field->{placeholder} if ( $field->{placeholder} // q{} ) ne q{};
 
         # Only written when it is true: a field is public unless it says so,
         # and a sidecar full of x-tcms-private:false reads like the opposite.

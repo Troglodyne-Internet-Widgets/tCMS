@@ -2,6 +2,7 @@ package Trog::Auth;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin::libs;
 
@@ -377,14 +378,14 @@ our $argon2_tag     = 32;
 our $argon2_saltlen = 16;
 
 sub check_password ( $user, $pass ) {
-    return 0 unless defined $pass && length($pass);
+    return 0 unless ( $pass // q{} ) ne q{};
 
     my $dbh  = _dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT hash, salt FROM user WHERE name = ?", { Slice => {} }, $user );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
     my ( $hash, $salt ) = ( $rows->[0]{hash}, $rows->[0]{salt} );
-    return 0 unless defined $hash && length($hash);
+    return 0 unless $hash;
 
     if ( index( $hash, '$argon2' ) == 0 ) {
         return 0 unless eval { argon2id_verify( $hash, $pass ) };

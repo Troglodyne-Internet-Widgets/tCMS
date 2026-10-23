@@ -2,6 +2,7 @@ package Trog::Data::FlatFile;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Carp           qw{confess};
 use Fcntl          qw{LOCK_EX};
@@ -14,15 +15,14 @@ use File::Copy;
 use Path::Tiny();
 use Capture::Tiny qw{capture_merged};
 
-use lib 'lib';
 use Trog::Log qw{:all};
 use Trog::SQLite::TagIndex;
 
 use parent qw{Trog::DataModule};
 
 our $datastore = 'data/files';
-sub lang { 'Perl Regex in Quotemeta' }
-sub help { 'https://perldoc.perl.org/functions/quotemeta.html' }
+sub lang { return 'Perl Regex in Quotemeta' }
+sub help { return 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 =head1 Trog::Data::FlatFile
 
@@ -149,7 +149,7 @@ sub write ( $self, $data ) {
         # is a directory, rename() onto it fails, and the error names File::
         # Slurper rather than the post that had no id.  add() will not produce
         # one, but nothing else guarantees a caller went through add().
-        confess "Cannot write a post with no id" unless length( $post->{id} // '' );
+        confess "Cannot write a post with no id" unless $post->{id};
 
         my $file = "$datastore/$post->{id}";
 
@@ -166,7 +166,7 @@ sub write ( $self, $data ) {
         flock( $lock, LOCK_EX )                      or confess "Could not lock $spool/.write.lock: $!";
 
         my $slurped = eval { File::Slurper::read_binary($file) };
-        my $update  = length( $slurped // '' ) ? [ ( @{ $parser->decode($slurped) }, $post ) ] : [$post];
+        my $update  = $slurped ? [ ( @{ $parser->decode($slurped) }, $post ) ] : [$post];
 
         # The rename is what stops a torn read.  Every reader here takes no
         # lock, so writing in place lets one catch a half-written file: a few
@@ -181,6 +181,7 @@ sub write ( $self, $data ) {
 
         Trog::SQLite::TagIndex::add_post( $post, $self );
     }
+    return 1;
 }
 
 sub count ($self) {

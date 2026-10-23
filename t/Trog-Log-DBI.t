@@ -1,6 +1,6 @@
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use Test::More;
 use Test::Fatal   qw{exception};
@@ -8,7 +8,7 @@ use Capture::Tiny qw{capture_stderr};
 use File::Temp    qw{tempdir};
 use FindBin;
 
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Trog::SQLite;
 

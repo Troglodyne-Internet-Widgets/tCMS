@@ -2,6 +2,7 @@ package Trog::Renderer::Base;
 
 use 5.040;
 use re '/aasx';
+use warnings FATAL => 'all';
 
 use Encode qw{encode_utf8};
 use IO::Compress::Gzip;

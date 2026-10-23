@@ -6,10 +6,10 @@
 
 use 5.040;
 use re '/aasx';
-use warnings;
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Test::MockModule qw{strict};
@@ -369,6 +369,7 @@ subtest 'the page a user manages them from' => sub {
         *FakeTPSGI::forbidden = sub { return [ 403, [], ['no'] ] };
     }
 
+    no warnings 'once';
     my $route = $Trog::Routes::HTML::routes{'/secrets'};
     ok( $route,                 'the page is a route' );
     ok( $route->{auth},         'behind a login' );
