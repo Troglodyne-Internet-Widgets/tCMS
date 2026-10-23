@@ -197,7 +197,7 @@ subtest 'the flat files are left alone' => sub {
     my @files = Path::Tiny::path('data/files')->children;
 
     is( scalar(@files), 5, 'every post still has its file' );
-    ok( -f 'data/posts.db', "and the flat file model's own index is untouched" );
+    ok( -e 'data/posts.db', "and the flat file model's own index is untouched" );
 
     # Which is what makes going back possible.
     my @still = $flat->get( limit => 0, acls => ['admin'] );

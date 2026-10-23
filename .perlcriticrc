@@ -64,7 +64,7 @@ strict = 1
 [ValuesAndExpressions::ConstantBeforeLt]
 [ValuesAndExpressions::ProhibitDuplicateHashKeys]
 # any access checks are necessarily a TOCTOU waiting to happen
-#[ValuesAndExpressions::ProhibitFiletest_f]
+[ValuesAndExpressions::ProhibitFiletest_f]
 [ValuesAndExpressions::ProhibitFiletest_rwxRWX]
 # Bikeshed
 [CognitiveComplexity::ProhibitExcessCognitiveComplexity]

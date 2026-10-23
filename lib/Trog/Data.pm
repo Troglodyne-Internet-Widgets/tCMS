@@ -62,8 +62,8 @@ sub model ($config) {
     return $model if -e $sqlite_db;
 
     my $posts = eval {
-        scalar grep { -f } Path::Tiny::path($flatfile_store)->children;
-    } or return $model;    ## no critic (ProhibitFiletest_f) -- counting names, nothing is opened
+        scalar grep { -f } Path::Tiny::path($flatfile_store)->children;    ## no critic (ProhibitFiletest_f) -- counting names, nothing is opened
+    } or return $model;
 
     WARN("general.data_model is SQLite, but $sqlite_db does not exist and $flatfile_store holds $posts post(s).  Serving them from FlatFile.  Run bin/migrate.pl to move them across.");
     return 'FlatFile';

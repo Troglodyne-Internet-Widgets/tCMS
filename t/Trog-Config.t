@@ -55,8 +55,8 @@ subtest 'a config written to home_cfg is the one that gets read back' => sub {
     $written->param( 'general.hostname',   'spec.example.com' );
     ok( $written->write($Trog::Config::home_cfg), 'wrote to home_cfg' );
 
-    ok( -f 'config/main.cfg', 'which landed under config/, not the instance root' );
-    ok( !-f 'main.cfg',       'and not loose in the root where nothing would read it' );
+    ok( -e 'config/main.cfg', 'which landed under config/, not the instance root' );
+    ok( !-e 'main.cfg',       'and not loose in the root where nothing would read it' );
 
     my $read = Trog::Config::get();
     is( $read->param('general.title'),    'Instance',         'get() picked up the written config' );

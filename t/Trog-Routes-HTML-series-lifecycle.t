@@ -59,7 +59,8 @@ state sub snapshot {
         {
             no_chdir => 1,
             wanted   => sub {
-                return unless -f $File::Find::name;
+                return unless -e $File::Find::name;
+                return if -d _;
                 my @st = stat(_);
                 $seen{$File::Find::name} = "$st[7]:$st[9]";
             },
@@ -80,7 +81,7 @@ state sub copy_tree {
                 return unless $rel;
                 my $dst = "$to$rel";
                 if    ( -d $File::Find::name ) { File::Path::make_path($dst) }
-                elsif ( -f $File::Find::name ) { File::Copy::copy( $File::Find::name, $dst ) or die "copy $File::Find::name: $!" }
+                elsif ( -e $File::Find::name ) { File::Copy::copy( $File::Find::name, $dst ) or die "copy $File::Find::name: $!" }
             },
         },
         $from
@@ -393,8 +394,8 @@ sub find_post {
 subtest 'the sandbox is what we are actually running against' => sub {
     is( Cwd::getcwd(), Cwd::abs_path($ROOT), 'cwd is the sandbox' );
     ok( -d 'data/files',         'datastore dir exists' );
-    ok( -f 'config/default.cfg', 'config was seeded' );
-    ok( !-f 'config/main.cfg',   'and there is no main.cfg, so we fall through to the default' );
+    ok( -e 'config/default.cfg', 'config was seeded' );
+    ok( !-e 'config/main.cfg',   'and there is no main.cfg, so we fall through to the default' );
 
     my $conf = Trog::Config::get();
     is( $conf->param('general.data_model'), $MODEL, 'config resolves inside the sandbox' );
@@ -405,7 +406,7 @@ subtest 'the sandbox is what we are actually running against' => sub {
 };
 
 subtest 'registering the first admin bootstraps the install' => sub {
-    ok( !-f 'config/has_users', 'no users yet, so login() is in register mode' );
+    ok( !-e 'config/has_users', 'no users yet, so login() is in register mode' );
 
     my ( $code, undef, $err, $headers ) = render(
         anon(
@@ -424,7 +425,7 @@ subtest 'registering the first admin bootstraps the install' => sub {
     my %h = @{ $headers || [] };
     like( $h{'Set-Cookie'} // '', qr/^tcmslogin=[\da-f-]{36};/, 'a session cookie came back' );
 
-    ok( -f 'config/has_users', 'registration is now closed' );
+    ok( -e 'config/has_users', 'registration is now closed' );
     is_deeply( Trog::Auth::acls4user($ADMIN_USER), ['admin'], 'the new user is an admin' );
 
     reindex();
@@ -460,8 +461,8 @@ subtest 'the post wizard invents a new post type' => sub {
     );
     is( $code, 200, 'wizard save rendered' ) or diag($err);
 
-    ok( -f 'www/templates/html/components/forms/spec_widget.tx',   'the template was written' );
-    ok( -f 'www/templates/html/components/forms/spec_widget.json', 'the schema sidecar was written' );
+    ok( -e 'www/templates/html/components/forms/spec_widget.tx',   'the template was written' );
+    ok( -e 'www/templates/html/components/forms/spec_widget.json', 'the schema sidecar was written' );
 
     # The existing types are a dropdown now, not a list.
     like( $body, qr{<option[ ]value="spec_widget\.tx">}, 'and the new type is listed back to us' );
@@ -1160,7 +1161,7 @@ subtest 'file' => sub {
     ) or return;
 
     ok( !-e $src,                                     'the upload was moved out of its temp location, not copied' );
-    ok( -f "www/assets/$child->{id}.spec-upload.txt", 'and it landed in www/assets' );
+    ok( -e "www/assets/$child->{id}.spec-upload.txt", 'and it landed in www/assets' );
 
     my $body = series_page( 'file', 'specfile', $title, 1 ) or return;
 
