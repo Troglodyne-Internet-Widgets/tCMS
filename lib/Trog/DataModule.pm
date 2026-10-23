@@ -1015,7 +1015,7 @@ sub aliases ($self) {
     my @posts = $self->get( limit => 0, acls => ['admin'] );
     my %aliases;
     foreach my $post (@posts) {
-        @aliases{ @{ $post->{aliases} } } = $post->{local_href};
+        $aliases{$_} = $post->{local_href} for @{ $post->{aliases} // [] };
     }
     return %aliases;
 }
