@@ -123,6 +123,7 @@ WriteMakefile(
         'Sys::Hostname::FQDN'                 => '0',
         'List::Util'                          => '0',
         'Mojo::File'                          => '0',
+        'Mojo::JSON'                          => '0',
         'POSIX'                               => '0',
         'Ref::Util'                           => '0',
         'Pod::Html'                           => '0',

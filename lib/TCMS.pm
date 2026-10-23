@@ -9,6 +9,7 @@ use Clone qw{clone};
 
 use CGI::Cookie ();
 use URI();
+use Mojo::JSON ();
 
 #Grab our custom routes
 use FindBin::libs;
@@ -40,6 +41,12 @@ my sub _routes ( $data = {} ) {
     # Routes in general are going to override earlier, more default ones.
     # XXX this is probably bad in the case of the specific content-typed routes, they should be mutex
     my %roots = $data->routes();
+
+    # OpenAPI has no escape for a brace, so such a path would be a template.
+    foreach my $href ( grep { m/[{}]/ } keys(%roots) ) {
+        WARN("Not routing $href: a path with a brace in it cannot be a route");
+        delete $roots{$href};
+    }
 
     # Setup the /secure/... versions for logged in users, except for already secured routes.
     foreach my $route ( keys(%roots) ) {
@@ -96,7 +103,24 @@ my sub _routes ( $data = {} ) {
 
 # Troglodyne philosophy - simple as possible
 
-# Build routes
+=head2 build_routes() = HASH
+
+The OpenAPI 3 document that tPSGI routes by, made from the routing table that
+_routes() returns.  Each route becomes the operation of its method, under its
+path.  The operation's x-tpsgi-callback is the route's callback, wrapped in what
+every tCMS request needs.  C<data> becomes x-tpsgi-data, and C<auth>,
+C<nocache>, C<noindex>, C<nomap>, C<robot_name> and C<totp_exempt> become
+x-tcms-auth and so on, which the callback finds in C<< $query->{dispatcher} >>.
+C<parameters> are OpenAPI parameter objects, and each variable of a template
+that they leave out is a required string.  A route with no method is a GET.
+
+The C<default> route is not a path.  The wrapper calls it when there is no
+F<config/setup>.
+
+=cut
+
+my @tcms_keys = qw{auth nocache noindex nomap robot_name totp_exempt};
+
 sub build_routes {
     my $conf   = Trog::Config::get();
     my $data   = Trog::Data->new($conf);
@@ -104,20 +128,16 @@ sub build_routes {
 
     my $default_route = $routes{default}{callback};
 
-    # Transform 'method' / 'callback' to new scheme
-    my %routes_adj;
-    foreach my $k ( keys(%routes) ) {
+    my %paths;
+    foreach my $k ( sort grep { $_ ne 'default' } keys(%routes) ) {
         my $v = $routes{$k};
 
-        # Some routes are just pointers to other routes.
-        # In this case they might have already been transformed and need to be skipped.
-        if ( exists $v->{callbacks} ) {
-            $routes_adj{$k} = $v;
-            next;
-        }
+        my $method = lc( $v->{method} // 'GET' );
 
-        my %cb;
-        my $callback = delete $v->{callback};
+        # FlatFile and the tag index name the callback rather than hold it.
+        my $callback = $v->{callback};
+        next                      unless $callback;
+        $callback = \&{$callback} unless ref $callback;
 
         #XXX For now we will discard the tPSGI object.  We might want it later.
         my $cb_wrap = sub {    ## no critic (ProhibitSingleUseLexicalSubs) -- 71 lines, which would overcomplicate build_routes()
@@ -180,26 +200,36 @@ sub build_routes {
             $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
 
             # Now that we have firmed up the actual routing, let's validate.
-            return $tpsgi->forbidden($query) if exists $query->{dispatcher}{auth} && !$active_user;
+            return $tpsgi->forbidden($query) if exists $query->{dispatcher}{'x-tcms-auth'} && !$active_user;
 
             if ( needs_enrolment( $active_user, $query->{dispatcher} ) ) {
                 INFO("$active_user has no TOTP enrolment; sending them to /totp");
                 return $tpsgi->see_also('/totp');
             }
 
-            no strict 'refs';
-            $callback->($query);
-            use strict;
+            return $callback->($query);
         };
 
-        #XXX todo support different callbacks per requested content-type
-        $cb{'*'} = $cb_wrap if $callback;
+        my @parameters = @{ $v->{parameters} // [] };
+        foreach my $variable ( $k =~ m/\{([^{}]+)\}/g ) {
+            next if grep { $_->{in} eq 'path' && $_->{name} eq $variable } @parameters;
+            push( @parameters, { name => $variable, in => 'path', required => Mojo::JSON::true, schema => { type => 'string' } } );
+        }
 
-        $v->{callbacks} = \%cb;
-        $routes_adj{$k} = $v;
+        $paths{$k}{$method} = {
+            'x-tpsgi-callback' => $cb_wrap,
+            ( $v->{data} ? ( 'x-tpsgi-data' => $v->{data} ) : () ),
+            ( map { ( "x-tcms-$_" => $v->{$_} ) } grep { exists $v->{$_} } @tcms_keys ),
+            ( @parameters ? ( parameters => \@parameters ) : () ),
+            responses => { default => { description => 'The page, or an error page' } },
+        };
     }
 
-    return [%routes_adj];
+    return (
+        openapi => '3.0.3',
+        info    => { title => 'tCMS', version => '1' },
+        paths   => \%paths,
+    );
 }
 
 =head2 needs_enrolment($user, $dispatcher) = BOOL
@@ -214,13 +244,14 @@ route a logged out visitor can, is refused until they have enrolled.
 
 The enrollment page and the QR on it say so themselves, with totp_exempt, because
 the exemption belongs next to the route rather than in a list over here that the
-routing table knows nothing about.
+routing table knows nothing about.  $dispatcher is the operation that
+build_routes() made, so it holds them as x-tcms-auth and x-tcms-totp_exempt.
 
 =cut
 
 sub needs_enrolment ( $user, $dispatcher ) {
     return 0 unless $user;
-    return 0 if !$dispatcher || !$dispatcher->{auth} || $dispatcher->{totp_exempt};
+    return 0 if !$dispatcher || !$dispatcher->{'x-tcms-auth'} || $dispatcher->{'x-tcms-totp_exempt'};
     return Trog::Auth::has_totp($user) ? 0 : 1;
 }
 
@@ -233,7 +264,7 @@ sub generic_route ( $rname, $code, $title, $query ) {
     return Trog::Routes::HTML::index($query);
 }
 
-our @routes  = @{ build_routes() };
+our %openapi = build_routes();
 our %aliases = aliases();
 
 sub aliases {
@@ -255,8 +286,12 @@ sub robots ($query) {
     state $etag = "robots-" . time();
     my $routes = _routes();
 
-    # If there's a 'capture' route, we need to format it correctly.
-    state @banned = map { exists $routes->{$_}{robot_name} ? $routes->{$_}{robot_name} : $_ } grep { $routes->{$_}{noindex} } sort keys(%$routes);
+    # A template's variables can be anything, which robots.txt spells as *.
+    state @banned = map {
+        my $robot_name = $routes->{$_}{robot_name} // $_;
+        $robot_name =~ s/\{[^{}]*\}/*/g;
+        $robot_name
+    } grep { $routes->{$_}{noindex} } sort keys(%$routes);
 
     return Trog::Renderer->render(
         contenttype => 'text/plain',

@@ -6,7 +6,7 @@ use warnings FATAL => 'all';
 
 use Clone qw{clone};
 
-use Scalar::Util();
+use Mojo::JSON ();
 
 use Trog::Utils();
 use Trog::Auth();
@@ -14,57 +14,55 @@ use Trog::Routes::HTML();
 
 use Trog::Log::Metrics();
 
+# The parameters of a route are OpenAPI 3 parameter objects, which
+# TCMS::build_routes puts in the operation that tPSGI validates a request by.
 our %routes = (
     '/api/catalog' => {
-        method     => 'GET',
-        callback   => \&catalog,
-        parameters => {},
+        method   => 'GET',
+        callback => \&catalog,
     },
     '/api/webmanifest' => {
-        method     => 'GET',
-        callback   => \&webmanifest,
-        parameters => {},
+        method   => 'GET',
+        callback => \&webmanifest,
     },
     '/api/version' => {
-        method     => 'GET',
-        callback   => \&version,
-        parameters => {},
+        method   => 'GET',
+        callback => \&version,
     },
-    '/api/auth_change_request/(.*)' => {
+    '/api/auth_change_request/{token}' => {
         method     => 'GET',
         callback   => \&process_auth_change_request,
-        captures   => ['token'],
-        parameters => {
-            token => sub { my $tok = shift; $tok =~ m/\A[\da-f-]+\z/; },
-        },
+        parameters => [
+            {
+                name     => 'token',
+                in       => 'path',
+                required => Mojo::JSON::true,
+
+                # What Trog::Utils::uuid() makes, ended by \z because perl's $ allows a final newline.
+                schema => { type => 'string', pattern => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z' },
+            },
+        ],
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
     },
     '/api/posts_of_form' => {
         method     => 'GET',
         auth       => 1,
-        parameters => {
+        parameters => [
 
             # Same shape series.json demands of child_form.
-            form => sub { $_[0] =~ m/^[\w-]+\.tx$/ },
-        },
+            { name => 'form', in => 'query', schema => { type => 'string', pattern => '^[A-Za-z0-9_-]+\.tx\z' } },
+        ],
         callback => \&posts_of_form,
         noindex  => 1,
     },
     '/api/requests_per' => {
         method     => 'GET',
         auth       => 1,
-        parameters => {
-            period => sub {
-                grep {
-                    my $valid = $_;
-                    List::Util::any { $_ eq $valid } @_
-                } qw{second minute hour day week month year};
-            },
-            num_periods => \&Scalar::Util::looks_like_number,
-            before      => \&Scalar::Util::looks_like_number,
-            code        => \&Scalar::Util::looks_like_number,
-        },
+        parameters => [
+            { name => 'period', in => 'query', schema => { type => 'string', enum => [qw{second minute hour day week month year}] } },
+            map { { name => $_, in => 'query', schema => { type => 'number' } } } qw{num_periods before code},
+        ],
         callback => \&requests_per,
     },
 );

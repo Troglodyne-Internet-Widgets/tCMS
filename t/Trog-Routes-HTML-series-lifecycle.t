@@ -28,6 +28,7 @@ use File::Temp          ();
 use Time::HiRes         ();
 use URI::Escape         ();
 use JSON::MaybeXS       ();
+use JSON::Validator     ();
 use File::Slurper       ();
 use File::Slurper::Temp ();
 
@@ -1427,10 +1428,11 @@ subtest '/api/posts_of_form feeds the relation picker' => sub {
 
     # The route's own declaration is what keeps a malformed form out; check it
     # matches what series.json demands of child_form.
-    my $validator = $Trog::Routes::JSON::routes{'/api/posts_of_form'}{parameters}{form};
-    ok( $validator->('blog.tx'),                                 'the parameter validator accepts a form name' );
-    ok( !$validator->('../../etc/passwd'),                       'and rejects a path' );
-    ok( $Trog::Routes::JSON::routes{'/api/posts_of_form'}{auth}, 'the route requires a login' );
+    my ($form) = grep { $_->{name} eq 'form' } @{ $Trog::Routes::JSON::routes{'/api/posts_of_form'}{parameters} };
+    my $validator = JSON::Validator->new();
+    is_deeply( [ $validator->validate( 'blog.tx', $form->{schema} ) ], [], 'the parameter schema accepts a form name' );
+    ok( scalar $validator->validate( '../../etc/passwd', $form->{schema} ), 'and rejects a path' );
+    ok( $Trog::Routes::JSON::routes{'/api/posts_of_form'}{auth},            'the route requires a login' );
 };
 
 subtest 'a series resolves its relations for logged out visitors too' => sub {

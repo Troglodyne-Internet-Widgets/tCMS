@@ -71,9 +71,11 @@ subtest 'a user starts out unenrolled' => sub {
 };
 
 subtest 'and cannot go anywhere but /totp until they enrol' => sub {
-    my %page = ( auth => 1 );
+
+    # The operations that TCMS::build_routes makes of the routes.
+    my %page = ( 'x-tcms-auth' => 1 );
     my %public;
-    my %enrol = ( auth => 1, totp_exempt => 1 );
+    my %enrol = ( 'x-tcms-auth' => 1, 'x-tcms-totp_exempt' => 1 );
 
     is( TCMS::needs_enrolment( 'bob', \%page ),   1, 'a page behind a login is refused' );
     is( TCMS::needs_enrolment( 'bob', \%enrol ),  0, 'the enrolment page is not, or there would be nowhere to go' );
@@ -106,8 +108,8 @@ subtest 'and there is no way to turn it off' => sub {
     ok( !exists $Trog::Routes::HTML::routes{'/request_totp_clear'}, 'nor a route' );
 
     # The two the gate lets through, which is the whole of the exemption.
-    ok( $Trog::Routes::HTML::routes{'/totp'}{totp_exempt},         'the enrolment page says it is exempt' );
-    ok( $Trog::Routes::HTML::routes{'/totp_qr/(.*)'}{totp_exempt}, 'and so does the QR on it' );
+    ok( $Trog::Routes::HTML::routes{'/totp'}{totp_exempt},           'the enrolment page says it is exempt' );
+    ok( $Trog::Routes::HTML::routes{'/totp_qr/{file}'}{totp_exempt}, 'and so does the QR on it' );
     my @exempt = grep { $Trog::Routes::HTML::routes{$_}{totp_exempt} } keys(%Trog::Routes::HTML::routes);
     is( scalar(@exempt), 2, 'and nothing else is' );
 };
