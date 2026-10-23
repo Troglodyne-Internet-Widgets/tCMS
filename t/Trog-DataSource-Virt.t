@@ -27,17 +27,17 @@ our @CALLS;
 {
 
     package FakeDomain;
-    sub new             { my ( $c, %a ) = @_; return bless {%a}, $c }
-    sub get_name        { return $_[0]{name} }
-    sub get_uuid_string { return $_[0]{uuid} }
-    sub is_active       { return $_[0]{active} }
-    sub get_info        { return { state => $_[0]{state}, memory => 1024, nrVirtCpu => 2 } }
+    sub new { my ( $c, %a ) = @_; return bless {%a}, $c }
+    sub get_name        ( $self, @ ) { return $self->{name} }
+    sub get_uuid_string ( $self, @ ) { return $self->{uuid} }
+    sub is_active       ( $self, @ ) { return $self->{active} }
+    sub get_info        ( $self, @ ) { return { state => $self->{state}, memory => 1024, nrVirtCpu => 2 } }
 
     # The operations we must never actually perform: record and return.
-    sub create          { push @main::CALLS, [ 'create',          $_[0]{name} ]; return 1 }
-    sub shutdown        { push @main::CALLS, [ 'shutdown',        $_[0]{name} ]; return 1 }
-    sub destroy         { push @main::CALLS, [ 'destroy',         $_[0]{name} ]; return 1 }
-    sub create_snapshot { push @main::CALLS, [ 'create_snapshot', $_[0]{name} ]; return 1 }
+    sub create          ( $self, @ ) { push @main::CALLS, [ 'create',          $self->{name} ]; return 1 }
+    sub shutdown        ( $self, @ ) { push @main::CALLS, [ 'shutdown',        $self->{name} ]; return 1 }
+    sub destroy         ( $self, @ ) { push @main::CALLS, [ 'destroy',         $self->{name} ]; return 1 }
+    sub create_snapshot ( $self, @ ) { push @main::CALLS, [ 'create_snapshot', $self->{name} ]; return 1 }
 
     # Reading a console is not a mutation, so this one really runs.
     sub screenshot { return 'image/png' }
@@ -260,6 +260,24 @@ subtest 'the guest cache is scoped per hypervisor' => sub {
 
     isnt( $paths[0], $paths[1], "two hypervisors' guests do not share a cache entry" );
     like( $paths[0], qr{/hv-1/alpha\.png$}, 'the path names the hypervisor and the guest' );
+};
+
+# /dev/full takes the open and the print, and fails the write that close()
+# flushes, as a full disk does.
+subtest 'a screenshot that could not be cached is not handed out' => sub {
+  SKIP: {
+        skip( 'there is no /dev/full here', 2 ) unless -c '/dev/full';
+
+        my $root = Path::Tiny->tempdir();
+        no warnings 'once';
+        local $Trog::DataSource::Virt::screenshot_dir = "$root";
+        $root->child('hv-1')->mkpath;
+        symlink( '/dev/full', "$root/hv-1/alpha.png" ) or die $!;
+
+        my ( $path, $why ) = Trog::DataSource::Virt::screenshot( { id => 'hv-1', conn_uri => 'test:///default' }, 'alpha' );
+        is( $path, undef, 'no path to a screenshot that is not there' );
+        like( $why, qr/could[ ]not[ ]cache/, 'and it says why' );
+    }
 };
 
 subtest 'the datasource hook only loads what it should' => sub {

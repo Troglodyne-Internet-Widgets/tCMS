@@ -131,7 +131,7 @@ BEGIN {
     # dies outright if this file is missing.  Only category and emoji are read.
     open( my $fh, '>', "$ROOT/www/scripts/list.min.json" ) or die $!;
     print {$fh} '{"emojis":[{"category":"Smileys","emoji":"X"}]}';
-    close $fh;
+    close($fh) or die $!;
 
     # Text::Xslate computes its default cache dir from $HOME once, at load time.
     # Without this the sandbox writes compiled templates into the real ~/.xslate_cache.
@@ -200,17 +200,17 @@ require Trog::Routes::JSON;
     sub EMERG { return 1 }
     sub FATAL { return 1 }
 
-    sub see_also           { return [ 303, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
-    sub redirect           { return [ 302, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
-    sub redirect_permanent { return [ 301, [ 'Location' => $_[1], 'Content-Length' => 0 ], [''] ] }
+    sub see_also           ( $, $to, @ ) { return [ 303, [ 'Location' => $to, 'Content-Length' => 0 ], [''] ] }
+    sub redirect           ( $, $to, @ ) { return [ 302, [ 'Location' => $to, 'Content-Length' => 0 ], [''] ] }
+    sub redirect_permanent ( $, $to, @ ) { return [ 301, [ 'Location' => $to, 'Content-Length' => 0 ], [''] ] }
 
-    sub reply      { return [ $_[1], [ 'Content-type' => 'text/html' ], [ defined $_[2] ? $_[2] : '' ] ] }
-    sub ok         { return $_[0]->reply( 200, $_[2] ) }
-    sub notfound   { return $_[0]->reply( 404, $_[2] // 'Not Found' ) }
-    sub forbidden  { return $_[0]->reply( 403, $_[2] // 'Forbidden' ) }
-    sub badrequest { return $_[0]->reply( 400, $_[2] // 'Bad Request' ) }
-    sub error      { return $_[0]->reply( 500, $_[2] // 'Error' ) }
-    sub serve      { return [ 200, [], [''] ] }
+    sub reply      ( $, $code, $body = undef, @ ) { return [ $code, [ 'Content-type' => 'text/html' ], [ $body // '' ] ] }
+    sub ok         ( $self, $, $body = undef, @ ) { return $self->reply( 200, $body ) }
+    sub notfound   ( $self, $, $body = undef, @ ) { return $self->reply( 404, $body // 'Not Found' ) }
+    sub forbidden  ( $self, $, $body = undef, @ ) { return $self->reply( 403, $body // 'Forbidden' ) }
+    sub badrequest ( $self, $, $body = undef, @ ) { return $self->reply( 400, $body // 'Bad Request' ) }
+    sub error      ( $self, $, $body = undef, @ ) { return $self->reply( 500, $body // 'Error' ) }
+    sub serve { return [ 200, [], [''] ] }
 
     # These two must be inert.
     #
@@ -229,7 +229,7 @@ require Trog::Routes::JSON;
     }
 
     # The real one is `kill 'HUP', getppid`.  Under prove, that is prove.
-    sub signal_restart_parent { $_[0]{restarts}++; return 1 }
+    sub signal_restart_parent ( $self, @ ) { $self->{restarts}++; return 1 }
 
     # Recorded rather than inert: a datasource that watches something is
     # supposed to register here, and the lifecycle test is where we find out
@@ -240,9 +240,9 @@ require Trog::Routes::JSON;
         return 1;
     }
 
-    sub invalidate_renders { push @{ $_[0]{invalidated} }, $_[1];              return 1 }
-    sub invalidate_render  { push @{ $_[0]{invalidated} }, [ @_[ 1 .. $#_ ] ]; return 1 }
-    sub save_render        { $_[0]{renders}{"$_[1]:$_[2]"} = $_[3]; return 1 }
+    sub invalidate_renders ( $self, $what, @ ) { push @{ $self->{invalidated} }, $what;   return 1 }
+    sub invalidate_render  ( $self, @what )    { push @{ $self->{invalidated} }, [@what]; return 1 }
+    sub save_render        ( $self, $route, $type, $content, @ ) { $self->{renders}{"$route:$type"} = $content; return 1 }
 }
 
 our $TPSGI = Test::TPSGI->new();
@@ -282,8 +282,8 @@ my sub query {
     return \%q;
 }
 
-my sub anon  { return query( user => undef,       user_acls => [],        @_ ) }
-my sub admin { return query( user => $ADMIN_USER, user_acls => ['admin'], @_ ) }
+my sub anon  (@args) { return query( user => undef,       user_acls => [],        @args ) }
+my sub admin (@args) { return query( user => $ADMIN_USER, user_acls => ['admin'], @args ) }
 
 # Returns ($code, $body, $error).  Never dies, so one bad post type cannot take
 # the rest of the file with it -- which matters because a failed render inside
@@ -331,8 +331,8 @@ my sub topbar_titles {
 }
 
 # post_title.tx emits exactly one of these per displayed post.
-my sub post_count {
-    my $n = () = $_[0] =~ m{<h3[ ]class='blogtitles'>}g;
+my sub post_count ($body) {
+    my $n = () = $body =~ m{<h3[ ]class='blogtitles'>}g;
     return $n;
 }
 
@@ -782,7 +782,7 @@ subtest 'a directory index series' => sub {
     foreach my $n ( 1 .. 7 ) {
         open( my $fh, '>', "www/assets/spec_downloads/file$n.txt" ) or die $!;
         print {$fh} ( 'x' x ( $n * 10 ) );
-        close $fh;
+        close($fh) or die $!;
     }
 
     reindex();
@@ -1150,7 +1150,7 @@ subtest 'file' => sub {
     my $src = "$ROOT/upload-src/spec-upload.txt";
     open( my $fh, '>', $src ) or die $!;
     print {$fh} "spec upload contents\n";
-    close $fh;
+    close($fh) or die $!;
 
     my $child = save_post(
         'file child',

@@ -32,7 +32,7 @@ BEGIN {
 
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=vault.example.com\n";
-    close $fh;
+    close($fh) or die $!;
 
     # The key the way a deployment hands one over: base64, in the environment,
     # put there by tpsgi.sh out of a systemd credential.  Trog::Vault takes it
@@ -177,7 +177,7 @@ subtest 'the other two places a key can be' => sub {
     my $on_disk = Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) );
     open( my $fh, '>', 'config/secrets.key' ) or die $!;
     print {$fh} "$on_disk\n";
-    close $fh;
+    close($fh) or die $!;
     chmod( oct('600'), 'config/secrets.key' );
 
     {
@@ -192,7 +192,7 @@ subtest 'the other two places a key can be' => sub {
     File::Path::make_path('creds');
     open( $fh, '>', 'creds/tpsgi-vault' ) or die $!;
     print {$fh} $in_store;
-    close $fh;
+    close($fh) or die $!;
 
     {
         local $ENV{CREDENTIALS_DIRECTORY}  = 'creds';
@@ -204,7 +204,7 @@ subtest 'the other two places a key can be' => sub {
     # Something that is not a key is not quietly used as one.
     open( $fh, '>', 'config/secrets.key' ) or die $!;
     print {$fh} "hunter2\n";
-    close $fh;
+    close($fh) or die $!;
     {
         local $Trog::Vault::master         = undef;
         local $Trog::Vault::looked_further = 0;

@@ -78,7 +78,7 @@ sub set_components {
     return;
 }
 
-sub sidecar { return JSON::MaybeXS::encode_json( { type => 'object', @_ } ) }
+sub sidecar (@fields) { return JSON::MaybeXS::encode_json( { type => 'object', @fields } ) }
 
 subtest 'the base schema applies with no sidecar at all' => sub {
     set_sidecars();

@@ -175,7 +175,7 @@ sub write ( $self, $data ) {
         local $File::Slurper::Temp::FILE_TEMP_PERMS = oct('666') & ~umask;
         File::Slurper::Temp::write_binary( $file, $parser->encode($update) );
 
-        close $lock;
+        close($lock);    ## no critic (RequireCheckedSyscalls) -- a lock, with nothing buffered to lose
 
         Trog::SQLite::TagIndex::add_post( $post, $self );
     }

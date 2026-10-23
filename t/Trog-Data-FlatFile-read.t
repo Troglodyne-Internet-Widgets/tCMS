@@ -56,7 +56,7 @@ sub reads {
 
 open( my $fh, '>', 'data/files/good' ) or die $!;
 print {$fh} '[{"id":"good","title":"Good","tags":["public"],"visibility":"public"}]';
-close $fh;
+close($fh) or die $!;
 
 subtest 'a post that is there' => sub {
     my ( $posts, $noise ) = reads('good');
@@ -78,7 +78,7 @@ subtest 'a post that is not there' => sub {
 subtest 'a post that cannot be parsed' => sub {
     open( my $bad, '>', 'data/files/corrupt' ) or die $!;
     print {$bad} '[{"id":"corrupt"';
-    close $bad;
+    close($bad) or die $!;
 
     my ( $posts, $noise ) = reads('corrupt');
     is( scalar(@$posts), 0, "nothing comes back" );
@@ -91,7 +91,7 @@ subtest 'a post that cannot be read' => sub {
 
         open( my $no, '>', 'data/files/unreadable' ) or die $!;
         print {$no} 'x';
-        close $no;
+        close($no)                             or die $!;
         chmod( 0000, 'data/files/unreadable' ) or die $!;
 
         my ( $posts, $noise ) = reads('unreadable');

@@ -83,10 +83,10 @@ my sub read_password ($prompt) {
     return $password ? "$password" : undef;
 }
 
-sub main {
+sub main (@args) {
     my %options;
     Getopt::Long::GetOptionsFromArray(
-        \@_,
+        \@args,
         'user=s'     => \$options{user},
         'password:s' => \$options{password},
         'token=s'    => \$options{token},

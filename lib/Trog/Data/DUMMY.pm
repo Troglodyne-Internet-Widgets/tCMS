@@ -33,7 +33,7 @@ sub read {
     # 'print on closed filehandle' followed by a die inside read_text.
     if ( sysopen( my $fh, $datastore, O_WRONLY | O_CREAT | O_EXCL ) ) {
         print {$fh} '[]';
-        close $fh;
+        close($fh) or confess "Could not write $datastore: $!";
     }
     elsif ( $! != Errno::EEXIST ) {
         confess "Could not create $datastore: $!";
@@ -63,7 +63,7 @@ sub write ( $self, $data, $overwrite = 0 ) {
     }
     open( my $fh, '>', $datastore ) or confess;
     print {$fh} JSON::MaybeXS::encode_json($orig);
-    close $fh;
+    close($fh) or confess "Could not write $datastore: $!";
     return 1;
 }
 

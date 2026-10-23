@@ -46,7 +46,7 @@ BEGIN {
     my $program = "$ROOT/trog-provisioner/bin/provision";
     open( my $fh, '>', $program ) or die $!;
     print {$fh} "#!/bin/sh\nexit 0\n";
-    close $fh;
+    close($fh) or die $!;
     chmod( 0755, $program );
 
     # And a stand-in for the installation's own files, which live where the
@@ -55,7 +55,7 @@ BEGIN {
     File::Path::make_path("$ROOT/etc/recipes.d");
     open( my $recipe, '>', "$ROOT/etc/recipes.d/guest.example.com.yaml" ) or die $!;
     print {$recipe} "---\n_global:\n  registrar: secret:x/y/z\n";
-    close $recipe;
+    close($recipe) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }
@@ -72,7 +72,7 @@ sub write_config {
     my (%section) = @_;
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n[provisioner]\n" . join( '', map { "    $_=$section{$_}\n" } sort keys %section );
-    close $fh;
+    close($fh) or die $!;
 
     require Config::Simple;
     my $conf = Config::Simple->new("$ROOT/config/default.cfg");
@@ -107,9 +107,9 @@ $virt->redefine( is_self => sub { return $_[0] eq 'thisserver.example.com' ? 1 :
 
 write_config( trog_provisioner => "$ROOT/trog-provisioner" );
 
-sub reprovision {
+sub reprovision (@args) {
     @SPAWNED = ();
-    return Trog::DataSource::ProvisionedVirt::reprovision( passphrase => 'hunter2', user => 'admin', @_ );
+    return Trog::DataSource::ProvisionedVirt::reprovision( passphrase => 'hunter2', user => 'admin', @args );
 }
 
 require Trog::Auth;
@@ -407,7 +407,7 @@ subtest 'the log is read back onto the page' => sub {
     File::Path::make_path("$ROOT/logs/reprovision");
     open( my $fh, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
     print {$fh} ( 'x' x 9000 ) . "\n=== finished ===\n";
-    close $fh;
+    close($fh) or die $!;
 
     my $tail = Trog::DataSource::ProvisionedVirt::log_tail('guest.example.com');
     ok( length($tail) <= $Trog::DataSource::ProvisionedVirt::log_tail_bytes, 'only the tail of it' );
@@ -425,7 +425,7 @@ subtest 'the state a reprovision leaves behind' => sub {
     my $write  = sub {
         open( my $fh, '>', $status ) or die $!;
         print {$fh} join( '', map { "$_\n" } @_ );
-        close $fh;
+        close($fh) or die $!;
     };
 
     # Nothing waits on the process which does the work, so this file is the
@@ -475,13 +475,13 @@ subtest 'the listing says what is going on' => sub {
     my $status = "$ROOT/logs/reprovision/guest.example.com.status";
     open( my $out, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
     print {$out} "some output\n";
-    close $out;
+    close($out) or die $!;
 
     $virt->redefine( posts => sub { return ( { title => 'guest.example.com', domain => 'guest.example.com', is_self => 0 } ) } );
 
     open( my $fh, '>', $status ) or die $!;
     print {$fh} "state=running\npid=$$\nstarted=100\nuser=admin\n";
-    close $fh;
+    close($fh) or die $!;
 
     my ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, {} );
     is( $post->{reprovision_state},    'running',                                  'the guest says it is reprovisioning' );
@@ -499,7 +499,7 @@ subtest 'the listing says what is going on' => sub {
 
     open( $fh, '>', $status ) or die $!;
     print {$fh} "state=failed\nexit=3\nstarted=100\nfinished=200\nuser=admin\n";
-    close $fh;
+    close($fh) or die $!;
 
     ($post) = Trog::DataSource::ProvisionedVirt::posts( {}, {} );
     is( $post->{reprovision_state},  'failed',             'a failed run says so' );
@@ -522,14 +522,14 @@ subtest 'reading the log' => sub {
 
     open( my $fh, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
     print {$fh} "the whole log\n";
-    close $fh;
+    close($fh) or die $!;
     like( Trog::DataSource::ProvisionedVirt::log_for('guest.example.com'), qr/the[ ]whole[ ]log/, 'and the whole of it when there has' );
 
     # A provisioner can be chatty, and this goes out in one response.
     local $Trog::DataSource::ProvisionedVirt::log_max_bytes = 64;
     open( $fh, '>', "$ROOT/logs/reprovision/guest.example.com.log" ) or die $!;
     print {$fh} ( 'x' x 500 ) . "END\n";
-    close $fh;
+    close($fh) or die $!;
     my $capped = Trog::DataSource::ProvisionedVirt::log_for('guest.example.com');
     like( $capped, qr/truncated/, 'a huge one is truncated' );
     like( $capped, qr/END/,       'keeping the end, which is where the answer is' );

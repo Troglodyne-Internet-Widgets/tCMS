@@ -15,15 +15,6 @@ them directly rather than paying for a function call on every request.
 
 =over 4
 
-=item $CHUNK_SEP
-
-Separator used when a file upload has to be reassembled from chunks.
-Chosen to be something no browser will ever send us by accident.
-
-=item $CHUNK_SIZE
-
-Size of said chunks, in bytes.  1MB.
-
 =item %content_types
 
 Maps the short names used in templates and route definitions (html, json, ...)
@@ -44,10 +35,6 @@ immutable once published.
 =back
 
 =cut
-
-#1MB chunks
-our $CHUNK_SEP  = 'tCMSep666YOLO42069';
-our $CHUNK_SIZE = 1024000;
 
 our %content_types = (
     text  => "text/plain",
