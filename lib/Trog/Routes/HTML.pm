@@ -7,7 +7,6 @@ use warnings FATAL => 'all';
 no warnings qw{once};
 
 use POSIX qw{strftime};
-use Errno qw{ENOENT};
 use File::Touch();
 use File::Basename qw{basename};
 use List::Util();
@@ -825,10 +824,8 @@ sub logout ($query) {
 
 my sub get_themes {
     my $dir = 'www/themes';
-    opendir( my $dh, $dir ) || do { die "Can't opendir $dir: $!" unless $!{ENOENT} };
-    my @tdirs = grep { !/^\./ && -d "$dir/$_" } readdir($dh);
-    closedir $dh;
-    return \@tdirs;
+    return [] unless -e $dir;
+    return [ map { $_->basename } grep { $_->is_dir } Path::Tiny::path($dir)->children(qr/\A[^.]/) ];
 }
 
 =head2 config
@@ -868,10 +865,7 @@ my sub get_data_models {
     foreach my $incdir (@INC) {
         my $dir = "$incdir/Trog/Data";
         next unless -d $dir;
-        opendir( my $dh, $dir ) || die "Can't opendir $dir: $!";
-        my @dmods = map { s/\.pm$//r } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building a menu of module names
-        closedir $dh;
-        return \@dmods;
+        return [ map { $_->basename('.pm') } grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/) ];    ## no critic (ProhibitFiletest_f) -- building a menu of module names
     }
     die "Could not find tCMS data modules!  Is tCMS in \@INC?";
 }
@@ -1122,9 +1116,10 @@ sub get_datasources {
     foreach my $incdir (@INC) {
         my $dir = "$incdir/Trog/DataSource";
         next unless -d $dir;
-        opendir( my $dh, $dir ) or next;
-        $found{"Trog::DataSource::$_"} = 1 foreach map { s/\.pm$//r } grep { /\.pm$/ && -f "$dir/$_" } readdir($dh);    ## no critic (ProhibitFiletest_f) -- building an allowlist of names
-        closedir $dh;
+        my @modules = eval {
+            grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/);
+        } or next;    ## no critic (ProhibitFiletest_f) -- building an allowlist of names
+        $found{ "Trog::DataSource::" . $_->basename('.pm') } = 1 foreach @modules;
     }
     return [ sort keys(%found) ];
 }
@@ -1133,7 +1128,7 @@ sub get_datasources {
 
 Whether a post type backed by $module should be given an editor.
 
-A datasource says so with an EDITABLE constant.  One that does not say is
+A datasource says so with an EDITABLE method.  One that does not say is
 assumed editable, since that is what a post type is unless it has a reason not
 to be.
 

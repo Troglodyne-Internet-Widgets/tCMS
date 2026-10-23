@@ -234,8 +234,8 @@ BEGIN {
 
     # One which can say when its posts go stale, and so may be cached.
     package Trog::DataSource::TestCached;
-    use constant CACHEABLE => 1;
-    sub posts { return ( main::guest('cached') ) }
+    sub CACHEABLE { return 1 }
+    sub posts     { return ( main::guest('cached') ) }
 
     # One with opinions, including its own search language.
     package Trog::DataSource::TestPicky;

@@ -5,6 +5,7 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use FindBin::libs;
+use Path::Tiny();
 
 use Trog::Vars;
 use Trog::Config;
@@ -205,14 +206,11 @@ sub forms_dir {
 }
 
 my sub read_dir ( $dir, $ext ) {
-    my $files = [];
-    return $files unless -d $dir;
-    opendir( my $dh, $dir ) or return $files;
-    while ( my $file = readdir($dh) ) {
-        push( @$files, $file ) if -f "$dir/$file" && $file =~ m/\.\Q$ext\E$/;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
-    }
-    closedir($dh);
-    return $files;
+    return [] unless -d $dir;
+    my @files = eval {
+        grep { -f } Path::Tiny::path($dir)->children(qr/[.]\Q$ext\E\z/);
+    };    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
+    return [ map { $_->basename } @files ];
 }
 
 =head2 files_in_dir($path, $content_type, $is_component, $ext)

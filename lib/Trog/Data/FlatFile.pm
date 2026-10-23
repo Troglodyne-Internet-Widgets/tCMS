@@ -8,6 +8,7 @@ use Carp           qw{confess};
 use Fcntl          qw{LOCK_EX};
 use File::Basename ();
 use File::Path     ();
+use Path::Tiny     ();
 use JSON::MaybeXS;
 use File::Slurper;
 use File::Slurper::Temp();
@@ -38,9 +39,7 @@ our %posts_by_tag;
 
 my sub _index {
     confess "Can't find datastore in $datastore !" unless -d $datastore;
-    opendir( my $dh, $datastore ) or confess;
-    my @index = grep { -f } map { "$datastore/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
-    closedir $dh;
+    my @index  = map  { "$_" } grep { -f } Path::Tiny::path($datastore)->children;    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
     my @sorted = sort { $b cmp $a } @index;
     return @sorted;
 }

@@ -36,7 +36,7 @@ would then sit alongside, and collide with, the synthesized ones.
 
 =cut
 
-use constant EDITABLE => 0;
+sub EDITABLE { return 0 }
 
 =head2 CACHEABLE
 
@@ -51,7 +51,7 @@ right again.
 
 =cut
 
-use constant CACHEABLE => 0;
+sub CACHEABLE { return 0 }
 
 =head2 A NOTE ON SAFETY
 

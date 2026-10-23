@@ -72,7 +72,7 @@ warn_level = 40
 info_level = 30
 [Variables::ProhibitUselessInitialization]
 [PreferredModules]
-#config = .preferred_modules.ini
+config = .preferred_modules.ini
 [logicLAB::RequireSheBang]
 formats = #!/usr/bin/env perl
 # Performance
@@ -197,8 +197,8 @@ allow = re Exporter
 #stop_words_file = .pod_stopwords
 [Documentation::RequirePackageMatchesPodName]
 #[ErrorHandling::RequireCheckingReturnValueOfEval]
-#[InputOutput::ProhibitExplicitStdin]
-#[InputOutput::ProhibitInteractiveTest]
+[InputOutput::ProhibitExplicitStdin]
+[InputOutput::ProhibitInteractiveTest]
 [InputOutput::ProhibitJoinedReadline]
 [InputOutput::ProhibitOneArgSelect]
 [InputOutput::ProhibitReadlineInForLoop]
@@ -269,7 +269,7 @@ terminal_funcs = POSIX::_exit
 allow_unused_subroutine_arguments = 1
 # Anything that returns a guard, which does its work by being held to the end of
 # its scope: a mock, a mocked file, a change of directory, a lock.
-allow_if_computed_by = Test::MockModule->new Test::MockFile->file
+# allow_if_computed_by = Test::MockModule->new Test::MockFile->file
 [Variables::ProtectPrivateVars]
 [Variables::RequireLexicalLoopIterators]
 #[Variables::RequireLocalizedPunctuationVars]

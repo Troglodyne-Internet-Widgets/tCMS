@@ -5,6 +5,7 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Module::Runtime();
+use Path::Tiny();
 
 use Trog::Log qw{:all};
 
@@ -60,10 +61,9 @@ sub model ($config) {
     my $sqlite_db = $Trog::Data::SQLite::dbname;
     return $model if -e $sqlite_db;
 
-    opendir( my $dh, $flatfile_store ) or return $model;
-    my $posts = grep { -f "$flatfile_store/$_" } readdir $dh;    ## no critic (ProhibitFiletest_f) -- counting names, nothing is opened
-    closedir $dh;
-    return $model unless $posts;
+    my $posts = eval {
+        scalar grep { -f } Path::Tiny::path($flatfile_store)->children;
+    } or return $model;    ## no critic (ProhibitFiletest_f) -- counting names, nothing is opened
 
     WARN("general.data_model is SQLite, but $sqlite_db does not exist and $flatfile_store holds $posts post(s).  Serving them from FlatFile.  Run bin/migrate.pl to move them across.");
     return 'FlatFile';
