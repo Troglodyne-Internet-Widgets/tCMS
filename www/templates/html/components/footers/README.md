@@ -1,1 +1,1 @@
-www/templates/headers/README.md
+../headers/README.md
