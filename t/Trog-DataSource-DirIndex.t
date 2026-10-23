@@ -4,7 +4,7 @@
 # which directories it will agree to look at, because that is the part where
 # getting it wrong hands out the names of files somebody meant to keep.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

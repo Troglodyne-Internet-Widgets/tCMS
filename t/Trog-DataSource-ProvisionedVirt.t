@@ -4,7 +4,7 @@
 # file is about what has to be true before anything runs.  _spawn is mocked
 # throughout: nothing here forks, and nothing here executes a provisioner.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

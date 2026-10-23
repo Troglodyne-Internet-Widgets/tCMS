@@ -25,7 +25,7 @@
 # node resolves them from -- its own directory, /usr/local/lib/node_modules, or
 # NODE_PATH.  A global install under nvm is not one of those places.
 
-use strict;
+use 5.040;
 use warnings;
 
 use FindBin;

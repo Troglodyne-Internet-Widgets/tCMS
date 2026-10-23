@@ -1,6 +1,6 @@
 package Trog::Component::Footer;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use Trog::Component ();

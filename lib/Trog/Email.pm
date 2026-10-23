@@ -1,6 +1,6 @@
 package Trog::Email;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use Email::MIME;

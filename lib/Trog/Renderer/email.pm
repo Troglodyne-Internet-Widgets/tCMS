@@ -1,6 +1,6 @@
 package Trog::Renderer::email;
 
-use v5.36;
+use 5.040;
 use re '/aa';
 
 use parent qw{Trog::Renderer::Base};

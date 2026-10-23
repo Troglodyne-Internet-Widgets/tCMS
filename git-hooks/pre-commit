@@ -1,61 +1,206 @@
 #!/bin/sh
 
-# Auto-tidy staged Perl before it lands.
+# Tidy staged Perl, judge it against .perlcriticrc, then run the tests, before
+# any of it lands.
+#
+# There is a .perltidyrc, and a tree stays tidy to it only if something makes it.
+# Left to people, it does not: tidying a file you are changing three lines of
+# buries the change in a hundred lines of reformatting, so the reasonable thing
+# is to skip it, and the tree drifts until a mass tidy is the only way back.
+# One commit's worth at a time is small enough that nobody has to weigh it up.
+#
+# perlcritic is here for the other half of that.  Nothing else in tCMS runs the
+# profile, so this is where an objection is about the diff in front of you.
+#
+# There is one profile, .perlcriticrc, and which one that is was decided when
+# the floor was chosen: the packaging-perl skill asks which perl you
+# are targeting and copies the matching profile to that name. So the hook needs
+# no opinion about versions -- the file it reads is already the right one, and
+# changing your floor means replacing that file rather than editing this.
+#
+# Install it: cp git-hooks/pre-commit .git/hooks/
 #
 # A file qualifies three ways:
 #   - a .pm, .pl or .t extension
-#   - a .PL extension, which is how Makefile.PL gets covered
+#   - a .PL extension, which is how a Makefile.PL gets covered
 #   - executable with perl on its shebang line, which is how the extensionless
 #     scripts in bin/ get covered
 #
-# .t is in there because only one of the seven test files happens to be +x,
-# so the shebang rule alone would have tidied that one and let the rest drift.
+# .t is in there because test files are often not executable, and the shebang
+# rule alone would then tidy whichever ones happen to be and let the rest drift.
+#
+# Both passes read the working tree rather than the index, so a file staged in
+# part is judged whole. That is deliberate: perltidy rewrites the file on disk
+# and the hook stages what it wrote, so the working copy is what lands anyway,
+# and two passes disagreeing about which bytes they looked at would be worse to
+# own than this.
+#
+# Both run from the top of the working tree, which is where git runs a hook and
+# the only place they work at all: the profile names .preferred_modules.ini and
+# .pod_stopwords by relative path.
 
 # Redirect output to stderr.
 exec 1>&2
-
-if ! command -v perltidy >/dev/null 2>&1
-then
-    echo "pre-commit: perltidy is not on PATH, skipping the tidy pass."
-    exit 0
-fi
 
 # ACMR so that a file deleted in this commit is not handed to perltidy, which
 # would fail on a path that is no longer there.
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
-to_tidy=''
+lib_files=''
+test_files=''
 for file in $staged
 do
     test -f "$file" || continue
 
+    is_perl=''
     case "$file" in
         *.pm|*.pl|*.PL|*.t)
-            to_tidy="$to_tidy $file"
-            continue
+            is_perl=1
             ;;
     esac
 
-    if test -x "$file" && head -n 1 "$file" | grep -Eq '^#!.*perl'
+    if [ -z "$is_perl" ] && test -x "$file" && head -n 1 "$file" | grep -Eq '^#!.*perl'
     then
-        to_tidy="$to_tidy $file"
+        is_perl=1
     fi
+
+    test -n "$is_perl" || continue
+
+    # Whether a file is perl at all, and then which list it goes in.  One case
+    # statement doing both would file t/00-load.t under whichever arm it reached
+    # first, and the .t rule is above the path rule.
+    case "$file" in
+        t/*) test_files="$test_files $file" ;;
+        *)   lib_files="$lib_files $file" ;;
+    esac
 done
 
-# -n and quoted, unlike the version this replaces: bare [ $to_tidy ] is a
-# syntax error the moment there is more than one file, so the hook quietly
-# stopped tidying in exactly the commits that needed it most.
-if [ -n "$to_tidy" ]
+# For the tidy pass, which does not care which list a file came from.  The
+# emptiness tests below concatenate the two without a space instead: with one,
+# "no perl staged at all" would be a string holding a space, which is not empty.
+all_files="$lib_files $test_files"
+
+# Quoted here, because a bare [ $all_files ] is a syntax error the moment there
+# is more than one file -- which would stop the hook working in exactly the
+# commits that need it most.  Unquoted below, because there the word splitting is
+# what turns one string into an argument list.
+if [ -z "$lib_files$test_files" ]
+then
+    :
+elif command -v perltidy >/dev/null 2>&1
 then
     echo "Auto-tidying perl changes..."
 
     # -bext='/' makes perltidy delete the backup it would otherwise leave
     # sitting next to the file as <name>.bak.
-    perltidy -b -bext='/' $to_tidy || {
+    perltidy -b -bext='/' $all_files || {
         echo "pre-commit: perltidy failed, leaving the commit alone."
         exit 1
     }
 
-    git update-index --add $to_tidy
+    git update-index --add $all_files
     echo "Done."
+else
+    echo "pre-commit: perltidy is not on PATH, skipping the tidy pass."
 fi
+
+# After the tidy pass and never before.  The tidy pass rewrites these files and
+# stages what it wrote, so what critic has to judge is the bytes that will land
+# rather than the ones you saved -- and if you ever turn [CodeLayout::
+# RequireTidyCode] back on, running it first would fail the commit over the one
+# thing the hook had already set out to fix by itself.
+#
+# Three branches rather than two conditions and one else.  Staging nothing the
+# profile judges -- a commit of documentation, say -- is not the same thing as
+# having no perlcritic to judge it with, and one else says the second whenever
+# the first is true.
+if [ -z "$lib_files$test_files" ]
+then
+    echo "Nothing staged that the profile judges."
+elif command -v perlcritic >/dev/null 2>&1
+then
+    echo "Running perlcritic..."
+
+    # Both passes run even when the first has already failed, so one commit
+    # shows every objection rather than one list's worth at a time.
+    critic_failed=''
+
+    if [ -n "$lib_files" ]
+    then
+        perlcritic --profile .perlcriticrc $lib_files || critic_failed=1
+    fi
+
+    # The same profile for t/, less one policy.  A test is not a module: nobody
+    # runs perldoc on it, so requiring POD of it asks for a page no reader will
+    # ever open.  Everything else in the profile still judges it, which is more
+    # than a release does -- all_critic_ok() reads lib/ and not t/, so this hook
+    # is the only thing that looks at a test file at all.
+    if [ -n "$test_files" ]
+    then
+        perlcritic --profile .perlcriticrc --exclude Documentation::RequirePod $test_files || critic_failed=1
+    fi
+
+    if [ -n "$critic_failed" ]
+    then
+        echo
+        echo "pre-commit: perlcritic refused the above.  Either fix them, or say"
+        echo "why with a '## no critic (Policy::Name)' and the reason beside it."
+        echo "To commit without these checks at all: git commit --no-verify"
+        exit 1
+    fi
+
+    echo "Done."
+else
+    # Skipped rather than fatal, for the same reason the tidy pass is: a machine
+    # without perlcritic can still commit.
+    echo "pre-commit: perlcritic is not on PATH, skipping the critic pass."
+fi
+
+# Last, because the tests read the files that the tidy pass wrote.  Whatever is
+# staged, and not only Perl: a change to a share/ file or a fixture breaks a
+# test as surely as a change to a module does.  -l for lib/.
+#
+# Without the GIT_ variables that git sets for this hook.  It sets
+# GIT_INDEX_FILE, and GIT_DIR too in a worktree, and git obeys them over -C.  So
+# a test that runs git in a repository of its own would add, commit and write
+# config in this one.  In a subshell, because the git commands of this hook need
+# them: under git commit -a, GIT_INDEX_FILE names the index being committed.
+run_tests() {
+    (
+        unset $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p')
+        prove -lm -j8 "$@"
+    ) || {
+        echo "pre-commit: the tests above failed.  To see why, run each failing file"
+        echo "on its own:  prove -lv t/<file>.t"
+        echo "To commit without these checks at all: git commit --no-verify"
+        exit 1
+    }
+}
+
+test -d t || exit 0
+
+# Without tests-covering, every test, because nothing here knows which tests a
+# change can reach.
+if ! command -v tests-covering >/dev/null 2>&1
+then
+    echo "Running every test, because tests-covering is not on PATH; install Perl::Tests::Covering..."
+    run_tests t/
+    exit 0
+fi
+
+# tests-covering chooses the tests that ran a line the diff changes, from the
+# records that git-hooks/post-commit keeps up to date.  It asks
+# .tests-covering-map.pl about each file that no test loads, and the map names
+# the files that no test reads, such as dist.ini.  --unexplained all runs every
+# test for a file that neither can place, such as a fixture.  --full-index,
+# because it matches each file to its records by the blob id on the index line
+# of the diff, and an abbreviated id matches nothing.
+tests=$(git diff --cached --full-index | tests-covering --diff --unexplained all) || exit 1
+if [ -z "$tests" ]
+then
+    echo "No test ran a line that this commit changes."
+    exit 0
+fi
+
+echo "Running the tests that ran what this commit changes..."
+run_tests $tests
