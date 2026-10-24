@@ -297,4 +297,4 @@ allow_unused_subroutine_arguments = 1
 [Variables::RequireLocalizedPunctuationVars]
 [Variables::RequireNegativeIndices]
 # Extensions to perl -c
-#[CompileTime]
+[CompileTime]

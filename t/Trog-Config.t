@@ -52,15 +52,15 @@ subtest 'a config written to home_cfg is the one that gets read back' => sub {
     my $written = Config::Simple->new( syntax => 'ini' );
     $written->param( 'general.data_model', 'FlatFile' );
     $written->param( 'general.title',      'Instance' );
-    $written->param( 'general.hostname',   'spec.example.com' );
+    $written->param( 'general.hostname',   'spec.test.test' );
     ok( $written->write($Trog::Config::home_cfg), 'wrote to home_cfg' );
 
     ok( -e 'config/main.cfg', 'which landed under config/, not the instance root' );
     ok( !-e 'main.cfg',       'and not loose in the root where nothing would read it' );
 
     my $read = Trog::Config::get();
-    is( $read->param('general.title'),    'Instance',         'get() picked up the written config' );
-    is( $read->param('general.hostname'), 'spec.example.com', 'including a key the defaults never had' );
+    is( $read->param('general.title'),    'Instance',       'get() picked up the written config' );
+    is( $read->param('general.hostname'), 'spec.test.test', 'including a key the defaults never had' );
 };
 
 subtest 'the shipped defaults are left alone' => sub {

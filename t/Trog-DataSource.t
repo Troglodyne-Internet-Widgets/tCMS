@@ -248,7 +248,7 @@ BEGIN {
         return grep { $_->{title} eq 'beta' } @p;
     }
     sub lang { return 'Picky search' }
-    sub help { return 'https://example.com/picky' }
+    sub help { return 'https://test.test/picky' }
 
     # One whose filter blows up.
     package Trog::DataSource::TestBroken;
@@ -329,7 +329,7 @@ subtest 'the search box says what it is searching' => sub {
     {
         no warnings qw{once};
         *FakeModel::lang = sub { 'Model language' };
-        *FakeModel::help = sub { 'https://example.com/model' };
+        *FakeModel::help = sub { 'https://test.test/model' };
     }
 
     my $meta = Test::MockModule->new('Trog::DataModule');
@@ -339,12 +339,12 @@ subtest 'the search box says what it is searching' => sub {
     $source = undef;
     is_deeply(
         [ Trog::Routes::HTML::search_language( { primary_post => { child_form => 'blog.tx' } } ) ],
-        [ 'Model language', 'https://example.com/model' ],
+        [ 'Model language', 'https://test.test/model' ],
         'an ordinary page advertises the data model'
     );
     is_deeply(
         [ Trog::Routes::HTML::search_language( {} ) ],
-        [ 'Model language', 'https://example.com/model' ],
+        [ 'Model language', 'https://test.test/model' ],
         'and so does a page with no series at all'
     );
 
@@ -360,7 +360,7 @@ subtest 'the search box says what it is searching' => sub {
     $source = 'Trog::DataSource::TestPicky';
     is_deeply(
         [ Trog::Routes::HTML::search_language( { primary_post => { child_form => 'fake.tx' } } ) ],
-        [ 'Picky search', 'https://example.com/picky' ],
+        [ 'Picky search', 'https://test.test/picky' ],
         'or its own, when it has one'
     );
 };
