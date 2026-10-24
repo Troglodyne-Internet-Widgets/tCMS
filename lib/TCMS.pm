@@ -8,6 +8,7 @@ use Carp  qw{confess};
 use Clone qw{clone};
 
 use CGI::Cookie ();
+use List::Util  ();
 use URI();
 
 #Grab our custom routes
@@ -211,7 +212,7 @@ sub build_routes {
 
         my @parameters = @{ $v->{parameters} // [] };
         foreach my $variable ( $k =~ m/\{([^{}]+)\}/g ) {
-            next if grep { $_->{in} eq 'path' && $_->{name} eq $variable } @parameters;
+            next if List::Util::any { $_->{in} eq 'path' && $_->{name} eq $variable } @parameters;
             push( @parameters, { name => $variable, in => 'path', required => true, schema => { type => 'string' } } );
         }
 

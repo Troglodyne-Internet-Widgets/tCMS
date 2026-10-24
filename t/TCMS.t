@@ -4,10 +4,11 @@
 # table.
 
 use 5.040;
-use warnings;
+use re '/aasx';
+use warnings FATAL => 'all';
 
 use FindBin;
-use lib "$FindBin::Bin/../lib";
+use FindBin::libs;
 
 use Test::More;
 use Test::MockModule                   qw{strict};
@@ -34,7 +35,7 @@ BEGIN {
 
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=routes.test.test\n";
-    close $fh;
+    close($fh) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }
@@ -63,7 +64,7 @@ $html->redefine( posts => sub { return [ 200, [], ['the post'] ] } );
 
 require_ok('TCMS') or BAIL_OUT("Can't load the dispatcher");
 
-my %openapi = %TCMS::openapi;
+my %openapi = do { no warnings 'once'; %TCMS::openapi };
 
 # Checked as JSON reads it, since tPSGI is not a prerequisite of tCMS: perl's
 # booleans become JSON's, and a callback becomes null.
@@ -100,7 +101,7 @@ subtest 'the routes of posts' => sub {
 
     # The flag that says setup is done, or the default route answers instead.
     open( my $fh, '>', 'config/setup' ) or die $!;
-    close $fh;
+    close($fh)                          or die $!;
     my $res = $paths->{'/posts/p-one'}{get}{'x-tpsgi-callback'}->( { log_dir => "$ROOT/logs", verbose => 0 }, { route => '/posts/p-one', dispatcher => $paths->{'/posts/p-one'}{get} } );
     is_deeply( $res->[2], ['the post'], 'and it runs the sub that the name names' );
     ok( !exists $paths->{'/posts/{curly}'}, 'but a post whose path has a brace is not, since it would be a template' );
