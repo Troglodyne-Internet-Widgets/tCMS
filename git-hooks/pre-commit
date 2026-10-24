@@ -130,14 +130,16 @@ then
         perlcritic --profile .perlcriticrc $lib_files || critic_failed=1
     fi
 
-    # The same profile for t/, less one policy.  A test is not a module: nobody
+    # The same profile for t/, less two policies.  A test is not a module: nobody
     # runs perldoc on it, so requiring POD of it asks for a page no reader will
-    # ever open.  Everything else in the profile still judges it, which is more
-    # than a release does -- all_critic_ok() reads lib/ and not t/, so this hook
-    # is the only thing that looks at a test file at all.
+    # ever open.  And a test sets %ENV and %INC for the whole file, in a BEGIN
+    # block before the SUT loads, where a local would end with the block.
+    # Everything else in the profile still judges it, which is more than a
+    # release does -- all_critic_ok() reads lib/ and not t/, so this hook is the
+    # only thing that looks at a test file at all.
     if [ -n "$test_files" ]
     then
-        perlcritic --profile .perlcriticrc --exclude Documentation::RequirePod $test_files || critic_failed=1
+        perlcritic --profile .perlcriticrc --exclude Documentation::RequirePod --exclude Variables::RequireLocalizedPunctuationVars $test_files || critic_failed=1
     fi
 
     if [ -n "$critic_failed" ]
