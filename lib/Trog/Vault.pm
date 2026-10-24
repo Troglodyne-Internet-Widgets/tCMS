@@ -121,19 +121,16 @@ my sub decode ( $raw, $whence ) {
     return $key;
 }
 
-my sub from_env {
+our $master = do {
     my $raw = delete $ENV{TPSGI_VAULT_KEY};
-    return undef unless $raw;
-    return decode( $raw, 'TPSGI_VAULT_KEY' );
-}
-
-our $master         = from_env();
+    $raw ? decode( $raw, 'TPSGI_VAULT_KEY' ) : undef;
+};
 our $looked_further = 0;
 
 # The two places worth looking that are not the environment.  Deferred rather
 # than done at load, since both are files and this module is loaded by things
 # which have no interest in a vault.
-my sub look_further {
+my sub look_further {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines, which would bury key()
     $looked_further = 1;
 
     my $dir = $ENV{CREDENTIALS_DIRECTORY};
@@ -195,13 +192,6 @@ my sub derive ($salt) {
     return ( substr( $material, 0, 32 ), substr( $material, 32, 12 ) );
 }
 
-# A name is a label in a form and a key in a table, and it is half of what binds
-# a row to its owner, so it is a short plain thing or it is nothing.
-my sub safe_name ($name) {
-    return 0 if !$name || length $name > 64;
-    return $name =~ m/^[[:alnum:]][\w.-]*$/ ? 1 : 0;
-}
-
 # The same database the users are in, since a secret belongs to one.
 my sub dbh { return Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' ) }
 
@@ -213,8 +203,11 @@ Remember one thing for one user, replacing whatever was there under that name.
 
 sub set ( $user, $name, $secret ) {
     return ( 0, 'this installation has no vault key, so there is nowhere to keep it' ) unless has_key();
-    return ( 0, 'a secret needs a name' )                                              unless safe_name($name);
-    return ( 0, 'nothing to store' ) if ( $secret // q{} ) eq q{};
+
+    # A name is a label in a form and a key in a table, and it is half of what
+    # binds a row to its owner, so it is a short plain thing or it is nothing.
+    return ( 0, 'a secret needs a name' ) if !$name || length $name > 64 || $name !~ m/^[[:alnum:]][\w.-]*$/;
+    return ( 0, 'nothing to store' )      if ( $secret // q{} ) eq q{};
 
     my $salt = Crypt::PRNG::random_bytes(32);
     my ( $key, $iv ) = derive($salt);

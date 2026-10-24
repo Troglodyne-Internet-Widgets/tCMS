@@ -77,15 +77,6 @@ Display this output.
 
 =cut
 
-# The logger is set up per-request by the server; a CLI run has to do it itself,
-# or the first thing Trog::Auth logs blows up on an undefined $log.
-my sub init_logs {
-    my ($who) = @_;
-    Trog::Log::log_init( 'logs/tcms.log', 'info' );
-    $Trog::Log::user = $who // 'nobody';
-    return;
-}
-
 # Read a password off the terminal without echoing it, so it stays out of the
 # shell history and off the screen.  Falls back to a plain read when we aren't
 # on a TTY, which is what makes `echo hunter2 | tcms-useradd ...` work.  Returns
@@ -97,7 +88,7 @@ my sub read_password ($prompt) {
 
 # What a brand new user's profile post looks like before we merge anything over
 # the top of it.  Mirrors what setup() builds for the very first user.
-my sub default_user_post {
+my sub default_user_post {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would bury main()
     return {
         data       => 'Default user',
         preview    => '/img/avatar/humm.gif',
@@ -154,7 +145,9 @@ sub main (@args) {
     $options{acl} = [ $options{acl} ] if $options{acl} && ref $options{acl} ne 'ARRAY';
     $options{acl} = ['admin'] unless @{ $options{acl} };
 
-    init_logs( $options{user} );
+    # Log to the file the server writes, as the user this run adds or edits.
+    Trog::Log::log_init( 'logs/tcms.log', 'info' );
+    $Trog::Log::user = $options{user} // 'nobody';
 
     # Find the user's existing post, if they have one.
     my $conf = Trog::Config::get();

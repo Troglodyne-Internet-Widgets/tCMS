@@ -120,7 +120,7 @@ sub build_routes {
         my $callback = delete $v->{callback};
 
         #XXX For now we will discard the tPSGI object.  We might want it later.
-        my $cb_wrap = sub {
+        my $cb_wrap = sub {    ## no critic (ProhibitSingleUseLexicalSubs) -- 71 lines, which would bury build_routes()
             my ( $tpsgi, $query ) = @_;
 
             confess "Cannot determine directory for logs!" unless $tpsgi->{log_dir};

@@ -35,16 +35,14 @@ sub render (%options) {
             },
         }
     );
-    state $child_renderer = sub {
+    $options{child_processor} = $child_processor;
+    $options{child_renderer}  = sub {
         my ( $template_string, $options ) = @_;
 
         # If it fails to render, it must be something else
         my $out = eval { $child_processor->render_string( $template_string, $options ) };
         return $out ? $out : $template_string;
     };
-
-    $options{child_processor} = $child_processor;
-    $options{child_renderer}  = $child_renderer;
 
     return Trog::Renderer::Base::render(%options);
 }

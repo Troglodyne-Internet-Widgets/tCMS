@@ -195,14 +195,6 @@ sub forms_dir {
     return dir_for( 'forms', 'text/html', 1 );
 }
 
-my sub read_dir ( $dir, $ext ) {
-    return [] unless -d $dir;
-    my @files = eval {
-        grep { -f } Path::Tiny::path($dir)->children(qr/[.]\Q$ext\E\z/);    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
-    };
-    return [ map { $_->basename } @files ];
-}
-
 =head2 themed_templates_in_dir($path, $content_type, $is_component)
 
 The template names in an abstract template dir, from the theme and the stock
@@ -220,7 +212,11 @@ sub themed_templates_in_dir ( $path, $ct, $is_component = 0 ) {
 
     my ( @templates, %seen );
     foreach my $dir (@dirs) {
-        foreach my $template ( @{ read_dir( $dir, 'tx' ) } ) {
+        next unless -d $dir;
+        my @files = eval {
+            grep { -f } Path::Tiny::path($dir)->children(qr/[.]tx\z/);    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
+        };
+        foreach my $template ( map { $_->basename } @files ) {
 
             # First one wins, and the theme's dir comes first.
             push( @templates, $template ) unless $seen{$template}++;

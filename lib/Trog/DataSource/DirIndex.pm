@@ -107,7 +107,7 @@ my sub within ( $path, $within ) {
 # Everything this is allowed to look at, or nothing.  Returns the absolute path
 # and the path relative to the tCMS root, since the first is what we read and
 # the second is what we log and watch.
-my sub resolve ($directory) {
+my sub resolve ($directory) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 46 lines, which would bury posts()
     return undef unless $directory;
 
     # Before abs_path, which would happily resolve one for us.
@@ -154,7 +154,7 @@ my sub resolve ($directory) {
     return { absolute => $absolute, relative => $relative ne q{} ? "$root/$relative" : $root };
 }
 
-my sub human_size ($bytes) {
+my sub human_size ($bytes) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 12 lines, which would bury post_for()
     return '' unless defined $bytes;
     return "$bytes B" if $bytes < 1024;
 
@@ -167,7 +167,7 @@ my sub human_size ($bytes) {
     return "$bytes B";
 }
 
-my sub post_for ( $name, $dir, $series ) {
+my sub post_for ( $name, $dir, $series ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 76 lines, which would bury posts()
     my $absolute = "$dir->{absolute}/$name";
 
     # Resolved, so a symlink pointing out of the tree is left out rather than

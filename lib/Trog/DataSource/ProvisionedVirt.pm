@@ -104,7 +104,7 @@ my sub _recipe_path ( $config, $domain ) {
     return -f $path ? $path : undef;    ## no critic (ProhibitFiletest_f) -- is there a recipe for this guest
 }
 
-my sub with_recipe ( $post, $config ) {
+my sub with_recipe ( $post, $config ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 49 lines, which would bury posts()
     return $post if $post->{unreachable};
 
     my $domain = $post->{domain} // '';
@@ -353,22 +353,6 @@ sub log_for ($domain) {
       : $text;
 }
 
-# File away what they typed, so the next run is a code.
-#
-# Said rather than refused when it does not work: they asked for a reprovision
-# and gave us what it needs, and failing to keep a copy is not a reason to not do
-# the thing they asked for.
-my sub _remember ( $user, $credentials ) {
-    my %vault_name = ( keepass => $secret_name, sudo => $sudo_name );
-
-    foreach my $name ( sort keys %$credentials ) {
-        my ( $ok, $why ) = Trog::Vault::set( $user, $vault_name{$name}, $credentials->{$name} );
-        WARN("Could not remember the provisioner's $name for $user: $why") unless $ok;
-    }
-
-    return;
-}
-
 =head2 credentials(%args) = ($credentials, $why)
 
 What to hand the provisioner, out of whatever the form sent: a hashref of the
@@ -389,7 +373,7 @@ The reason, when there is one, is what the person reads -- so it has to tell
 
 =cut
 
-my sub credentials (%args) {
+my sub credentials (%args) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 58 lines, which would bury reprovision()
     my $user = $args{user} // '';
 
     my %credentials;
@@ -432,22 +416,20 @@ my sub credentials (%args) {
     my $sudo = $typed{sudo} // ( $user ? Trog::Vault::get( $user, $sudo_name ) : undef );
     $credentials{sudo} = $sudo if $sudo;
 
-    _remember( $user, \%typed ) if $args{remember} && $user && %typed;
+    # File away what they typed, so the next run is a code.
+    #
+    # Said rather than refused when it does not work: they asked for a
+    # reprovision and gave us what it needs, and failing to keep a copy is not a
+    # reason to not do the thing they asked for.
+    if ( $args{remember} && $user && %typed ) {
+        my %vault_name = ( keepass => $secret_name, sudo => $sudo_name );
+        foreach my $name ( sort keys %typed ) {
+            my ( $ok, $why ) = Trog::Vault::set( $user, $vault_name{$name}, $typed{$name} );
+            WARN("Could not remember the provisioner's $name for $user: $why") unless $ok;
+        }
+    }
 
     return ( \%credentials, '' );
-}
-
-# One 'name: value' per line is the format, so a value with a newline in it is
-# two lines -- and the second one could name a credential nobody asked us to
-# send.  Refused rather than escaped or trimmed: no password anybody meant to
-# type has a newline in the middle of it, and quietly changing what somebody
-# typed into their own password field is worse than saying no.
-my sub sendable ($credentials) {
-    foreach my $name ( sort keys %$credentials ) {
-        next unless $credentials->{$name} =~ m/[\r\n]/;
-        return "the $name has a line break in it, which is not something this can send";
-    }
-    return '';
 }
 
 =head2 reprovision(%args) = ($ok, $message)
@@ -520,8 +502,14 @@ sub reprovision (%args) {
     my ( $credentials, $why ) = credentials(%args);
     return ( 0, $why ) unless $credentials;
 
-    my $unsendable = sendable($credentials);
-    return ( 0, $unsendable ) if $unsendable;
+    # One 'name: value' per line is the format, so a value with a newline in it
+    # is two lines -- and the second one could name a credential nobody asked us
+    # to send.  Refused rather than escaped or trimmed: no password anybody meant
+    # to type has a newline in the middle of it, and quietly changing what
+    # somebody typed into their own password field is worse than saying no.
+    foreach my $name ( sort keys %$credentials ) {
+        return ( 0, "the $name has a line break in it, which is not something this can send" ) if $credentials->{$name} =~ m/[\r\n]/;
+    }
 
     # One at a time.  Two provisions of one machine racing each other is not
     # something anybody should be able to start by double clicking.

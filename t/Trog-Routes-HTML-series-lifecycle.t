@@ -70,7 +70,7 @@ state sub snapshot {
     return %seen;
 }
 
-state sub copy_tree {
+state sub copy_tree {    ## no critic (ProhibitSingleUseLexicalSubs) -- 18 lines, which would bury the BEGIN block
     my ( $from, $to ) = @_;
     File::Path::make_path($to);
     File::Find::find(
@@ -328,23 +328,6 @@ my sub topbar_titles {
     my ($span) = $body =~ m{<span[ ]id="categories">(.*?)</span>}s;
     return () unless defined $span;
     return $span =~ m{class="topbar">([^<]*)</a>}g;
-}
-
-# post_title.tx emits exactly one of these per displayed post.
-my sub post_count ($body) {
-    my $n = () = $body =~ m{<h3[ ]class='blogtitles'>}g;
-    return $n;
-}
-
-# The rendered page is ~40KB and mostly JavaScript.  Show the content well.
-my sub kontent {
-    my ($body) = @_;
-    state $from = qr{<div[ ]id="kontent"[ ]class="kontained">};
-    state $to   = qr{<div[ ]id="rightbar"};
-    my ($k) = $body =~ m{$from(.*?)$to}s;
-    $k //= $body;
-    $k =~ s/<script\b.*?<\/script>//gs;
-    return length($k) > 2500 ? substr( $k, 0, 2500 ) . "\n...[truncated]" : $k;
 }
 
 # Save through post_save() rather than $data->add(): add() dies with an
@@ -1046,8 +1029,19 @@ my sub series_page {
     is( $code, 200, "$label: series page renders" ) or do { diag($err); return '' };
 
     like( $body, qr{<title>[^<]*\Q$series_title\E}, "$label: series page is the right series" );
-    is( post_count($body), $expected_posts, "$label: exactly $expected_posts post(s) listed" )
-      or diag( kontent($body) );
+
+    # post_title.tx emits exactly one of these per displayed post.
+    my $listed = () = $body =~ m{<h3[ ]class='blogtitles'>}g;
+    if ( !is( $listed, $expected_posts, "$label: exactly $expected_posts post(s) listed" ) ) {
+
+        # The rendered page is ~40KB and mostly JavaScript.  Show the content well.
+        my $from = qr{<div[ ]id="kontent"[ ]class="kontained">};
+        my $to   = qr{<div[ ]id="rightbar"};
+        my ($k)  = $body =~ m{$from(.*?)$to}s;
+        $k //= $body;
+        $k =~ s/<script\b.*?<\/script>//gs;
+        diag( length($k) > 2500 ? substr( $k, 0, 2500 ) . "\n...[truncated]" : $k );
+    }
 
     return $body;
 }
