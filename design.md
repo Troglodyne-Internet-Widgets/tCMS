@@ -68,6 +68,15 @@ builds the routing table out of them, then merges the static routes from
 Publishing a post creates a URL because the URL *is* a field on the post. There
 is no separate router config to keep in sync, and no rewrite rules.
 
+A key of the table is a path, or an OpenAPI path template such as
+`/sitemap/{map}.xml` or `/lib/{module+}`. Each variable of a template reaches the
+callback under its name, without the `+`. `TCMS::build_routes` turns the table
+into the OpenAPI 3 document that tPSGI routes by. A route's `parameters` are
+OpenAPI parameter objects, so tPSGI validates the request before the callback
+runs. Its flags, such as `auth` and `totp_exempt`, reach the callback as
+`x-tcms-auth` and so on in `$query->{dispatcher}`. The path of a post cannot
+hold a `{` or a `}`, because OpenAPI has no way to escape them.
+
 **Adding a content type does not require touching Perl.** A post type is a
 template that says how to display and edit it, plus a JSON sidecar that says what
 fields it has. Both are files in a directory. See [Post types](#post-types).

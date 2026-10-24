@@ -576,11 +576,10 @@ subtest 'the route' => sub {
 
     # The log route.  It lives in logs/ rather than under www/, and the output
     # of a provisioner is a fine place for a hostname or an IP plan to turn up.
-    my $logroute = $Trog::Routes::HTML::routes{'/guest/reprovision/log/(.*)'};
+    my $logroute = $Trog::Routes::HTML::routes{'/guest/reprovision/log/{guest}'};
     ok( $logroute, 'the log route is registered' );
     is( $logroute->{method}, 'GET', 'as a GET, since it only reads' );
     is( $logroute->{auth},   1,     'behind a login' );
-    is_deeply( $logroute->{captures}, ['guest'], "capturing 'guest', which survives routing" );
 
     $res = Trog::Routes::HTML::guest_reprovision_log( { user => 'bob', user_acls => ['public'], tpsgi => $tpsgi } );
     is( $res->[0], 403, 'a non-admin cannot read it' );
