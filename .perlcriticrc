@@ -124,8 +124,18 @@ allow = re Exporter
 # them, or called only from a directory it does not read.  Name each one and say
 # which, so the next person can tell an exemption from an oversight.
 #
-#[ProhibitUnusedDefinitions]
-#allow_subs =
+[ProhibitUnusedDefinitions]
+# tCMS:
+#   generic_route, @routes, %aliases  tPSGI reads them out of the router package
+#   aliases (both models)              TCMS::aliases calls $data->aliases, and
+#                                      the policy takes a method call from a sub
+#                                      of the same name for recursion
+#   posts, order                       named by a post type's x-tcms-datasource
+#   enrich                             named by a post type's sidecar
+#   create_statement, log_message      Log::Dispatch calls them
+#   series, users                      a post's callback names them
+allow_subs = TCMS::generic_route Trog::Data::FlatFile::aliases Trog::DataModule::aliases Trog::DataSource::DirIndex::posts Trog::DataSource::DirIndex::order Trog::DataSource::ProvisionedVirt::posts Trog::Enrich::Invoice::enrich Trog::Log::DBI::create_statement Trog::Log::DBI::log_message Trog::Log::Syslog::log_message Trog::Routes::HTML::series Trog::Routes::HTML::users
+allow_globals = @TCMS::routes %TCMS::aliases
 # A sub that only one subclass uses, and a sub that two subclasses define where
 # the class above them defines none.  It reads bin/ and lib/ through
 # Perl::Critic::Distribution, as ProhibitUnusedDefinitions does, so the two
@@ -226,7 +236,7 @@ exclude_functions = print say
 # tCMS: each renderer is named for the content type it renders, and each
 # script's package for the script.  The policy tests each part of a package
 # name on its own, so these are the parts.
-package_exemptions = main tcms login useradd blob css email html javascript json text
+package_exemptions = main tcms login useradd blob css email html json text
 [RegularExpressions::ProhibitCaptureWithoutTest]
 [RegularExpressions::ProhibitComplexRegexes]
 [RegularExpressions::ProhibitEnumeratedClasses]

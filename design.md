@@ -328,8 +328,7 @@ Rendering
 `Trog::Renderer->render(%options)` dispatches on content type to a renderer under
 `Trog::Renderer::`, all of which subclass `Trog::Renderer::Base`. The known types
 are in `Trog::Vars::%content_types`: text, html, json, blob, xml, xsl, css, rss,
-email. (`Trog::Renderer::javascript` exists but is not registered in the
-dispatcher.)
+email.
 
 Base sets up the Xslate instance, resolves templates against the theme's
 directory and then the stock one, and injects two functions every template can

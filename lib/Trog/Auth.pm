@@ -77,19 +77,6 @@ sub user_exists ($user) {
     return 1;
 }
 
-=head2 primary_user
-
-Returns the oldest user with the admin ACL.
-
-=cut
-
-sub primary_user {
-    my $dbh  = dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT username FROM user_acl WHERE acl='admin' LIMIT 1", { Slice => {} } );
-    return 0 unless ref $rows eq 'ARRAY' && @$rows;
-    return $rows->[0]{username};
-}
-
 =head2 get_existing_user_data
 
 Fetch existing settings for a user.
