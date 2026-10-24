@@ -134,10 +134,9 @@ our %routes = (
         auth     => 1,
         callback => \&Trog::Routes::HTML::manual,
     },
-    '/lib/(.*)' => {
+    '/lib/{module+}' => {
         method   => 'GET',
         auth     => 1,
-        captures => ['module'],
         callback => \&Trog::Routes::HTML::manual,
     },
     '/password_reset' => {
@@ -175,15 +174,14 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
-    '/guest/screenshot/(.*)/(.*)' => {
+
+    # 'guest', not 'domain': the router sets $query->{domain} to the request's
+    # own host *after* it applies the path parameters, so a variable by that
+    # name never survives to the callback.
+    '/guest/screenshot/{hypervisor}/{guest}' => {
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::guest_screenshot,
-
-        # 'guest', not 'domain': the router sets $query->{domain} to the
-        # request's own host *after* it applies captures, so a capture by that
-        # name never survives to the callback.
-        captures => [qw{hypervisor guest}],
         noindex  => 1,
         nocache  => 1,
     },
@@ -201,15 +199,13 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
-    '/guest/reprovision/log/(.*)' => {
-        method   => 'GET',
-        auth     => 1,
-        callback => \&Trog::Routes::HTML::guest_reprovision_log,
 
-        # 'guest', not 'domain', for the reason the screenshot route captures it
-        # that way -- the router overwrites $query->{domain} with the request's
-        # own host after applying captures.
-        captures   => [qw{guest}],
+    # 'guest', not 'domain', for the reason the screenshot route names it that
+    # way.
+    '/guest/reprovision/log/{guest}' => {
+        method     => 'GET',
+        auth       => 1,
+        callback   => \&Trog::Routes::HTML::guest_reprovision_log,
         robot_name => '/guest/reprovision/log/',
         noindex    => 1,
         nocache    => 1,
@@ -257,17 +253,15 @@ our %routes = (
         callback => \&Trog::Routes::HTML::sitemap,
         data     => { xml => 1, compressed => 1, map => 'static' },
     },
-    '/sitemap/(.*).xml' => {
+    '/sitemap/{map}.xml' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
         data     => { xml => 1 },
-        captures => ['map'],
     },
-    '/sitemap/(.*).xml.gz' => {
+    '/sitemap/{map}.xml.gz' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::sitemap,
         data     => { xml => 1, compressed => 1 },
-        captures => ['map'],
     },
     '/humans.txt' => {
         method   => 'GET',
@@ -279,10 +273,9 @@ our %routes = (
         callback => \&Trog::Routes::HTML::avatars,
         data     => { tag => ['about'] },
     },
-    '/avatar/(.*)' => {
+    '/avatar/{avatar_hash}' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::libravatar,
-        captures => ['avatar_hash'],
         noindex  => 1,
         nocache  => 1,
     },
@@ -290,7 +283,7 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::icon,
     },
-    '/totp_qr/(.*)' => {
+    '/totp_qr/{file}' => {
         auth   => 1,
         method => 'GET',
 
@@ -2140,7 +2133,7 @@ sub sitemap ($query) {
 
         # Return the map of static routes
         $route_type = 'Static Routes';
-        @to_map     = grep { !defined $routes{$_}->{captures} && !$routes{$_}->{auth} && !$routes{$_}->{noindex} && !$routes{$_}->{nomap} } keys(%routes);
+        @to_map     = grep { CORE::index( $_, '{' ) < 0 && !$routes{$_}->{auth} && !$routes{$_}->{noindex} && !$routes{$_}->{nomap} } keys(%routes);
     }
     elsif ( !$query->{map} ) {
 

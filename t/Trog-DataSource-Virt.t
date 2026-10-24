@@ -320,16 +320,19 @@ subtest 'the datasource hook only loads what it should' => sub {
 subtest 'the guest routes avoid the router\'s own query keys' => sub {
     require Trog::Routes::HTML;
 
-    # TPSGI applies a route's captures in extract_query, and *then* overwrites
-    # $query->{domain} with the request's own host.  A capture or form field by
-    # that name therefore never reaches the callback -- which silently aimed
-    # the screenshot and action routes at a guest named after the web host.
+    # TPSGI puts a route's path parameters in the query in extract_query, and
+    # *then* overwrites $query->{domain} with the request's own host.  A path
+    # variable or form field by that name therefore never reaches the callback
+    # -- which silently aimed the screenshot and action routes at a guest named
+    # after the web host.
     my @reserved = qw{domain route method scheme port user acls to};
 
     no warnings 'once';
-    my $captures = $Trog::Routes::HTML::routes{'/guest/screenshot/(.*)/(.*)'}{captures};
-    foreach my $capture (@$captures) {
-        ok( !( grep { $_ eq $capture } @reserved ), "the screenshot route's '$capture' capture is not a router key" );
+    my ($template) = grep { index( $_, '/guest/screenshot/' ) == 0 } keys(%Trog::Routes::HTML::routes);
+    my @variables = $template =~ m/\{([^{}]+)\}/g;
+    is_deeply( \@variables, [qw{hypervisor guest}], 'the screenshot route names the hypervisor and the guest' );
+    foreach my $variable (@variables) {
+        ok( !( grep { $_ eq $variable } @reserved ), "the screenshot route's '$variable' variable is not a router key" );
     }
 
     # The action form posts the same field names the handler reads, so check
