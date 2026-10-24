@@ -8,23 +8,6 @@ use Test::MockModule qw{strict};
 
 use FindBin::libs;
 
-# Stub modules absent from the test environment before loading Trog::Auth
-BEGIN {
-    # Logging stubs -- Log::Dispatch family not installed in test env
-    $INC{'Log/Dispatch.pm'}            = 1;
-    $INC{'Log/Dispatch/DBI.pm'}        = 1;
-    $INC{'Log/Dispatch/Screen.pm'}     = 1;
-    $INC{'Log/Dispatch/FileRotate.pm'} = 1;
-    $INC{'Trog/Log/DBI.pm'}            = 1;
-
-    # Other missing optional deps
-    $INC{'HTTP/Tiny/UNIX.pm'} = 1;
-    $INC{'File/LibMagic.pm'}  = 1;
-    $INC{'Imager/QRCode.pm'}  = 1;
-    $INC{'Config/Simple.pm'}  = 1;
-
-}
-
 require_ok('Trog::Auth') or BAIL_OUT("Can't load Trog::Auth");
 
 subtest 'users_with_emails -- no rows returned' => sub {
