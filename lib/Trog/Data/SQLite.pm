@@ -80,18 +80,6 @@ my sub pinned ($query) {
     return defined $query->{version} && $query->{version} ne '';
 }
 
-# One version of one post per row, so "the current post" is a join against
-# post_versions, which the schema's triggers keep pointing at the newest row for
-# each uuid.  f is the oldest version, which is where dedup_versions() takes
-# the post's own birthday and original author from.
-my sub from_clause {
-    return q{
-        FROM posts p
-        JOIN post_versions v ON v.uuid = p.uuid
-        JOIN posts f ON f.id = v.first_id
-    };
-}
-
 # A post is only visible to a caller holding one of its tags, since visibility
 # and acls are both stored as tags.  admin skips it, as it does in filter().
 # False when the caller can see nothing at all, so there is nothing to query.
@@ -127,7 +115,7 @@ or two character search matches most of the site anyway.
 
 =cut
 
-my sub like_clause ($term) {
+my sub like_clause ($term) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 12 lines, which would overcomplicate where()
 
     if ( length($term) < 3 ) {
         my $escaped = $term;
@@ -142,7 +130,7 @@ my sub like_clause ($term) {
 
 # filter(), clause for clause.  Read the two side by side when changing either.
 # Returns nothing when no post can match, and then there is no query to run.
-my sub where ($query) {
+my sub where ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 77 lines, which would overcomplicate build_query()
     my ( @where, @bind );
 
     # Which versions are in play.  Everything else filters within that.
@@ -220,16 +208,26 @@ my sub where ($query) {
     return ( \@where, \@bind );
 }
 
-my sub build_query ($query) {
+my sub build_query ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 41 lines, which would overcomplicate read()
     my $select = q{SELECT p.post_data, p.uuid, p.version, v.version_max, v.first_created, f.author AS first_author};
 
     my ( $where, $bind ) = where($query) or return;
+
+    # One version of one post per row, so "the current post" is a join against
+    # post_versions, which the schema's triggers keep pointing at the newest
+    # row for each uuid.  f is the oldest version, which is where
+    # dedup_versions() takes the post's own birthday and original author from.
+    my $from = q{
+        FROM posts p
+        JOIN post_versions v ON v.uuid = p.uuid
+        JOIN posts f ON f.id = v.first_id
+    };
 
     # A raw read with no filters has no clauses at all, and "WHERE" on its own
     # is a syntax error rather than "everything".
     push( @$where, '1 = 1' ) unless @$where;
 
-    my $sql = "$select " . from_clause() . " WHERE " . join( ' AND ', @$where );
+    my $sql = "$select $from WHERE " . join( ' AND ', @$where );
 
     # Newest first, by the same date the caller gets back as created -- the
     # post's birthday.  The flat file model returned posts in readdir order,
@@ -299,7 +297,7 @@ sub read ( $, $query = {} ) {
     return \@posts;
 }
 
-my sub insert ( $dbh, $data ) {
+my sub insert ( $dbh, $data ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines, which would overcomplicate write()
     my $insert = $dbh->prepare('INSERT INTO posts (post_data) VALUES (?)');
 
     foreach my $post (@$data) {

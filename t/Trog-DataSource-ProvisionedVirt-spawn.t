@@ -45,21 +45,18 @@ my sub provisioner ( $name, $body ) {
     return $program;
 }
 
-# What the run says once it has stopped, or undef if it has not stopped within
-# ten seconds.
-my sub finished ($domain) {
+my sub run ( $domain, $program, $credentials ) {
+    my ( $ok, $why ) = Trog::DataSource::ProvisionedVirt::spawn( $domain, $credentials, $ROOT, [ $program, $domain ], 'admin' );
+    ok( $ok, "a run for $domain starts" ) or diag($why);
+
+    # What the run says once it has stopped, or undef if it has not stopped
+    # within ten seconds.
     foreach ( 1 .. 100 ) {
         my $status = Trog::DataSource::ProvisionedVirt::status($domain);
         return $status if $status && $status->{state} ne 'running';
         Time::HiRes::sleep(0.1);
     }
     return;
-}
-
-my sub run ( $domain, $program, $credentials ) {
-    my ( $ok, $why ) = Trog::DataSource::ProvisionedVirt::spawn( $domain, $credentials, $ROOT, [ $program, $domain ], 'admin' );
-    ok( $ok, "a run for $domain starts" ) or diag($why);
-    return finished($domain);
 }
 
 # Starman, under which tPSGI runs, ignores SIGPIPE, and its children inherit

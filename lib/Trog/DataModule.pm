@@ -183,12 +183,6 @@ sub fixup ( $, @filtered ) {
     return @filtered;
 }
 
-my sub filter_param ( $query, $param, @filtered ) {
-    @filtered = grep { ( $_->{$param} || '' ) eq $query->{$param} } @filtered;
-    @filtered = dedup_versions( $query->{version}, @filtered );
-    return @filtered;
-}
-
 # Visibility and acls are both stored as tags, so a caller sees a post when it
 # holds one of them.  admin sees everything.
 my sub filter_acls ( $query, @filtered ) {
@@ -222,7 +216,7 @@ sub filter ( $, $query, @filtered ) {
     # if the caller may see it.
     foreach my $key (qw{id title aclname}) {
         next unless $query->{$key};
-        return filter_acls( $query, filter_param( $query, $key, @filtered ) );
+        return filter_acls( $query, dedup_versions( $query->{version}, grep { ( $_->{$key} || '' ) eq $query->{$key} } @filtered ) );
     }
 
     @filtered = dedup_versions( undef, @filtered );
@@ -464,7 +458,7 @@ our %relation_schema = ( type => 'string' );
 # string-or-hashref dance every upload field would otherwise need.  Uploads are
 # a hashref on the way in from the browser and the href string they became on
 # the way back out of the datastore.
-my sub expand_pseudo_types ($root) {
+my sub expand_pseudo_types ($root) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 26 lines, which would overcomplicate read_sidecar()
     my %pseudo = (
         upload   => \%upload_schema,
         relation => \%relation_schema,
@@ -580,7 +574,7 @@ sub include_schema_for ( $include = '' ) {
     return $cache{$generation}{$name};
 }
 
-my sub includes_of ($type) {
+my sub includes_of ($type) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 17 lines, which would overcomplicate includes_for()
     my $path     = Trog::Themes::themed_file_in_dir( 'forms', "$type.tx", 'text/html', 1 );
     my $template = $path ? eval { File::Slurper::read_text($path) } : undef;
 

@@ -84,7 +84,7 @@ formats = #!/usr/bin/env perl
 [BuiltinFunctions::ProhibitChainingSameListSub]
 [RegularExpressions::ProhibitRegexForStringEquality]
 [Subroutines::ProhibitUnderscorePrivateSubs]
-#[Subroutines::ProhibitSingleUseLexicalSubs]
+[Subroutines::ProhibitSingleUseLexicalSubs]
 [ValuesAndExpressions::ProhibitLiteralArithmetic]
 [BuiltinFunctions::ProhibitIndirectBooleanGrep]
 # What ProhibitMutatingListFunctions reports, which this replaces, and a block

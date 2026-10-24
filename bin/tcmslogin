@@ -66,20 +66,6 @@ Display this output.
 
 =cut
 
-# The logger is set up per-request by the server; a CLI run has to do it itself,
-# or the first thing Trog::Auth logs blows up on an undefined $log.
-my sub init_logs {
-    my ($who) = @_;
-    Trog::Log::log_init( 'logs/tcms.log', 'info' );
-    $Trog::Log::user = $who // 'nobody';
-    return;
-}
-
-my sub read_password ($prompt) {
-    my $password = IO::Prompter::prompt( $prompt, -echo => q{}, -in => *STDIN, -out => *STDERR );
-    return $password ? "$password" : undef;
-}
-
 sub main (@args) {
     my %options;
     Getopt::Long::GetOptionsFromArray(
@@ -97,11 +83,15 @@ sub main (@args) {
         return 2;
     }
 
-    init_logs( $options{user} );
+    # Log to the file the server writes, as the user who is logging in.
+    Trog::Log::log_init( 'logs/tcms.log', 'info' );
+    $Trog::Log::user = $options{user};
 
     # Omitted entirely or passed with no value both mean "ask me".
-    $options{password} = read_password("Password for '$options{user}': ")
-      unless $options{password};
+    if ( !$options{password} ) {
+        my $typed = IO::Prompter::prompt( "Password for '$options{user}': ", -echo => q{}, -in => *STDIN, -out => *STDERR );
+        $options{password} = $typed ? "$typed" : undef;
+    }
     unless ( $options{password} ) {
         print {*STDERR} "No password provided.\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
         return 2;

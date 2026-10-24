@@ -447,7 +447,7 @@ sub feedback_from_cookie ($cookies) {
     return ( int($failure), URI::Escape::uri_unescape($message) );
 }
 
-my sub build_social_meta ( $query, $title ) {
+my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 55 lines, which would overcomplicate index()
     return ( undef, undef, undef ) unless $query->{social_meta} && $query->{route} && $query->{domain};
 
     my $default_tags = $Theme::default_tags;
@@ -503,7 +503,7 @@ my sub build_social_meta ( $query, $title ) {
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 
-my sub get_series ( $edit = 0 ) {
+my sub get_series ( $edit = 0 ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 13 lines, which would overcomplicate index()
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
 
@@ -659,7 +659,7 @@ sub totp ($query) {
     );
 }
 
-my sub setup_initial_db ( $dat, $user, $display_name, $contact_email ) {
+my sub setup_initial_db ( $dat, $user, $display_name, $contact_email ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 72 lines, which would overcomplicate login()
     $dat->add(
         {
             "aclname"    => "series",
@@ -861,40 +861,20 @@ sub config ( $query = {} ) {
     );
 }
 
-my sub get_data_models {
-    foreach my $incdir (@INC) {
-        my $dir = "$incdir/Trog/Data";
-        next unless -d $dir;
-        return [ map { $_->basename('.pm') } grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/) ];    ## no critic (ProhibitFiletest_f) -- building a menu of module names
-    }
-    die "Could not find tCMS data modules!  Is tCMS in \@INC?";
-}
-
 # The settings which are a choice among what this instance actually has
 # installed rather than free text.  default.cfg can say a key exists, but not
 # that it has to be one of the themes on disk, so that part lives here.
 my %config_choices = (
     'general.theme'      => sub { return [ '', @{ get_themes() || [] } ] },
-    'general.data_model' => \&get_data_models,
+    'general.data_model' => sub {
+        foreach my $incdir (@INC) {
+            my $dir = "$incdir/Trog/Data";
+            next unless -d $dir;
+            return [ map { $_->basename('.pm') } grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/) ];    ## no critic (ProhibitFiletest_f) -- building a menu of module names
+        }
+        die "Could not find tCMS data modules!  Is tCMS in \@INC?";
+    },
 );
-
-# What this instance has configured a setting as, or undef if it never has --
-# which is not the same thing as having set it to nothing, or the editor would
-# hand back the shipped default to anyone who deliberately cleared a setting,
-# and quietly restore it on the next save.
-#
-# XXX ACHTUNG config::simple's param() answers a key which does not exist with a
-# multi element array, so it can never tell you those two apart; vars() can, and
-# is the only reason this does not just ask for the one key.  A key holding
-# commas comes back as an arrayref too, hence the join.
-my sub config_value ( $configured, $name ) {
-    return undef unless exists $configured->{$name};    # 'never configured' has to be distinguishable from ''
-
-    my $value = $configured->{$name};
-    return '' unless defined $value;
-    return join( ', ', @$value ) if ref $value eq 'ARRAY';
-    return ref $value ? '' : $value;
-}
 
 my sub config_title ($name) {
     $name =~ s/[_-]/ /g;
@@ -922,8 +902,18 @@ sub config_sections {
     foreach my $section ( @{ Trog::Config::schema() } ) {
         my @fields;
         foreach my $field ( @{ $section->{fields} } ) {
-            my $value = config_value( \%configured, $field->{name} );
-            $value = $field->{default} unless defined $value;
+
+            # A setting never configured takes the default, but one set to nothing
+            # stays empty, or the editor would quietly restore the default to
+            # anyone who cleared it.  XXX ACHTUNG config::simple's param() answers
+            # a key which does not exist with a multi element array, so vars() is
+            # what tells the two apart.  A key holding commas is an arrayref too.
+            my $name = $field->{name};
+            my $value =
+               !exists $configured{$name}         ? $field->{default}
+              : ref $configured{$name} eq 'ARRAY' ? join( ', ', @{ $configured{$name} } )
+              : ref $configured{$name}            ? ''
+              :                                     $configured{$name} // '';
 
             my %rendered = (
                 %$field,
@@ -1370,7 +1360,7 @@ sub post_delete ($query) {
 # Anything a type needs computed rather than merely fetched.  The sub is named
 # in the sidecar, so validate it the same way a post's own callback field is --
 # a sidecar naming an arbitrary sub is a privilege question, not a typo.
-my sub enrich_callback ( $post, $query ) {
+my sub enrich_callback ( $post, $query ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 33 lines, which would overcomplicate enrich_post()
     my $meta = Trog::DataModule::type_meta_for( $post->{form} );
     my $sub  = $meta->{'x-tcms-post-type'}{enrich};
     return if !$sub || ref $sub;
@@ -1614,11 +1604,6 @@ sub users ($query) {
     return posts($query);
 }
 
-my sub themed_title ($path) {
-    return $path unless %Theme::paths;
-    return $Theme::paths{$path} ? $Theme::paths{$path} : $path;
-}
-
 my sub post2rss ( $rss, $url, $post ) {
     $rss->add_item(
         title       => $post->{title},
@@ -1632,7 +1617,7 @@ my sub post2rss ( $rss, $url, $post ) {
     return 1;
 }
 
-my sub _rss ( $query, $subtitle, $posts ) {
+my sub _rss ( $query, $subtitle, $posts ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 49 lines, which would overcomplicate posts()
 
     require XML::RSS;
     my $rss  = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
@@ -1757,7 +1742,7 @@ sub posts ( $query, $direct = 0 ) {
     $query->{etag} = "$posts[0]{id}-$posts[0]{version}" if @posts;
 
     #Correct page headers
-    my $ph = $themed ? themed_title( $query->{route} ) : $query->{route};
+    my $ph = ( $themed && $Theme::paths{ $query->{route} } ) || $query->{route};
 
     return _rss( $query, $ph, \@posts ) if $fmt eq 'rss';
 
@@ -2712,7 +2697,7 @@ point, works, and is only missing an optimization.
 
 =cut
 
-my sub wizard_reindex ( $name, $fields ) {
+my sub wizard_reindex ( $name, $fields ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 22 lines, which would overcomplicate post_wizard_save()
     my %indexed = map { $_->{name} => 1 } grep { $_->{indexed} } @$fields;
 
     my $this_type = "$name.tx";
@@ -2747,7 +2732,7 @@ my sub wizard_fail ( $query, $message ) {
     );
 }
 
-my sub wizard_field_html ($field) {
+my sub wizard_field_html ($field) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 23 lines, which would overcomplicate wizard_template()
     my ( $n, $t, $l, $p ) = @$field{qw{name type label placeholder}};
     my $required = $field->{required} ? 'required ' : '';
 
@@ -2778,7 +2763,7 @@ a display half guarded by !$post.addpost, and an edit half guarded by $can_edit.
 
 =cut
 
-my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {
+my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 54 lines, which would overcomplicate post_wizard_save()
     my $placeholder = kolon_safe( $query->{title_placeholder} ) || 'Iowa Man Destroys Moon';
 
     # NOT escaped, on purpose.  Letting an admin write template code is the
@@ -2962,16 +2947,6 @@ sub short_error ( $error = '' ) {
     return $error;
 }
 
-# Which body form a type carries, which is an include like any other -- see the
-# bottom of wizard_template.  The sidecar is the fallback for a type whose
-# template says nothing, which is what a datasource type with no editor at all
-# looks like.
-my sub wizard_body_form_of ( $includes, $type ) {
-    return 'form_multi.tx'  if $includes->{'form_multi.tx'};
-    return 'form_common.tx' if $includes->{'form_common.tx'};
-    return $type->{body_form} // 'form_common.tx';
-}
-
 # What a type's template says about the parts of it the wizard emits itself
 # rather than through %wizard_includes: the wrapper div, and the two canned
 # blocks which go in the display half rather than in the editor.
@@ -2980,7 +2955,7 @@ my sub wizard_body_form_of ( $includes, $type ) {
 # sidecar as the fallback rather than making it a second opinion.  The template
 # is what actually renders, so where the two disagree it is the template which
 # is telling the truth.
-my sub wizard_display_of ($form) {
+my sub wizard_display_of ($form) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 26 lines, which would overcomplicate wizard_types()
     my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
     return undef unless $path;
 
@@ -3008,7 +2983,7 @@ my sub wizard_display_of ($form) {
 }
 
 # The custom fields of a type, as rows the wizard would have submitted.
-my sub wizard_fields_of ( $schema, $meta, $includes = {} ) {
+my sub wizard_fields_of ( $schema, $meta, $includes = {} ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 72 lines, which would overcomplicate wizard_types()
     my $properties = $schema->{properties} // {};
     my %required   = map { $_ => 1 } @{ $schema->{required} // [] };
     my $relations  = $meta->{'x-tcms-relations'};
@@ -3093,7 +3068,7 @@ there is no wizard form that produces one.
 
 =cut
 
-my sub wizard_display_from_template ($form) {
+my sub wizard_display_from_template ($form) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 33 lines, which would overcomplicate wizard_types()
     my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
     return '' unless $path;
 
@@ -3175,10 +3150,13 @@ sub wizard_types ($forms) {
         my $shown = wizard_display_of($form) // { map { $_ => $type->{$_} ? 1 : 0 } @wizard_display_checkboxes };
 
         $types{$form} = {
-            name              => ( $form =~ s/\.tx$//r ),
-            description       => $type->{description} // '',
-            display           => $display             // '',
-            body_form         => wizard_body_form_of( \%includes, $type ),
+            name        => ( $form =~ s/\.tx$//r ),
+            description => $type->{description} // '',
+            display     => $display             // '',
+
+            # An include like any other -- see the bottom of wizard_template.  The
+            # sidecar is the fallback, for a datasource type with no editor at all.
+            body_form         => ( List::Util::first { $includes{$_} } qw{form_multi.tx form_common.tx} ) // $type->{body_form} // 'form_common.tx',
             datasource        => $meta->{'x-tcms-datasource'} // '',
             title_placeholder => $type->{title_placeholder}   // '',
             generated         => $type->{generated} ? 1 : 0,
@@ -3460,11 +3438,6 @@ sub rss_style ($query) {
     );
 }
 
-my sub build_themed_scripts ($scripts) {
-    my @scripts = map { Trog::Themes::themed_script("$_") } @{ Trog::Utils::coerce_array($scripts) };
-    return \@scripts;
-}
-
 =head2 finish_render($template, $vars, %headers)
 
 Render a full page, as opposed to a component.
@@ -3493,7 +3466,7 @@ sub finish_render ( $template, $vars, %headers ) {
     # Theme-ize the paths
     $vars->{stylesheets}  = [ @{ build_themed_styles( $vars->{stylesheets} ) } ];
     $vars->{print_styles} = [ @{ build_themed_styles( $vars->{print_styles} ) } ];
-    $vars->{scripts}      = [ map { s/^www\///r } @{ build_themed_scripts( $vars->{scripts} ) } ];
+    $vars->{scripts}      = [ map { Trog::Themes::themed_script("$_") =~ s/^www\///r } @{ Trog::Utils::coerce_array( $vars->{scripts} ) } ];
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );

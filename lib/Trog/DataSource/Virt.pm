@@ -105,15 +105,11 @@ my @states = (
     'shutting down', 'shut off', 'crashed', 'suspended',
 );
 
-my sub state_name ($state) {
-    return $states[$state] // 'unknown';
-}
-
 # What this machine calls itself.  Not a state var so that a test can pretend
 # to be a different host without having to lie to Sys::Hostname.
 our $hostname;
 
-my sub hostname {
+my sub hostname {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would overcomplicate is_self()
     return $hostname if defined $hostname;
 
     local $@;
@@ -281,7 +277,7 @@ sub post_for ( $domain, $hypervisor, $series, $form ) {
         data  => '',
 
         domain           => $name,
-        state            => state_name( $info->{state} ),
+        state            => $states[ $info->{state} ] // 'unknown',
         is_active        => $domain->is_active() ? 1 : 0,
         is_self          => is_self($name),
         memory           => $info->{memory},
