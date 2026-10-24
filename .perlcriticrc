@@ -223,7 +223,7 @@ exclude_functions = print say
 [Miscellanea::ProhibitFormats]
 [Miscellanea::ProhibitTies]
 [Miscellanea::ProhibitUnrestrictedNoCritic]
-#[Miscellanea::ProhibitUselessNoCritic]
+[Miscellanea::ProhibitUselessNoCritic]
 [Modules::ProhibitAutomaticExportation]
 [Modules::ProhibitConditionalUseStatements]
 [Modules::RequireBarewordIncludes]
