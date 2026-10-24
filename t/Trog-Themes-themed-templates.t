@@ -39,27 +39,17 @@ subtest 'with no theme, nothing changes' => sub {
         "only the stock dir is searched"
     );
 
-    my $old = [ sort @{ Trog::Themes::templates_in_dir( 'forms', 'text/html', 1 ) } ];
-    my $new = [ sort @{ Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 ) } ];
-    is_deeply( $new, $old,                               "the themed helper agrees with the old one" );
-    is_deeply( $new, [qw{blog.tx profile.tx series.tx}], "...and lists the stock templates" );
+    my $listed = [ sort @{ Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 ) } ];
+    is_deeply( $listed, [qw{blog.tx profile.tx series.tx}], "the stock templates are listed" );
 };
 
-subtest 'with a partial theme, the two disagree' => sub {
+subtest 'with a partial theme, the stock templates show through' => sub {
     $themedir = "$root/www/themes/spec";
 
     is_deeply(
         [ Trog::Themes::template_dirs( 'text/html', 1 ) ],
         [ "$root/www/themes/spec/templates/html/components", "$root/www/templates/html/components" ],
         "the theme is searched first, then the stock tree"
-    );
-
-    # This is the shortcoming: one forms/ dir in a theme hides every stock
-    # post type the theme didn't happen to copy.
-    is_deeply(
-        [ sort @{ Trog::Themes::templates_in_dir( 'forms', 'text/html', 1 ) } ],
-        [qw{blog.tx gallery.tx}],
-        "templates_in_dir() sees only the theme's"
     );
 
     is_deeply(

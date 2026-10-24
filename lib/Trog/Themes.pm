@@ -171,16 +171,6 @@ sub themed_script ($resource) {
     return dir_for_resource("scripts/$resource") . "/scripts/$resource";
 }
 
-=head2 themed_template($resource)
-
-Path to a template under www/templates, preferring the theme's copy.
-
-=cut
-
-sub themed_template ($resource) {
-    return dir_for_resource("templates/$resource") . "/templates/$resource";
-}
-
 =head2 dir_for($path, $content_type, $is_component)
 
 The single directory which owns a given component subdir: the theme's if it has
@@ -213,40 +203,12 @@ my sub read_dir ( $dir, $ext ) {
     return [ map { $_->basename } @files ];
 }
 
-=head2 files_in_dir($path, $content_type, $is_component, $ext)
-
-Bare filenames with the given extension in whichever single directory dir_for()
-picks.  See themed_templates_in_dir() for the version which spans both.
-
-=cut
-
-sub files_in_dir ( $path, $ct, $is_component = 0, $ext = 'tx' ) {
-    return read_dir( dir_for( $path, $ct, $is_component ), $ext );
-}
-
-=head2 templates_in_dir($path, $content_type, $is_component)
-
-files_in_dir() restricted to templates.
-
-Beware that this only ever reads one directory -- see themed_templates_in_dir()
-for why that's usually not what you want.
-
-=cut
-
-sub templates_in_dir ( $path, $ct, $is_component = 0 ) {
-    return files_in_dir( $path, $ct, $is_component, 'tx' );
-}
-
 =head2 themed_templates_in_dir($path, $content_type, $is_component)
 
-Same calling convention as templates_in_dir(), but it doesn't make you pick a
-side: you get the theme's templates where the theme has them, plus the stock
-ones it hasn't overridden.
-
-templates_in_dir() resolves through template_dir(), which is winner-take-all --
-if a theme has a forms/ dir at all, its contents are the *only* post types the
-site can see, and every core one vanishes.  That's rarely what a theme author
-means by overriding a template.
+The template names in an abstract template dir, from the theme and the stock
+tree both: the theme's templates where the theme has them, plus the stock ones
+it hasn't overridden.  dir_for() is winner-take-all, so a theme with a forms/
+dir of its own would otherwise hide every core post type.
 
 Returns bare filenames, deduped, theme first.  Which of the two files a given
 name resolves to is then up to whoever renders it -- see template_dirs().
