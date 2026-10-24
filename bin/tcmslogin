@@ -14,9 +14,6 @@ use IO::Prompter();
 use Trog::Auth;
 use Trog::Log;
 
-# Don't murder our terminal when done
-$ENV{NOHUP} = 1;
-
 =head1 SYNOPSIS
 
 Log a user in and print the resulting session cookie, so that you can hand it

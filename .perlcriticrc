@@ -294,7 +294,7 @@ allow_unused_subroutine_arguments = 1
 # allow_if_computed_by = Test::MockModule->new Test::MockFile->file
 [Variables::ProtectPrivateVars]
 [Variables::RequireLexicalLoopIterators]
-#[Variables::RequireLocalizedPunctuationVars]
+[Variables::RequireLocalizedPunctuationVars]
 [Variables::RequireNegativeIndices]
 # Extensions to perl -c
 #[CompileTime]

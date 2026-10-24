@@ -17,9 +17,6 @@ use Trog::Log;
 use Trog::Data;
 use Trog::Config;
 
-# Don't murder our terminal when done
-$ENV{NOHUP} = 1;
-
 =head1 SYNOPSIS
 
 Add or edit a tCMS user.  In the event of a user edit, every option save for user is optional,
