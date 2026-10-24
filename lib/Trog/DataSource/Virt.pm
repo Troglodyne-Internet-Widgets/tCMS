@@ -109,7 +109,7 @@ my @states = (
 # to be a different host without having to lie to Sys::Hostname.
 our $hostname;
 
-my sub hostname {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would bury is_self()
+my sub hostname {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would overcomplicate is_self()
     return $hostname if defined $hostname;
 
     local $@;

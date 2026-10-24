@@ -88,7 +88,7 @@ my sub read_password ($prompt) {
 
 # What a brand new user's profile post looks like before we merge anything over
 # the top of it.  Mirrors what setup() builds for the very first user.
-my sub default_user_post {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would bury main()
+my sub default_user_post {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would overcomplicate main()
     return {
         data       => 'Default user',
         preview    => '/img/avatar/humm.gif',

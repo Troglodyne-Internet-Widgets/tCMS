@@ -104,7 +104,7 @@ my sub _recipe_path ( $config, $domain ) {
     return -f $path ? $path : undef;    ## no critic (ProhibitFiletest_f) -- is there a recipe for this guest
 }
 
-my sub with_recipe ( $post, $config ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 49 lines, which would bury posts()
+my sub with_recipe ( $post, $config ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 49 lines, which would overcomplicate posts()
     return $post if $post->{unreachable};
 
     my $domain = $post->{domain} // '';
@@ -373,7 +373,7 @@ The reason, when there is one, is what the person reads -- so it has to tell
 
 =cut
 
-my sub credentials (%args) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 58 lines, which would bury reprovision()
+my sub credentials (%args) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 58 lines, which would overcomplicate reprovision()
     my $user = $args{user} // '';
 
     my %credentials;

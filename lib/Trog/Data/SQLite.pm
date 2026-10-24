@@ -115,7 +115,7 @@ or two character search matches most of the site anyway.
 
 =cut
 
-my sub like_clause ($term) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 12 lines, which would bury where()
+my sub like_clause ($term) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 12 lines, which would overcomplicate where()
 
     if ( length($term) < 3 ) {
         my $escaped = $term;
@@ -130,7 +130,7 @@ my sub like_clause ($term) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 1
 
 # filter(), clause for clause.  Read the two side by side when changing either.
 # Returns nothing when no post can match, and then there is no query to run.
-my sub where ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 77 lines, which would bury build_query()
+my sub where ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 77 lines, which would overcomplicate build_query()
     my ( @where, @bind );
 
     # Which versions are in play.  Everything else filters within that.
@@ -208,7 +208,7 @@ my sub where ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 77 lin
     return ( \@where, \@bind );
 }
 
-my sub build_query ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 41 lines, which would bury read()
+my sub build_query ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 41 lines, which would overcomplicate read()
     my $select = q{SELECT p.post_data, p.uuid, p.version, v.version_max, v.first_created, f.author AS first_author};
 
     my ( $where, $bind ) = where($query) or return;
@@ -297,7 +297,7 @@ sub read ( $, $query = {} ) {
     return \@posts;
 }
 
-my sub insert ( $dbh, $data ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines, which would bury write()
+my sub insert ( $dbh, $data ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines, which would overcomplicate write()
     my $insert = $dbh->prepare('INSERT INTO posts (post_data) VALUES (?)');
 
     foreach my $post (@$data) {

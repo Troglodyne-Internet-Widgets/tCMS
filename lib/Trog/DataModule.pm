@@ -458,7 +458,7 @@ our %relation_schema = ( type => 'string' );
 # string-or-hashref dance every upload field would otherwise need.  Uploads are
 # a hashref on the way in from the browser and the href string they became on
 # the way back out of the datastore.
-my sub expand_pseudo_types ($root) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 26 lines, which would bury read_sidecar()
+my sub expand_pseudo_types ($root) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 26 lines, which would overcomplicate read_sidecar()
     my %pseudo = (
         upload   => \%upload_schema,
         relation => \%relation_schema,
@@ -574,7 +574,7 @@ sub include_schema_for ( $include = '' ) {
     return $cache{$generation}{$name};
 }
 
-my sub includes_of ($type) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 17 lines, which would bury includes_for()
+my sub includes_of ($type) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 17 lines, which would overcomplicate includes_for()
     my $path     = Trog::Themes::themed_file_in_dir( 'forms', "$type.tx", 'text/html', 1 );
     my $template = $path ? eval { File::Slurper::read_text($path) } : undef;
 

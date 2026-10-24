@@ -130,7 +130,7 @@ our $looked_further = 0;
 # The two places worth looking that are not the environment.  Deferred rather
 # than done at load, since both are files and this module is loaded by things
 # which have no interest in a vault.
-my sub look_further {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines, which would bury key()
+my sub look_further {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines, which would overcomplicate key()
     $looked_further = 1;
 
     my $dir = $ENV{CREDENTIALS_DIRECTORY};

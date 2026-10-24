@@ -70,7 +70,7 @@ state sub snapshot {
     return %seen;
 }
 
-state sub copy_tree {    ## no critic (ProhibitSingleUseLexicalSubs) -- 18 lines, which would bury the BEGIN block
+state sub copy_tree {    ## no critic (ProhibitSingleUseLexicalSubs) -- 18 lines, which would overcomplicate the BEGIN block
     my ( $from, $to ) = @_;
     File::Path::make_path($to);
     File::Find::find(

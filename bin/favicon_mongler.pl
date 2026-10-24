@@ -50,7 +50,7 @@ extension.  The real container is assembled with Imager afterwards.
 # and 1.x errors out on -e rather than quietly accepting it.  Ask the binary
 # which era it belongs to instead of guessing -- this script has already been
 # flipped between the two by hand twice (e23b678, then back in 5f0cdca).
-my sub export_flag ($bin) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would bury the setup at file scope
+my sub export_flag ($bin) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 14 lines, which would overcomplicate the setup at file scope
 
     # Shelling out, on purpose and on the record.  system() cannot hand back
     # what the child printed, and reaching for a pipe open instead would only

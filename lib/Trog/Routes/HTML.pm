@@ -447,7 +447,7 @@ sub feedback_from_cookie ($cookies) {
     return ( int($failure), URI::Escape::uri_unescape($message) );
 }
 
-my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 55 lines, which would bury index()
+my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 55 lines, which would overcomplicate index()
     return ( undef, undef, undef ) unless $query->{social_meta} && $query->{route} && $query->{domain};
 
     my $default_tags = $Theme::default_tags;
@@ -503,7 +503,7 @@ my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUse
     return ( $default_tags, $meta_desc, $meta_tags );
 }
 
-my sub get_series ( $edit = 0 ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 13 lines, which would bury index()
+my sub get_series ( $edit = 0 ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 13 lines, which would overcomplicate index()
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
 
@@ -659,7 +659,7 @@ sub totp ($query) {
     );
 }
 
-my sub setup_initial_db ( $dat, $user, $display_name, $contact_email ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 72 lines, which would bury login()
+my sub setup_initial_db ( $dat, $user, $display_name, $contact_email ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 72 lines, which would overcomplicate login()
     $dat->add(
         {
             "aclname"    => "series",
@@ -1360,7 +1360,7 @@ sub post_delete ($query) {
 # Anything a type needs computed rather than merely fetched.  The sub is named
 # in the sidecar, so validate it the same way a post's own callback field is --
 # a sidecar naming an arbitrary sub is a privilege question, not a typo.
-my sub enrich_callback ( $post, $query ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 33 lines, which would bury enrich_post()
+my sub enrich_callback ( $post, $query ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 33 lines, which would overcomplicate enrich_post()
     my $meta = Trog::DataModule::type_meta_for( $post->{form} );
     my $sub  = $meta->{'x-tcms-post-type'}{enrich};
     return if !$sub || ref $sub;
@@ -1617,7 +1617,7 @@ my sub post2rss ( $rss, $url, $post ) {
     return 1;
 }
 
-my sub _rss ( $query, $subtitle, $posts ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 49 lines, which would bury posts()
+my sub _rss ( $query, $subtitle, $posts ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 49 lines, which would overcomplicate posts()
 
     require XML::RSS;
     my $rss  = XML::RSS->new( version => '2.0', stylesheet => '/styles/rss-style.xsl' );
@@ -2697,7 +2697,7 @@ point, works, and is only missing an optimization.
 
 =cut
 
-my sub wizard_reindex ( $name, $fields ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 22 lines, which would bury post_wizard_save()
+my sub wizard_reindex ( $name, $fields ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 22 lines, which would overcomplicate post_wizard_save()
     my %indexed = map { $_->{name} => 1 } grep { $_->{indexed} } @$fields;
 
     my $this_type = "$name.tx";
@@ -2732,7 +2732,7 @@ my sub wizard_fail ( $query, $message ) {
     );
 }
 
-my sub wizard_field_html ($field) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 23 lines, which would bury wizard_template()
+my sub wizard_field_html ($field) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 23 lines, which would overcomplicate wizard_template()
     my ( $n, $t, $l, $p ) = @$field{qw{name type label placeholder}};
     my $required = $field->{required} ? 'required ' : '';
 
@@ -2763,7 +2763,7 @@ a display half guarded by !$post.addpost, and an edit half guarded by $can_edit.
 
 =cut
 
-my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 54 lines, which would bury post_wizard_save()
+my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '' ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 54 lines, which would overcomplicate post_wizard_save()
     my $placeholder = kolon_safe( $query->{title_placeholder} ) || 'Iowa Man Destroys Moon';
 
     # NOT escaped, on purpose.  Letting an admin write template code is the
@@ -2955,7 +2955,7 @@ sub short_error ( $error = '' ) {
 # sidecar as the fallback rather than making it a second opinion.  The template
 # is what actually renders, so where the two disagree it is the template which
 # is telling the truth.
-my sub wizard_display_of ($form) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 26 lines, which would bury wizard_types()
+my sub wizard_display_of ($form) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 26 lines, which would overcomplicate wizard_types()
     my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
     return undef unless $path;
 
@@ -2983,7 +2983,7 @@ my sub wizard_display_of ($form) {    ## no critic (ProhibitSingleUseLexicalSubs
 }
 
 # The custom fields of a type, as rows the wizard would have submitted.
-my sub wizard_fields_of ( $schema, $meta, $includes = {} ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 72 lines, which would bury wizard_types()
+my sub wizard_fields_of ( $schema, $meta, $includes = {} ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 72 lines, which would overcomplicate wizard_types()
     my $properties = $schema->{properties} // {};
     my %required   = map { $_ => 1 } @{ $schema->{required} // [] };
     my $relations  = $meta->{'x-tcms-relations'};
@@ -3068,7 +3068,7 @@ there is no wizard form that produces one.
 
 =cut
 
-my sub wizard_display_from_template ($form) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 33 lines, which would bury wizard_types()
+my sub wizard_display_from_template ($form) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 33 lines, which would overcomplicate wizard_types()
     my $path = Trog::Themes::themed_file_in_dir( 'forms', $form, 'text/html', 1 );
     return '' unless $path;
 

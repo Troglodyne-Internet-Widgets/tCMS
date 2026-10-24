@@ -50,7 +50,7 @@ our $error;
 # Resolved at call time rather than compile time, so that components are free to
 # use Trog::Renderer without cycling back through us.  require() memoizes in
 # %INC; %loaded only saves us the repeat eval and string munging.
-my sub load ($name) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 22 lines, which would bury _component()
+my sub load ($name) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 22 lines, which would overcomplicate _component()
     state %loaded;
 
     die "Component name must be given\n"   unless $name;
@@ -73,7 +73,7 @@ my sub load ($name) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 22 lines
     return $module;
 }
 
-my sub _component ( $name, $args ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 25 lines, which would bury component()
+my sub _component ( $name, $args ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 25 lines, which would overcomplicate component()
     my $module = load($name);
 
     die "Component '$name' recursed more than $MAX_DEPTH deep\n" if $depth >= $MAX_DEPTH;
