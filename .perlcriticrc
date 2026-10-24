@@ -127,14 +127,11 @@ allow = re Exporter
 [ProhibitUnusedDefinitions]
 # tCMS:
 #   generic_route, @routes, %aliases  tPSGI reads them out of the router package
-#   aliases (both models)              TCMS::aliases calls $data->aliases, and
-#                                      the policy takes a method call from a sub
-#                                      of the same name for recursion
 #   posts, order                       named by a post type's x-tcms-datasource
 #   enrich                             named by a post type's sidecar
 #   create_statement, log_message      Log::Dispatch calls them
 #   series, users                      a post's callback names them
-allow_subs = TCMS::generic_route Trog::Data::FlatFile::aliases Trog::DataModule::aliases Trog::DataSource::DirIndex::posts Trog::DataSource::DirIndex::order Trog::DataSource::ProvisionedVirt::posts Trog::Enrich::Invoice::enrich Trog::Log::DBI::create_statement Trog::Log::DBI::log_message Trog::Log::Syslog::log_message Trog::Routes::HTML::series Trog::Routes::HTML::users
+allow_subs = TCMS::generic_route Trog::DataSource::DirIndex::posts Trog::DataSource::DirIndex::order Trog::DataSource::ProvisionedVirt::posts Trog::Enrich::Invoice::enrich Trog::Log::DBI::create_statement Trog::Log::DBI::log_message Trog::Log::Syslog::log_message Trog::Routes::HTML::series Trog::Routes::HTML::users
 allow_globals = @TCMS::routes %TCMS::aliases
 # A sub that only one subclass uses, and a sub that two subclasses define where
 # the class above them defines none.  It reads bin/ and lib/ through

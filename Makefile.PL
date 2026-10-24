@@ -73,7 +73,7 @@ WriteMakefile(
                     'Perl::Critic::Policy::Subroutines::ProhibitTailRecursion'                       => '0.001',
                     'Perl::Critic::Policy::RegularExpressions::PreventUselessMetacharacterEscapes'   => '0',
                     'Perl::Critic::Policy::Variables::ProhibitUnusedVarsStricter'                    => '0',
-                    'Perl::Critic::Policy::ProhibitUnusedDefinitions'                                => '0',
+                    'Perl::Critic::Policy::ProhibitUnusedDefinitions'                                => '0.007',
                 },
             },
         },
