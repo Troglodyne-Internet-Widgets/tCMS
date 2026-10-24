@@ -249,7 +249,7 @@ our $TPSGI = Test::TPSGI->new();
 
 our $ADMIN_USER    = 'specadmin';
 our $ADMIN_DISPLAY = 'Spec Admin';
-our $ADMIN_EMAIL   = 'specadmin@example.com';
+our $ADMIN_EMAIL   = 'specadmin@test.test';
 our $ADMIN_PASS    = 'spec-password';
 
 #--------------------------------------------------------------------------
@@ -1127,7 +1127,7 @@ subtest 'microblog' => sub {
         'microblog child',
         form       => 'microblog.tx',
         title      => 'Spec Microblog Child',
-        href       => 'https://example.com/spec',
+        href       => 'https://test.test/spec',
         data       => 'Spec microblog body.',
         visibility => 'public',
         tags       => ['specmicroblog'],
@@ -1136,7 +1136,7 @@ subtest 'microblog' => sub {
 
     my $body = series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
 
-    my $link = q{href='https://example.com/spec' >Spec Microblog Child</a>};
+    my $link = q{href='https://test.test/spec' >Spec Microblog Child</a>};
     like( $body, qr{\Q$link\E},                      'title links out to href' );
     like( $body, qr{id="postData-\Q$child->{id}\E"}, 'body block rendered' );
     like( $body, qr/Spec[ ]microblog[ ]body\./,      'body text rendered' );

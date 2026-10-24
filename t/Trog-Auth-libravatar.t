@@ -28,8 +28,8 @@ subtest 'users_with_emails -- no rows returned' => sub {
 
 subtest 'users_with_emails -- returns populated list' => sub {
     my $fake_rows = [
-        { name => 'alice', contact_email => 'alice@example.com' },
-        { name => 'bob',   contact_email => 'bob@example.com' },
+        { name => 'alice', contact_email => 'alice@test.test' },
+        { name => 'bob',   contact_email => 'bob@test.test' },
     ];
     my $sqlite_mock = Test::MockModule->new('Trog::SQLite');
     $sqlite_mock->redefine(
@@ -42,11 +42,11 @@ subtest 'users_with_emails -- returns populated list' => sub {
         }
     );
     my $result = Trog::Auth::users_with_emails();
-    is( ref $result,                 'ARRAY',             'returns arrayref' );
-    is( scalar @$result,             2,                   'correct number of users' );
-    is( $result->[0]{name},          'alice',             'first user name' );
-    is( $result->[0]{contact_email}, 'alice@example.com', 'first user email' );
-    is( $result->[1]{name},          'bob',               'second user name' );
+    is( ref $result,                 'ARRAY',           'returns arrayref' );
+    is( scalar @$result,             2,                 'correct number of users' );
+    is( $result->[0]{name},          'alice',           'first user name' );
+    is( $result->[0]{contact_email}, 'alice@test.test', 'first user email' );
+    is( $result->[1]{name},          'bob',             'second user name' );
 };
 
 subtest 'libravatar hash matching logic' => sub {
@@ -68,10 +68,10 @@ subtest 'libravatar hash matching logic' => sub {
 
     # Simulate the lookup: given a hash, find the matching email
     my @users = (
-        { name => 'alice', contact_email => 'alice@example.com' },
-        { name => 'bob',   contact_email => 'bob@example.com' },
+        { name => 'alice', contact_email => 'alice@test.test' },
+        { name => 'bob',   contact_email => 'bob@test.test' },
     );
-    my $target_hash = sha256_hex( lc('alice@example.com') );
+    my $target_hash = sha256_hex( lc('alice@test.test') );
     my $matched;
     for my $u (@users) {
         my $e = lc( $u->{contact_email} );
@@ -82,7 +82,7 @@ subtest 'libravatar hash matching logic' => sub {
     }
     is( $matched, 'alice', 'SHA-256 lookup finds the correct user' );
 
-    my $target_md5 = md5_hex( lc('bob@example.com') );
+    my $target_md5 = md5_hex( lc('bob@test.test') );
     $matched = undef;
     for my $u (@users) {
         my $e = lc( $u->{contact_email} );

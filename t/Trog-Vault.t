@@ -31,7 +31,7 @@ BEGIN {
     File::Copy::copy( "$REPO/schema/auth.schema", "$ROOT/schema/auth.schema" ) or die $!;
 
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
-    print {$fh} "[general]\n    data_model=FlatFile\n    hostname=vault.example.com\n";
+    print {$fh} "[general]\n    data_model=FlatFile\n    hostname=vault.test.test\n";
     close($fh) or die $!;
 
     # The key the way a deployment hands one over: base64, in the environment,
@@ -51,9 +51,9 @@ END {
 require_ok('Trog::Auth')  or BAIL_OUT("Can't find Trog::Auth");
 require_ok('Trog::Vault') or BAIL_OUT("Can't find SUT");
 
-Trog::Auth::useradd( 'bob', 'Bob Bobson', 'hunter2', ['admin'], 'bob@example.com' )
+Trog::Auth::useradd( 'bob', 'Bob Bobson', 'hunter2', ['admin'], 'bob@test.test' )
   or BAIL_OUT('could not make a user to test with');
-Trog::Auth::useradd( 'eve', 'Eve Evilson', 'letmein', ['public'], 'eve@example.com' )
+Trog::Auth::useradd( 'eve', 'Eve Evilson', 'letmein', ['public'], 'eve@test.test' )
   or BAIL_OUT('could not make a second user');
 
 subtest 'the key is taken out of the environment' => sub {
@@ -214,7 +214,7 @@ subtest 'the other two places a key can be' => sub {
 };
 
 subtest 'a code is worth one thing' => sub {
-    my ( $uri, undef, undef, $message, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
+    my ( $uri, undef, undef, $message, $totp ) = Trog::Auth::totp( 'bob', 'vault.test.test' );
     ok( $uri, 'bob is enrolled' ) or diag($message);
 
     my $now  = time();
@@ -284,7 +284,7 @@ subtest 'passwords are argon2id, and become it' => sub {
 };
 
 subtest 'logging in spends a code' => sub {
-    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
+    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'bob', 'vault.test.test' );
 
     # The subtest above spent the code for the window we are standing in, and
     # the counter only walks forwards.  Standing here for thirty seconds would
@@ -422,7 +422,7 @@ subtest 'a write the database refuses is an answer, not a crash' => sub {
     $dbh->do("DELETE FROM totp_spent WHERE username='bob'");
     $dbh->do("CREATE TEMP TRIGGER refuse_spend BEFORE INSERT ON totp_spent BEGIN SELECT RAISE(ABORT, 'refused for the test'); END");
 
-    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'bob', 'vault.example.com' );
+    my ( undef, undef, undef, undef, $totp ) = Trog::Auth::totp( 'bob', 'vault.test.test' );
     ( $ok, $why ) = Trog::Auth::spend_totp( 'bob', $totp->expected_totp_code( time() ) );
     $dbh->do("DROP TRIGGER temp.refuse_spend");
 

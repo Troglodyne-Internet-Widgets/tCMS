@@ -39,7 +39,7 @@ BEGIN {
     File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{auth.schema flatfile.schema log.schema};
 
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
-    print {$fh} "[general]\n    data_model=FlatFile\n    hostname=totp.example.com\n";
+    print {$fh} "[general]\n    data_model=FlatFile\n    hostname=totp.test.test\n";
     close($fh) or die $!;
 
     # Otherwise login() reads the instance as a fresh install and registers
@@ -58,7 +58,7 @@ require_ok('Trog::Auth') or BAIL_OUT("Can't find SUT");
 require_ok('TCMS')       or BAIL_OUT("Can't load the dispatcher");
 require_ok('Trog::Routes::HTML');
 
-Trog::Auth::useradd( 'bob', 'Bob Bobson', 'hunter2', ['admin'], 'bob@example.com' )
+Trog::Auth::useradd( 'bob', 'Bob Bobson', 'hunter2', ['admin'], 'bob@test.test' )
   or BAIL_OUT('could not make a user to test with');
 
 subtest 'a user starts out unenrolled' => sub {
@@ -82,7 +82,7 @@ subtest 'and cannot go anywhere but /totp until they enrol' => sub {
     # Nothing to enrol, and nothing to protect.
     is( TCMS::needs_enrolment( '', \%page ), 0, 'a logged out visitor is left alone' );
 
-    my ( $uri, undef, undef, $message ) = Trog::Auth::totp( 'bob', 'totp.example.com' );
+    my ( $uri, undef, undef, $message ) = Trog::Auth::totp( 'bob', 'totp.test.test' );
     ok( $uri, 'enrolling gives them a URI' ) or diag($message);
     is( Trog::Auth::has_totp('bob'), 1, 'and they are enrolled' );
 
@@ -93,8 +93,8 @@ subtest 'the enrolment does not change' => sub {
 
     # A user who lost their authenticator scans the same code into the next one,
     # which is what makes having no way to turn 2fa off a supportable position.
-    my ( $uri, $qr, $failure ) = Trog::Auth::totp( 'bob', 'totp.example.com' );
-    my ( $again, $qr2 ) = Trog::Auth::totp( 'bob', 'totp.example.com' );
+    my ( $uri, $qr, $failure ) = Trog::Auth::totp( 'bob', 'totp.test.test' );
+    my ( $again, $qr2 ) = Trog::Auth::totp( 'bob', 'totp.test.test' );
     is( $again,   $uri, 'asking again gives back the enrolment they already have' );
     is( $qr2,     $qr,  'and the same QR' );
     is( $failure, -1,   'reported as nothing new having been generated' );

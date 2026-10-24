@@ -35,7 +35,7 @@ Path::Tiny->new('config/default.cfg')->spew_utf8(<<'CFG');
     # Which directory under www/themes to render with.
     theme=
     title=Stock
-    hostname=stock.example.com
+    hostname=stock.test.test
 [security]
     allow_embeds_from=vimeo.com *.vimeo.com youtube.com *.youtube.com www.youtube-nocookie.com
 CFG
@@ -45,7 +45,7 @@ CFG
 Path::Tiny->new('config/main.cfg')->spew_utf8(<<'CFG');
 [general]
 theme=spec
-hostname=spec.example.com
+hostname=spec.test.test
 title=
 CFG
 
@@ -71,8 +71,8 @@ subtest 'the form is the shape of the defaults' => sub {
 };
 
 subtest 'fields carry what the instance is running with' => sub {
-    is( $field{'general.hostname'}{value},   'spec.example.com', 'a setting this instance overrode shows its value' );
-    is( $field{'general.data_model'}{value}, 'FlatFile',         '...and one it never touched falls back to the default' );
+    is( $field{'general.hostname'}{value},   'spec.test.test', 'a setting this instance overrode shows its value' );
+    is( $field{'general.data_model'}{value}, 'FlatFile',       '...and one it never touched falls back to the default' );
 
     # Blanking a setting is how you turn it off, so the defaults must not creep
     # back in and get re-saved on the next commit.
