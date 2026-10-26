@@ -308,6 +308,12 @@ my sub render {
     return ( $code, Encode::decode_utf8($body), '', $headers );
 }
 
+# The pages that a stand-in tPSGI was asked to save, without the bundles of
+# scripts, which every page links.
+my sub pages_saved ($tpsgi) {
+    return [ grep { !m/:js\z/ } keys %{ $tpsgi->{renders} } ];
+}
+
 # FlatFile snapshots the tag list at load time and then filters each query's
 # tags against it IN PLACE -- so a tag created later isn't merely unindexed, it
 # is deleted from the query, and the filter silently degrades to "every public
@@ -690,7 +696,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     # not going to tell us about it.
     my $vtpsgi = Test::TPSGI->new( run_callbacks => 1 );
     render( anon( route => '/specguests', tpsgi => $vtpsgi ), \&Trog::Routes::HTML::series );
-    is_deeply( [ keys %{ $vtpsgi->{renders} } ], [], 'a guests page is never saved as a static' );
+    is_deeply( pages_saved($vtpsgi), [], 'a guests page is never saved as a static' );
 
     # The cursor paginator would be worse than useless here: every guest shares
     # a created, so Prev would ask for everything older than that one instant.
@@ -817,7 +823,7 @@ subtest 'a directory index series' => sub {
     # the renderer hands anonymous, unparameterised, successful renders to tPSGI
     # to save, and a directory listing is one.  Which it may be, unlike the
     # guests page above, precisely because it registers the watch below.
-    ok( scalar( keys %{ $tpsgi->{renders} } ),                    'the listing was handed to tPSGI to save as a static' );
+    ok( scalar( @{ pages_saved($tpsgi) } ),                       'the listing was handed to tPSGI to save as a static' );
     ok( ( grep { m{^/specfiles:} } keys %{ $tpsgi->{renders} } ), 'under its own route' );
 
     my ($watch) = grep { $_->{path} =~ m/spec_downloads/ } @{ $tpsgi->{watches} };
@@ -1254,6 +1260,29 @@ subtest 'presentation' => sub {
     ($bcode) = render( anon( route => '/bundle/0000/nothere.js', version => '0000', names => 'nothere' ), \&Trog::Routes::HTML::bundle );
     is( $bcode, 404, 'and a bundle of nothing is not found' );
 
+    # As a fresh worker, which has saved nothing yet.
+    no warnings qw{once};
+    local %Trog::Bundle::saved = ();
+    my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
+    render( anon( $deck_query->( tpsgi => $tpsgi ) ), \&Trog::Routes::HTML::posts );
+    is( $tpsgi->{renders}{"$srcs[0]:js"}, $bundle, 'the bundle that a page links is saved as a static' );
+
+    delete $tpsgi->{renders}{"$srcs[0]:js"};
+    render( anon( $deck_query->( tpsgi => $tpsgi ) ), \&Trog::Routes::HTML::posts );
+    ok( !exists $tpsgi->{renders}{"$srcs[0]:js"}, 'once' );
+
+    my $unlinked = 'reveal.min+highlight.min';
+    my ($unlinked_href) = $srcs[0] =~ s{/[^/]+/[^/]+\z}{}r;
+    ( $bcode, undef, undef, $headers ) = render( anon( route => "$unlinked_href/0000/$unlinked.js", version => '0000', names => $unlinked, tpsgi => $tpsgi ), \&Trog::Routes::HTML::bundle );
+    my %to = @$headers;
+    render( anon( route => $to{Location}, version => 'x', names => $unlinked, tpsgi => $tpsgi ), \&Trog::Routes::HTML::bundle );
+    ok( !( grep { m{/\Q$unlinked\E[.]js:js\z} } keys %{ $tpsgi->{renders} } ), 'while a list that only a URL names is not' );
+
+    my ($watch) = grep { $_->{path} eq 'www/scripts' } @{ $tpsgi->{watches} };
+    ok( $watch, 'the scripts are watched' ) or return;
+    $watch->{callback}->( $tpsgi, {} );
+    is_deeply( [ @{ $tpsgi->{invalidated} }[ -2, -1 ] ], [qw{html js}], 'and a change throws away the saved pages and bundles' );
+
     ( $code, $page, $err ) = render( admin( $deck_query->() ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'the deck renders for an editor' ) or return diag($err);
     my $editing = qr{post[+]post_relations};
@@ -1603,7 +1632,7 @@ subtest 'saves report back through the jsalert banner' => sub {
     # form was accidentally safe here; a cookie is not.
     my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
     render( anon( route => '/specblog', cookies => $feedback, tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
-    is_deeply( [ keys %{ $tpsgi->{renders} } ], [], 'and it is never saved as a static' );
+    is_deeply( pages_saved($tpsgi), [], 'and it is never saved as a static' );
 };
 
 subtest 'a hidden id that was never filled in' => sub {

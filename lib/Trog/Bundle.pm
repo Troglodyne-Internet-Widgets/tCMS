@@ -85,3 +85,50 @@ sub scripts (@names) {
         signature => $signature,
     };
 }
+
+=head2 save($tpsgi, $bundle)
+
+Have tPSGI save $bundle as a static render after the response, so that the
+webserver serves it from then on.  A process saves a given bundle once.
+
+finish_render() calls this for the bundle that a page links, so only the lists
+that routes name are saved.  A list that only a URL names is built and served,
+but never saved, because anyone can ask for as many of those as they like.
+
+It also has tPSGI watch the directories of the scripts.  When a script changes,
+the saved pages and bundles are thrown away: the pages are rendered again and
+link the new bundle, and a page that still links an old one is redirected by
+the route.  The route also serves a bundle whose static is gone, so a worker
+that still counts it as saved is slower, not wrong.
+
+=cut
+
+# The hrefs of the bundles that this process saved.
+our %saved;
+
+sub save ( $tpsgi, $bundle ) {
+    return 0 if !$tpsgi || $saved{ $bundle->{href} };
+
+    if ( $tpsgi->can('add_watch') ) {
+        my $theme = Trog::Themes::get_dir();
+        foreach my $dir ( grep { -d } ( 'www/scripts', $theme ? "$theme/scripts" : () ) ) {
+            $tpsgi->add_watch(
+                $dir,
+                sub {
+                    my ( $watcher, $change ) = @_;
+                    $watcher->invalidate_renders($_) for qw{html js};
+                    return 1;
+                },
+                key => "Trog::Bundle:$dir",
+            );
+        }
+    }
+
+    $tpsgi->add_post_close_callback(
+        sub {
+            $tpsgi->save_render( $bundle->{href}, 'js', $bundle->{body} );
+            $saved{ $bundle->{href} } = 1;
+        }
+    );
+    return 1;
+}

@@ -384,6 +384,9 @@ a list, and a template does not write a `<script src>` tag of its own.
 `/bundle/{version}/{names}.js` serves. The version is a digest of the bundle,
 so a browser keeps the bundle until a script in it changes. A script whose name
 ends in `.min.js` goes into the bundle as it is, and the others are minified.
+tPSGI saves each bundle that a page links as a static, and it watches the
+script directories. When a script changes, it throws away the saved pages and
+bundles.
 
 Composition: relations and enrichment
 =====================================

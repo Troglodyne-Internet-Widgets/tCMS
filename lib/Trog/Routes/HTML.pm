@@ -3491,6 +3491,7 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{print_styles} = [ @{ build_themed_styles( $vars->{print_styles} ) } ];
     my $bundle = Trog::Bundle::scripts( @{ Trog::Utils::coerce_array( $vars->{scripts} ) } );
     $vars->{scripts} = $bundle ? [ $bundle->{href} ] : [];
+    Trog::Bundle::save( $vars->{tpsgi}, $bundle ) if $bundle;
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );
