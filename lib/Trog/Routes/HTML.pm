@@ -167,6 +167,7 @@ our %routes = (
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::metrics,
+        scripts  => ['chart.min.js'],
     },
     '/admin/sessions' => {
         method   => 'GET',
@@ -217,6 +218,7 @@ our %routes = (
         callback => \&Trog::Routes::HTML::post_wizard,
         noindex  => 1,
         nocache  => 1,
+        scripts  => ['post_wizard.js'],
     },
     '/admin/wyzzerdd/save' => {
         method   => 'POST',
@@ -300,6 +302,14 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::bundle,
     },
+);
+
+# The scripts of a page of posts.  TCMS::_routes gives them to each route whose
+# callback is one of these, unless the route names scripts of its own.
+our @post_page_callbacks = map { "Trog::Routes::HTML::$_" } qw{posts series users};
+our %post_page_scripts   = (
+    scripts               => [qw{highlight.min.js reveal.min.js}],
+    authenticated_scripts => [qw{post.js post_relations.js}],
 );
 
 # Grab theme routes
@@ -522,7 +532,7 @@ Most subsequent functions simply pass content to this function.
 
 =cut
 
-sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
+sub index ( $query, $content = '', $i_styles = [] ) {
     $query->{theme_dir} = Trog::Themes::td();
 
     absorb_feedback($query);
@@ -577,7 +587,6 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
             categories   => \@series,
             stylesheets  => \@styles,
             print_styles => \@p_styles,
-            scripts      => $i_scripts,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
             embed        => $query->{embed}     ? 1 : 0,
             embed_video  => $query->{primary_post}{is_video},
@@ -1886,8 +1895,7 @@ sub posts ( $query, $direct = 0 ) {
     return $content if ref $content eq "ARRAY";
 
     return $content if $direct;
-    my @scripts = ( ( $query->{user} ? qw{post.js post_relations.js} : () ), qw{highlight.min.js reveal.min.js} );
-    return Trog::Routes::HTML::index( $query, $content, $styles, \@scripts );
+    return Trog::Routes::HTML::index( $query, $content, $styles );
 }
 
 =head2 redact_private($post, $seen)
@@ -2354,7 +2362,6 @@ sub metrics ($query) {
         },
         undef,
         ['post.css'],
-        ['chart.min.js'],
     );
 }
 
@@ -2671,7 +2678,6 @@ sub post_wizard ($query) {
         },
         undef,
         ['post.css'],
-        ['post_wizard.js'],
     );
 }
 
@@ -3484,12 +3490,14 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{title}        //= 'tCMS';
     $vars->{stylesheets}  //= [];
     $vars->{print_styles} //= [qw{structure.css print.css}];
-    $vars->{scripts}      //= [];
 
     # Theme-ize the paths
     $vars->{stylesheets}  = [ @{ build_themed_styles( $vars->{stylesheets} ) } ];
     $vars->{print_styles} = [ @{ build_themed_styles( $vars->{print_styles} ) } ];
-    my $bundle = Trog::Bundle::scripts( @{ Trog::Utils::coerce_array( $vars->{scripts} ) } );
+
+    # From the route, and never from the request.
+    my $route  = $vars->{dispatcher} // {};
+    my $bundle = Trog::Bundle::scripts( @{ $route->{'x-tcms-scripts'} // [] }, $vars->{user} ? @{ $route->{'x-tcms-authenticated_scripts'} // [] } : () );
     $vars->{scripts} = $bundle ? [ $bundle->{href} ] : [];
     Trog::Bundle::save( $vars->{tpsgi}, $bundle ) if $bundle;
 

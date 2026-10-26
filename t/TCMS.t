@@ -107,6 +107,24 @@ subtest 'the routes of posts' => sub {
     ok( !exists $paths->{'/posts/{curly}'}, 'but a post whose path has a brace is not, since it would be a template' );
 };
 
+subtest 'the scripts of a route' => sub {
+    my $post = $paths->{'/posts/p-one'}{get};
+    is_deeply( $post->{'x-tcms-scripts'},                              [qw{highlight.min.js reveal.min.js}], 'a post page has the scripts of one' );
+    is_deeply( $post->{'x-tcms-authenticated_scripts'},                [qw{post.js post_relations.js}],      'and the editing scripts for a reader who is logged in' );
+    is_deeply( $paths->{'/secure/posts/p-one'}{get}{'x-tcms-scripts'}, $post->{'x-tcms-scripts'},            'and so does its /secure copy' );
+
+    is_deeply( $paths->{'/metrics'}{get}{'x-tcms-scripts'}, ['chart.min.js'], 'a route that names its own has those' );
+    ok( !exists $paths->{'/metrics'}{get}{'x-tcms-authenticated_scripts'}, 'and no others' );
+    ok( !exists $paths->{'/login'}{get}{'x-tcms-scripts'},                 'a route that names none has none' );
+
+    no warnings qw{once};
+    my %declared = %Trog::Bundle::declared;
+    ok( $declared{'highlight.min+reveal.min'},                     'the bundle of a post page is declared at startup' );
+    ok( $declared{'highlight.min+reveal.min+post+post_relations'}, 'and the one for a reader who is logged in' );
+    ok( $declared{'chart.min'},                                    'and the bundle of every other route' );
+    ok( !$declared{'reveal.min+highlight.min'},                    'but no other list' );
+};
+
 subtest 'validation' => sub {
     my $token = '0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0';
     is_deeply( [ $schema->validate_request( [ get => '/api/auth_change_request/{token}' ], { path => { token => $token } } ) ], [], 'a token that is a UUID is taken' );

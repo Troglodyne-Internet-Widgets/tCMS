@@ -1238,7 +1238,11 @@ subtest 'presentation' => sub {
     like( $body, qr{\Q$deck\E}, 'deck link rendered' );
     unlike( $body, qr/Slide[ ]one[ ]body\./, 'slides themselves are not rendered inline' );
 
-    my $deck_query = sub (@who) { return ( route => "/posts/$child->{id}", id => $child->{id}, embed => 1, nochrome => 1, @who ) };
+    # The operation that tPSGI hands the callback, which carries the scripts
+    # that TCMS gives the route of a post.  t/TCMS.t makes sure that it does.
+    no warnings qw{once};
+    my %operation  = map { ( "x-tcms-$_" => $Trog::Routes::HTML::post_page_scripts{$_} ) } keys %Trog::Routes::HTML::post_page_scripts;
+    my $deck_query = sub (@who) { return ( route => "/posts/$child->{id}", id => $child->{id}, embed => 1, nochrome => 1, dispatcher => \%operation, @who ) };
     my ( $code, $page, $err ) = render( anon( $deck_query->() ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'the deck renders' ) or return diag($err);
     like( $page, qr/Reveal[.]initialize/, 'and starts reveal' );
@@ -1261,7 +1265,6 @@ subtest 'presentation' => sub {
     is( $bcode, 404, 'and a bundle of nothing is not found' );
 
     # As a fresh worker, which has saved nothing yet.
-    no warnings qw{once};
     local %Trog::Bundle::saved = ();
     my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
     render( anon( $deck_query->( tpsgi => $tpsgi ) ), \&Trog::Routes::HTML::posts );
@@ -1271,12 +1274,9 @@ subtest 'presentation' => sub {
     render( anon( $deck_query->( tpsgi => $tpsgi ) ), \&Trog::Routes::HTML::posts );
     ok( !exists $tpsgi->{renders}{"$srcs[0]:js"}, 'once' );
 
-    my $unlinked = 'reveal.min+highlight.min';
-    my ($unlinked_href) = $srcs[0] =~ s{/[^/]+/[^/]+\z}{}r;
-    ( $bcode, undef, undef, $headers ) = render( anon( route => "$unlinked_href/0000/$unlinked.js", version => '0000', names => $unlinked, tpsgi => $tpsgi ), \&Trog::Routes::HTML::bundle );
-    my %to = @$headers;
-    render( anon( route => $to{Location}, version => 'x', names => $unlinked, tpsgi => $tpsgi ), \&Trog::Routes::HTML::bundle );
-    ok( !( grep { m{/\Q$unlinked\E[.]js:js\z} } keys %{ $tpsgi->{renders} } ), 'while a list that only a URL names is not' );
+    my $undeclared = 'reveal.min+highlight.min';
+    ($bcode) = render( anon( route => "/bundle/0000/$undeclared.js", version => '0000', names => $undeclared, tpsgi => $tpsgi ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 404, 'a list of real scripts that no route declares is not found' );
 
     my ($watch) = grep { $_->{path} eq 'www/scripts' } @{ $tpsgi->{watches} };
     ok( $watch, 'the scripts are watched' ) or return;
@@ -1285,13 +1285,20 @@ subtest 'presentation' => sub {
 
     ( $code, $page, $err ) = render( query( user => 'spec_reader', user_acls => [], $deck_query->() ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'the deck renders for a reader who is logged in' ) or return diag($err);
-    like( $page, qr{src="/bundle/\w+/post[+]post_relations[+]}, 'with the editing scripts, though the reader is not an admin' );
+    my $viewing = qr{highlight[.]min[+]reveal[.]min};
+    my $editing = qr{post[+]post_relations};
+    like( $page, qr{src="/bundle/\w+/$viewing[+]$editing[.]js"}, 'with the authenticated scripts after the others, though the reader is not an admin' );
 
     ( $code, $page, $err ) = render( admin( $deck_query->() ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'the deck renders for an editor' ) or return diag($err);
-    my $editing = qr{post[+]post_relations};
-    my $viewing = qr{highlight[.]min[+]reveal[.]min};
-    like( $page, qr{<script\b[^>]*\bsrc="/bundle/\w+/$editing[+]$viewing[.]js"}, 'with the editing scripts first' );
+    my @editor_srcs = $page =~ m{<script\b[^>]*\bsrc="([^"]+)"}g;
+    my ($editor_names) = ( $editor_srcs[0] // '' ) =~ m{/([^/]+)[.]js\z};
+    ($bcode) = render( anon( route => $editor_srcs[0], version => 'x', names => $editor_names ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 200, 'and its bundle is served too' );
+
+    ( $code, $page, $err ) = render( anon( $deck_query->( query => 'scripts', scripts => 'nothere.js' ) ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'a request that names scripts of its own still renders' ) or return diag($err);
+    like( $page, qr{src="/bundle/\w+/$viewing[.]js"}, 'with the scripts of the route' );
 };
 
 subtest 'invoice' => sub {

@@ -9,6 +9,7 @@ use Clone qw{clone};
 
 use CGI::Cookie ();
 use List::Util  ();
+use Sub::Util   ();
 use URI();
 
 #Grab our custom routes
@@ -29,6 +30,7 @@ use Trog::Config;
 use Trog::Vault;    ## no critic (ProhibitUnusedImports) -- loaded for what it does at load time, as above
 use Trog::Data;
 use Trog::Themes;
+use Trog::Bundle;
 
 #XXX Return a clone of the routing table ref, because code modifies it later
 my sub _routes ( $data = {} ) {
@@ -61,6 +63,14 @@ my sub _routes ( $data = {} ) {
     @routes{ keys(%Trog::Routes::JSON::routes) } = values(%Trog::Routes::JSON::routes);
     @routes{ keys(%roots) }                      = values(%roots);
     @routes{ keys(%themed) }                     = values(%themed) if %themed;
+
+    # A page of posts gets the scripts of one, unless its route names its own.
+    foreach my $path ( keys(%routes) ) {
+        my $callback = $routes{$path}{callback} // '';
+        my $name     = ref $callback ? Sub::Util::subname($callback) : $callback;
+        next if exists $routes{$path}{scripts} || !List::Util::any { $_ eq $name } @Trog::Routes::HTML::post_page_callbacks;
+        $routes{$path} = { %Trog::Routes::HTML::post_page_scripts, %{ $routes{$path} } };
+    }
 
     # Add in global routes, here because they *must* know about all other routes
     # Also, nobody should ever override these.
@@ -119,7 +129,7 @@ F<config/setup>.
 
 =cut
 
-my @tcms_keys = qw{auth nocache noindex nomap robot_name totp_exempt};
+my @tcms_keys = qw{auth nocache noindex nomap robot_name totp_exempt scripts authenticated_scripts};
 
 sub build_routes {
     my $conf   = Trog::Config::get();
@@ -131,6 +141,11 @@ sub build_routes {
     my %paths;
     foreach my $k ( sort grep { $_ ne 'default' } keys(%routes) ) {
         my $v = $routes{$k};
+
+        # The bundles that this route's page can link, for a reader and for a
+        # reader who is logged in.
+        my @scripts = @{ $v->{scripts} // [] };
+        Trog::Bundle::declare( \@scripts, [ @scripts, @{ $v->{authenticated_scripts} // [] } ] );
 
         my $method = lc( $v->{method} // 'GET' );
 

@@ -50,11 +50,9 @@ subtest 'the scripts, in the order named' => sub {
 subtest 'a name that is not a script' => sub {
     my @not = ( qw{nothere.js ../one.js .hidden.js sub/one.js one.css}, 'one.js+two' );
     foreach my $name (@not) {
-        like( exception { Trog::Bundle::scripts( 'one.js', $name ) }, qr/no[ ]script[ ]to[ ]bundle[ ]named[ ]\Q$name\E/, "$name is fatal on a page, and named" );
-        is( Trog::Bundle::served( 'one.js', $name ), undef, '...and not served' );
+        like( exception { Trog::Bundle::scripts( 'one.js', $name ) }, qr/no[ ]script[ ]to[ ]bundle[ ]named[ ]\Q$name\E/, "$name is fatal, and named" );
     }
     is( Trog::Bundle::scripts(), undef, 'an empty list is no bundle' );
-    is( Trog::Bundle::served(),  undef, '...on a page or in a URL' );
 };
 
 subtest "the theme's copy" => sub {
@@ -78,13 +76,18 @@ subtest 'a script that changes' => sub {
     isnt( $after->{href}, $before->{href}, 'at a new href' );
 };
 
-subtest 'a list that only a URL names' => sub {
-    my $served = Trog::Bundle::served(qw{two.js one.js});
-    is( $served->{body}, Trog::Bundle::scripts(qw{two.js one.js})->{body}, 'is the bundle that a page would link' );
-    isnt( Trog::Bundle::served(qw{one.js two.js}), Trog::Bundle::served(qw{one.js two.js}), 'but is built for each request, and not kept' );
+subtest 'a list that a route did not declare' => sub {
+    is( Trog::Bundle::served(qw{one.js themed.js}), undef, 'is not served' );
+    is( Trog::Bundle::served(),                     undef, 'nor is an empty one' );
 
-    my $linked = Trog::Bundle::scripts(qw{two.js one.js});
-    is( Trog::Bundle::served(qw{two.js one.js}), $linked, 'while a list that a page links is the one built for the page' );
+    Trog::Bundle::declare( [qw{one.js themed.js}], [] );
+    is( Trog::Bundle::served(qw{one.js themed.js}), Trog::Bundle::scripts(qw{one.js themed.js}), 'until a route declares it' );
+
+    my $linked = Trog::Bundle::scripts(qw{vendor.min.js});
+    is( Trog::Bundle::served(qw{vendor.min.js}), $linked, 'or a page links it' );
+
+    Trog::Bundle::declare( [qw{one.js nothere.js}] );
+    like( exception { Trog::Bundle::served(qw{one.js nothere.js}) }, qr/nothere[.]js/, 'and a declared list with a missing script is fatal' );
 };
 
 done_testing();
