@@ -28,7 +28,6 @@ sub render (%options) {
                 return Text::Xslate::mark_raw(
                     Trog::Routes::HTML::posts(
                         { route => "/post/$this_id", style => $style },
-                        sub { },
                         1
                     )
                 );
