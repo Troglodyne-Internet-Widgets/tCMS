@@ -1114,6 +1114,31 @@ subtest 'blog' => sub {
     unlike( $body, qr/Spec[ ]Payee[ ]Entity/, 'no bleed from the entities series' );
 };
 
+subtest 'a post that embeds another' => sub {
+    my $embedded = find_post('Spec Blog Child') or return fail('the blog child is there to embed');
+    my $host     = save_post(
+        'embedding post',
+        form       => 'blog.tx',
+        title      => 'Spec Embedding Post',
+        data       => "Before the embed. <: embed('$embedded->{id}') :> After the embed.",
+        visibility => 'public',
+        tags       => ['specblog'],
+        to         => '/specblog',
+    ) or return;
+
+    my @warned;
+    local $SIG{__WARN__} = sub { push @warned, @_ };
+    my ( $code, $page, $err ) = render( anon( route => "/posts/$host->{id}", id => $host->{id} ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the post renders' ) or return diag($err);
+
+    my ($data) = $page =~ m{id="postData-\Q$host->{id}\E">(.*?)After[ ]the[ ]embed}s;
+    ok( defined $data, 'with its own body' ) or return;
+    like( $data, qr/Spec[ ]blog[ ]body[ ]text[.]/, 'and the body of the post it embeds, in place' );
+    my $embeds = () = $data =~ m/class="post[ ]embed"/g;
+    is( $embeds,         1, 'in the embed style, and only that one post' );
+    is( scalar(@warned), 0, 'without a warning' ) or diag( explain( \@warned ) );
+};
+
 subtest 'microblog' => sub {
     my $title = 'Spec Microblog Series';
     make_series( qw{microblog specmicroblog microblog.tx}, $title ) or return;
