@@ -134,6 +134,12 @@ BEGIN {
     print {$fh} '{"emojis":[{"category":"Smileys","emoji":"X"}]}';
     close($fh) or die $!;
 
+    # The vendored scripts are downloaded at install, so they are not in the
+    # checkout; these stand in for them.
+    File::Slurper::Temp::write_text( "$ROOT/www/scripts/reveal.min.js",    "var Reveal = 'spec reveal';" );
+    File::Slurper::Temp::write_text( "$ROOT/www/scripts/highlight.min.js", "var hljs = 'spec highlight';" );
+    File::Copy::copy( "$REPO/www/scripts/$_", "$ROOT/www/scripts/$_" ) or die $! for qw{post.js post_relations.js post_wizard.js};
+
     # Text::Xslate computes its default cache dir from $HOME once, at load time.
     # Without this the sandbox writes compiled templates into the real ~/.xslate_cache.
     $ENV{HOME} = $ROOT;
@@ -1225,6 +1231,34 @@ subtest 'presentation' => sub {
     my $deck = qq{<a href="/posts/$child->{id}?embed=1&nochrome=1">Click Here to view</a>};
     like( $body, qr{\Q$deck\E}, 'deck link rendered' );
     unlike( $body, qr/Slide[ ]one[ ]body\./, 'slides themselves are not rendered inline' );
+
+    my $deck_query = sub (@who) { return ( route => "/posts/$child->{id}", id => $child->{id}, embed => 1, nochrome => 1, @who ) };
+    my ( $code, $page, $err ) = render( anon( $deck_query->() ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the deck renders' ) or return diag($err);
+    like( $page, qr/Reveal[.]initialize/, 'and starts reveal' );
+
+    my @srcs = $page =~ m{<script\b[^>]*\bsrc="([^"]+)"}g;
+    is( scalar(@srcs), 1, 'from one script' ) or return diag( explain( \@srcs ) );
+    my ( $version, $names ) = $srcs[0] =~ m{\A/bundle/(\w+)/([^/]+)[.]js\z} or return fail("$srcs[0] is a bundle");
+    is( $names, 'highlight.min+reveal.min', 'which bundles what the deck needs, and no editing scripts for a visitor' );
+
+    my ( $bcode, $bundle, $berr, $headers ) = render( anon( route => $srcs[0], version => $version, names => $names ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 200, 'the bundle is served' ) or return diag($berr);
+    like( $bundle, qr/spec[ ]highlight.*spec[ ]reveal/s, 'with both scripts in it, in order' );
+    my %h = @$headers;
+    is( $h{'Content-type'}, 'text/javascript', 'as javascript' );
+    like( $h{'Cache-Control'}, qr/immutable/, 'that the browser keeps, since the href changes with the body' );
+
+    ($bcode) = render( anon( route => "/bundle/0000/$names.js", version => '0000', names => $names ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 302, 'an old version is sent to the current one' );
+    ($bcode) = render( anon( route => '/bundle/0000/nothere.js', version => '0000', names => 'nothere' ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 404, 'and a bundle of nothing is not found' );
+
+    ( $code, $page, $err ) = render( admin( $deck_query->() ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the deck renders for an editor' ) or return diag($err);
+    my $editing = qr{post[+]post_relations};
+    my $viewing = qr{highlight[.]min[+]reveal[.]min};
+    like( $page, qr{<script\b[^>]*\bsrc="/bundle/\w+/$editing[+]$viewing[.]js"}, 'with the editing scripts first' );
 };
 
 subtest 'invoice' => sub {

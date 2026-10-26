@@ -1,6 +1,4 @@
 : if ( $can_edit ) {
-    <script type="text/javascript" src="/scripts/post.js"></script>
-    <script type="text/javascript" src="/scripts/post_relations.js"></script>
     <div id="emoji_picker_modal" class="modal" style="display:none;">
     <: component('EmojiPicker') :>
     </div>
@@ -36,8 +34,6 @@
     : }
     </div>
 : }
-<script type="text/javascript" src="/scripts/highlight.min.js"></script>
-<script type="text/javascript" src="/scripts/reveal.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function(){
     hljs.highlightAll();

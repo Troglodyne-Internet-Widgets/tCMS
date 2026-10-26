@@ -378,6 +378,13 @@ Stylesheets are the exception and are loaded both, theme last, so a theme can
 override a handful of rules without restating the sheet. A theme may ship a
 `routes.pm` to add routes of its own.
 
+A script resolves as a template does. A route names the scripts of its page in
+a list, and a template does not write a `<script src>` tag of its own.
+`finish_render` links the list as one bundle, which `Trog::Bundle` builds and
+`/bundle/{version}/{names}.js` serves. The version is a digest of the bundle,
+so a browser keeps the bundle until a script in it changes. A script whose name
+ends in `.min.js` goes into the bundle as it is, and the others are minified.
+
 Composition: relations and enrichment
 =====================================
 

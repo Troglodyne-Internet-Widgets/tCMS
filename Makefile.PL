@@ -133,6 +133,7 @@ WriteMakefile(
         'WWW::Sitemap::XML'                   => '0',
         'WWW::SitemapIndex::XML'              => '0',
         'CSS::Minifier::XS'                   => '0',
+        'JavaScript::Minifier::XS'            => '0',
         'Path::Tiny'                          => '0',
         'Log::Dispatch'                       => '0',
         'Log::Dispatch::FileRotate'           => '0',
