@@ -1283,6 +1283,10 @@ subtest 'presentation' => sub {
     $watch->{callback}->( $tpsgi, {} );
     is_deeply( [ @{ $tpsgi->{invalidated} }[ -2, -1 ] ], [qw{html js}], 'and a change throws away the saved pages and bundles' );
 
+    ( $code, $page, $err ) = render( query( user => 'spec_reader', user_acls => [], $deck_query->() ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the deck renders for a reader who is logged in' ) or return diag($err);
+    like( $page, qr{src="/bundle/\w+/post[+]post_relations[+]}, 'with the editing scripts, though the reader is not an admin' );
+
     ( $code, $page, $err ) = render( admin( $deck_query->() ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'the deck renders for an editor' ) or return diag($err);
     my $editing = qr{post[+]post_relations};

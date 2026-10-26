@@ -5,6 +5,7 @@ use warnings FATAL => 'all';
 
 use Test::More;
 use Test::MockModule qw{strict};
+use Test::Fatal      qw{exception};
 use Cwd();
 use File::Path();
 use File::Temp();
@@ -38,9 +39,6 @@ my $themedir = '';
 my $mock     = Test::MockModule->new('Trog::Themes');
 $mock->redefine( 'get_dir', sub { $themedir } );
 
-my @warned;
-local $SIG{__WARN__} = sub { push @warned, $_[0] };
-
 subtest 'the scripts, in the order named' => sub {
     my $bundle = Trog::Bundle::scripts(qw{two.js vendor.min.js one.js two.js});
 
@@ -50,15 +48,13 @@ subtest 'the scripts, in the order named' => sub {
 };
 
 subtest 'a name that is not a script' => sub {
-    @warned = ();
-    my $bundle = Trog::Bundle::scripts( qw{one.js nothere.js ../one.js .hidden.js sub/one.js one.css}, 'one.js+two' );
-    is( $bundle->{href}, "/bundle/$bundle->{version}/one.js", 'is left out' );
-    is( scalar(@warned), 6,                                   'with a warning for each' ) or diag( explain( \@warned ) );
-    like( $warned[0], qr/no[ ]script[ ]nothere[.]js/, 'that names it' );
-
-    @warned = ();
-    is( Trog::Bundle::scripts(qw{nothere.js}), undef, 'and a list of nothing else is no bundle' );
-    is( Trog::Bundle::scripts(),               undef, 'nor is an empty one' );
+    my @not = ( qw{nothere.js ../one.js .hidden.js sub/one.js one.css}, 'one.js+two' );
+    foreach my $name (@not) {
+        like( exception { Trog::Bundle::scripts( 'one.js', $name ) }, qr/no[ ]script[ ]to[ ]bundle[ ]named[ ]\Q$name\E/, "$name is fatal on a page, and named" );
+        is( Trog::Bundle::served( 'one.js', $name ), undef, '...and not served' );
+    }
+    is( Trog::Bundle::scripts(), undef, 'an empty list is no bundle' );
+    is( Trog::Bundle::served(),  undef, '...on a page or in a URL' );
 };
 
 subtest "the theme's copy" => sub {
@@ -82,15 +78,13 @@ subtest 'a script that changes' => sub {
     isnt( $after->{href}, $before->{href}, 'at a new href' );
 };
 
-subtest 'many lists' => sub {
-    $stock->child("s$_.js")->spew_raw("var s$_;") for 1 .. 20;
+subtest 'a list that only a URL names' => sub {
+    my $served = Trog::Bundle::served(qw{two.js one.js});
+    is( $served->{body}, Trog::Bundle::scripts(qw{two.js one.js})->{body}, 'is the bundle that a page would link' );
+    isnt( Trog::Bundle::served(qw{one.js two.js}), Trog::Bundle::served(qw{one.js two.js}), 'but is built for each request, and not kept' );
 
-    @warned = ();
-    my %bundle = map { $_ => Trog::Bundle::scripts( 'one.js', "s$_.js" ) } 1 .. 20;
-    my %body   = map { $_ => $bundle{$_}{body} } keys %bundle;
-    is( scalar(@warned), 0, 'twenty lists' );
-    isnt( Trog::Bundle::scripts(qw{one.js s1.js}), $bundle{1}, 'are more than the cache keeps, so it was emptied' );
-    is( Trog::Bundle::scripts( 'one.js', "s$_.js" )->{body}, $body{$_}, "list $_ still has its body after the cache is emptied" ) for 1, 20;
+    my $linked = Trog::Bundle::scripts(qw{two.js one.js});
+    is( Trog::Bundle::served(qw{two.js one.js}), $linked, 'while a list that a page links is the one built for the page' );
 };
 
 done_testing();

@@ -1886,7 +1886,7 @@ sub posts ( $query, $direct = 0 ) {
     return $content if ref $content eq "ARRAY";
 
     return $content if $direct;
-    my @scripts = ( ( $is_admin ? qw{post.js post_relations.js} : () ), qw{highlight.min.js reveal.min.js} );
+    my @scripts = ( ( $query->{user} ? qw{post.js post_relations.js} : () ), qw{highlight.min.js reveal.min.js} );
     return Trog::Routes::HTML::index( $query, $content, $styles, \@scripts );
 }
 
@@ -3396,7 +3396,7 @@ cached before a script changed still gets its scripts.
 =cut
 
 sub bundle ($query) {
-    my $bundle = Trog::Bundle::scripts( map { "$_.js" } split( /[+]/, $query->{names} ) );
+    my $bundle = Trog::Bundle::served( map { "$_.js" } split( /[+]/, $query->{names} ) );
     return $query->{tpsgi}->notfound($query) unless $bundle;
     return $query->{tpsgi}->redirect( $bundle->{href} ) if $query->{route} ne $bundle->{href};
     return [
