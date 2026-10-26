@@ -8,6 +8,7 @@ use FindBin::libs;
 
 use Crypt::Misc  ();
 use Crypt::PRNG  ();
+use Fcntl        qw{O_CREAT O_EXCL O_WRONLY};
 use Getopt::Long qw{GetOptions};
 
 use Trog::Vault ();
@@ -82,17 +83,20 @@ USAGE
     exit( $help ? 0 : 2 );
 }
 
-# Printed and exited rather than died, so that it exits 2: refusing to clobber a
-# key is not a crash.
-if ( -e $Trog::Vault::key_file ) {    # Refusing to overwrite the one thing that cannot be regenerated
+# One call that creates the key, private from the start, and fails if anything,
+# even a dangling symlink, is already at that path.
+my $fh;
+if ( !sysopen( $fh, $Trog::Vault::key_file, O_WRONLY | O_CREAT | O_EXCL, oct('600') ) ) {
+    die "Could not write $Trog::Vault::key_file: $!\n" unless $!{EEXIST};
+
+    # Printed and exited rather than died, so that it exits 2: refusing to
+    # clobber the one thing that cannot be regenerated is not a crash.
     print {*STDERR} "There is already a key at $Trog::Vault::key_file.  Move it out of the way if you really mean to replace it, and read what that costs first: perldoc bin/tcms-vault-key\n";    ## no critic (ProhibitPrintSTDERR) -- for whoever ran this
     exit 2;
 }
 
-open( my $fh, '>', $Trog::Vault::key_file ) or die "Could not write $Trog::Vault::key_file: $!\n";
-print {$fh} Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes(32) ) . "\n";
-close($fh)                                  or die "Could not write $Trog::Vault::key_file: $!\n";
-chmod( oct('600'), $Trog::Vault::key_file ) or die "Could not chmod $Trog::Vault::key_file: $!\n";
+print {$fh} Crypt::Misc::encode_b64( Crypt::PRNG::random_bytes($Trog::Vault::key_bytes) ) . "\n";
+close($fh) or die "Could not write $Trog::Vault::key_file: $!\n";
 
 print <<"SAID";
 Wrote $Trog::Vault::key_file.  Restart tCMS to pick it up.
