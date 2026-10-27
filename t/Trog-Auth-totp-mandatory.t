@@ -142,11 +142,11 @@ subtest 'a login without an enrolment is sent to enrol' => sub {
     $auth->redefine( mksession => sub { return 'a-session' } );
     $auth->redefine( has_totp  => sub { return 0 } );
 
-    Trog::Routes::HTML::login( { username => 'bob', password => 'hunter2', to => '/config', tpsgi => $tpsgi, scheme => 'http', route => '/auth' } );
+    Trog::Routes::HTML::login( { input => { username => 'bob', password => 'hunter2' }, to => '/config', tpsgi => $tpsgi, scheme => 'http', route => '/auth' } );
     is( $rendered->{to}, '/totp', 'a login with nothing enrolled goes to enrol, not where it was headed' );
 
     $auth->redefine( has_totp => sub { return 1 } );
-    Trog::Routes::HTML::login( { username => 'bob', password => 'hunter2', to => '/config', tpsgi => $tpsgi, scheme => 'http', route => '/auth' } );
+    Trog::Routes::HTML::login( { input => { username => 'bob', password => 'hunter2' }, to => '/config', tpsgi => $tpsgi, scheme => 'http', route => '/auth' } );
     is( $rendered->{to}, '/config', 'and one with a second factor goes where it was headed' );
 };
 

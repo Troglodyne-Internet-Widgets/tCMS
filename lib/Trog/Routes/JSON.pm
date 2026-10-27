@@ -121,7 +121,7 @@ sub webmanifest {
 }
 
 sub process_auth_change_request ($query) {
-    my $token = $query->{token};
+    my $token = $query->{input}{token};
 
     my $msg = Trog::Auth::process_change_request($token);
     return $query->{tpsgi}->forbidden($query) unless $msg;
@@ -147,7 +147,7 @@ nobody's business here.
 =cut
 
 sub posts_of_form ($query) {
-    my @posts = Trog::Routes::HTML::post_helper( { form => $query->{form}, limit => 0 }, [], [ Trog::Routes::HTML::viewer_acls($query) ] );
+    my @posts = Trog::Routes::HTML::post_helper( { form => $query->{input}{form}, limit => 0 }, [], [ Trog::Routes::HTML::viewer_acls($query) ] );
 
     return _render(
         200, undef,
@@ -156,10 +156,11 @@ sub posts_of_form ($query) {
 }
 
 sub requests_per ($query) {
-    my $code = Trog::Utils::coerce_array( $query->{code} );
+    my $in   = $query->{input};
+    my $code = Trog::Utils::coerce_array( $in->{code} );
     return _render(
         200, undef,
-        %{ Trog::Log::Metrics::requests_per( $query->{period}, $query->{num_periods}, $query->{before}, @$code ) }
+        %{ Trog::Log::Metrics::requests_per( $in->{period}, $in->{num_periods}, $in->{before}, @$code ) }
     );
 }
 

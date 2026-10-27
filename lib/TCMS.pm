@@ -144,12 +144,24 @@ redirect to C<general.hostname>, if that is set and is another host.  Every page
 gets C<secure_base>, C<https://> and the secure host, or an empty string, for
 its links to the routes that need a login.
 
+A route that does not declare its parameters takes the query or the form that
+%Trog::Routes::HTML::inputs names for its callback, less what its C<data> fixes and
+its path holds.  Every GET also takes the parameters of a campaign, utm_source
+and the rest.  The wrapper gives the callback the input of the request in
+C<< $query->{input} >>, and sets C<to> beside it, as a path on this site.
+
 The C<default> route is not a path.  The wrapper calls it when there is no
 F<config/setup>.
 
 =cut
 
 my @tcms_keys = qw{auth secure nocache noindex nomap robot_name totp_exempt scripts authenticated_scripts};
+
+# The parameters of a campaign, which any page can be linked with.
+my @urchin = qw{utm_source utm_medium utm_campaign utm_term utm_content};
+
+# How a browser sends a form.
+my @form_types = qw{application/x-www-form-urlencoded multipart/form-data};
 
 sub build_routes {
     my $conf   = Trog::Config::get();
@@ -171,7 +183,8 @@ sub build_routes {
 
         # FlatFile and the tag index name the callback rather than hold it.
         my $callback = $v->{callback};
-        next                      unless $callback;
+        next unless $callback;
+        my $callback_name = ref $callback ? Sub::Util::subname($callback) : $callback;
         $callback = \&{$callback} unless ref $callback;
 
         my $secure_only = $v->{secure} || $v->{auth};
@@ -191,8 +204,10 @@ sub build_routes {
             # Let's open up our default route if needed before we bother thinking any harder
             return $default_route->($query) unless -f "config/setup";    ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched
 
+            my $input = $query->{input} //= {};
+
             # Set the urchin parameters if necessary.
-            %$Trog::Log::DBI::urchin = map { $_ => delete $query->{$_} } qw{utm_source utm_medium utm_campaign utm_term utm_content};
+            %$Trog::Log::DBI::urchin = map { $_ => $input->{$_} } @urchin;
 
             # Set the IP of the request so we can fail2ban
             $Trog::Log::ip = $query->{ip};
@@ -229,13 +244,6 @@ sub build_routes {
             $query->{user_acls} = [];
             $query->{user_acls} = Trog::Auth::acls4user($active_user) // [] if $active_user;
 
-            # Grab the list of ACLs we want to add to a post, if any.
-            $query->{acls} = [ $query->{acls} ] if ( $query->{acls} && ref $query->{acls} ne 'ARRAY' );
-
-            # Filter out passed ACLs which are naughty
-            my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
-            @{ $query->{acls} } = grep { $_ ne 'admin' } @{ $query->{acls} } unless $is_admin;
-
             $query->{user}         = $active_user;
             $query->{body}         = '';
             $query->{social_meta}  = 1;
@@ -250,7 +258,7 @@ sub build_routes {
 
             # Only ever a path on this site, so that no link can send a visitor to
             # another one.  One slash, because a browser reads two as a host.
-            $query->{to} = ( URI->new( $query->{to} )->path() || '/' ) =~ s{\A/+}{/}r if $query->{to};
+            $query->{to} = ( URI->new( $input->{to} )->path() || '/' ) =~ s{\A/+}{/}r if $input->{to};
 
             # Now that we have firmed up the actual routing, let's validate.
             return $tpsgi->forbidden($query) if exists $query->{dispatcher}{'x-tcms-auth'} && !$active_user;
@@ -269,11 +277,29 @@ sub build_routes {
             push( @parameters, { name => $variable, in => 'path', required => true, schema => { type => 'string' } } );
         }
 
+        # What the callback takes from the request, less what the route fixes in
+        # its data or holds in its path.  A route that declares its parameters
+        # declares all of its query.
+        my $inputs = { %{ $Trog::Routes::HTML::inputs{$callback_name} // {} } };
+        foreach my $part (qw{query body}) { $inputs->{$part} = $inputs->{$part}->() if ref $inputs->{$part} eq 'CODE' }
+        my %taken = map { $_ => 1 } keys( %{ $v->{data} // {} } ), map { $_->{name} =~ s/[+]\z//r } @parameters;
+        my %query = ( ( $v->{parameters} ? () : %{ $inputs->{query} // {} } ), ( $method eq 'get' ? map { $_ => { type => 'string' } } @urchin : () ) );
+        push( @parameters, map { { name => $_, in => 'query', schema => $query{$_} } } grep { !$taken{$_} } sort keys(%query) ) if $method eq 'get';
+
+        my $body = $inputs->{body};
+        my %form = (
+            type       => 'object',
+            properties => { map { $_ => $body->{$_} } grep { !$taken{$_} } keys( %{ $body // {} } ) },
+            ( $inputs->{open} ? ( additionalProperties => true ) : () ),
+        );
+        my $request_body = $method eq 'post' && ( $body || $inputs->{open} ) ? { content => { map { $_ => { schema => \%form } } @form_types } } : undef;
+
         $paths{$k}{$method} = {
             'x-tpsgi-callback' => $cb_wrap,
             ( $v->{data} ? ( 'x-tpsgi-data' => $v->{data} ) : () ),
             ( map { ( "x-tcms-$_" => $v->{$_} ) } grep { exists $v->{$_} } @tcms_keys ),
-            ( @parameters ? ( parameters => \@parameters ) : () ),
+            ( @parameters   ? ( parameters  => \@parameters )  : () ),
+            ( $request_body ? ( requestBody => $request_body ) : () ),
             responses => { default => { description => 'The page, or an error page' } },
         };
     }

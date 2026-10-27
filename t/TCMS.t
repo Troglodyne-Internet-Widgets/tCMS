@@ -12,6 +12,7 @@ use FindBin::libs;
 
 use Test::More;
 use Test::MockModule                   qw{strict};
+use Test::Fatal                        qw{exception};
 use JSON::MaybeXS                      ();
 use JSON::Validator::Schema::OpenAPIv3 ();
 
@@ -89,7 +90,7 @@ subtest 'an operation' => sub {
     is( ref $manual->{'x-tpsgi-callback'}, 'CODE', 'with a callback' );
     is( $manual->{'x-tcms-auth'},          1,      'and its auth as x-tcms-auth' );
     is_deeply(
-        $manual->{parameters},
+        [ grep { $_->{in} eq 'path' } @{ $manual->{parameters} } ],
         [ { name => 'module+', in => 'path', required => true, schema => { type => 'string' } } ],
         'and each variable of the template as a required path parameter'
     );
@@ -215,7 +216,7 @@ subtest 'a secure host' => sub {
 subtest 'where a redirect may send you' => sub {
     my $operation = $paths->{'/posts/p-one'}{get};
     my $to        = sub ($to) {
-        return $operation->{'x-tpsgi-callback'}->( { log_dir => "$ROOT/logs", verbose => 0 }, { route => '/posts/p-one', dispatcher => $operation, to => $to } )->[2][0];
+        return $operation->{'x-tpsgi-callback'}->( { log_dir => "$ROOT/logs", verbose => 0 }, { route => '/posts/p-one', dispatcher => $operation, input => { to => $to } } )->[2][0];
     };
     is( $to->('/config'),              '/config',     'a path on this site is kept' );
     is( $to->('https://bogus.test/x'), '/x',          'the path of another site is all that is kept of it' );
@@ -251,6 +252,45 @@ subtest 'validation' => sub {
     is_deeply( [ $schema->validate_request( [ get => '/api/requests_per' ], { query => { period => 'week', num_periods => 2 } } ) ], [], 'a period that requests_per knows is taken' );
     ok( scalar $schema->validate_request( [ get => '/api/requests_per' ], { query => { period      => 'fortnight' } } ), 'and one it does not is refused' );
     ok( scalar $schema->validate_request( [ get => '/api/requests_per' ], { query => { num_periods => 'many' } } ),      'as is a count that is not a number' );
+};
+
+subtest 'what a route takes from the request' => sub {
+    my $names = sub ( $operation, $in = 'query' ) {
+        return [ sort map { $_->{name} } grep { $_->{in} eq $in } @{ $operation->{parameters} // [] } ];
+    };
+
+    my @urchin = qw{utm_campaign utm_content utm_medium utm_source utm_term};
+    is_deeply(
+        $names->( $paths->{'/posts/p-one'}{get} ),
+        [ sort qw{like page limit version older newer format embed nochrome year month}, @urchin ],
+        'a page of posts takes its paging, search, feed and embed, and a campaign'
+    );
+    is_deeply( $names->( $paths->{'/humans.txt'}{get} ), $names->( $paths->{'/posts/p-one'}{get} ), 'and so does a route of posts that fixes its tag' );
+    ok( !( grep { $_ eq 'map' } @{ $names->( $paths->{'/sitemap/{map}.xml'}{get} ) } ), 'a name the path holds is not one of the query too' );
+    is_deeply( $names->( $paths->{'/sitemap/{map}.xml'}{get}, 'path' ), ['map'], 'but of the path' );
+    ok( !( grep { $_ eq 'title' || $_ eq 'scripts' || $_ eq 'template' } @{ $names->( $paths->{'/login'}{get} ) } ), 'the login page takes none of the names its page is made of' );
+
+    my $form = sub ($operation) { return $operation->{requestBody}{content}{'application/x-www-form-urlencoded'}{schema} };
+    is_deeply( [ sort keys( %{ $form->( $paths->{'/auth'}{post} )->{properties} } ) ], [qw{app contact_email display_name password to token username}], 'a login takes the fields of its form' );
+    ok( !exists $form->( $paths->{'/auth'}{post} )->{additionalProperties},                   'and no others' );
+    ok( $form->( $paths->{'/post/save'}{post} )->{additionalProperties},                      'a post takes the fields of its type too' );
+    ok( exists $form->( $paths->{'/config/save'}{post} )->{properties}{'general.data_model'}, 'the configuration takes each setting by its name' );
+    ok( !$paths->{'/post/save'}{post}{parameters},                                            'and a POST takes nothing in its query' );
+};
+
+subtest 'tPSGI routes by the document' => sub {
+    plan skip_all => 'tPSGI is not installed' unless eval { require TPSGI::Router; 1 };
+
+    my $router;
+    is( exception { $router = TPSGI::Router->new( 'TCMS.pm' => \%openapi ) }, undef, 'which it can compile, so no route gives a name to two places' );
+    return unless $router;
+
+    my $login = $router->match( 'GET', '/login' );
+    is_deeply( [ $router->validate( $login, query => { to => '/config' } ) ], [], 'the login page takes where to go next' );
+    my ($status) = $router->validate( $login, query => { scripts => '//bogus.test/x.js' } );
+    is( $status, 400, 'and nothing it does not declare' );
+    ($status) = $router->validate( $router->match( 'POST', '/auth' ), body => { username => 'x', title => '<b>x</b>' }, content_type => 'application/x-www-form-urlencoded' );
+    is( $status, 400, 'nor does a login' );
 };
 
 subtest 'robots' => sub {

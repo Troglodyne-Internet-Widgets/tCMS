@@ -208,10 +208,6 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
-
-    # 'guest', not 'domain': the router sets $query->{domain} to the request's
-    # own host *after* it applies the path parameters, so a variable by that
-    # name never survives to the callback.
     '/guest/screenshot/{hypervisor}/{guest}' => {
         method   => 'GET',
         auth     => 1,
@@ -233,9 +229,6 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
-
-    # 'guest', not 'domain', for the reason the screenshot route names it that
-    # way.
     '/guest/reprovision/log/{guest}' => {
         method     => 'GET',
         auth       => 1,
@@ -344,6 +337,79 @@ our %post_page_scripts   = (
     authenticated_scripts => [qw{post.js post_relations.js}],
 );
 
+=head2 %inputs
+
+What each callback in tCMS takes from the request, by the name of the callback.
+C<query> is the query of a GET, and C<body> the form of a POST, each a HASH of
+names to the JSON schema of each.  Either can be a CODE reference that returns
+one, for what is not known until the routes are built.  C<open> says that the body can hold other fields
+too, which a post type defines.  TCMS::build_routes() declares them for each
+route of the callback, less what the route's data fixes and its path holds.  A
+callback finds them in C<< $query->{input} >>.
+
+=cut
+
+my %text   = ( type => 'string' );
+my %number = ( type => 'integer' );
+my %texts  = ( type => 'array', items => { type => 'string' } );
+
+# The search box of every page sends like to the page it is on.
+my %search = ( like => \%text );
+
+# A page of posts: its pagination, the jump to a month, which sends the year
+# and month as well as the older it makes of them, a version of a post, RSS,
+# and an embed.
+my %page = (
+    %search,
+    ( map { $_ => \%number } qw{page limit version} ),
+    ( map { $_ => \%text } qw{older newer format embed nochrome year month} ),
+);
+
+my sub fields (@names) {
+    return { map { $_ => \%text } @names };
+}
+
+our %inputs = (
+    ( map { ( "Trog::Routes::HTML::$_" => { query => \%page } ) } qw{posts series users} ),
+    ( map { ( "Trog::Routes::HTML::$_" => { query => \%search } ) } qw{index logout totp secrets config resetpass processed manual post_wizard sitemap} ),
+    'Trog::Routes::HTML::login'          => { query => { %search, to => \%text }, body => fields(qw{app to username password token display_name contact_email}) },
+    'Trog::Routes::HTML::secrets_save'   => { body  => fields(qw{name secret}) },
+    'Trog::Routes::HTML::secrets_forget' => { body  => fields(qw{name}) },
+    'Trog::Routes::HTML::post_save'      => { body  => { to => \%text, tags => \%texts },                           open => 1 },
+    'Trog::Routes::HTML::profile'        => { body  => fields(qw{to username password display_name contact_email}), open => 1 },
+    'Trog::Routes::HTML::post_delete'    => { body  => fields(qw{id to}) },
+    'Trog::Routes::HTML::config_save'    => {
+        body => sub {
+            fields(
+                map {
+                    map { $_->{name} }
+                      @{ $_->{fields} }
+                } @{ Trog::Config::schema() }
+            );
+        }
+    },
+    'Trog::Routes::HTML::themeclone'   => { body => fields(qw{theme newtheme}) },
+    'Trog::Routes::HTML::do_resetpass' => { body => fields(qw{username password}) },
+
+    # The page hands its query to /api/requests_per, so it takes what that does.
+    'Trog::Routes::HTML::metrics' => {
+        query => sub {
+            return { %search, map { $_->{name} => $_->{schema} } @{ $Trog::Routes::JSON::routes{'/api/requests_per'}{parameters} } };
+        }
+    },
+    'Trog::Routes::HTML::sessions'          => { query => { %search, limit => \%number, filter_user => \%text, filter_event => \%text } },
+    'Trog::Routes::HTML::jobs'              => { query => { %search, limit => \%number } },
+    'Trog::Routes::HTML::jobs_retry'        => { body  => fields(qw{id}) },
+    'Trog::Routes::HTML::guest_act'         => { body  => fields(qw{action guest hypervisor to}) },
+    'Trog::Routes::HTML::guest_reprovision' => { body  => fields(qw{guest passphrase sudo totp remember to}) },
+    'Trog::Routes::HTML::post_wizard_save'  => {
+        body => {
+            %{ fields(qw{name overwrite datasource description display title_placeholder body_form wrapper inc_post_title inc_post_tags inc_title_input inc_preview inc_visibility inc_acls inc_tags inc_aliases inc_attachments}) },
+            map { $_ => \%texts } qw{param_name param_type param_label param_placeholder param_required param_relation_form param_relation_mode param_private param_indexed},
+        },
+    },
+);
+
 # Grab theme routes
 my $themed    = 0;
 my $theme_dir = Trog::Themes::get_dir();
@@ -433,8 +499,8 @@ sub feedback_cookie ( $failure, $message ) {
 
 =head2 absorb_feedback($query)
 
-Turn the parameters feedback_redirect() put in the URL back into the failure
-and message the jsalert banner reads.
+Turn the cookie that feedback_redirect() set back into the failure and message
+the jsalert banner reads.
 
 Done in index() rather than in each route, so that a save can hand feedback to
 any destination that renders a page, whichever route ends up serving it.
@@ -443,16 +509,7 @@ any destination that renders a page, whichever route ends up serving it.
 
 my sub absorb_feedback ($query) {
     my ( $failure, $message ) = feedback_from_cookie( $query->{cookies} );
-
-    # The query parameters are still read, for a redirect issued by a worker
-    # which had not been restarted yet, and for anyone who has one bookmarked.
-    if ( !defined $failure ) {
-        my ( $saved, $failed ) = ( $query->{saved}, $query->{savefailed} );
-        return unless defined $saved || defined $failed;
-
-        $failure = defined $failed ? 1       : 0;
-        $message = defined $failed ? $failed : $saved;
-    }
+    return unless defined $failure;
 
     $query->{failure} = $failure;
     $query->{message} = $message || ( $failure ? 'Save failed.' : 'Saved.' );
@@ -477,8 +534,7 @@ my sub absorb_feedback ($query) {
 
 Pull a save's outcome back out of the cookie feedback_redirect set.
 
-Returns nothing when there isn't one, so that the caller can fall back to the
-query parameters this replaced.
+Returns nothing when there isn't one.
 
 =cut
 
@@ -581,6 +637,8 @@ Most subsequent functions simply pass content to this function.
 
 sub index ( $query, $content = '', $i_styles = [] ) {
     $query->{theme_dir} = Trog::Themes::td();
+    my $in    = $query->{input} // {};
+    my $embed = $in->{embed};
 
     absorb_feedback($query);
 
@@ -590,11 +648,11 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     return $content if ref $content eq "ARRAY";
 
     my @styles;
-    unshift( @styles, qw{embed.css} ) if $query->{embed};
+    unshift( @styles, qw{embed.css} ) if $embed;
     unshift( @styles, qw{screen.css structure.css} );
     push( @styles, @$i_styles );
     my @p_styles = qw{structure.css print.css};
-    unshift( @p_styles, qw{embed.css} ) if $query->{embed};
+    unshift( @p_styles, qw{embed.css} ) if $embed;
 
     my @series = get_series(0);
 
@@ -604,7 +662,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
     my ( $default_tags, $meta_desc, $meta_tags ) = build_social_meta( $query, $title );
 
     #Do embed content
-    my $tmpl = $query->{embed} ? 'embed.tx' : 'index.tx';
+    my $tmpl = $embed ? 'embed.tx' : 'index.tx';
     $query->{theme_dir} =~ s/^\/www\///;
 
     # Grab the avatar class for the logged in user
@@ -628,7 +686,8 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             %$query,
 
             # What index.tx and embed.tx read that a route may leave unset.
-            ( map { $_ => $query->{$_} } qw{author is_admin failure message to user user_class nochrome route} ),
+            ( map { $_ => $query->{$_} } qw{author is_admin failure message to user user_class route} ),
+            nochrome     => $in->{nochrome},
             search_lang  => $search_lang,
             search_help  => $search_help,
             theme_dir    => Trog::Themes::td(),
@@ -638,7 +697,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             stylesheets  => \@styles,
             print_styles => \@p_styles,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
-            embed        => $query->{embed}     ? 1 : 0,
+            embed        => $embed              ? 1 : 0,
             embed_video  => $query->{primary_post}{is_video},
             default_tags => $default_tags,
             meta_desc    => $meta_desc,
@@ -814,29 +873,30 @@ sub login ($query) {
     my $btnmsg   = $hasusers ? "Log In" : "Register";
 
     my $headers;
-    if ( $query->{username} && $query->{password} ) {
+    my $in = $query->{input};
+    if ( $in->{username} && $in->{password} ) {
         if ( !$hasusers ) {
 
             # Make the first user
-            Trog::Auth::useradd( $query->{username}, $query->{display_name}, $query->{password}, ['admin'], $query->{contact_email} );
+            Trog::Auth::useradd( $in->{username}, $in->{display_name}, $in->{password}, ['admin'], $in->{contact_email} );
 
             # Add a stub user page and the initial series.
             my $dat = Trog::Data->new( Trog::Config::get() );
-            setup_initial_db( $dat, $query->{username}, $query->{display_name}, $query->{contact_email} );
+            setup_initial_db( $dat, $in->{username}, $in->{display_name}, $in->{contact_email} );
 
             # Ensure we stop registering new users
             File::Touch::touch("config/has_users");
         }
 
         $query->{failed} = 1;
-        my $cookie = Trog::Auth::mksession( $query->{username}, $query->{password}, $query->{token}, $query->{ip} // '' );
+        my $cookie = Trog::Auth::mksession( $in->{username}, $in->{password}, $in->{token}, $query->{ip} // '' );
         if ($cookie) {
 
             # A login is how you get to enrol, since the QR is not something to
             # hand out to whoever asks for it -- so a user with no enrolment yet
             # gets a session and goes straight there rather than where they were
             # headed.  The dispatcher keeps them there until they have one.
-            $query->{to} = '/totp' unless Trog::Auth::has_totp( $query->{username} );
+            $query->{to} = '/totp' unless Trog::Auth::has_totp( $in->{username} );
 
             # TODO secure / sameSite cookie to kill csrf, maybe do rememberme with Expires=~0
             my $secure = '';
@@ -1081,10 +1141,10 @@ sub secrets ($query) {
 sub secrets_save ($query) {
     require Trog::Vault;
 
-    my ( $ok, $message ) = Trog::Vault::set( $query->{user}, $query->{name} // '', $query->{secret} // '' );
+    my ( $ok, $message ) = Trog::Vault::set( $query->{user}, $query->{input}{name} // '', $query->{input}{secret} // '' );
 
     # This hash is cloned, logged around and handed to renderers.
-    delete $query->{secret};
+    delete $query->{input}{secret};
 
     return feedback_redirect( $query, '/secrets', $ok ? 0 : 1, $message );
 }
@@ -1092,7 +1152,7 @@ sub secrets_save ($query) {
 sub secrets_forget ($query) {
     require Trog::Vault;
 
-    my $name = $query->{name} // '';
+    my $name = $query->{input}{name} // '';
     my $gone = Trog::Vault::forget( $query->{user}, $name );
 
     return feedback_redirect( $query, '/secrets', $gone ? 0 : 1, $gone ? "'$name' forgotten" : "there was nothing stored as '$name'" );
@@ -1121,7 +1181,7 @@ sub resetpass ($query) {
 }
 
 sub do_resetpass ($query) {
-    my $user = $query->{username};
+    my $user = $query->{input}{username};
 
     # User Does not exist
     return $query->{tpsgi}->forbidden($query) if !Trog::Auth::user_exists($user);
@@ -1130,7 +1190,7 @@ sub do_resetpass ($query) {
     return $query->{tpsgi}->forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
 
     my $token   = Trog::Utils::uuid();
-    my $newpass = $query->{password} // Trog::Utils::uuid();
+    my $newpass = $query->{input}{password} // Trog::Utils::uuid();
     my $res     = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
     die "Could not add auth change request!" unless $res;
 
@@ -1202,7 +1262,7 @@ sub config_save ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $conf = Trog::Config::get();
-    config_apply( $conf, $query );
+    config_apply( $conf, $query->{input} );
 
     $query->{failure} = 1;
     $query->{message} = "Failed to save configuration!";
@@ -1217,10 +1277,10 @@ sub config_save ($query) {
     return config($query);
 }
 
-=head2 config_apply( Config::Simple conf, HASHREF query )
+=head2 config_apply( Config::Simple conf, HASHREF input )
 
 Copy whatever settings the form posted onto $conf, keyed by their full
-'section.key' name.
+'section.key' name.  $input is the input of the request.
 
 The schema is the allowlist: a request naming something config/default.cfg does
 not describe writes nothing, so a stray form field cannot invent configuration.
@@ -1229,10 +1289,10 @@ you go back to having none.
 
 =cut
 
-sub config_apply ( $conf, $query ) {
+sub config_apply ( $conf, $input ) {
     foreach my $section ( @{ Trog::Config::schema() } ) {
         foreach my $field ( @{ $section->{fields} } ) {
-            my $value = $query->{ $field->{name} };
+            my $value = $input->{ $field->{name} };
             next unless defined $value;
 
             # Duplicate inputs arrive as an array; the last one wins, same as
@@ -1288,7 +1348,7 @@ Clone a theme by copying a directory.
 sub themeclone ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
-    my ( $theme, $newtheme ) = ( $query->{theme}, $query->{newtheme} );
+    my ( $theme, $newtheme ) = @{ $query->{input} }{qw{theme newtheme}};
 
     my $themedir = 'www/themes';
 
@@ -1311,9 +1371,11 @@ Saves posts submitted via the /post pages
 sub post_save ($qq) {
     if ( my $denied = check_user_is_admin($qq) ) { return $denied }
 
-    my $query = clone($qq);
+    # What the form sent, by whoever is logged in.
+    my $query = { %{ clone( $qq->{input} ) }, user => $qq->{user} };
 
-    my $to = delete $query->{to};
+    my $to = $qq->{to} // '';
+    delete $query->{to};
 
     $query->{tags} = Trog::Utils::coerce_array( $query->{tags} );
 
@@ -1321,10 +1383,6 @@ sub post_save ($qq) {
     $query->{data}        = Trog::Utils::coerce_array( $query->{data} ) if $query->{data_is_array};
     $query->{attachments} = Trog::Utils::coerce_array( $query->{attachments} );
 
-    # Filter bits and bobs XXX this is done deeper in, may require removal
-    delete $query->{primary_post};
-    delete $query->{social_meta};
-    delete $query->{deflate};
     delete $query->{acls};
 
     # Ensure there are no null tags
@@ -1380,28 +1438,25 @@ sub profile ($query) {
     my @userposts = $data->get( tags => ['about'], acls => [qw{admin}] );
 
     # Users are always self-authored, you see
+    my %post     = %{ $query->{input} };
+    my $username = delete $post{username} // '';
+    my $password = delete $post{password};
 
-    my $user_obj = List::Util::first { ( $_->{user} || '' ) eq $query->{username} } @userposts;
+    my $user_obj = List::Util::first { ( $_->{user} || '' ) eq $username } @userposts;
 
-    my $username = $query->{username};
-    my $password = $query->{password};
     my $changed =
          $username ne ( $user_obj->{user} // '' )
       || $password
-      || ( $query->{contact_email} // '' ) ne ( $user_obj->{contact_email} // '' )
-      || ( $query->{display_name}  // '' ) ne ( $user_obj->{display_name}  // '' );
-
-    #Make sure it is "self-authored", redact pw
-    $query->{user} = delete $query->{username};
-    delete $query->{password};
-
-    # Use the display name as the title
-    $query->{title} = $query->{display_name};
+      || ( $post{contact_email} // '' ) ne ( $user_obj->{contact_email} // '' )
+      || ( $post{display_name}  // '' ) ne ( $user_obj->{display_name}  // '' );
 
     my %merged = (
         %$user_obj,
-        %$query,
-        $query->{display_name} ? ( local_href => "/users/$query->{display_name}" ) : ( local_href => $user_obj->{local_href} ),
+        %post,
+
+        # Use the display name as the title
+        title => $post{display_name},
+        $post{display_name} ? ( local_href => "/users/$post{display_name}" ) : ( local_href => $user_obj->{local_href} ),
     );
 
     # Validate before touching the auth database, not after.  useradd() does an
@@ -1411,7 +1466,7 @@ sub profile ($query) {
     my @errors = Trog::DataModule::validate( clone( \%merged ) );
     if (@errors) {
         my $why = "Post failed validation:\n" . join( "\n", @errors );
-        WARN("Rejected profile update from $query->{user}: $why");
+        WARN("Rejected profile update from $username: $why");
         return $query->{tpsgi}->badrequest( $query, $why );
     }
 
@@ -1423,7 +1478,7 @@ sub profile ($query) {
         Trog::Auth::useradd( $username, $merged{display_name}, $password, \@acls, $merged{contact_email} );
     }
 
-    return post_save( \%merged );
+    return post_save( { %$query, user => $username, input => \%merged } );
 }
 
 =head2 post_delete
@@ -1438,7 +1493,7 @@ sub post_delete ($query) {
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
 
-    $data->delete($query) and die "Could not delete post";
+    $data->delete( $query->{input} ) and die "Could not delete post";
     return $query->{tpsgi}->see_also( $query->{to} );
 }
 
@@ -1594,7 +1649,7 @@ Returns the avatars.css.
 
 sub avatars ($query) {
     $query->{user_acls} = [ viewer_acls($query) ];
-    my $tags = Trog::Utils::coerce_array( $query->{tag} );
+    my $tags = Trog::Utils::coerce_array( $query->{input}{tag} );
 
     my @posts = post_helper( $query, $tags, $query->{user_acls} );
     if (@posts) {
@@ -1626,7 +1681,7 @@ Returns 404 when no matching user is found or the user has no avatar.
 =cut
 
 sub libravatar ($query) {
-    my $hash = lc( $query->{avatar_hash} // '' );
+    my $hash = lc( $query->{input}{avatar_hash} // '' );
 
     my $users = Trog::Auth::users_with_emails();
     my $matched_user;
@@ -1760,8 +1815,13 @@ sub posts ( $query, $direct = 0 ) {
     # handed to index() as content, so index()'s own absorb would be too late.
     absorb_feedback($query);
 
+    # What the reader asked of the page, which the posts are looked up and
+    # paged by from here on.  embed() renders a post with no request.
+    my $in = $query->{input} // {};
+    $query->{$_} = $in->{$_} for grep { defined $in->{$_} } qw{older newer page limit like version};
+
     # Allow rss.xml to tell what posts to loop over
-    my $fmt = $query->{format} || '';
+    my $fmt = $in->{format} || '';
 
     #Process the input URI to capture tag/id
     $query->{route} //= $query->{to};
@@ -1771,7 +1831,8 @@ sub posts ( $query, $direct = 0 ) {
 
     my ( undef, undef, $id ) = split( m{/}, $query->{route} );
 
-    my $tags = Trog::Utils::coerce_array( $query->{tag} );
+    # A series names its own tag, and a route can fix one in its data.
+    my $tags = Trog::Utils::coerce_array( $query->{tag} // $in->{tag} );
     $query->{id} = $id if $id && !$query->{in_series};
 
     my $is_admin = grep { $_ eq 'admin' } @{ $query->{user_acls} };
@@ -1965,8 +2026,8 @@ sub posts ( $query, $direct = 0 ) {
             footers           => $footers,
             years             => [ reverse( $oldest_year .. $now_year ) ],
             months            => [ 0 .. 11 ],
-            embed             => $query->{embed},
-            nochrome          => $query->{nochrome},
+            embed             => $in->{embed},
+            nochrome          => $in->{nochrome},
         },
         contenttype => 'text/html',
         component   => 1,
@@ -2336,14 +2397,15 @@ sub sitemap ($query) {
     state $etag = "sitemap-" . time();
     my ( @to_map, $is_index, $route_type );
     my $warning = '';
-    $query->{map} //= '';
-    if ( $query->{map} eq 'static' ) {
+    my $in      = $query->{input};
+    my $map     = $in->{map} // '';
+    if ( $map eq 'static' ) {
 
         # Return the map of static routes
         $route_type = 'Static Routes';
         @to_map     = grep { CORE::index( $_, '{' ) < 0 && !$routes{$_}->{auth} && !$routes{$_}->{noindex} && !$routes{$_}->{nomap} } keys(%routes);
     }
-    elsif ( !$query->{map} ) {
+    elsif ( !$map ) {
 
         # Return the index instead
         @to_map = ('static');
@@ -2361,21 +2423,21 @@ sub sitemap ($query) {
         $is_index = 1;
     }
     else {
-        $route_type = "Posts: Page $query->{map}";
+        $route_type = "Posts: Page $map";
 
         # Return the map of the particular range of dynamic posts
         $query->{limit} = 50000;
-        $query->{page}  = $query->{map};
+        $query->{page}  = $map;
         @to_map         = post_helper( $query, [], ['public'] );
     }
 
-    if ( $query->{xml} ) {
+    if ( $in->{xml} ) {
         DEBUG("RENDER SITEMAP XML");
         my $sm;
         my $xml_date = time();
         my $fmt      = "xml";
-        $fmt .= ".gz" if $query->{compressed};
-        if ( !$query->{map} ) {
+        $fmt .= ".gz" if $in->{compressed};
+        if ( !$map ) {
             require WWW::SitemapIndex::XML;
             $sm = WWW::SitemapIndex::XML->new();
             foreach my $url (@to_map) {
@@ -2388,7 +2450,7 @@ sub sitemap ($query) {
         else {
             require WWW::Sitemap::XML;
             $sm = WWW::Sitemap::XML->new();
-            my $changefreq = $query->{map} eq 'static' ? 'monthly' : 'daily';
+            my $changefreq = $map eq 'static' ? 'monthly' : 'daily';
             foreach my $url (@to_map) {
                 my $true_uri = "http://$query->{domain}$url";
                 if ( ref $url eq 'HASH' ) {
@@ -2442,7 +2504,7 @@ sub sitemap ($query) {
         $xml->toFH( $buf, 0 );
         seek $buf, 0, 0;
 
-        if ( $query->{compressed} ) {
+        if ( $in->{compressed} ) {
             require IO::Compress::Gzip;
             my $compressed = IO::String->new();
             IO::Compress::Gzip::gzip( $buf => $compressed );
@@ -2484,10 +2546,10 @@ sub manual ($query) {
     require Capture::Tiny;
 
     #Fix links from Pod::HTML
-    $query->{module} =~ s/\.html$//g if $query->{module};
+    my $module = ( $query->{input}{module} // '' ) =~ s/\.html$//gr;
     $query->{failure} //= -1;
 
-    my $infile = $query->{module} ? "$query->{module}.pm" : 'tCMS/Manual.pod';
+    my $infile = $module ? "$module.pm" : 'tCMS/Manual.pod';
     my $found  = 0;
     foreach my $libdir (@INC) {
         $found = $libdir if -f "$libdir/$infile";    ## no critic (ProhibitFiletest_f) -- which @INC dir supplies the pod
@@ -2577,11 +2639,12 @@ session id on a page.
 sub sessions ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
-    my $limit  = int( $query->{limit} // 100 );
+    my $in     = $query->{input};
+    my $limit  = int( $in->{limit} // 100 );
     my $events = Trog::Auth::audit_log(
         limit      => $limit,
-        username   => $query->{filter_user}  // '',
-        event_type => $query->{filter_event} // '',
+        username   => $in->{filter_user}  // '',
+        event_type => $in->{filter_event} // '',
     );
 
     # Format timestamps for display
@@ -2601,8 +2664,8 @@ sub sessions ($query) {
             is_admin     => 1,
             events       => $events,
             limit        => $limit,
-            filter_user  => $query->{filter_user}  // '',
-            filter_event => $query->{filter_event} // '',
+            filter_user  => $in->{filter_user}  // '',
+            filter_event => $in->{filter_event} // '',
             %$query,
         },
         undef,
@@ -2623,7 +2686,7 @@ finished, and for a job that failed, why.
 sub jobs ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
-    my $limit = int( $query->{limit} // 100 );
+    my $limit = int( $query->{input}{limit} // 100 );
 
     my @jobs = map {
         local ($_) = $_;
@@ -2666,7 +2729,7 @@ does, and goes back to /admin/jobs, which says whether it did.
 sub jobs_retry ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
-    my $id = $query->{id};
+    my $id = $query->{input}{id};
     $id = $id->[-1] if ref $id eq 'ARRAY';
     return feedback_redirect( $query, '/admin/jobs', 1, 'That is not the number of a job.' ) unless defined $id && $id =~ m/\A\d+\z/;
 
@@ -2750,13 +2813,14 @@ captures in parallel instead of us taking them one after another.
 sub guest_screenshot ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
-    my $hypervisor = guest_hypervisor( $query, $query->{hypervisor} );
+    my $in         = $query->{input};
+    my $hypervisor = guest_hypervisor( $query, $in->{hypervisor} );
     return $query->{tpsgi}->notfound($query) unless $hypervisor;
 
     require Trog::DataSource::Virt;
-    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hypervisor, $query->{guest} );
+    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hypervisor, $in->{guest} );
     if ( !$path ) {
-        WARN("Could not screenshot '$query->{guest}': $why");
+        WARN("Could not screenshot '$in->{guest}': $why");
         return $query->{tpsgi}->notfound($query);
     }
 
@@ -2780,19 +2844,18 @@ sub guest_act ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $to = $query->{to} || '/';
+    my $in = $query->{input};
 
-    my $hypervisor = guest_hypervisor( $query, $query->{hypervisor} );
+    my $hypervisor = guest_hypervisor( $query, $in->{hypervisor} );
     return feedback_redirect( $query, $to, 1, 'No such hypervisor.' ) unless $hypervisor;
 
     require Trog::DataSource::Virt;
 
-    # Same reason the screenshot route captures 'guest': a form field called
-    # 'domain' would be overwritten by the router with the request's host.
     my ( $ok, $message ) = Trog::DataSource::Virt::act(
-        $query->{action}, $hypervisor->{conn_uri}, $query->{guest}, $query->{user},
+        $in->{action}, $hypervisor->{conn_uri}, $in->{guest}, $query->{user},
     );
 
-    return feedback_redirect( $query, $to, $ok ? 0 : 1, "$query->{guest}: $message" );
+    return feedback_redirect( $query, $to, $ok ? 0 : 1, "$in->{guest}: $message" );
 }
 
 =head2 guest_reprovision
@@ -2817,28 +2880,26 @@ sub guest_reprovision ($query) {
     if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $to = $query->{to} || '/';
+    my $in = $query->{input};
 
     require Trog::DataSource::ProvisionedVirt;
 
-    # 'guest' rather than 'domain', for the reason the screenshot route captures
-    # it that way: the router overwrites $query->{domain} with the request's own
-    # host, so a form field by that name never arrives.
     my ( $ok, $message ) = Trog::DataSource::ProvisionedVirt::reprovision(
-        domain     => $query->{guest},
+        domain     => $in->{guest},
         user       => $query->{user},
-        passphrase => $query->{passphrase},
-        sudo       => $query->{sudo},
-        totp       => $query->{totp},
-        remember   => $query->{remember},
+        passphrase => $in->{passphrase},
+        sudo       => $in->{sudo},
+        totp       => $in->{totp},
+        remember   => $in->{remember},
     );
 
     # Deleted rather than merely unused: this hash is cloned, logged around and
     # handed to renderers, and neither of these has any business in any of that.
     # The code as much as the passphrase -- it is spent by now, but a spent code
     # in a log is still a code somebody wrote down.
-    delete $query->{$_} foreach qw{passphrase sudo totp};
+    delete $in->{$_} foreach qw{passphrase sudo totp};
 
-    return feedback_redirect( $query, $to, $ok ? 0 : 1, ( $query->{guest} // 'guest' ) . ": $message" );
+    return feedback_redirect( $query, $to, $ok ? 0 : 1, ( $in->{guest} // 'guest' ) . ": $message" );
 }
 
 =head2 guest_reprovision_log
@@ -2860,7 +2921,7 @@ sub guest_reprovision_log ($query) {
 
     require Trog::DataSource::ProvisionedVirt;
 
-    my $log = Trog::DataSource::ProvisionedVirt::log_for( $query->{guest} );
+    my $log = Trog::DataSource::ProvisionedVirt::log_for( $query->{input}{guest} );
     return $query->{tpsgi}->notfound($query) unless defined $log;
 
     return Trog::Renderer->render(
@@ -2901,13 +2962,11 @@ sub post_wizard ($query) {
 
     # Sticky checkboxes.  Nothing is submitted on a fresh GET, so fall back to
     # the defaults rather than rendering everything unticked.
-    my %checked = map { $_ => ( $query->{wizard_submitted} ? $query->{$_} : $wizard_checked_by_default{$_} ) ? 'checked' : '' } @wizard_checkboxes;
+    my $in      = $query->{input} // {};
+    my %checked = map { $_ => ( $query->{wizard_submitted} ? $in->{$_} : $wizard_checked_by_default{$_} ) ? 'checked' : '' } @wizard_checkboxes;
 
     return Trog::Routes::HTML::index(
         {
-            # Sticky form values first, so a failed submission doesn't lose the
-            # admin's work -- but everything the template actually depends on is
-            # set *after* this, as the whole of %$query is attacker controlled.
             %$query,
             title             => 'tCMS Post Wizard',
             theme_dir         => Trog::Themes::td(),
@@ -2917,14 +2976,14 @@ sub post_wizard ($query) {
             forms_dir         => Trog::Themes::forms_dir(),
             types             => wizard_types_json($forms),
             type_names        => [ map { ( $_ =~ s/\.tx$//r ) } @$forms ],
-            description       => wizard_description( $query->{description} ),
+            description       => wizard_description( $in->{description} ),
             datasources       => get_datasources(),
-            datasource        => wizard_scalar( $query->{datasource} ),
+            datasource        => wizard_scalar( $in->{datasource} ),
             checked           => \%checked,
-            name              => wizard_scalar( $query->{name} ),
-            title_placeholder => wizard_scalar( $query->{title_placeholder} ),
-            body_form         => wizard_scalar( $query->{body_form} ),
-            display           => wizard_scalar( $query->{display} ),
+            name              => wizard_scalar( $in->{name} ),
+            title_placeholder => wizard_scalar( $in->{title_placeholder} ),
+            body_form         => wizard_scalar( $in->{body_form} ),
+            display           => wizard_scalar( $in->{display} ),
             failure           => $query->{failure},
             message           => $query->{message} // '',
             to                => $query->{to}      // '',
@@ -3092,7 +3151,15 @@ sub post_wizard_save ($query) {
     # Anchored capture rather than a substitution, so anything containing a '/'
     # or a '..' simply fails to match instead of being silently scrubbed into
     # something that still escapes the directory.
-    my ($name) = wizard_scalar( $query->{name} ) =~ m/^([\w-]+)$/;
+    # Not up for discussion, so set whatever the form sent.  A post with no
+    # visibility gets an undef pushed into its tags by process, which is a tag
+    # nothing matches -- so the post is invisible to everyone but an admin, for
+    # no reason anybody chose.  A title and a set of acls are equally
+    # non-negotiable: every other form has them, and a type whose editor cannot
+    # set them produces posts nobody can title or restrict.
+    my %form = ( %{ $query->{input} }, map { $_ => 1 } @wizard_mandatory );
+
+    my ($name) = wizard_scalar( $form{name} ) =~ m/^([\w-]+)$/;
     return wizard_fail( $query, "Post type names may only contain letters, numbers, '-' and '_'." ) unless $name;
 
     # Whichever forms dir is in use: the theme's if it has one, the stock one
@@ -3111,41 +3178,33 @@ sub post_wizard_save ($query) {
 
     my $overwriting = -e $tx_file;
     return wizard_fail( $query, "Post type '$name.tx' already exists.  Tick 'Overwrite' if you meant to replace it." )
-      if $overwriting && !$query->{overwrite};
+      if $overwriting && !$form{overwrite};
 
     # Whitelisted against what is actually on disk: this name goes into a
     # sidecar and is require()d later, so a regex is not enough.
-    my $datasource = wizard_scalar( $query->{datasource} );
+    my $datasource = wizard_scalar( $form{datasource} );
     if ( $datasource && List::Util::none { $_ eq $datasource } @{ get_datasources() } ) {
         return wizard_fail( $query, "'$datasource' is not a datasource I can find." );
     }
 
-    my $fields = wizard_fields($query);
+    my $fields = wizard_fields( \%form );
 
-    # Not up for discussion.  A post with no visibility gets an undef pushed
-    # into its tags by process, which is a tag nothing matches -- so the post
-    # is invisible to everyone but an admin, for no reason anybody chose.  A
-    # title and a set of acls are equally non-negotiable: every other form has
-    # them, and a type whose editor cannot set them produces posts nobody can
-    # title or restrict.
-    $query->{$_} = 1 foreach @wizard_mandatory;
-
-    my @includes  = grep { $query->{$_} } @wizard_include_order;
-    my $body_form = wizard_scalar( $query->{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
+    my @includes  = grep { $form{$_} } @wizard_include_order;
+    my $body_form = wizard_scalar( $form{body_form} ) eq 'form_multi.tx' ? 'form_multi.tx' : 'form_common.tx';
 
     my $spec = wizard_sidecar(
         $name, $fields, \@includes, $body_form, $datasource,
         {
-            description       => wizard_description( $query->{description} ),
-            display           => wizard_scalar( $query->{display} ),
-            title_placeholder => wizard_scalar( $query->{title_placeholder} ),
-            map { $_ => $query->{$_} ? 1 : 0 } qw{wrapper inc_post_title inc_post_tags},
+            description       => wizard_description( $form{description} ),
+            display           => wizard_scalar( $form{display} ),
+            title_placeholder => wizard_scalar( $form{title_placeholder} ),
+            map { $_ => $form{$_} ? 1 : 0 } qw{wrapper inc_post_title inc_post_tags},
         }
     );
 
     local $@;
     eval {
-        Path::Tiny::path($tx_file)->spew_utf8( wizard_template( $query, $fields, \@includes, $body_form, $datasource ) );
+        Path::Tiny::path($tx_file)->spew_utf8( wizard_template( \%form, $fields, \@includes, $body_form, $datasource ) );
         Path::Tiny::path($json_file)->spew_utf8( JSON::MaybeXS->new( pretty => 1, canonical => 1 )->encode($spec) );
         1;
     } or return wizard_fail( $query, "Failed to write post type '$name': $@" );
@@ -3660,7 +3719,7 @@ table, so a URL cannot name a list for this route to build.
 =cut
 
 sub bundle ($query) {
-    my $bundle = Trog::Bundle::served( map { "$_.js" } split( /[+]/, $query->{names} ) );
+    my $bundle = Trog::Bundle::served( map { "$_.js" } split( /[+]/, $query->{input}{names} ) );
     return $query->{tpsgi}->notfound($query) unless $bundle;
     return $query->{tpsgi}->redirect( $bundle->{href} ) if $query->{route} ne $bundle->{href};
     return [

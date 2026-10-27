@@ -397,18 +397,18 @@ subtest 'the page a user manages them from' => sub {
     is_deeply( $rendered->{secrets}, [], "and eve sees none of bob's" );
 
     # Storing, and the thing stored not surviving the request that stored it.
-    my $query = { user => 'eve', tpsgi => $tpsgi, name => 'ssh', secret => 'a passphrase' };
+    my $query = { user => 'eve', tpsgi => $tpsgi, input => { name => 'ssh', secret => 'a passphrase' } };
     my $res   = Trog::Routes::HTML::secrets_save($query);
     is( $res->[0], 303, 'saving redirects back to the page' );
-    ok( !exists $query->{secret}, 'and the secret is gone from the query afterwards' );
+    ok( !exists $query->{input}{secret}, 'and the secret is gone from the input afterwards' );
     is( Trog::Vault::get( 'eve', 'ssh' ), 'a passphrase', 'having been stored' );
 
-    $res = Trog::Routes::HTML::secrets_forget( { user => 'eve', tpsgi => $tpsgi, name => 'ssh' } );
+    $res = Trog::Routes::HTML::secrets_forget( { user => 'eve', tpsgi => $tpsgi, input => { name => 'ssh' } } );
     is( $res->[0],                        303,   'forgetting redirects too' );
     is( Trog::Vault::get( 'eve', 'ssh' ), undef, 'and it is gone' );
 
     # One user cannot reach into another's, whatever they post.
-    Trog::Routes::HTML::secrets_forget( { user => 'eve', tpsgi => $tpsgi, name => 'keepass' } );
+    Trog::Routes::HTML::secrets_forget( { user => 'eve', tpsgi => $tpsgi, input => { name => 'keepass' } } );
     is( Trog::Vault::get( 'bob', 'keepass' ), 'correct horse battery staple', "bob's is untouched by eve asking to forget it" );
 };
 

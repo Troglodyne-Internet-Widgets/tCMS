@@ -269,8 +269,18 @@ our $ADMIN_PASS    = 'spec-password';
 
 # Always build a fresh query: posts() pushes onto user_acls, and series()
 # rewrites route/aclname/tag/in_series/primary_post in place.
+# What tPSGI and the dispatcher set on a query.  Anything else a test passes is
+# the input of the request, as tPSGI hands it over in $query->{input}.
+my %set_on_query = map { $_ => 1 } qw{route method scheme domain start deflate streaming ranges last_fetched has_query social_meta user_acls body tpsgi user fullpath cookies dispatcher primary_post};
+
 my sub query {
     my (%over) = @_;
+    my %input = map { $_ => delete $over{$_} } grep { !$set_on_query{$_} } keys(%over);
+
+    # The dispatcher keeps the path of where the request asks to go next.
+    $over{to}    = $input{to} if defined $input{to};
+    $over{input} = \%input;
+
     my %q = (
         route        => '/',
         method       => 'GET',
