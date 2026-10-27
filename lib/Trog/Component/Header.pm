@@ -26,6 +26,8 @@ Recognized arguments, all optional:
     embed                                 embedded view, which adds a base target
     no_doctype                            leave the doctype off, for the RSS
                                           stylesheet, which is XSL rather than HTML
+    title_select                          in place of title, the XPath of the
+                                          title, for that same stylesheet
 
 The list arguments default to empty rather than to the stock sheets, so that a
 caller which has none -- rss_style(), notably -- gets a header with none, as it

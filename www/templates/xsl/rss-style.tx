@@ -3,10 +3,10 @@
   <xsl:output method="html" version="1.0" encoding="UTF-8" indent="yes"/>
   <xsl:template match="/">
     <: component('Header', {
-      title      => $title,
-      route      => $route,
-      lang       => $lang,
-      no_doctype => 1,
+      title_select => $title_select,
+      route        => $route,
+      lang         => $lang,
+      no_doctype   => 1,
     }) :>
         <a>
           <xsl:attribute name="href">

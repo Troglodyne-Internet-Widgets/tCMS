@@ -51,8 +51,13 @@ subtest 'Header' => sub {
         }
     );
 
-    like( $out, qr/<!doctype[ ]html>/i,            "the doctype is emitted by default" );
-    like( $out, qr{<title>A[ ]Page</title>},       "the title lands" );
+    like( $out, qr/<!doctype[ ]html>/i,      "the doctype is emitted by default" );
+    like( $out, qr{<title>A[ ]Page</title>}, "the title lands" );
+    like(
+        Trog::Component::component( 'Header', { title => '<b>x</b>' } ),
+        qr{<title>&lt;b&gt;x&lt;/b&gt;</title>},
+        "and is text, not markup"
+    );
     like( $out, qr{href="/styles/screen\.css"},    "stylesheets land" );
     like( $out, qr{src="/scripts/post\.js"},       "scripts land" );
     like( $out, qr{lang="en-US"},                  "lang defaults rather than rendering empty" );
@@ -61,6 +66,11 @@ subtest 'Header' => sub {
     # rss_style() renders into an XSL document, so the doctype has to go.
     my $xsl = Trog::Component::component( 'Header', { title => 'RSS', no_doctype => 1 } );
     unlike( $xsl, qr/<!doctype/i, "no_doctype suppresses it" );
+    like(
+        Trog::Component::component( 'Header', { title => 'RSS', title_select => 'rss/channel/title', no_doctype => 1 } ),
+        qr{<title><xsl:value-of[ ]select="rss/channel/title"/></title>},
+        "and title_select makes the title an XSL value"
+    );
 
     # It also has no stylesheets or scripts to give, and must not invent any.
     unlike( $xsl, qr/rel="stylesheet"[ ]type="text\/css"[ ]href="\/styles\/screen/, "no stylesheets are conjured up" );

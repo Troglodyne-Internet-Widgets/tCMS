@@ -3,7 +3,11 @@
 : }
 <html dir="auto" lang="<: $lang :>">
     <head>
-        <title><: $title | mark_raw :></title>
+: if ($title_select) {
+        <title><xsl:value-of select="<: $title_select :>"/></title>
+: } else {
+        <title><: $title :></title>
+: }
         <meta charset="utf-8" />
 
         <link rel="alternate" title="rss" type="application/rss+xml" href="<: $route :>?format=rss" />

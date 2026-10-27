@@ -3709,9 +3709,9 @@ without a doctype.
 =cut
 
 sub rss_style ($query) {
-    $query->{port}       = ":$query->{port}" if $query->{port};
-    $query->{title}      = qq{<xsl:value-of select="rss/channel/title"/>};
-    $query->{no_doctype} = 1;
+    $query->{port}         = ":$query->{port}" if $query->{port};
+    $query->{title_select} = 'rss/channel/title';
+    $query->{no_doctype}   = 1;
 
     return Trog::Renderer->render(
         template    => 'rss-style.tx',
