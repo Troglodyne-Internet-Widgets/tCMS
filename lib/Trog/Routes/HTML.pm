@@ -33,6 +33,7 @@ use Trog::Config;
 use Trog::Auth;
 use Trog::Data;
 use Trog::Themes;
+use Trog::Bundle;
 use Trog::Renderer;
 use Trog::Email;
 use Trog::DataSource;
@@ -166,6 +167,7 @@ our %routes = (
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::metrics,
+        scripts  => ['chart.min.js'],
     },
     '/admin/sessions' => {
         method   => 'GET',
@@ -216,6 +218,7 @@ our %routes = (
         callback => \&Trog::Routes::HTML::post_wizard,
         noindex  => 1,
         nocache  => 1,
+        scripts  => ['post_wizard.js'],
     },
     '/admin/wyzzerdd/save' => {
         method   => 'POST',
@@ -295,6 +298,18 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::rss_style,
     },
+    '/bundle/{version}/{names}.js' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::bundle,
+    },
+);
+
+# The scripts of a page of posts.  TCMS::_routes gives them to each route whose
+# callback is one of these, unless the route names scripts of its own.
+our @post_page_callbacks = map { "Trog::Routes::HTML::$_" } qw{posts series users};
+our %post_page_scripts   = (
+    scripts               => [qw{highlight.min.js reveal.min.js}],
+    authenticated_scripts => [qw{post.js post_relations.js}],
 );
 
 # Grab theme routes
@@ -517,7 +532,7 @@ Most subsequent functions simply pass content to this function.
 
 =cut
 
-sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
+sub index ( $query, $content = '', $i_styles = [] ) {
     $query->{theme_dir} = Trog::Themes::td();
 
     absorb_feedback($query);
@@ -572,7 +587,6 @@ sub index ( $query, $content = '', $i_styles = [], $i_scripts = [] ) {
             categories   => \@series,
             stylesheets  => \@styles,
             print_styles => \@p_styles,
-            scripts      => $i_scripts,
             show_madeby  => $Theme::show_madeby ? 1 : 0,
             embed        => $query->{embed}     ? 1 : 0,
             embed_video  => $query->{primary_post}{is_video},
@@ -838,7 +852,6 @@ sub config ( $query = {} ) {
             title           => 'Configure tCMS',
             theme_dir       => Trog::Themes::td(),
             stylesheets     => [qw{config.css}],
-            scripts         => [qw{post.js}],
             themes          => get_themes() || [],
             config_sections => config_sections(),
             message         => $query->{message},
@@ -1043,7 +1056,6 @@ sub resetpass ($query) {
             title       => 'Request Authentication Resets',
             theme_dir   => Trog::Themes::td(),
             stylesheets => [qw{config.css}],
-            scripts     => [qw{post.js}],
             message     => $query->{message},
             failure     => $query->{failure},
             scheme      => $query->{scheme},
@@ -2350,7 +2362,6 @@ sub metrics ($query) {
         },
         undef,
         ['post.css'],
-        ['chart.js'],
     );
 }
 
@@ -3379,6 +3390,37 @@ sub icon ($query) {
     return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate} );
 }
 
+=head2 bundle
+
+Implements /bundle/{version}/{names}.js, the scripts of a page as one response.
+See Trog::Bundle.
+
+The body of a bundle is the same at a given href, so the browser keeps it.  An
+href with an old version is redirected to the current one, so a page that was
+cached before a script changed still gets its scripts.
+
+It serves only a list that a route declared, and is a 404 for any other list,
+even one of real scripts.  TCMS::build_routes() declares the C<scripts> and
+C<authenticated_scripts> of every route at startup, and finish_render() declares
+the list of each page that it links.  Both take the lists from the routing
+table, so a URL cannot name a list for this route to build.
+
+=cut
+
+sub bundle ($query) {
+    my $bundle = Trog::Bundle::served( map { "$_.js" } split( /[+]/, $query->{names} ) );
+    return $query->{tpsgi}->notfound($query) unless $bundle;
+    return $query->{tpsgi}->redirect( $bundle->{href} ) if $query->{route} ne $bundle->{href};
+    return [
+        200,
+        [
+            'Content-type'  => 'text/javascript',
+            'Cache-Control' => $Trog::Vars::cache_control{static},
+        ],
+        [ $bundle->{body} ],
+    ];
+}
+
 =head2 totp_qr
 
 Implements the /totp/* routes.
@@ -3454,20 +3496,23 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{title}        //= 'tCMS';
     $vars->{stylesheets}  //= [];
     $vars->{print_styles} //= [qw{structure.css print.css}];
-    $vars->{scripts}      //= [];
 
     # Theme-ize the paths
     $vars->{stylesheets}  = [ @{ build_themed_styles( $vars->{stylesheets} ) } ];
     $vars->{print_styles} = [ @{ build_themed_styles( $vars->{print_styles} ) } ];
-    $vars->{scripts}      = [ map { Trog::Themes::themed_script("$_") =~ s/^www\///r } @{ Trog::Utils::coerce_array( $vars->{scripts} ) } ];
+
+    # From the route, and never from the request.
+    my $route  = $vars->{dispatcher} // {};
+    my $bundle = Trog::Bundle::scripts( @{ $route->{'x-tcms-scripts'} // [] }, $vars->{user} ? @{ $route->{'x-tcms-authenticated_scripts'} // [] } : () );
+    $vars->{scripts} = $bundle ? [ $bundle->{href} ] : [];
+    Trog::Bundle::save( $vars->{tpsgi}, $bundle ) if $bundle;
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );
 
-    # Absolute-ize the paths for scripts & stylesheets
+    # Absolute-ize the paths for stylesheets
     @{ $vars->{stylesheets} }  = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{stylesheets} };
     @{ $vars->{print_styles} } = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{print_styles} };
-    @{ $vars->{scripts} }      = map { CORE::index( $_, '/' ) == 0 ? $_ : "/$_" } @{ $vars->{scripts} };
 
     # TODO Smash together the stylesheets and minify
 

@@ -1,4 +1,3 @@
-<script type="text/javascript" src="/scripts/post_wizard.js"></script>
 <script type="application/json" id="wizard-types"><: $types | mark_raw :></script>
 <div id="backoffice">
 <p class="title">

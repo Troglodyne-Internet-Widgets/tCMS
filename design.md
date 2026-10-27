@@ -378,6 +378,20 @@ Stylesheets are the exception and are loaded both, theme last, so a theme can
 override a handful of rules without restating the sheet. A theme may ship a
 `routes.pm` to add routes of its own.
 
+A script resolves as a template does. A route names the scripts of its page in
+its definition: `scripts` for every reader, and `authenticated_scripts` for a
+reader who is logged in as well. A template does not write a `<script src>` tag
+of its own. The route of a post gets the scripts of a post page, from
+`%Trog::Routes::HTML::post_page_scripts`. `finish_render` links the lists as one
+bundle, which `Trog::Bundle` builds and `/bundle/{version}/{names}.js` serves.
+That route serves only a list that a route declares, so a request cannot make
+tCMS build a bundle. The version is a digest of the bundle,
+so a browser keeps the bundle until a script in it changes. A script whose name
+ends in `.min.js` goes into the bundle as it is, and the others are minified.
+tPSGI saves each bundle that a page links as a static, and it watches the
+script directories. When a script changes, it throws away the saved pages and
+bundles.
+
 Composition: relations and enrichment
 =====================================
 

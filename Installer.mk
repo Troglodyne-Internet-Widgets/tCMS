@@ -22,6 +22,8 @@ prereq-frontend:
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/highlight.min.js" \
 		"https://cdn.jsdelivr.net/npm/chart.js" \
 		"https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.js"; popd
+	mv www/scripts/chart.js www/scripts/chart.min.js
+	mv www/scripts/reveal.js www/scripts/reveal.min.js
 	mkdir -p www/styles; pushd www/styles && curl -L --remote-name-all \
 		"https://raw.githubusercontent.com/highlightjs/cdn-release/main/build/styles/obsidian.min.css" \
 	    "https://raw.githubusercontent.com/hakimel/reveal.js/master/dist/reveal.css" \

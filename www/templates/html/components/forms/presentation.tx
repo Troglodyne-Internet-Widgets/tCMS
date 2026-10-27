@@ -30,7 +30,6 @@
       			<: } :>
       		</div>
     	</div>
-    	<script src="/scripts/reveal.js"></script>
     	<script>
       		Reveal.initialize({
                 hash:true,

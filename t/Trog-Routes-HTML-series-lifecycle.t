@@ -134,6 +134,12 @@ BEGIN {
     print {$fh} '{"emojis":[{"category":"Smileys","emoji":"X"}]}';
     close($fh) or die $!;
 
+    # The vendored scripts are downloaded at install, so they are not in the
+    # checkout; these stand in for them.
+    File::Slurper::Temp::write_text( "$ROOT/www/scripts/reveal.min.js",    "var Reveal = 'spec reveal';" );
+    File::Slurper::Temp::write_text( "$ROOT/www/scripts/highlight.min.js", "var hljs = 'spec highlight';" );
+    File::Copy::copy( "$REPO/www/scripts/$_", "$ROOT/www/scripts/$_" ) or die $! for qw{post.js post_relations.js post_wizard.js};
+
     # Text::Xslate computes its default cache dir from $HOME once, at load time.
     # Without this the sandbox writes compiled templates into the real ~/.xslate_cache.
     $ENV{HOME} = $ROOT;
@@ -300,6 +306,12 @@ my sub render {
     my ( $code, $headers, $body ) = @$res;
     $body = ref $body eq 'ARRAY' ? join( '', @$body ) : ( $body // '' );
     return ( $code, Encode::decode_utf8($body), '', $headers );
+}
+
+# The pages that a stand-in tPSGI was asked to save, without the bundles of
+# scripts, which every page links.
+my sub pages_saved ($tpsgi) {
+    return [ grep { !m/:js\z/ } keys %{ $tpsgi->{renders} } ];
 }
 
 # FlatFile snapshots the tag list at load time and then filters each query's
@@ -684,7 +696,7 @@ subtest 'a datasource-backed series searches and paginates' => sub {
     # not going to tell us about it.
     my $vtpsgi = Test::TPSGI->new( run_callbacks => 1 );
     render( anon( route => '/specguests', tpsgi => $vtpsgi ), \&Trog::Routes::HTML::series );
-    is_deeply( [ keys %{ $vtpsgi->{renders} } ], [], 'a guests page is never saved as a static' );
+    is_deeply( pages_saved($vtpsgi), [], 'a guests page is never saved as a static' );
 
     # The cursor paginator would be worse than useless here: every guest shares
     # a created, so Prev would ask for everything older than that one instant.
@@ -811,7 +823,7 @@ subtest 'a directory index series' => sub {
     # the renderer hands anonymous, unparameterised, successful renders to tPSGI
     # to save, and a directory listing is one.  Which it may be, unlike the
     # guests page above, precisely because it registers the watch below.
-    ok( scalar( keys %{ $tpsgi->{renders} } ),                    'the listing was handed to tPSGI to save as a static' );
+    ok( scalar( @{ pages_saved($tpsgi) } ),                       'the listing was handed to tPSGI to save as a static' );
     ok( ( grep { m{^/specfiles:} } keys %{ $tpsgi->{renders} } ), 'under its own route' );
 
     my ($watch) = grep { $_->{path} =~ m/spec_downloads/ } @{ $tpsgi->{watches} };
@@ -1225,6 +1237,68 @@ subtest 'presentation' => sub {
     my $deck = qq{<a href="/posts/$child->{id}?embed=1&nochrome=1">Click Here to view</a>};
     like( $body, qr{\Q$deck\E}, 'deck link rendered' );
     unlike( $body, qr/Slide[ ]one[ ]body\./, 'slides themselves are not rendered inline' );
+
+    # The operation that tPSGI hands the callback, which carries the scripts
+    # that TCMS gives the route of a post.  t/TCMS.t makes sure that it does.
+    no warnings qw{once};
+    my %operation  = map { ( "x-tcms-$_" => $Trog::Routes::HTML::post_page_scripts{$_} ) } keys %Trog::Routes::HTML::post_page_scripts;
+    my $deck_query = sub (@who) { return ( route => "/posts/$child->{id}", id => $child->{id}, embed => 1, nochrome => 1, dispatcher => \%operation, @who ) };
+    my ( $code, $page, $err ) = render( anon( $deck_query->() ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the deck renders' ) or return diag($err);
+    like( $page, qr/Reveal[.]initialize/, 'and starts reveal' );
+
+    my @srcs = $page =~ m{<script\b[^>]*\bsrc="([^"]+)"}g;
+    is( scalar(@srcs), 1, 'from one script' ) or return diag( explain( \@srcs ) );
+    my ( $version, $names ) = $srcs[0] =~ m{\A/bundle/(\w+)/([^/]+)[.]js\z} or return fail("$srcs[0] is a bundle");
+    is( $names, 'highlight.min+reveal.min', 'which bundles what the deck needs, and no editing scripts for a visitor' );
+
+    my ( $bcode, $bundle, $berr, $headers ) = render( anon( route => $srcs[0], version => $version, names => $names ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 200, 'the bundle is served' ) or return diag($berr);
+    like( $bundle, qr/spec[ ]highlight.*spec[ ]reveal/s, 'with both scripts in it, in order' );
+    my %h = @$headers;
+    is( $h{'Content-type'}, 'text/javascript', 'as javascript' );
+    like( $h{'Cache-Control'}, qr/immutable/, 'that the browser keeps, since the href changes with the body' );
+
+    ($bcode) = render( anon( route => "/bundle/0000/$names.js", version => '0000', names => $names ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 302, 'an old version is sent to the current one' );
+    ($bcode) = render( anon( route => '/bundle/0000/nothere.js', version => '0000', names => 'nothere' ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 404, 'and a bundle of nothing is not found' );
+
+    # As a fresh worker, which has saved nothing yet.
+    local %Trog::Bundle::saved = ();
+    my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
+    render( anon( $deck_query->( tpsgi => $tpsgi ) ), \&Trog::Routes::HTML::posts );
+    is( $tpsgi->{renders}{"$srcs[0]:js"}, $bundle, 'the bundle that a page links is saved as a static' );
+
+    delete $tpsgi->{renders}{"$srcs[0]:js"};
+    render( anon( $deck_query->( tpsgi => $tpsgi ) ), \&Trog::Routes::HTML::posts );
+    ok( !exists $tpsgi->{renders}{"$srcs[0]:js"}, 'once' );
+
+    my $undeclared = 'reveal.min+highlight.min';
+    ($bcode) = render( anon( route => "/bundle/0000/$undeclared.js", version => '0000', names => $undeclared, tpsgi => $tpsgi ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 404, 'a list of real scripts that no route declares is not found' );
+
+    my ($watch) = grep { $_->{path} eq 'www/scripts' } @{ $tpsgi->{watches} };
+    ok( $watch, 'the scripts are watched' ) or return;
+    $watch->{callback}->( $tpsgi, {} );
+    is_deeply( [ @{ $tpsgi->{invalidated} }[ -2, -1 ] ], [qw{html js}], 'and a change throws away the saved pages and bundles' );
+
+    ( $code, $page, $err ) = render( query( user => 'spec_reader', user_acls => [], $deck_query->() ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the deck renders for a reader who is logged in' ) or return diag($err);
+    my $viewing = qr{highlight[.]min[+]reveal[.]min};
+    my $editing = qr{post[+]post_relations};
+    like( $page, qr{src="/bundle/\w+/$viewing[+]$editing[.]js"}, 'with the authenticated scripts after the others, though the reader is not an admin' );
+
+    ( $code, $page, $err ) = render( admin( $deck_query->() ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'the deck renders for an editor' ) or return diag($err);
+    my @editor_srcs = $page =~ m{<script\b[^>]*\bsrc="([^"]+)"}g;
+    my ($editor_names) = ( $editor_srcs[0] // '' ) =~ m{/([^/]+)[.]js\z};
+    ($bcode) = render( anon( route => $editor_srcs[0], version => 'x', names => $editor_names ), \&Trog::Routes::HTML::bundle );
+    is( $bcode, 200, 'and its bundle is served too' );
+
+    ( $code, $page, $err ) = render( anon( $deck_query->( query => 'scripts', scripts => 'nothere.js' ) ), \&Trog::Routes::HTML::posts );
+    is( $code, 200, 'a request that names scripts of its own still renders' ) or return diag($err);
+    like( $page, qr{src="/bundle/\w+/$viewing[.]js"}, 'with the scripts of the route' );
 };
 
 subtest 'invoice' => sub {
@@ -1569,7 +1643,7 @@ subtest 'saves report back through the jsalert banner' => sub {
     # form was accidentally safe here; a cookie is not.
     my $tpsgi = Test::TPSGI->new( run_callbacks => 1 );
     render( anon( route => '/specblog', cookies => $feedback, tpsgi => $tpsgi ), \&Trog::Routes::HTML::series );
-    is_deeply( [ keys %{ $tpsgi->{renders} } ], [], 'and it is never saved as a static' );
+    is_deeply( pages_saved($tpsgi), [], 'and it is never saved as a static' );
 };
 
 subtest 'a hidden id that was never filled in' => sub {
