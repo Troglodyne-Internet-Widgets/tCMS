@@ -3399,6 +3399,12 @@ The body of a bundle is the same at a given href, so the browser keeps it.  An
 href with an old version is redirected to the current one, so a page that was
 cached before a script changed still gets its scripts.
 
+It serves only a list that a route declared, and is a 404 for any other list,
+even one of real scripts.  TCMS::build_routes() declares the C<scripts> and
+C<authenticated_scripts> of every route at startup, and finish_render() declares
+the list of each page that it links.  Both take the lists from the routing
+table, so a URL cannot name a list for this route to build.
+
 =cut
 
 sub bundle ($query) {
