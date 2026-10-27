@@ -5,6 +5,7 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Trog::Component ();
+use Trog::Themes    ();
 
 =head1 Trog::Component::Header
 
@@ -30,6 +31,10 @@ It takes these arguments, all optional, and dies on any other:
     theme_dir                             as Trog::Component::render_template()
                                           gives it, when it is not passed
 
+The template also gets icons, the URL path of each favicon by its file name,
+from the theme where it has that icon and from the stock ones where it does
+not.
+
 The list arguments default to empty rather than to the stock sheets, so that a
 caller which has none -- rss_style(), notably -- gets a header with none, as it
 did when the route rendered this itself.
@@ -49,6 +54,8 @@ sub render (%args) {
     $args{stylesheets}  //= [];
     $args{print_styles} //= [];
     $args{scripts}      //= [];
+
+    $args{icons} = { map { $_ => Trog::Themes::url_path( Trog::Themes::themed("img/icon/$_") ) } qw{favicon.svg favicon-167.png favicon-180.png favicon-48.png favicon-192.png} };
 
     return Trog::Component::render_template( 'header.tx', \%args );
 }

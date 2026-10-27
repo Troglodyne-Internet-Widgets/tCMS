@@ -37,7 +37,6 @@ sub render (%args) {
 
     die "No such footer '$name'\n" unless List::Util::any { $_ eq $name } @{ available() };
 
-    $args{theme_dir} //= Trog::Themes::td();
     return Trog::Component::render_template( "footers/$name", \%args );
 }
 

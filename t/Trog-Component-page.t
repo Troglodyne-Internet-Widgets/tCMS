@@ -4,7 +4,8 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use Test::Fatal qw{exception};
+use Test::Fatal      qw{exception};
+use Test::MockModule qw{strict};
 use FindBin;
 
 use FindBin::libs;
@@ -84,6 +85,21 @@ subtest 'Header' => sub {
     # header.tx marks meta_tags raw, so social markup has to survive as markup.
     my $social = Trog::Component::component( 'Header', { meta_tags => '<meta name="twitter:card" />' } );
     like( $social, qr{<meta[ ]name="twitter:card"[ ]/>}, "meta_tags stay markup" );
+};
+
+subtest 'Header links each icon from the theme or the stock icons' => sub {
+    my $themes = Test::MockModule->new('Trog::Themes');
+    $themes->redefine( get_dir => sub { '' } );
+
+    my $stock = Trog::Component::component('Header');
+    like( $stock, qr{href="/img/icon/favicon[.]svg"}, "with no theme, the stock icon is linked from the root of the site" );
+    unlike( $stock, qr{href="(?!/)[^"]*favicon}, "and no icon has a relative link, which would break below the top level" );
+
+    my $original = Trog::Themes->can('themed');
+    $themes->redefine( themed => sub ($resource) { $resource eq 'img/icon/favicon.svg' ? "www/themes/spec/$resource" : $original->($resource) } );
+    my $themed = Trog::Component::component('Header');
+    like( $themed, qr{href="/themes/spec/img/icon/favicon\.svg"}, "an icon that the theme has is linked from the theme" );
+    like( $themed, qr{href="/img/icon/favicon-48\.png"},          "and one that it has not is linked from the stock icons" );
 };
 
 subtest 'CategoryBar' => sub {

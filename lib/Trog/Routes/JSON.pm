@@ -105,17 +105,9 @@ sub catalog {
 }
 
 sub webmanifest {
-    state $headers = { ETag => 'manifest-' . _version() };
-    my $theme_dir = Trog::Themes::get_dir();
+    state $headers  = { ETag => 'manifest-' . _version() };
     state %manifest = (
-        "icons" => [
-            { "src" => "$theme_dir/img/icon/favicon-32.png",  "type" => "image/png", "sizes" => "32x32" },
-            { "src" => "$theme_dir/img/icon/favicon-48.png",  "type" => "image/png", "sizes" => "48x48" },
-            { "src" => "$theme_dir/img/icon/favicon-167.png", "type" => "image/png", "sizes" => "167x167" },
-            { "src" => "$theme_dir/img/icon/favicon-180.png", "type" => "image/png", "sizes" => "180x180" },
-            { "src" => "$theme_dir/img/icon/favicon-192.png", "type" => "image/png", "sizes" => "192x192" },
-            { "src" => "$theme_dir/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
-        ],
+        "icons" => [ map { +{ "src" => Trog::Themes::url_path( Trog::Themes::themed("img/icon/favicon-$_.png") ), "type" => "image/png", "sizes" => "${_}x$_" } } qw{32 48 167 180 192 512} ],
     );
     return _render( 200, $headers, %manifest );
 }

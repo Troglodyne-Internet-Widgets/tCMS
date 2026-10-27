@@ -137,10 +137,8 @@ sub component ( $name, $args = {} ) {
 Render a component template and hand back the body, for the many components
 whose whole job is exactly that.
 
-The template gets theme_dir as well as $data, unless $data gives it a value: the
-active theme's directory as a path under the site root, such as
-C<themes/mytheme>, for building asset links.  It is empty when there is no
-theme.
+The template gets theme_dir as well as $data, unless $data gives it a value:
+Trog::Themes::td(), for building asset links.
 
 Dies naming the template if the render fails, rather than answering with the
 PSGI triplet Trog::Renderer::render() produces on failure.
@@ -154,9 +152,8 @@ sub render_template ( $template, $data = {} ) {
     # would close the cycle.  By the time anyone calls this it is already loaded.
     require Trog::Renderer;
 
-    # td() is rooted at /www, which is not in the URL space.
     my %data = %$data;
-    $data{theme_dir} //= Trog::Themes::td() =~ s{\A/www/}{}r;
+    $data{theme_dir} //= Trog::Themes::td();
 
     my $out = Trog::Renderer->render(
         contenttype => 'text/html',

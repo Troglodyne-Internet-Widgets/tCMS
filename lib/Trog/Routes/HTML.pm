@@ -574,7 +574,7 @@ my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUse
     $card_type = 'featured_image' if $query->{primary_post} && $query->{primary_post}{is_image};
     $card_type = 'player'         if $query->{primary_post} && $query->{primary_post}{is_video};
 
-    my $image = $Theme::default_image ? "https://$query->{domain}/" . Trog::Themes::get_dir() . "/$Theme::default_image" : '';
+    my $image = $Theme::default_image ? "https://$query->{domain}" . Trog::Themes::url_path( Trog::Themes::themed($Theme::default_image) ) : '';
     $image = absolute_url( $query->{domain}, $query->{primary_post}{preview} ) if $query->{primary_post} && $query->{primary_post}{preview};
     $image = absolute_url( $query->{domain}, $query->{primary_post}{href} )    if $query->{primary_post} && $query->{primary_post}{is_image};
 
@@ -664,7 +664,6 @@ sub index ( $query, $content = '', $i_styles = [] ) {
 
     #Do embed content
     my $tmpl = $embed ? 'embed.tx' : 'index.tx';
-    $query->{theme_dir} =~ s/^\/www\///;
 
     # Grab the avatar class for the logged in user
     if ( $query->{user} ) {
@@ -3719,7 +3718,7 @@ steps, essentially, so that themes can replace individual icons.
 
 sub icon ($query) {
     my $path  = $query->{route};
-    my $tpath = Trog::Themes::themed("img/icon/$path");
+    my $tpath = Trog::Themes::themed( 'img/icon' . $path );
     return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate} );
 }
 
@@ -3850,7 +3849,6 @@ sub finish_render ( $template, $vars, %headers ) {
     $vars->{cachecontrol} //= $Trog::Vars::cache_control{revalidate};
 
     $vars->{code} ||= 200;
-    $vars->{theme_dir} =~ s/^\/www\/// if $vars->{theme_dir};
 
     # %headers was accepted and then ignored, which nothing noticed because
     # nothing passed any.  index() passes one now, to expire the feedback cookie

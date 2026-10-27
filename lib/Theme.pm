@@ -27,8 +27,8 @@ Fallback <title> for pages which have no post of their own to name them.
 
 =item $default_image
 
-The image handed to social media scrapers as the site's preview, relative to
-the theme directory.
+The image handed to social media scrapers as the site's preview, as a path
+relative to www/.  The theme's copy wins when it has one.
 
 =item $display_name
 

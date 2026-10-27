@@ -195,15 +195,15 @@ subtest 'render_template' => sub {
     $renderer->redefine( render => sub ( $class, %args ) { %seen = %{ $args{data} }; return 'rendered' } );
     my $themes = Test::MockModule->new('Trog::Themes');
 
-    $themes->redefine( td => sub { '/www/themes/bogus' } );
+    $themes->redefine( td => sub { '/themes/bogus' } );
     is( Trog::Component::render_template( 'bogus.tx', { title => 'x' } ), 'rendered', "the body of the render comes back" );
-    is_deeply( \%seen, { title => 'x', theme_dir => 'themes/bogus' }, "a template that is passed no theme_dir gets the path of the theme under the site root" );
+    is_deeply( \%seen, { title => 'x', theme_dir => '/themes/bogus' }, "a template that is passed no theme_dir gets the URL path of the theme" );
 
     Trog::Component::render_template( 'bogus.tx', { theme_dir => undef } );
-    is( $seen{theme_dir}, 'themes/bogus', "an undefined theme_dir is filled in, as the Header component passes one" );
+    is( $seen{theme_dir}, '/themes/bogus', "an undefined theme_dir is filled in, as the Header component passes one" );
 
-    Trog::Component::render_template( 'bogus.tx', { theme_dir => 'themes/other' } );
-    is( $seen{theme_dir}, 'themes/other', "a theme_dir that the caller passes wins" );
+    Trog::Component::render_template( 'bogus.tx', { theme_dir => '/themes/other' } );
+    is( $seen{theme_dir}, '/themes/other', "a theme_dir that the caller passes wins" );
 
     $themes->redefine( td => sub { '' } );
     Trog::Component::render_template('bogus.tx');
