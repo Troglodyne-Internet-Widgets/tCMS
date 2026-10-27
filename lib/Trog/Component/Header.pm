@@ -5,7 +5,6 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Trog::Component ();
-use Trog::Themes;
 
 =head1 Trog::Component::Header
 
@@ -28,13 +27,12 @@ It takes these arguments, all optional, and dies on any other:
                                           stylesheet, which is XSL rather than HTML
     title_select                          in place of title, the XPath of the
                                           title, for that same stylesheet
+    theme_dir                             as Trog::Component::render_template()
+                                          gives it, when it is not passed
 
 The list arguments default to empty rather than to the stock sheets, so that a
 caller which has none -- rss_style(), notably -- gets a header with none, as it
 did when the route rendered this itself.
-
-theme_dir is worked out here when it is not passed, as it is the same for every
-page and the template only wants it to build asset paths.
 
 =cut
 
@@ -51,12 +49,6 @@ sub render (%args) {
     $args{stylesheets}  //= [];
     $args{print_styles} //= [];
     $args{scripts}      //= [];
-
-    # td() answers a rooted URL path, which for a themed site starts /www/ --
-    # the template builds hrefs with it, and /www is not in the URL space.
-    my $theme_dir = Trog::Themes::td();
-    $theme_dir =~ s|^/www/||;
-    $args{theme_dir} //= $theme_dir;
 
     return Trog::Component::render_template( 'header.tx', \%args );
 }
