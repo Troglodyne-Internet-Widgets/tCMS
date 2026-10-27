@@ -345,6 +345,11 @@ sub generic_route ( $rname, $code, $title, $query ) {
     $query->{route} //= $rname;
     $query->{title}    = $title;
     $query->{template} = "$rname.tx";
+
+    # What the error pages read: 404.tx the path that was not found, and
+    # 500.tx the message that tPSGI sets when a route dies.
+    $query->{path} = $query->{fullpath} // $query->{route};
+    $query->{message} //= undef;
     return Trog::Routes::HTML::index($query);
 }
 

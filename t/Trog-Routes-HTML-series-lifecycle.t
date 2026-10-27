@@ -1718,6 +1718,15 @@ subtest 'the sitemap page' => sub {
     is( $code, 200, 'renders' ) or diag($err);
 };
 
+subtest 'the error pages' => sub {
+    require TCMS;
+    foreach my $code (qw{400 403 404 405 415 419 500 503}) {
+        my ( $got, $body, $err ) = render( anon( route => '/nowhere' ), sub ($query) { TCMS::generic_route( "/$code", $code, 'Some Error', $query ) } );
+        is( $got, $code, "the page for a $code renders" ) or diag($err);
+        like( $body, qr{No[ ]such[ ]resource[ ]/nowhere}, 'and names the path that is not there' ) if $code == 404;
+    }
+};
+
 subtest 'the tpsgi side effects stayed inert' => sub {
     cmp_ok( $TPSGI->{restarts},  '>', 0, 'post_save did try to signal a restart' );
     cmp_ok( $TPSGI->{callbacks}, '>', 0, 'and did queue post-close callbacks' );
