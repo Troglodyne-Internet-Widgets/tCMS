@@ -75,6 +75,12 @@ subtest 'Header' => sub {
     # It also has no stylesheets or scripts to give, and must not invent any.
     unlike( $xsl, qr/rel="stylesheet"[ ]type="text\/css"[ ]href="\/styles\/screen/, "no stylesheets are conjured up" );
 
+    like(
+        exception { Trog::Component::component( 'Header', { bogus => 1 } ) },
+        qr/takes[ ]no[ ]argument[ ]named[ ]bogus/,
+        "an argument it does not take is fatal"
+    );
+
     # header.tx marks meta_tags raw, so social markup has to survive as markup.
     my $social = Trog::Component::component( 'Header', { meta_tags => '<meta name="twitter:card" />' } );
     like( $social, qr{<meta[ ]name="twitter:card"[ ]/>}, "meta_tags stay markup" );
@@ -142,6 +148,7 @@ subtest 'the whole page still composes' => sub {
                 stylesheets  => ['/styles/screen.css'],
                 print_styles => [],
                 scripts      => [],
+                ( map { $_ => undef } qw{author default_tags embed failure is_admin lang message meta_desc meta_tags search_help search_lang show_madeby to user user_class} ),
             },
         );
     };

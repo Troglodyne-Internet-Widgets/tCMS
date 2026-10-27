@@ -1,4 +1,8 @@
-: include 'components/header.tx';
+<: component('Header', {
+    title       => $title,
+    route       => $route,
+    stylesheets => $stylesheets,
+}) :>
 <nav>
     <strong>tCMS Initial Setup</strong>
 </nav>
@@ -20,4 +24,4 @@
         Please <a href="/login?to=/config" alt="Login">Log In</a> and Configure tCMS.
     </p>
 </section>
-: include 'components/footer.tx';
+<: component('Footer') :>

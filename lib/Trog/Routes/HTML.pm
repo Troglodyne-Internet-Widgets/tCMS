@@ -626,6 +626,9 @@ sub index ( $query, $content = '', $i_styles = [] ) {
         $tmpl,
         {
             %$query,
+
+            # What index.tx and embed.tx read that a route may leave unset.
+            ( map { $_ => $query->{$_} } qw{author is_admin failure message to user user_class nochrome route} ),
             search_lang  => $search_lang,
             search_help  => $search_help,
             theme_dir    => Trog::Themes::td(),
@@ -665,9 +668,9 @@ sub setup ($query) {
     return Trog::Renderer->render(
         template => 'notconfigured.tx',
         data     => {
+            %$query,
             title       => 'tCMS Requires Setup to Continue...',
             stylesheets => build_themed_styles( ['notconfigured.css'] ),
-            %$query,
         },
         contenttype => 'text/html',
         code        => 200,
@@ -849,15 +852,14 @@ sub login ($query) {
     return Trog::Renderer->render(
         template => 'login.tx',
         data     => {
+            %$query,
             title       => 'tCMS 2 ~ Login',
             to          => $query->{to},
             failure     => int( $query->{failed} ),
             message     => int( $query->{failed} ) < 1 ? "Login Successful, Redirecting..." : "Login Failed.",
             btnmsg      => $btnmsg,
             stylesheets => build_themed_styles( [qw{structure.css screen.css login.css}] ),
-            theme_dir   => Trog::Themes::td(),
             has_users   => $hasusers,
-            %$query,
         },
         headers     => $headers,
         contenttype => 'text/html',
@@ -1930,6 +1932,7 @@ sub posts ( $query, $direct = 0 ) {
         template => 'posts.tx',
         data     => {
             acls              => \@acls,
+            app               => undef,
             can_edit          => $is_admin,
             forms             => $forms,
             post              => { tags => $tags, extra_tags => \@et, form => $edittype, visibility => $user_visibility, addpost => 1 },
@@ -2460,6 +2463,7 @@ sub sitemap ($query) {
     $query->{to_map}     = \@to_map;
     $query->{is_index}   = $is_index;
     $query->{route_type} = $route_type;
+    $query->{warning}    = $warning;
     $query->{etag}       = $etag;
 
     return Trog::Routes::HTML::index( $query, undef, $styles );
@@ -3709,14 +3713,11 @@ without a doctype.
 =cut
 
 sub rss_style ($query) {
-    $query->{port}         = ":$query->{port}" if $query->{port};
-    $query->{title_select} = 'rss/channel/title';
-    $query->{no_doctype}   = 1;
-
+    $query->{port} = ":$query->{port}" if $query->{port};
     return Trog::Renderer->render(
         template    => 'rss-style.tx',
         contenttype => 'text/xsl',
-        data        => $query,
+        data        => { %$query, title_select => 'rss/channel/title', lang => $query->{lang} },
         code        => 200,
     );
 }

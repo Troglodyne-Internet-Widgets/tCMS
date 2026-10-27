@@ -1713,6 +1713,11 @@ subtest 'the topbar did not silently overflow' => sub {
     cmp_ok( scalar @titles, '<=', 10, 'and we are not at the _get_series limit' );
 };
 
+subtest 'the sitemap page' => sub {
+    my ( $code, undef, $err ) = render( anon( route => '/sitemap' ), \&Trog::Routes::HTML::sitemap );
+    is( $code, 200, 'renders' ) or diag($err);
+};
+
 subtest 'the tpsgi side effects stayed inert' => sub {
     cmp_ok( $TPSGI->{restarts},  '>', 0, 'post_save did try to signal a restart' );
     cmp_ok( $TPSGI->{callbacks}, '>', 0, 'and did queue post-close callbacks' );

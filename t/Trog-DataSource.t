@@ -470,7 +470,7 @@ subtest 'the paginator renders page links for a datasource' => sub {
             template    => 'paginator.tx',
             contenttype => 'text/html',
             component   => 1,
-            data        => { limit => 25, sizes => [ 25, 50, 100 ], years => [2024], months => [ 0 .. 11 ], older => 0, newer => 0, %vars },
+            data        => { limit => 25, sizes => [ 25, 50, 100 ], years => [2024], months => [ 0 .. 11 ], older => 0, newer => 0, embed => undef, like => undef, pages => undef, paginate_offset => undef, page => undef, pages_total => undef, %vars },
         );
     };
 

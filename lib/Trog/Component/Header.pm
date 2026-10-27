@@ -18,7 +18,7 @@ and icon metadata, and the stylesheet and script links.
 
 Render header.tx.
 
-Recognized arguments, all optional:
+It takes these arguments, all optional, and dies on any other:
 
     title / route / lang / author         the page itself
     meta_desc / meta_tags / default_tags  social metadata, built by the route
@@ -33,12 +33,19 @@ The list arguments default to empty rather than to the stock sheets, so that a
 caller which has none -- rss_style(), notably -- gets a header with none, as it
 did when the route rendered this itself.
 
-theme_dir is worked out here rather than passed, as it is the same for every
+theme_dir is worked out here when it is not passed, as it is the same for every
 page and the template only wants it to build asset paths.
 
 =cut
 
+my @arguments = qw{title route lang author meta_desc meta_tags default_tags stylesheets print_styles scripts embed no_doctype title_select theme_dir};
+my %known     = map { $_ => 1 } @arguments;
+
 sub render (%args) {
+    my @unknown = grep { !$known{$_} } sort keys(%args);
+    die "The Header component takes no argument named @unknown\n" if @unknown;
+    $args{$_} //= undef for @arguments;
+
     $args{lang}         //= 'en-US';
     $args{title}        //= 'tCMS';
     $args{stylesheets}  //= [];

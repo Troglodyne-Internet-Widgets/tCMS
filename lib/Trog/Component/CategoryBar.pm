@@ -23,6 +23,7 @@ decides whether the links point at /secure.
 
 sub render (%args) {
     $args{categories} //= [];
+    $args{user}       //= undef;
     return Trog::Component::render_template( 'categories.tx', \%args );
 }
 

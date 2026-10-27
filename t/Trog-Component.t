@@ -202,6 +202,7 @@ subtest 'through the real renderer' => sub {
                 failure  => -1,
                 posts    => [],
                 forms    => [],
+                ( map { $_ => undef } qw{acls app category embed footers headers in_series like limit message months newer nochrome older page pages pages_total paginate_offset post post_visibilities primary_post route rss sizes style subhead tiled to years} ),
             },
         );
     };
