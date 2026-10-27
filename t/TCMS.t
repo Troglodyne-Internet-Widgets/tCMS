@@ -242,6 +242,18 @@ subtest 'the scripts of a route' => sub {
     ok( $declared{'main+chart.min'},                                    'and the bundle of every other route' );
     ok( $declared{'main'},                                              'and a route that names no script has main.js alone' );
     ok( !$declared{'main+reveal.min+highlight.min'},                    'but no other list' );
+
+    local @Theme::scripts = qw{theme.js};
+    my $themed = { TCMS::build_routes() }->{paths};
+    is_deeply( $themed->{'/login'}{get}{'x-tcms-scripts'},                     [qw{theme.js}],                                "a theme's scripts go on a route that names none" );
+    is_deeply( $themed->{'/metrics'}{get}{'x-tcms-scripts'},                   [qw{theme.js chart.min.js}],                   "and before the scripts of a route that names its own" );
+    is_deeply( $themed->{'/posts/p-one'}{get}{'x-tcms-scripts'},               [qw{theme.js highlight.min.js reveal.min.js}], "and before the scripts of a post page" );
+    is_deeply( $themed->{'/secure/posts/p-one'}{get}{'x-tcms-scripts'},        [qw{theme.js highlight.min.js reveal.min.js}], "once, on a /secure copy that shares the route of its post" );
+    is_deeply( $themed->{'/posts/p-one'}{get}{'x-tcms-authenticated_scripts'}, [qw{post.js post_relations.js}],               "and not among the scripts for a reader who is logged in, who gets both lists" );
+    ok( $Trog::Bundle::declared{'main+theme+chart.min'}, 'the bundle of a themed route is declared' );
+
+    @Theme::scripts = ();
+    is_deeply( { TCMS::build_routes() }->{paths}{'/metrics'}{get}{'x-tcms-scripts'}, ['chart.min.js'], "and building the routes again does not keep the theme's scripts of the last build" );
 };
 
 subtest 'validation' => sub {

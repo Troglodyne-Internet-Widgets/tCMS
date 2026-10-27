@@ -427,8 +427,9 @@ file for `X.html`. The page is the same, so this is expected and needs no fix.
 
 A script resolves as a template does. A route names the scripts of its page in
 its definition: `scripts` for every reader, and `authenticated_scripts` for a
-reader who is logged in as well. A template does not write a `<script src>` tag
-of its own. The route of a post gets the scripts of a post page, from
+reader who is logged in as well. A theme names the scripts of every page in
+`@Theme::scripts`, which go before those of the route. A template does not
+write a `<script src>` tag of its own. The route of a post gets the scripts of a post page, from
 `%Trog::Routes::HTML::post_page_scripts`. `finish_render` links the lists as one
 bundle, which `Trog::Bundle` builds and `/bundle/{version}/{names}.js` serves.
 That route serves only a list that a route declares, so a request cannot make

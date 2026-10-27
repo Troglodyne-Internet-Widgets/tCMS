@@ -130,6 +130,7 @@ C<secure>, C<nocache>, C<noindex>, C<nomap>, C<robot_name> and C<totp_exempt> be
 x-tcms-auth and so on, which the callback finds in C<< $query->{dispatcher} >>.
 C<parameters> are OpenAPI parameter objects, and each variable of a template
 that they leave out is a required string.  A route with no method is a GET.
+Every route links the scripts of @Theme::scripts before its own C<scripts>.
 
 If C<general.secure_host> names a host (see secure_host() in
 Trog::Routes::HTML), a route with C<secure> or C<auth> answers only on that
@@ -167,6 +168,13 @@ sub build_routes {
     my $conf   = Trog::Config::get();
     my $data   = Trog::Data->new($conf);
     my %routes = %{ _routes($data) };
+
+    # The theme's scripts go on every page, before the page's own.  A copy of
+    # each route, since a route and its /secure copy share one hash.
+    my @theme_scripts = do { no warnings 'once'; @Theme::scripts };
+    if (@theme_scripts) {
+        $routes{$_} = { %{ $routes{$_} }, scripts => [ @theme_scripts, @{ $routes{$_}{scripts} // [] } ] } for keys(%routes);
+    }
 
     my $default_route = $routes{default}{callback};
 
