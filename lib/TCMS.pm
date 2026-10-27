@@ -248,8 +248,9 @@ sub build_routes {
             # Some routes may just need to do serve()
             $query->{tpsgi} = $tpsgi;
 
-            # Redirecting somewhere naughty not allow
-            $query->{to} = URI->new( $query->{to} // '' )->path() || $query->{to} if $query->{to};
+            # Only ever a path on this site, so that no link can send a visitor to
+            # another one.  One slash, because a browser reads two as a host.
+            $query->{to} = ( URI->new( $query->{to} )->path() || '/' ) =~ s{\A/+}{/}r if $query->{to};
 
             # Now that we have firmed up the actual routing, let's validate.
             return $tpsgi->forbidden($query) if exists $query->{dispatcher}{'x-tcms-auth'} && !$active_user;

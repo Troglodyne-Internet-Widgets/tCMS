@@ -63,7 +63,9 @@ $index->redefine(
 require_ok('Trog::Routes::HTML') or BAIL_OUT("Can't load the routes");
 my $html = Test::MockModule->new('Trog::Routes::HTML');
 my $posted;
-$html->redefine( posts => sub ($query) { $posted = $query; return [ 200, [], ['the post'] ] } );
+
+# It answers with where the request would be sent on, when it says.
+$html->redefine( posts => sub ($query) { $posted = $query; return [ 200, [], [ exists $query->{to} ? $query->{to} : 'the post' ] ] } );
 
 require_ok('TCMS') or BAIL_OUT("Can't load the dispatcher");
 
@@ -208,6 +210,18 @@ subtest 'a secure host' => sub {
     $public_host = $secure_host;
     $res         = $ask->(qw{GET /posts/p-one secure.test.test});
     is_deeply( $res->[2], ['the post'], 'a general.hostname that is the secure host sends nothing anywhere' );
+};
+
+subtest 'where a redirect may send you' => sub {
+    my $operation = $paths->{'/posts/p-one'}{get};
+    my $to        = sub ($to) {
+        return $operation->{'x-tpsgi-callback'}->( { log_dir => "$ROOT/logs", verbose => 0 }, { route => '/posts/p-one', dispatcher => $operation, to => $to } )->[2][0];
+    };
+    is( $to->('/config'),              '/config',     'a path on this site is kept' );
+    is( $to->('https://bogus.test/x'), '/x',          'the path of another site is all that is kept of it' );
+    is( $to->('https://bogus.test'),   '/',           'and another site with no path is the root, not the other site' );
+    is( $to->('//bogus.test'),         '/',           'even without a scheme' );
+    is( $to->('////bogus.test'),       '/bogus.test', 'and a path that starts with two slashes, which names a site, starts with one' );
 };
 
 subtest 'the scripts of a route' => sub {
