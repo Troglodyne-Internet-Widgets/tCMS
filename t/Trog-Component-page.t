@@ -148,7 +148,7 @@ subtest 'the whole page still composes' => sub {
                 stylesheets  => ['/styles/screen.css'],
                 print_styles => [],
                 scripts      => [],
-                ( map { $_ => undef } qw{author default_tags embed failure is_admin lang message meta_desc meta_tags search_help search_lang show_madeby to user user_class} ),
+                ( map { $_ => undef } qw{author default_tags embed failure is_admin lang message meta_desc meta_tags search_help search_lang search_route show_madeby to user user_class} ),
             },
         );
     };

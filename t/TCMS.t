@@ -266,6 +266,8 @@ subtest 'what a route takes from the request' => sub {
         'a page of posts takes its paging, search, feed and embed, and a campaign'
     );
     is_deeply( $names->( $paths->{'/humans.txt'}{get} ), $names->( $paths->{'/posts/p-one'}{get} ), 'and so does a route of posts that fixes its tag' );
+    is_deeply( $names->( $paths->{'/search'}{get} ),     $names->( $paths->{'/posts/p-one'}{get} ), 'and so does the search, which is a page of posts' );
+    is_deeply( $names->( $paths->{'/totp'}{get} ),       \@urchin,                                  'and a page that is not one takes no search' );
     ok( !( grep { $_ eq 'map' } @{ $names->( $paths->{'/sitemap/{map}.xml'}{get} ) } ), 'a name the path holds is not one of the query too' );
     is_deeply( $names->( $paths->{'/sitemap/{map}.xml'}{get}, 'path' ), ['map'], 'but of the path' );
     ok( !( grep { $_ eq 'title' || $_ eq 'scripts' || $_ eq 'template' } @{ $names->( $paths->{'/login'}{get} ) } ), 'the login page takes none of the names its page is made of' );

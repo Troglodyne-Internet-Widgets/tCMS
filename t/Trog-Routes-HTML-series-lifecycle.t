@@ -1140,6 +1140,22 @@ subtest 'blog' => sub {
     unlike( $body, qr/Spec[ ]Payee[ ]Entity/, 'no bleed from the entities series' );
 };
 
+subtest 'search' => sub {
+    my ( $code, $body, $err ) = render( anon( route => '/search', like => 'Spec blog body' ), \&Trog::Routes::HTML::search );
+    is( $code, 200, 'a search renders' ) or return diag($err);
+    like( $body, qr/Spec[ ]Blog[ ]Child/, 'with the post whose body holds what was searched for' );
+    unlike( $body, qr/Spec[ ]Payee[ ]Entity/, 'and not one whose does not' );
+    like( $body, qr{<form[ ]action="/search"}, 'and its own search box searches again' );
+
+    ( $code, $body, $err ) = render( anon( route => '/search', like => 'bogus-nothing-matches-this' ), \&Trog::Routes::HTML::search );
+    is( $code, 200, 'a search that finds nothing is a page that says so, not a 404' ) or diag($err);
+
+    ( $code, $body ) = render( anon( route => '/specblog' ), \&Trog::Routes::HTML::series );
+    like( $body, qr{<form[ ]action="/specblog"}, 'the search box of a page of posts searches that page' );
+    ( $code, $body ) = render( anon( route => '/processed' ), \&Trog::Routes::HTML::processed );
+    like( $body, qr{<form[ ]action="/search"}, 'and the search box of any other page sends its search to /search' );
+};
+
 subtest 'a post that embeds another' => sub {
     my $embedded = find_post('Spec Blog Child') or return fail('the blog child is there to embed');
     my $host     = save_post(

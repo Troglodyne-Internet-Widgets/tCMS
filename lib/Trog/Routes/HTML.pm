@@ -327,11 +327,16 @@ our %routes = (
         method   => 'GET',
         callback => \&Trog::Routes::HTML::bundle,
     },
+    '/search' => {
+        method   => 'GET',
+        callback => \&Trog::Routes::HTML::search,
+        noindex  => 1,
+    },
 );
 
 # The scripts of a page of posts.  TCMS::_routes gives them to each route whose
 # callback is one of these, unless the route names scripts of its own.
-our @post_page_callbacks = map { "Trog::Routes::HTML::$_" } qw{posts series users};
+our @post_page_callbacks = map { "Trog::Routes::HTML::$_" } qw{posts series users search};
 our %post_page_scripts   = (
     scripts               => [qw{highlight.min.js reveal.min.js}],
     authenticated_scripts => [qw{post.js post_relations.js}],
@@ -353,14 +358,11 @@ my %text   = ( type => 'string' );
 my %number = ( type => 'integer' );
 my %texts  = ( type => 'array', items => { type => 'string' } );
 
-# The search box of every page sends like to the page it is on.
-my %search = ( like => \%text );
-
-# A page of posts: its pagination, the jump to a month, which sends the year
-# and month as well as the older it makes of them, a version of a post, RSS,
-# and an embed.
+# A page of posts: its search, its pagination, the jump to a month, which
+# sends the year and month as well as the older it makes of them, a version of
+# a post, RSS, and an embed.
 my %page = (
-    %search,
+    like => \%text,
     ( map { $_ => \%number } qw{page limit version} ),
     ( map { $_ => \%text } qw{older newer format embed nochrome year month} ),
 );
@@ -370,9 +372,8 @@ my sub fields (@names) {
 }
 
 our %inputs = (
-    ( map { ( "Trog::Routes::HTML::$_" => { query => \%page } ) } qw{posts series users} ),
-    ( map { ( "Trog::Routes::HTML::$_" => { query => \%search } ) } qw{index logout totp secrets config resetpass processed manual post_wizard sitemap} ),
-    'Trog::Routes::HTML::login'          => { query => { %search, to => \%text }, body => fields(qw{app to username password token display_name contact_email}) },
+    ( map { ( "Trog::Routes::HTML::$_" => { query => \%page } ) } qw{posts series users search} ),
+    'Trog::Routes::HTML::login'          => { query => { to => \%text }, body => fields(qw{app to username password token display_name contact_email}) },
     'Trog::Routes::HTML::secrets_save'   => { body  => fields(qw{name secret}) },
     'Trog::Routes::HTML::secrets_forget' => { body  => fields(qw{name}) },
     'Trog::Routes::HTML::post_save'      => { body  => { to => \%text, tags => \%texts },                           open => 1 },
@@ -394,11 +395,11 @@ our %inputs = (
     # The page hands its query to /api/requests_per, so it takes what that does.
     'Trog::Routes::HTML::metrics' => {
         query => sub {
-            return { %search, map { $_->{name} => $_->{schema} } @{ $Trog::Routes::JSON::routes{'/api/requests_per'}{parameters} } };
+            return { map { $_->{name} => $_->{schema} } @{ $Trog::Routes::JSON::routes{'/api/requests_per'}{parameters} } };
         }
     },
-    'Trog::Routes::HTML::sessions'          => { query => { %search, limit => \%number, filter_user => \%text, filter_event => \%text } },
-    'Trog::Routes::HTML::jobs'              => { query => { %search, limit => \%number } },
+    'Trog::Routes::HTML::sessions'          => { query => { limit => \%number, filter_user => \%text, filter_event => \%text } },
+    'Trog::Routes::HTML::jobs'              => { query => { limit => \%number } },
     'Trog::Routes::HTML::jobs_retry'        => { body  => fields(qw{id}) },
     'Trog::Routes::HTML::guest_act'         => { body  => fields(qw{action guest hypervisor to}) },
     'Trog::Routes::HTML::guest_reprovision' => { body  => fields(qw{guest passphrase sudo totp remember to}) },
@@ -690,6 +691,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             nochrome     => $in->{nochrome},
             search_lang  => $search_lang,
             search_help  => $search_help,
+            search_route => $query->{search_route} // '/search',
             theme_dir    => Trog::Themes::td(),
             content      => $content,
             title        => $title,
@@ -1803,6 +1805,22 @@ my sub _rss ( $query, $subtitle, $posts ) {    ## no critic (ProhibitSingleUseLe
     );
 }
 
+=head2 search
+
+Implements /search, which the search box of a page that is not a page of
+posts sends its search to: every post that the reader can see whose title or
+body holds like.
+
+=cut
+
+sub search ($query) {
+    $query->{title} = 'Search';
+
+    # Finding nothing is an answer, not a page that is not there.
+    $query->{may_be_empty} = 1;
+    return posts($query);
+}
+
 =head2 posts
 
 Display multi or single posts, supports RSS and pagination.
@@ -1876,7 +1894,7 @@ sub posts ( $query, $direct = 0 ) {
         unshift @posts, $user;
     }
 
-    if ( !$is_admin ) {
+    if ( !$is_admin && !$query->{may_be_empty} ) {
         return $query->{tpsgi}->notfound($query) unless @posts;
     }
 
@@ -1885,6 +1903,10 @@ sub posts ( $query, $direct = 0 ) {
 
     #Correct page headers
     my $ph = ( $themed && $Theme::paths{ $query->{route} } ) || $query->{route};
+
+    # A page of posts searches itself, and every other page sends its search to
+    # /search.  A datasource answers the search of its own page.
+    $query->{search_route} = $query->{route};
 
     return _rss( $query, $ph, \@posts ) if $fmt eq 'rss';
 
