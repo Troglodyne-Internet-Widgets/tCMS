@@ -53,7 +53,7 @@ my sub yeet ( $renderer, $error, %options ) {
         $msg .= " and subsequently during render of error template, $@" if $renderer;
 
         #XXX bytes is probably not correct here
-        INFO( "$options{data}{method} 500 " . length($msg) . " $options{data}{route}" );
+        INFO( ( $options{data}{method} // '?' ) . ' 500 ' . length($msg) . ' ' . ( $options{data}{route} // '?' ) );
         FATAL($msg);
     };
     return $ret;
