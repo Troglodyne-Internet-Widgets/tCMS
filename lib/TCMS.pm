@@ -34,6 +34,11 @@ use Trog::Data;
 use Trog::Themes;
 use Trog::Bundle;
 
+# The data of a route names its callback, and the code of a route holds a reference to it.
+my sub _callback_name ($callback) {
+    return ref $callback ? Sub::Util::subname($callback) : $callback // '';
+}
+
 #XXX Return a clone of the routing table ref, because code modifies it later
 my sub _routes ( $data = {} ) {
     state %routes;
@@ -51,6 +56,12 @@ my sub _routes ( $data = {} ) {
         WARN("Not routing $href: a path with a brace in it cannot be a route");
         delete $roots{$href};
     }
+
+    # One template routes every post at the href that a post gets by default,
+    # because tPSGI checks a route at a time, and a site has thousands of posts.
+    my @posts = grep { m{\A/posts/[^/]+\z} && _callback_name( $roots{$_}{callback} ) eq 'Trog::Routes::HTML::posts' } keys(%roots);
+    delete @roots{@posts};
+    $roots{'/posts/{id}'} = { method => 'GET', callback => 'Trog::Routes::HTML::posts' };
 
     # Setup the /secure/... versions for logged in users, except for already secured routes.
     foreach my $route ( keys(%roots) ) {
@@ -72,8 +83,7 @@ my sub _routes ( $data = {} ) {
 
     # A page of posts gets the scripts of one, unless its route names its own.
     foreach my $path ( keys(%routes) ) {
-        my $callback = $routes{$path}{callback} // '';
-        my $name     = ref $callback ? Sub::Util::subname($callback) : $callback;
+        my $name = _callback_name( $routes{$path}{callback} );
         next if exists $routes{$path}{scripts} || !List::Util::any { $_ eq $name } @Trog::Routes::HTML::post_page_callbacks;
         $routes{$path} = { %Trog::Routes::HTML::post_page_scripts, %{ $routes{$path} } };
     }

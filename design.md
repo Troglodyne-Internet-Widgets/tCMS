@@ -75,6 +75,12 @@ into the OpenAPI 3 document that tPSGI routes by. Its flags, such as `auth` and
 `$query->{dispatcher}`. The path of a post cannot hold a `{` or a `}`, because
 OpenAPI has no way to escape them.
 
+A post at the href that every post gets by default, `/posts/<id>`, has no route
+of its own. One template, `/posts/{id}`, routes all of them to
+`Trog::Routes::HTML::posts`, which finds the post by the id in its path. tPSGI
+checks the document a route at a time, and a site can have tens of thousands of
+posts. A post at any other href keeps its own route.
+
 What a request may send is declared, and tPSGI refuses anything else with a 400.
 `%inputs` in `Trog::Routes::HTML` names what each callback takes: the query
 of a GET and the form of a POST.  `build_routes` declares that for every route of
