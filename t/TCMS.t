@@ -231,6 +231,7 @@ subtest 'where a redirect may send you' => sub {
     is( $to->('https://bogus.test'),   '/',           'and another site with no path is the root, not the other site' );
     is( $to->('//bogus.test'),         '/',           'even without a scheme' );
     is( $to->('////bogus.test'),       '/bogus.test', 'and a path that starts with two slashes, which names a site, starts with one' );
+    is( $to->('https:bogus.test'),     '/bogus.test', 'and a path with no slash, which a client can read as a host, starts with one' );
 };
 
 subtest 'the scripts of a route' => sub {

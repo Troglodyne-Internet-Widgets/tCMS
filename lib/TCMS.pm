@@ -275,8 +275,8 @@ sub build_routes {
             $query->{tpsgi} = $tpsgi;
 
             # Only ever a path on this site, so that no link can send a visitor to
-            # another one.  One slash, because a browser reads two as a host.
-            $query->{to} = ( URI->new( $input->{to} )->path() || '/' ) =~ s{\A/+}{/}r if $input->{to};
+            # another one.  Exactly one slash, because a client can read two, or none, as a host.
+            $query->{to} = ( URI->new( $input->{to} )->path() || '/' ) =~ s{\A/*}{/}r if $input->{to};
 
             # Now that we have firmed up the actual routing, let's validate.
             return $tpsgi->forbidden($query) if exists $query->{dispatcher}{'x-tcms-auth'} && !$active_user;
