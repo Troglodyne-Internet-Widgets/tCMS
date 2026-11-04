@@ -150,6 +150,11 @@ WriteMakefile(
         'Net::IP'                             => '0',
         'File::LibMagic'                      => '0',
         'Linux::Perl::inotify'                => '0',
+        'XML::RSS'                            => '0',
+        'Clone'                               => '0',
+        'File::Copy::Recursive'               => '0',
+        'List::MoreUtils'                     => '0',
+        'Plack::MIME'                         => '0',
     },
     test => { TESTS => 't/*.t' }
 );
