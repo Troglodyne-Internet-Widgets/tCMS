@@ -1212,6 +1212,20 @@ subtest 'file' => sub {
     # text/plain, so none of the media branches fire.
     unlike( $body, qr/<video/, 'no video block for a text file' );
     unlike( $body, qr/<audio/, 'no audio block either' );
+
+    # With a media host, a reader gets the asset from there.  An editor keeps
+    # the path, because the edit form would save whatever it was given.
+    my $conf = Trog::Config::get();
+    $conf->param( 'general.media_base', 'https://media.tcms.test' );
+    my $media    = series_page( 'file on a media host', 'specfile', $title, 1 );
+    my $on_media = "href='https://media.tcms.test/assets/$child->{id}.spec-upload.txt'";
+    like( $media, qr/\Q$on_media\E/, 'a reader gets the asset from the media host' );
+
+    my ( $code, $edit, $err ) = render( admin( route => '/specfile' ), \&Trog::Routes::HTML::series );
+    is( $code, 200, 'the editor page renders' ) or diag($err);
+    like( $edit, qr{href='/assets/\Q$child->{id}\E\.spec-upload\.txt'}, 'an editor gets the path on this host' );
+    unlike( $edit, qr{media\.tcms\.test}, 'and nothing on the media host' );
+    $conf->param( 'general.media_base', '' );
 };
 
 subtest 'presentation' => sub {
