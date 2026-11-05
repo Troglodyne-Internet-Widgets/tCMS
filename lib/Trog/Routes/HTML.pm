@@ -455,6 +455,12 @@ sub feedback_from_cookie ($cookies) {
     return ( int($failure), URI::Escape::uri_unescape($message) );
 }
 
+# media_urls() can already have made an asset path absolute.
+my sub absolute_url ( $domain, $path ) {
+    return $path if $path =~ m{^https?://};
+    return "https://$domain/$path";
+}
+
 my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 55 lines, which would overcomplicate index()
     return ( undef, undef, undef ) unless $query->{social_meta} && $query->{route} && $query->{domain};
 
@@ -471,8 +477,8 @@ my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUse
     $card_type = 'player'         if $query->{primary_post} && $query->{primary_post}{is_video};
 
     my $image = $Theme::default_image ? "https://$query->{domain}/" . Trog::Themes::get_dir() . "/$Theme::default_image" : '';
-    $image = "https://$query->{domain}/$query->{primary_post}{preview}" if $query->{primary_post} && $query->{primary_post}{preview};
-    $image = "https://$query->{domain}/$query->{primary_post}{href}"    if $query->{primary_post} && $query->{primary_post}{is_image};
+    $image = absolute_url( $query->{domain}, $query->{primary_post}{preview} ) if $query->{primary_post} && $query->{primary_post}{preview};
+    $image = absolute_url( $query->{domain}, $query->{primary_post}{href} )    if $query->{primary_post} && $query->{primary_post}{is_image};
 
     my $primary_route = "https://$query->{domain}/$query->{route}";
     $primary_route =~ s/[\/]+/\//g;
@@ -495,7 +501,7 @@ my sub build_social_meta ( $query, $title ) {    ## no critic (ProhibitSingleUse
     $sopts{image}     = $image                  if $image;
     $sopts{fb_app_id} = $Theme::fb_app_id       if $Theme::fb_app_id;
     if ( $query->{primary_post} && $query->{primary_post}{is_video} ) {
-        $sopts{player} = "https://$query->{domain}/$query->{primary_post}{href}";
+        $sopts{player} = absolute_url( $query->{domain}, $query->{primary_post}{href} );
 
         #XXX don't hardcode this
         $sopts{player_width}  = 1280;
@@ -1843,8 +1849,12 @@ sub posts ( $query, $direct = 0 ) {
     # the connection uri it takes to reach a hypervisor, to produce anything
     # at all.
     if ( !$is_admin ) {
-        my %seen;
-        redact_private( $_, \%seen ) foreach ( @posts, $query->{primary_post} );
+        my ( %seen, %moved );
+        my $media = media_base();
+        foreach my $post ( @posts, $query->{primary_post} ) {
+            redact_private( $post, \%seen );
+            media_urls( $post, $media, \%moved );
+        }
     }
 
     #XXX is this even used?
@@ -1898,6 +1908,26 @@ sub posts ( $query, $direct = 0 ) {
     return Trog::Routes::HTML::index( $query, $content, $styles );
 }
 
+# Run $code on $post and on each hash that it holds, at any depth, once each.
+my sub walk_posts ( $post, $seen, $code ) {
+    my @todo = ($post);
+    for ( my $i = 0; $i < scalar(@todo); $i++ ) {
+        my $node = $todo[$i];
+        next unless Ref::Util::is_hashref($node);
+
+        # Relations can point back at what pulled them in.
+        next if $seen->{$node}++;
+
+        $code->($node);
+
+        foreach my $value ( values(%$node) ) {
+            if    ( Ref::Util::is_hashref($value) )  { push( @todo, $value ) }
+            elsif ( Ref::Util::is_arrayref($value) ) { push( @todo, @$value ) }
+        }
+    }
+    return;
+}
+
 =head2 redact_private($post, $seen)
 
 Drop the fields a post type marks private, for a reader who isn't an editor.
@@ -1911,23 +1941,77 @@ because they are posts and carry their own private fields.
 =cut
 
 sub redact_private ( $post, $seen = {} ) {
-    my @todo = ($post);
-    for ( my $i = 0; $i < scalar(@todo); $i++ ) {
-        my $node = $todo[$i];
-        next unless Ref::Util::is_hashref($node);
-
-        # Relations can point back at what pulled them in.
-        next if $seen->{$node}++;
-
-        if ( $node->{form} ) {
+    walk_posts(
+        $post, $seen,
+        sub ($node) {
+            return unless $node->{form};
             delete $node->{$_} foreach @{ Trog::DataModule::private_fields_for( $node->{form} ) };
         }
+    );
+    return;
+}
 
-        foreach my $value ( values(%$node) ) {
-            if    ( Ref::Util::is_hashref($value) )  { push( @todo, $value ) }
-            elsif ( Ref::Util::is_arrayref($value) ) { push( @todo, @$value ) }
+=head2 media_base() = STRING
+
+The base URL from C<general.media_base> in the configuration, with no slash at
+the end.  It is empty if the setting is empty.  It is also empty, with a
+warning, if the setting is not an absolute C<http> or C<https> URL with a host
+and no query or fragment.
+
+=cut
+
+sub media_base {
+    my $base = Trog::Config::get()->param('general.media_base');
+
+    # Config::Simple splits a value at each comma.
+    $base = join( ',', @$base ) if Ref::Util::is_arrayref($base);
+    $base //= '';
+    return '' if $base eq '';
+
+    my $uri = URI->new( $base =~ s{/+$}{}r );
+    return "$uri" if ( $uri->scheme // '' ) =~ m/^https?$/ && $uri->host && !defined $uri->query && !defined $uri->fragment;
+
+    WARN("general.media_base is not an http or https URL, so the assets stay on this host: $base");
+    return '';
+}
+
+=head2 media_urls($post, $base, $seen)
+
+Put $base in front of each public asset path of $post, and of each post that it
+holds: C<href>, C<preview>, C<wallpaper>, C<video_href>, C<audio_href> and each
+of C<attachments>.  Does nothing if $base is empty.
+
+A path changes only if it starts with C</assets/>.  A path under
+C</assets/private/> never changes, because nginx on this host lets only a
+logged in reader fetch those files, and the media host knows no session.
+
+It changes $post in place.  So call it only for a reader who cannot edit the
+post, because an edit form would save the new URL into the post.  $seen is as
+for redact_private().
+
+=cut
+
+our @media_fields = qw{href preview wallpaper video_href audio_href};
+
+sub media_urls ( $post, $base, $seen = {} ) {
+    return unless $base;
+
+    my $move = sub ($path) {
+        return $path if !defined $path || ref $path;
+        return $path unless CORE::index( $path, '/assets/' ) == 0;
+        return $path if CORE::index( $path, '/assets/private/' ) == 0;
+        return "$base$path";
+    };
+
+    walk_posts(
+        $post, $seen,
+        sub ($node) {
+            foreach my $field (@media_fields) {
+                $node->{$field} = $move->( $node->{$field} ) if exists $node->{$field};
+            }
+            $node->{attachments} = [ map { $move->($_) } @{ $node->{attachments} } ] if Ref::Util::is_arrayref( $node->{attachments} );
         }
-    }
+    );
     return;
 }
 
