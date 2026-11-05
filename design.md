@@ -378,6 +378,16 @@ Stylesheets are the exception and are loaded both, theme last, so a theme can
 override a handful of rules without restating the sheet. A theme may ship a
 `routes.pm` to add routes of its own.
 
+A route that only one site needs goes in the theme of that site, not in tCMS or
+tPSGI, however odd the URL. Most themes come from a site that existed before
+tCMS, and indexers and other sites still link to its old URLs. So the theme
+keeps each old URL alive, with a redirect to the new one or a route that answers
+at the old one. An example is a redirect from `/about.html` to `/about`.
+
+Such a redirect from `X.html` to `X` runs only until `X` has a render on disk.
+tPSGI saves the render of `X` as `X.html`, so the web server then sends that
+file for `X.html`. The page is the same, so this is expected and needs no fix.
+
 A script resolves as a template does. A route names the scripts of its page in
 its definition: `scripts` for every reader, and `authenticated_scripts` for a
 reader who is logged in as well. A template does not write a `<script src>` tag
@@ -480,6 +490,7 @@ The contractor's cheat-sheet.
 | To extend one that exists | subclass it; `can()` resolves through `@ISA`, so override only what differs (`ProvisionedVirt` does this to `Virt`) | some |
 | A computed field on a type | an enrich sub, as `Trog::Enrich::Invoice` does | some |
 | A route that is not a post | add to `%Trog::Routes::HTML::routes`, or a theme's `routes.pm` | some |
+| A URL from the site before tCMS | the theme's `routes.pm`: a redirect, or a route at the old URL | a little |
 | A different place to keep posts | subclass `Trog::DataModule` | most |
 | A new output format | a `Trog::Renderer::` subclass, registered in `Trog::Renderer` | most |
 
