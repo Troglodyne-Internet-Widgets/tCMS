@@ -377,7 +377,7 @@ sub watch ( $query, $directory ) {
     $tpsgi->add_watch(
         $directory,
         sub {
-            my ( $watcher, $change ) = @_;
+            my ($watcher) = @_;
             $watcher->invalidate_renders('html');
             return 1;
         },
