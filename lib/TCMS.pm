@@ -52,11 +52,15 @@ my sub _routes ( $data = {} ) {
 
     # Setup the /secure/... versions for logged in users, except for already secured routes.
     foreach my $route ( keys(%roots) ) {
-        next if index( $route, '/secure/' ) == 0;
-        $roots{"/secure$route"} = $roots{$route};
+        if ( index( $route, '/secure/' ) == 0 ) {
+            $roots{$route} = { %{ $roots{$route} }, secure => 1 };
+            next;
+        }
+        $roots{"/secure$route"} = { %{ $roots{$route} }, secure => 1 };
     }
 
-    # It is the responsibility of theme authors to setup /secure routes (other than index)
+    # It is the responsibility of theme authors to setup /secure routes (other than index),
+    # with secure or auth on each.
     my %themed = Trog::Themes::routes();
 
     %routes                                      = %Trog::Routes::HTML::routes;
@@ -104,8 +108,8 @@ my sub _routes ( $data = {} ) {
 
     # The Various aliases for directory indices
     foreach my $index (qw{ / /index.html /index.htm}) {
-        $routes{$index}          = $routes{'/index'} unless exists $routes{$index};
-        $routes{"/secure$index"} = $routes{'/index'} unless exists $routes{"/secure$index"};
+        $routes{$index}          = $routes{'/index'}                       unless exists $routes{$index};
+        $routes{"/secure$index"} = { %{ $routes{'/index'} }, secure => 1 } unless exists $routes{"/secure$index"};
     }
 
     return clone( \%routes );
@@ -125,11 +129,14 @@ C<parameters> are OpenAPI parameter objects, and each variable of a template
 that they leave out is a required string.  A route with no method is a GET.
 
 If C<general.secure_host> names a host (see secure_host() in
-Trog::Routes::HTML), a route with C<secure> or C<auth>, and each route under
-F</secure>, answers only on that host.  On any other host, a GET or a HEAD of
-it is a redirect to the same path and query on the secure host, and any other
-method gets 404, so that a form body never goes to the public host.  On a host
-other than the secure host, tCMS also ignores the login cookie.  Every page
+Trog::Routes::HTML), a route with C<secure> or C<auth> answers only on that
+host.  The F</secure> copies of the routes of posts and of the index get
+C<secure>.  On any other host, a GET or a HEAD of such a route is a redirect to
+the same path and query on the secure host, and any other method gets 404, so
+that a form body never goes to the public host.  On a host other than the
+secure host, tCMS also ignores the login cookie.  On the secure host, a route
+with a F</secure> copy is a reader's page, and a GET or a HEAD of it is a
+redirect to C<general.hostname>, if that is set and is another host.  Every page
 gets C<secure_base>, C<https://> and the secure host, or an empty string, for
 its links to the routes that need a login.
 
@@ -163,7 +170,10 @@ sub build_routes {
         next                      unless $callback;
         $callback = \&{$callback} unless ref $callback;
 
-        my $secure_only = $v->{secure} || $v->{auth} || $k =~ m{\A/secure(?:/|\z)};
+        my $secure_only = $v->{secure} || $v->{auth};
+
+        # A reader's page, which the secure host sends to the public host.
+        my $readers_page = !$secure_only && exists $routes{"/secure$k"};
 
         #XXX For now we will discard the tPSGI object.  We might want it later.
         my $cb_wrap = sub {    ## no critic (ProhibitSingleUseLexicalSubs) -- 78 lines, which would overcomplicate build_routes()
@@ -192,7 +202,10 @@ sub build_routes {
             # logged in, and a page that needs a login is on the secure host.
             my $secure_host = Trog::Routes::HTML::secure_host();
             my $public      = on_public_host( $query, $secure_host );
-            return to_secure_host( $tpsgi, $query, $secure_host ) if $public && $secure_only;
+            return redirect_to_host( $tpsgi, $query, $secure_host ) if $public && $secure_only;
+
+            my $public_host = $secure_host && !$public && $readers_page ? Trog::Routes::HTML::public_host() : '';
+            return redirect_to_host( $tpsgi, $query, $public_host ) if $public_host && $public_host ne $secure_host;
 
             # Figure out if we have a logged in user, so we can serve them user-specific files
             my $cookies = {};
@@ -280,19 +293,20 @@ sub on_public_host ( $query, $secure_host ) {
     return ( lc( $query->{domain} // '' ) =~ s/:\d+\z//r ) ne $secure_host;
 }
 
-=head2 to_secure_host($tpsgi, $query, $secure_host) = PSGI response
+=head2 redirect_to_host($tpsgi, $query, $host) = PSGI response
 
-The answer on the public host to a route of the secure host alone.  A GET or a
-HEAD gets a redirect to the same path and query on $secure_host, over https.
-Any other method gets 404, so that a browser never sends a form body to the
-public host.  The redirect is not permanent, because the setting can change.
+The answer to a request that came to the wrong one of the two hosts.  A GET or
+a HEAD gets a redirect to the same path and query on $host, over https.  Any
+other method gets 404, so that a browser never sends a form body to the host
+that should not see it.  The redirect is not permanent, because the settings
+can change.
 
 =cut
 
-sub to_secure_host ( $tpsgi, $query, $secure_host ) {
+sub redirect_to_host ( $tpsgi, $query, $host ) {
     return $tpsgi->notfound($query) unless List::Util::any { $_ eq ( $query->{method} // '' ) } qw{GET HEAD};
 
-    my $to = URI->new("https://$secure_host");
+    my $to = URI->new("https://$host");
     $to->path( $query->{route} );
     $to->query( $query->{query_string} ) if ( $query->{query_string} // '' ) ne '';
     return $tpsgi->redirect("$to");

@@ -53,6 +53,7 @@ $index->redefine(
         return (
             '/posts/p-one'   => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
             '/posts/{curly}' => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
+            '/secure/p-two'  => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
         );
     }
 );
@@ -99,6 +100,11 @@ subtest 'an operation' => sub {
 subtest 'the routes of posts' => sub {
     is( ref $paths->{'/posts/p-one'}{get}{'x-tpsgi-callback'}, 'CODE', 'a post named by its callback is routed' );
     ok( $paths->{'/secure/posts/p-one'}{get}, 'and so is its /secure copy' );
+    is( $paths->{'/secure/posts/p-one'}{get}{'x-tcms-secure'}, 1, 'which is secure' );
+    ok( !exists $paths->{'/posts/p-one'}{get}{'x-tcms-secure'}, 'while the route of the post is not' );
+    is( $paths->{'/secure/'}{get}{'x-tcms-secure'},      1, 'and the /secure index is secure too' );
+    is( $paths->{'/secure/p-two'}{get}{'x-tcms-secure'}, 1, 'a post whose own path is under /secure is secure' );
+    ok( !exists $paths->{'/secure/secure/p-two'}, 'and gets no second copy' );
 
     # The flag that says setup is done, or the default route answers instead.
     open( my $fh, '>', 'config/setup' ) or die $!;
@@ -115,6 +121,7 @@ subtest 'the routes of posts' => sub {
     sub redirect  ( $, $to ) { return [ 302, [ Location => $to ], [''] ] }
     sub notfound  ( $, $ )   { return [ 404, [], ['Not Found'] ] }
     sub forbidden ( $, $ )   { return [ 403, [], ['Forbidden'] ] }
+    sub ok        ( $, $ )   { return [ 200, [], ['Ok'] ] }
 }
 
 subtest 'a secure host' => sub {
@@ -123,7 +130,9 @@ subtest 'a secure host' => sub {
     $auth->redefine( acls4user    => sub ($user) { return [] } );
 
     my $secure_host = '';
+    my $public_host = '';
     $html->redefine( secure_host => sub { return $secure_host } );
+    $html->redefine( public_host => sub { return $public_host } );
 
     # What the route of $path and $method answers to a request for it on $host.
     # tPSGI answers a HEAD with the GET of the path.
@@ -173,7 +182,23 @@ subtest 'a secure host' => sub {
     ok( $posted->{nocache}, 'and is never saved, since nginx would serve it on every host' );
 
     $res = $ask->(qw{GET /posts/p-one secure.test.test});
-    is( $posted->{secure_base}, 'https://secure.test.test', 'a page of both hosts links the same way on the secure host' );
+    is( $posted->{secure_base}, 'https://secure.test.test', "without general.hostname, a reader's page answers on the secure host too, and links the same way" );
+
+    $public_host = 'routes.test.test';
+    $res         = $ask->( qw{GET /posts/p-one secure.test.test}, query_string => 'page=2' );
+    is( $res->[0],                      302,                                           "with it, a reader's page on the secure host is a redirect" );
+    is( { @{ $res->[1] } }->{Location}, 'https://routes.test.test/posts/p-one?page=2', 'to the same path and query on the public host' );
+    ok( !$posted, 'and its callback does not run' );
+
+    $res = $ask->( qw{GET /secure/posts/p-one secure.test.test}, cookies => 'tcmslogin=good' );
+    is_deeply( $res->[2], ['the post'], 'the /secure copy of a page stays on the secure host' );
+
+    $res = $ask->(qw{GET /status secure.test.test});
+    is( $res->[0], 200, 'and so does a route with no /secure copy, which is not a reader\'s page' );
+
+    $public_host = $secure_host;
+    $res         = $ask->(qw{GET /posts/p-one secure.test.test});
+    is_deeply( $res->[2], ['the post'], 'a general.hostname that is the secure host sends nothing anywhere' );
 };
 
 subtest 'the scripts of a route' => sub {

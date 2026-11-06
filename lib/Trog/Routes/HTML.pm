@@ -1980,17 +1980,10 @@ sub media_base {
     return '';
 }
 
-=head2 secure_host() = STRING
-
-The host name from C<general.secure_host> in the configuration, in lower case.
-It is empty if the setting is empty.  It is also empty, with a warning, if the
-setting is not a bare host name of letters, digits, hyphens and dots: a
-scheme, a port, a path or a user in it is refused.  TCMS.pm says what tCMS does differently when it is set.
-
-=cut
-
-sub secure_host {
-    my $host = Trog::Config::get()->param('general.secure_host');
+# The host name that the setting $key holds, in lower case, or an empty string
+# with a warning that ends in $consequence if it holds something else.
+my sub host_setting ( $key, $consequence ) {
+    my $host = Trog::Config::get()->param($key);
     $host = join( ',', @$host ) if Ref::Util::is_arrayref($host);
     $host //= '';
     return '' if $host eq '';
@@ -1998,8 +1991,33 @@ sub secure_host {
     my $label = qr/[[:alnum:]](?:[[:alnum:]-]*[[:alnum:]])?/;
     return lc $host if $host =~ m/\A$label(?:[.]$label)*\z/;
 
-    WARN("general.secure_host is not a host name, so the pages that need a login stay on every host: $host");
+    WARN("$key is not a host name, so $consequence: $host");
     return '';
+}
+
+=head2 secure_host() = STRING
+
+The host name from C<general.secure_host> in the configuration, in lower case.
+It is empty if the setting is empty.  It is also empty, with a warning, if the
+setting is not a bare host name of letters, digits, hyphens and dots: a
+scheme, a port, a path or a user in it is refused.  TCMS.pm says what tCMS
+does differently when it is set.
+
+=cut
+
+sub secure_host {
+    return host_setting( 'general.secure_host', 'the pages that need a login stay on every host' );
+}
+
+=head2 public_host() = STRING
+
+The host name from C<general.hostname>, checked as secure_host() checks its
+setting.  It is where the secure host sends a reader's page.
+
+=cut
+
+sub public_host {
+    return host_setting( 'general.hostname', "the secure host keeps the readers' pages" );
 }
 
 =head2 media_urls($post, $base, $seen)

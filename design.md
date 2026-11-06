@@ -154,11 +154,19 @@ The public host and the secure host
 cache in front of the public host, such as a relay of trog-provisioner, can then
 keep every page for every reader, and never sees a password or a session.
 
-A route with `secure` or `auth`, and each route under `/secure`, answers only on
-the secure host. On the public host, a GET of one is a redirect to the secure
+A route with `secure` or `auth` answers only on the secure host. The `/secure`
+copies of the routes of posts, and of the index, get `secure` where they are
+made. A theme that adds a route under `/secure` gives it `secure` or `auth`
+itself. On the public host, a GET of a secure route is a redirect to the secure
 host, and a POST gets 404. The public host ignores the login cookie, so each
 page that it renders is the page of a reader who is not logged in. Templates
 link to the login routes through `secure_base`.
+
+The other way round, a route that has a `/secure` copy is a reader's page. On
+the secure host, a GET of one is a redirect to `general.hostname`, so that the
+cache in front of the public host serves it. The redirect covers only those
+routes: `/authenticated`, which nginx asks on the secure host, and the `/api`
+routes, which pages of the secure host fetch, stay where they are.
 
 Every host shares the saved pages under `www/static`, and nginx serves them
 before tCMS sees the request. So a route of the secure host alone is never

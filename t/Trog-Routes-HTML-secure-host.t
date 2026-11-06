@@ -52,4 +52,17 @@ subtest 'secure_host' => sub {
     is( scalar(@warnings),                 1,  'and warns' );
 };
 
+subtest 'public_host' => sub {
+    my $confmock = Test::MockModule->new('Trog::Config');
+
+    @warnings = ();
+    $confmock->redefine( get => sub { return FakeConfig->new( 'general.hostname' => 'Routes.Test.Test' ) } );
+    is( Trog::Routes::HTML::public_host(), 'routes.test.test', 'general.hostname, in lower case' );
+    is( scalar(@warnings),                 0,                  'with no warning' );
+
+    $confmock->redefine( get => sub { return FakeConfig->new( 'general.hostname' => 'https://routes.test.test' ) } );
+    is( Trog::Routes::HTML::public_host(), '', 'is checked as secure_host() checks its setting' );
+    like( $warnings[0], qr/general[.]hostname/, 'and the warning names the setting' );
+};
+
 done_testing();
