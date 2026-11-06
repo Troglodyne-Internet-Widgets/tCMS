@@ -29,6 +29,7 @@ our %routes = (
     },
     '/api/auth_change_request/{token}' => {
         method     => 'GET',
+        secure     => 1,
         callback   => \&process_auth_change_request,
         parameters => [
             {

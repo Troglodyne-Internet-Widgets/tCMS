@@ -151,4 +151,24 @@ subtest 'the whole page still composes' => sub {
     like( $body, qr{id="footbar"}, "the footer bar socket is intact" );
 };
 
+subtest 'the login link' => sub {
+    require Trog::Renderer::Base;
+
+    # The href of the login link on a page for a reader who is not logged in.
+    my $login_href = sub (%data) {
+        my $psgi = Trog::Renderer::Base::render(
+            template    => 'index.tx',
+            contenttype => 'text/html',
+            code        => 200,
+            data        => { title => 'Login', route => '/posts/p-one', content => '', categories => [], stylesheets => [], print_styles => [], scripts => [], %data },
+        );
+        my ($href) = $psgi->[2][0] =~ m{<a[ ]href="([^"]*)"[ ]title="Login"};
+        return $href;
+    };
+
+    is( $login_href->(), '/login?to=/posts/p-one', 'without a secure host, the page links to the login on this host' );
+    is( $login_href->( secure_base => '' ),                         '/login?to=/posts/p-one',                         'and so with an empty one' );
+    is( $login_href->( secure_base => 'https://secure.test.test' ), 'https://secure.test.test/login?to=/posts/p-one', 'with one, the page links to the login on the secure host' );
+};
+
 done_testing();

@@ -147,6 +147,25 @@ post invalidates the cache.
 whether or not the route thought to forward it. That is also how a datasource
 which cannot say when its posts go stale keeps its pages out of the cache.
 
+The public host and the secure host
+-----------------------------------
+
+`general.secure_host` names a second host for everything that needs a login. A
+cache in front of the public host, such as a relay of trog-provisioner, can then
+keep every page for every reader, and never sees a password or a session.
+
+A route with `secure` or `auth`, and each route under `/secure`, answers only on
+the secure host. On the public host, a GET of one is a redirect to the secure
+host, and a POST gets 404. The public host ignores the login cookie, so each
+page that it renders is the page of a reader who is not logged in. Templates
+link to the login routes through `secure_base`.
+
+Every host shares the saved pages under `www/static`, and nginx serves them
+before tCMS sees the request. So a route of the secure host alone is never
+saved, or nginx would serve it on the public host too. A page of both hosts is
+the same on both, because `secure_base` does not depend on the host of the
+request.
+
 Post types
 ==========
 
