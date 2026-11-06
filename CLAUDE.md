@@ -23,8 +23,8 @@ defect, whichever one is better.
 
 ## What perl this runs on
 
-Every module, script and test says `use 5.040`, and `MIN_PERL_VERSION` in
-`Makefile.PL` says the same.  `.perlcriticrc` depends on it.  The header of
+Every module, script and test says `use 5.040`, and `perl:` in
+`prereqs.yml` says the same.  `.perlcriticrc` depends on it.  The header of
 that file names the policies that this version of perl makes unnecessary.  So
 if you raise or lower the floor, change the profile as well as the `use` lines.
 
@@ -35,8 +35,11 @@ if you raise or lower the floor, change the profile as well as the `use` lines.
 | `Readme.md` | what tCMS is for, and how to deploy it |
 | `design.md` | the architecture, and where a given change belongs |
 | `.perlcriticrc` | the policies, which are the house style made enforceable |
-| `CHANGELOG` | what changed, per major version |
-| `Makefile.PL` | what has to be installed to run tCMS, and to develop it |
+| `Changes` | what changed and when, per release |
+| `CHANGELOG` | what changed before `Changes`, per major version |
+| `dist.ini` | the build, and what has to be installed to develop tCMS |
+| `prereqs.yml` | the modules that tCMS needs and that `[AutoPrereqs]` cannot find in the code |
+| `metamerge.yml` | the system packages that tCMS needs, and the programs that it runs |
 | `Installer.mk` | the directories and the front-end files that an install needs |
 
 ## Finishing a changeset
@@ -92,12 +95,25 @@ number and a percentage is a finding.
 
 ## Installing what development needs
 
-The hooks and `.perlcriticrc` need the develop prerequisites in `Makefile.PL`.
-When `.perlcriticrc` names a policy from another distribution, add that
-distribution there in the same change.
+The hooks and `.perlcriticrc` need the `; authordep` lines in `dist.ini`.
+When `.perlcriticrc` names a policy from another distribution, add an
+`; authordep` line for that distribution in the same change.  The tests that
+you run from a clone need the directories that `make -f Installer.mk install` makes.
 
 ```
-cpanm --installdeps --with-develop .
+dzil authordeps --missing | cpanm --notest
+dzil listdeps --missing | cpanm --notest
+make -f Installer.mk install
+```
+
+## Releasing
+
+`perl-slop:packaging-perl` made this distribution, and it explains what
+`dist.ini` means.  It also lists the problems that stop `dzil release` with no
+clear error.  Read it before the first release, not during it.
+
+```
+dzil build && dzil test --release
 ```
 
 ## Commits and pull requests

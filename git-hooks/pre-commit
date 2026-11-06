@@ -9,11 +9,13 @@
 # is to skip it, and the tree drifts until a mass tidy is the only way back.
 # One commit's worth at a time is small enough that nobody has to weigh it up.
 #
-# perlcritic is here for the other half of that.  Nothing else in tCMS runs the
-# profile, so this is where an objection is about the diff in front of you.
+# perlcritic is here for the other half of that. `dzil test` runs the profile
+# too, through [@TestingMania], but that is the pass you run before a release --
+# by which point the objection is twenty commits old and the person who can
+# answer it has moved on. Here it is about the diff in front of you.
 #
 # There is one profile, .perlcriticrc, and which one that is was decided when
-# the floor was chosen: the packaging-perl skill asks which perl you
+# this distribution was scaffolded: the packaging-perl skill asks which perl you
 # are targeting and copies the matching profile to that name. So the hook needs
 # no opinion about versions -- the file it reads is already the right one, and
 # changing your floor means replacing that file rather than editing this.
@@ -155,13 +157,15 @@ then
     echo "Done."
 else
     # Skipped rather than fatal, for the same reason the tidy pass is: a machine
-    # without perlcritic can still commit.
+    # without perlcritic can still commit, and `dzil test` will not let the
+    # distribution be released without one.
     echo "pre-commit: perlcritic is not on PATH, skipping the critic pass."
 fi
 
 # Last, because the tests read the files that the tidy pass wrote.  Whatever is
 # staged, and not only Perl: a change to a share/ file or a fixture breaks a
-# test as surely as a change to a module does.  -l for lib/.
+# test as surely as a change to a module does.  -l for lib/, as `dzil test`
+# finds it.
 #
 # Without the GIT_ variables that git sets for this hook.  It sets
 # GIT_INDEX_FILE, and GIT_DIR too in a worktree, and git obeys them over -C.  So

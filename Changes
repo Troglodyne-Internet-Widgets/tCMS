@@ -1,0 +1,6 @@
+Revision history for tCMS
+
+0.01 2026-11-06 TEODESIAN
+    - Build with Dist::Zilla.  dist.ini, prereqs.yml and metamerge.yml replace
+      Makefile.PL, and metamerge.yml names the system packages that tCMS needs.
+    - The history before this is in CHANGELOG.

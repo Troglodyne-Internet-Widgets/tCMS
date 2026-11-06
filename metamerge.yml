@@ -1,0 +1,23 @@
+# Read by [MetaMergeFile] in dist.ini, which merges it into META.json.
+#
+# x_system_packages names what the system must have for tCMS: deb lists the
+# Debian and Ubuntu packages, and programs lists a command for each program
+# that tCMS runs, which succeeds when that program is installed.
+x_system_packages:
+  deb:
+    # File::LibMagic links libmagic.
+    - libmagic-dev
+    # XML::LibXML, which WWW::Sitemap::XML needs, links libxml2.
+    - libxml2-dev
+    # XML::Parser, which XML::RSS needs, links libexpat.
+    - libexpat1-dev
+    # Sys::Virt links libvirt.
+    - libvirt-dev
+    # Imager::File::PNG links libpng.
+    - libpng-dev
+    # The build of Sys::Virt asks pkg-config which libvirt is installed.
+    - pkg-config
+    # bin/favicon_mongler.pl renders the favicons with inkscape.
+    - inkscape
+  programs:
+    - inkscape --version

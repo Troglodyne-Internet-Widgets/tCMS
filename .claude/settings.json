@@ -1,0 +1,20 @@
+{
+  "enabledPlugins": {
+    "perl-slop@troglodyne-marketplace": true,
+    "simple-english@simple-english": true
+  },
+  "extraKnownMarketplaces": {
+    "simple-english": {
+      "source": {
+        "repo": "AminBlg/SimpleEnglish",
+        "source": "github"
+      }
+    },
+    "troglodyne-marketplace": {
+      "source": {
+        "repo": "Troglodyne-Internet-Widgets/claude-plugins-marketplace",
+        "source": "github"
+      }
+    }
+  }
+}
