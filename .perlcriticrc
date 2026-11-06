@@ -26,8 +26,8 @@
 #                                                 5.042, which is stricter than
 #                                                 the policy and not skippable
 #
-# tCMS: a policy commented out as #[Name], with no space, is one that the tree
-# does not pass yet.  The change that fixes the tree for it enables it.
+# tCMS: a policy turned off as [-Name] is one that the tree does not pass yet.
+# The change that fixes the tree for it enables it.
 severity  = 1
 only      = 1
 force     = 0
@@ -54,7 +54,9 @@ strict = 1
 [ValuesAndExpressions::ProhibitDefinedBeforeLength]
 [Variables::ProhibitUselessVarClearing]
 [Subroutines::ProhibitTailRecursion]
+[-ValuesAndExpressions::ProhibitDescendingRanges]
 [Bangs::ProhibitUselessRegexModifiers]
+[-RegularExpressions::ProhibitIneffectiveModifiers]
 [Bangs::ProhibitCommentedOutCode]
 [Tics::ProhibitUseBase]
 [Plicease::ProhibitLeadingZeros]
@@ -71,6 +73,7 @@ strict = 1
 warn_level = 40
 info_level = 30
 [Variables::ProhibitUselessInitialization]
+[-ValuesAndExpressions::RequireSlices]
 [PreferredModules]
 config = .preferred_modules.ini
 [logicLAB::RequireSheBang]
@@ -81,6 +84,7 @@ formats = #!/usr/bin/env perl
 [Performance::ProhibitRegexForSimpleSubstring]
 [RegularExpressions::ProhibitRegexToStripAffix]
 [RegularExpressions::ProhibitRegexToChomp]
+[RegularExpressions::ProhibitRegexToSplitAtDelimiter]
 [BuiltinFunctions::ProhibitChainingSameListSub]
 [RegularExpressions::ProhibitRegexForStringEquality]
 [Subroutines::ProhibitUnderscorePrivateSubs]
@@ -291,7 +295,12 @@ allow_unused_subroutine_arguments = 1
 # allow_if_computed_by = Test::MockModule->new Test::MockFile->file
 [Variables::ProtectPrivateVars]
 [Variables::RequireLexicalLoopIterators]
+# A block foreach with no loop variable, whose $_ the body can clobber.
+[-Variables::ProhibitTopicIterator]
 [Variables::RequireLocalizedPunctuationVars]
 [Variables::RequireNegativeIndices]
+# A read through a missing level, such as $h{a}{b}, creates $h{a}.  Write
+# no autovivification; in the scope, which [AutoPrereqs] then declares.
+[-Variables::RequireNoAutovivification]
 # Extensions to perl -c
 [CompileTime]
