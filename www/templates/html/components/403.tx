@@ -1,5 +1,5 @@
 403 Forbidden
 <br /><br />
 : if ( !$user ) {
-    Log in <a href="/login?to=<: $route :>">here</a>.
+    Log in <a href="<: $secure_base :>/login?to=<: $route :>">here</a>.
 : }

@@ -61,17 +61,20 @@ our %routes = (
     #    },
     '/login' => {
         method   => 'GET',
+        secure   => 1,
         callback => \&Trog::Routes::HTML::login,
         noindex  => 1,
     },
     '/logout' => {
         method   => 'GET',
+        secure   => 1,
         callback => \&Trog::Routes::HTML::logout,
         noindex  => 1,
         nocache  => 1,
     },
     '/auth' => {
         method   => 'POST',
+        secure   => 1,
         callback => \&Trog::Routes::HTML::login,
         nocache  => 1,
         noindex  => 1,
@@ -142,6 +145,7 @@ our %routes = (
     },
     '/password_reset' => {
         method   => 'GET',
+        secure   => 1,
         callback => \&Trog::Routes::HTML::resetpass,
         noindex  => 1,
     },
@@ -154,6 +158,7 @@ our %routes = (
     },
     '/request_password_reset' => {
         method   => 'POST',
+        secure   => 1,
         callback => \&Trog::Routes::HTML::do_resetpass,
         noindex  => 1,
         nocache  => 1,
@@ -1973,6 +1978,46 @@ sub media_base {
 
     WARN("general.media_base is not an http or https URL, so the assets stay on this host: $base");
     return '';
+}
+
+# The host name that the setting $key holds, in lower case, or an empty string
+# with a warning that ends in $consequence if it holds something else.
+my sub host_setting ( $key, $consequence ) {
+    my $host = Trog::Config::get()->param($key);
+    $host = join( ',', @$host ) if Ref::Util::is_arrayref($host);
+    $host //= '';
+    return '' if $host eq '';
+
+    my $label = qr/[[:alnum:]](?:[[:alnum:]-]*[[:alnum:]])?/;
+    return lc $host if $host =~ m/\A$label(?:[.]$label)*\z/;
+
+    WARN("$key is not a host name, so $consequence: $host");
+    return '';
+}
+
+=head2 secure_host() = STRING
+
+The host name from C<general.secure_host> in the configuration, in lower case.
+It is empty if the setting is empty.  It is also empty, with a warning, if the
+setting is not a bare host name of letters, digits, hyphens and dots: a
+scheme, a port, a path or a user in it is refused.  TCMS.pm says what tCMS
+does differently when it is set.
+
+=cut
+
+sub secure_host {
+    return host_setting( 'general.secure_host', 'the pages that need a login stay on every host' );
+}
+
+=head2 public_host() = STRING
+
+The host name from C<general.hostname>, checked as secure_host() checks its
+setting.  It is where the secure host sends a reader's page.
+
+=cut
+
+sub public_host {
+    return host_setting( 'general.hostname', "the secure host keeps the readers' pages" );
 }
 
 =head2 media_urls($post, $base, $seen)
