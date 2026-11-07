@@ -385,6 +385,7 @@ subtest 'the page a user manages them from' => sub {
 
     Trog::Routes::HTML::secrets( { user => 'bob', user_acls => ['admin'], tpsgi => $tpsgi } );
     ok( $rendered->{has_vault}, 'the page knows there is a vault' );
+    ok( $rendered->{is_admin},  'and has the bar of the other backoffice pages' );
     my ($keepass) = grep { $_->{name} eq 'keepass' } @{ $rendered->{secrets} };
     ok( $keepass,                       "bob's own secret is listed" );
     ok( !exists $keepass->{ciphertext}, 'without its ciphertext' );

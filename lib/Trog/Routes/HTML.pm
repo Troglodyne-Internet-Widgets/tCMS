@@ -1026,6 +1026,7 @@ sub secrets ($query) {
             title       => 'Stored Secrets',
             theme_dir   => Trog::Themes::td(),
             template    => 'secrets.tx',
+            is_admin    => 1,
             stylesheets => [qw{config.css}],
             secrets     => \@secrets,
             has_vault   => Trog::Vault::has_key(),
