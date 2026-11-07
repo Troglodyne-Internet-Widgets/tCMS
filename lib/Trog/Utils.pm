@@ -60,6 +60,21 @@ sub uuid {
     return UUID::uuid();
 }
 
+=head2 uuid_schema() = HASHREF
+
+The JSON schema of what uuid() returns, for a route parameter that must be one.
+The pattern ends with \z, because $ also matches before a final newline.
+
+=cut
+
+my $HEX  = qr/[[:digit:]a-f]/;
+my $HEX4 = qr/(?: $HEX ){4}/;
+my $UUID = qr/\A (?: $HEX ){8} - $HEX4 - $HEX4 - $HEX4 - (?: $HEX ){12} \z/;
+
+sub uuid_schema {
+    return { type => 'string', pattern => "$UUID" };
+}
+
 #Stuff that isn't in upstream finders
 my %extra_types = (
     '.docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

@@ -7,15 +7,9 @@ use warnings FATAL => 'all';
 use Clone qw{clone};
 
 use Trog::Utils();
-use Trog::Auth();
 use Trog::Routes::HTML();
 
 use Trog::Log::Metrics();
-
-# What Trog::Utils::uuid() makes, ended by \z because perl's $ allows a final newline.
-my $HEX  = qr/[[:digit:]a-f]/;
-my $HEX4 = qr/(?: $HEX ){4}/;
-my $UUID = qr/\A (?: $HEX ){8} - $HEX4 - $HEX4 - $HEX4 - (?: $HEX ){12} \z/;
 
 # Same shape series.json demands of child_form.
 my $FORM_TX = qr/\A [[:alnum:]_-]+ [.] tx \z/;
@@ -39,14 +33,7 @@ our %routes = (
         method     => 'GET',
         secure     => 1,
         callback   => \&process_auth_change_request,
-        parameters => [
-            {
-                name     => 'token',
-                in       => 'path',
-                required => true,
-                schema   => { type => 'string', pattern => "$UUID" },
-            },
-        ],
+        parameters => [ { name => 'token', in => 'path', required => true, schema => Trog::Utils::uuid_schema() } ],
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
     },
@@ -112,16 +99,16 @@ sub webmanifest {
     return _render( 200, $headers, %manifest );
 }
 
-sub process_auth_change_request ($query) {
-    my $token = $query->{input}{token};
+=head2 process_auth_change_request
 
-    my $msg = Trog::Auth::process_change_request($token);
-    return $query->{tpsgi}->forbidden($query) unless $msg;
-    return _render(
-        200, undef,
-        message => $msg,
-        result  => 'success',
-    );
+Implements GET /api/auth_change_request/{token}, which reset emails linked to
+before /auth_change_request/{token} took over.  It changes nothing, and sends the
+browser to the page where the user chooses the new password.
+
+=cut
+
+sub process_auth_change_request ($query) {
+    return $query->{tpsgi}->see_also("/auth_change_request/$query->{input}{token}");
 }
 
 =head2 posts_of_form

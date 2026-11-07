@@ -1,0 +1,7 @@
+<h2>Choose a New Password</h2>
+<form id="change_request" action="/auth_change_request" method="POST">
+    <input type="hidden" name="token" value="<: $token :>" />
+    <label for="password">New password:</label>
+    <input type="password" class="cooltext" id="password" name="password" required />
+    <input type="submit" value="Set Password">
+</form>

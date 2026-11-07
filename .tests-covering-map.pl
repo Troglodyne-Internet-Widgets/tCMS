@@ -43,6 +43,10 @@ F<xt/>, which the hooks do not run.
 
 =back
 
+It names the test that reads each template or schema update that a test reads,
+and answers C<NO_TESTS> for the templates of the reset email, which no test
+renders.
+
 Anything else, it leaves unexplained, and the hook then runs every test.  A
 file that a test reads without loading it, such as a template or a fixture,
 wants a rule here that names the tests that read it.
@@ -66,6 +70,13 @@ return sub {
     return q{} if $path =~ m{\A(?:git-hooks|[.]github|xt)/}sx;
     return q{} if $path =~ m{[.]md\z}sx;
     return q{} if $path =~ m{[.]pod\z}sx && $path !~ m{\Alib/}sx;
+
+    # Read by a test without loading it.
+    return 't/Trog-Auth-change-request.t'   if $path eq 'schema/auth.schema.v1.update.sql';
+    return 't/Trog-Routes-HTML-resetpass.t' if $path eq 'www/templates/html/components/change_request.tx';
+
+    # Trog::Email renders these, and every test of a reset mocks it.
+    return q{} if $path =~ m{\Awww/templates/(?:html|text)/password_reset[.]tx\z}sx;
 
     return;
 };

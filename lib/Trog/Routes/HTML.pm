@@ -176,6 +176,23 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
+
+    # The link in a reset email.  A GET only shows the form, because mail
+    # scanners fetch links and do not submit forms.
+    '/auth_change_request/{token}' => {
+        method     => 'GET',
+        callback   => \&Trog::Routes::HTML::change_request_form,
+        parameters => [ { name => 'token', in => 'path', required => true, schema => Trog::Utils::uuid_schema() } ],
+        robot_name => '/auth_change_request/*',
+        noindex    => 1,
+        nocache    => 1,
+    },
+    '/auth_change_request' => {
+        method   => 'POST',
+        callback => \&Trog::Routes::HTML::do_change_request,
+        noindex  => 1,
+        nocache  => 1,
+    },
     '/processed' => {
         method   => 'GET',
         callback => \&Trog::Routes::HTML::processed,
@@ -389,8 +406,9 @@ our %inputs = (
             );
         }
     },
-    'Trog::Routes::HTML::themeclone'   => { body => fields(qw{theme newtheme}) },
-    'Trog::Routes::HTML::do_resetpass' => { body => fields(qw{username password}) },
+    'Trog::Routes::HTML::themeclone'        => { body => fields(qw{theme newtheme}) },
+    'Trog::Routes::HTML::do_resetpass'      => { body => fields(qw{username password}) },
+    'Trog::Routes::HTML::do_change_request' => { body => { token => Trog::Utils::uuid_schema(), password => \%text } },
 
     # The page hands its query to /api/requests_per, so it takes what that does.
     'Trog::Routes::HTML::metrics' => {
@@ -1081,6 +1099,11 @@ my sub stamp ($epoch) {
 
 Routes for user service of their authentication details.
 
+do_resetpass lets a logged-in user set their own password, and an admin set the
+password of anybody.  A request without a login only sends the user an email,
+whose link leads to change_request_form.  Such a request cannot carry the new
+password, so whoever asks for a reset cannot choose it.
+
 There is no route here for turning TOTP off.  Everybody has it, and losing an
 authenticator is not a reason to stop having a second factor -- bin/totp reads a
 user their existing enrollment back out of band, which is the same enrollment
@@ -1187,24 +1210,61 @@ sub do_resetpass ($query) {
     # User Does not exist
     return $query->{tpsgi}->forbidden($query) if !Trog::Auth::user_exists($user);
 
-    # User exists, but is not logged in this session
-    return $query->{tpsgi}->forbidden($query) if !$query->{user} && Trog::Auth::user_has_session($user);
+    if ( $query->{user} ) {
+        my $is_admin = List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+        return $query->{tpsgi}->forbidden($query)                         unless $user eq $query->{user} || $is_admin;
+        return $query->{tpsgi}->badrequest( $query, 'No password given' ) unless Trog::Auth::reset_password( $user, $query->{input}{password} );
+        return $query->{tpsgi}->see_also("/processed");
+    }
 
-    my $token   = Trog::Utils::uuid();
-    my $newpass = $query->{input}{password} // Trog::Utils::uuid();
-    my $res     = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, secret => $newpass, token => $token );
+    # User exists, but is not logged in this session
+    return $query->{tpsgi}->forbidden($query) if Trog::Auth::user_has_session($user);
+
+    my $token = Trog::Utils::uuid();
+    my $res   = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, token => $token );
     die "Could not add auth change request!" unless $res;
 
-    # If the user is logged in, just do the deed, otherwise send them the token in an email
-    if ( $query->{user} ) {
-        return $query->{tpsgi}->see_also("/api/auth_change_request/$token");
-    }
     Trog::Email::contact(
         $user,
         "root\@$query->{domain}",
         "$query->{domain}: Password reset URL for $user",
-        { uri => "$query->{scheme}://$query->{domain}/api/auth_change_request/$token", template => 'password_reset.tx' }
+        { uri => "$query->{scheme}://$query->{domain}/auth_change_request/$token", template => 'password_reset.tx' }
     );
+    return $query->{tpsgi}->see_also("/processed");
+}
+
+=head2 change_request_form
+
+The page that the link in a reset email leads to: a form for the new password.
+It changes nothing, so a GET of the link by a mail scanner does no harm.
+
+=cut
+
+sub change_request_form ($query) {
+    return Trog::Routes::HTML::index(
+        {
+            %$query,
+            title       => 'Choose a New Password',
+            theme_dir   => Trog::Themes::td(),
+            stylesheets => [qw{config.css}],
+            template    => 'change_request.tx',
+            token       => $query->{input}{token},
+        },
+        undef,
+        [qw{config.css}],
+    );
+}
+
+=head2 do_change_request
+
+Takes the form of change_request_form, and sets the new password if the token
+is one that has not been spent.  The response does not hold the password.
+
+=cut
+
+sub do_change_request ($query) {
+    my $done = Trog::Auth::process_change_request( $query->{input}{token}, $query->{input}{password} );
+    return $query->{tpsgi}->forbidden($query) unless $done;
     return $query->{tpsgi}->see_also("/processed");
 }
 

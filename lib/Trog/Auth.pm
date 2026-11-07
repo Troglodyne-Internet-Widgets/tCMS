@@ -503,36 +503,58 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     return 1;
 }
 
-sub add_change_request (%args) {
-    my $dbh = dbh();
-    $dbh->do( "INSERT INTO change_request (username,token,type,secret) VALUES (?,?,?,?)", undef, $args{user}, $args{token}, $args{type}, $args{secret} );
+=head2 reset_password(user, pass) = BOOL
+
+Give an existing user a new password, and end their session.  The user keeps
+their display name, contact address, ACLs and TOTP enrollment.
+
+Returns false, and changes nothing, if the user does not exist or the password is empty.
+
+=cut
+
+sub reset_password ( $user, $pass ) {
+    return 0 unless user_exists($user) && $pass;
+
+    # useradd() replaces the user row, which cascades to user_acl, so the ACLs go back in with it.
+    useradd( $user, undef, $pass, acls4user($user) // [], undef );
+    killsession($user);
     return 1;
 }
 
-sub process_change_request ($token) {
+=head2 add_change_request(user => USER, token => TOKEN, type => TYPE) = BOOL
+
+Record a change that the owner of TOKEN can make to USER later.  The one TYPE is
+C<reset_pass>.  The new password is not stored: process_change_request() takes it.
+
+=cut
+
+sub add_change_request (%args) {
+    my $dbh = dbh();
+    $dbh->do( "INSERT INTO change_request (username,token,type) VALUES (?,?,?)", undef, $args{user}, $args{token}, $args{type} );
+    return 1;
+}
+
+=head2 process_change_request(token, secret) = STRING
+
+Make the change that TOKEN was issued for, with SECRET as the new password, and
+spend the token.  Returns a message that names the user and not the secret.
+
+Returns false, and leaves the token unspent, if there is no unspent request for
+TOKEN, or if SECRET is empty.
+
+=cut
+
+sub process_change_request ( $token, $secret ) {
     my $dbh  = dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT username, display_name, type, secret, contact_email FROM change_request_full WHERE processed=0 AND token=?", { Slice => {} }, $token );
+    my $rows = $dbh->selectall_arrayref( "SELECT username, type FROM change_request WHERE processed=0 AND token=?", { Slice => {} }, $token );
     return 0 unless ref $rows eq 'ARRAY' && @$rows;
 
-    my $user         = $rows->[0]{username};
-    my $display      = $rows->[0]{display_name};
-    my $type         = $rows->[0]{type};
-    my $secret       = $rows->[0]{secret};
-    my $contactemail = $rows->[0]{contact_email};
+    my ( $user, $type ) = @{ $rows->[0] }{qw{username type}};
+    my %dispatch = ( reset_pass => sub ( $name, $pass ) { return reset_password( $name, $pass ) ? "Password changed for $name" : 0 } );
 
-    # my, not state: each closure reads this request's $display and $contactemail.
-    my %dispatch = (
-        reset_pass => sub ( $name, $pass ) {
+    my $res = $dispatch{$type}->( $user, $secret ) or return 0;
 
-            #XXX The fact that this is an INSERT OR REPLACE means all the entries in change_request for this user will get cascade wiped.  Which is good, as the secrets aren't salted.
-            # This is also why we have to snag the user's ACLs or they will be wiped.
-            my @acls = acls4user($name);
-            useradd( $name, $display, $pass, \@acls, $contactemail );
-            killsession($name);
-            return "Password set to $pass for $name";
-        },
-    );
-    my $res = $dispatch{$type}->( $user, $secret );
+    # Usually a no-op: the useradd() inside reset_password() cascades every request of the user away.
     eval { $dbh->do( "UPDATE change_request SET processed=1 WHERE token=?", undef, $token ); 1 } or do {
         FATAL("Could not set job with token $token to completed: $@");
     };
