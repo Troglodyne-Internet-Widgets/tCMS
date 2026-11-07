@@ -704,7 +704,7 @@ sub index ( $query, $content = '', $i_styles = [] ) {
             %$query,
 
             # What index.tx and embed.tx read that a route may leave unset.
-            ( map { $_ => $query->{$_} } qw{author is_admin failure message to user user_class route} ),
+            ( map { $_ => $query->{$_} } qw{author is_admin failure message to user user_class route secure_base} ),
             nochrome     => $in->{nochrome},
             search_lang  => $search_lang,
             search_help  => $search_help,

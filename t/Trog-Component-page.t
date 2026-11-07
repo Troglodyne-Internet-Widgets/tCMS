@@ -26,6 +26,9 @@ require_ok('Trog::Component')             or BAIL_OUT("Can't find SUT");
 require_ok('Trog::Component::Header')     or BAIL_OUT("Can't find SUT");
 require_ok('Trog::Component::PostHeader') or BAIL_OUT("Can't find SUT");
 
+# What index.tx reads that a page can leave empty, which a render of it here must still pass.
+my %unset_frame = map { $_ => undef } qw{author default_tags embed failure is_admin lang message meta_desc meta_tags search_help search_lang search_route secure_base show_madeby to user user_class};
+
 subtest 'the furniture with no arguments' => sub {
 
     # These six are empty or a stock placeholder, and read no variables at all.
@@ -164,7 +167,7 @@ subtest 'the whole page still composes' => sub {
                 stylesheets  => ['/styles/screen.css'],
                 print_styles => [],
                 scripts      => [],
-                ( map { $_ => undef } qw{author default_tags embed failure is_admin lang message meta_desc meta_tags search_help search_lang search_route show_madeby to user user_class} ),
+                %unset_frame,
             },
         );
     };
@@ -193,7 +196,7 @@ subtest 'the login link' => sub {
             template    => 'index.tx',
             contenttype => 'text/html',
             code        => 200,
-            data        => { title => 'Login', route => '/posts/p-one', content => '', categories => [], stylesheets => [], print_styles => [], scripts => [], %data },
+            data        => { %unset_frame, title => 'Login', route => '/posts/p-one', content => '', categories => [], stylesheets => [], print_styles => [], scripts => [], %data },
         );
         my ($href) = $psgi->[2][0] =~ m{<a[ ]href="([^"]*)"[ ]title="Login"};
         return $href;
