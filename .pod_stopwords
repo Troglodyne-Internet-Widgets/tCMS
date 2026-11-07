@@ -39,6 +39,7 @@ backends
 BackPAN
 backtick
 basename
+Baugh
 baz
 bool
 bugtracker
@@ -65,6 +66,7 @@ CIDR
 CIDRs
 ciphertext
 CLI
+CMS
 codename
 coderef
 conf
@@ -186,6 +188,7 @@ libmagic
 libravatar
 libvirt
 lifecycle
+LLC
 logname
 lookups
 loopback
@@ -247,6 +250,7 @@ PCIe
 pdf
 pdfs
 PEM
+perl
 perlcritic
 perlcriticrc
 perltidy

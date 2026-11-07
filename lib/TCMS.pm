@@ -1,5 +1,7 @@
 package TCMS;
 
+# ABSTRACT: A CMS for perl, run by tPSGI, in which a post can be content of any type
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

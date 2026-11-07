@@ -1,0 +1,16 @@
+# What perl Makefile.PL, make and the tests leave in a build, which is not in
+# MANIFEST.  This is written out rather than #!include_default: the default
+# skips every file named Makefile, and config/nginx-unit/Makefile is part of tCMS.
+^Makefile$
+^Makefile\.old$
+^MYMETA\.
+^MANIFEST\.bak$
+^blib/
+^pm_to_blib$
+^pod2htmd\.tmp$
+^data/
+^logs/
+^totp/
+^www/assets/
+^www/statics/
+^www/themes/

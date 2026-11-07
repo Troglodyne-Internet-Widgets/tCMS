@@ -1,0 +1,28 @@
+# Read by [MetaMergeFile] in dist.ini, which merges it into META.json.
+#
+# x_system_packages names each thing that tCMS needs from the system, and the
+# package that gives it for each packager.  test is a command that succeeds
+# when a program that tCMS runs is installed.
+x_system_packages:
+  # File::LibMagic links libmagic.
+  libmagic:
+    deb: libmagic-dev
+  # XML::LibXML, which WWW::Sitemap::XML needs, links libxml2.
+  libxml2:
+    deb: libxml2-dev
+  # XML::Parser, which XML::RSS needs, links libexpat.
+  libexpat:
+    deb: libexpat1-dev
+  # Sys::Virt links libvirt.
+  libvirt:
+    deb: libvirt-dev
+  # Imager::File::PNG links libpng.
+  libpng:
+    deb: libpng-dev
+  # The build of Sys::Virt asks pkg-config which libvirt is installed.
+  pkg-config:
+    deb: pkg-config
+  # bin/favicon_mongler.pl renders the favicons with inkscape.
+  inkscape:
+    deb: inkscape
+    test: inkscape --version

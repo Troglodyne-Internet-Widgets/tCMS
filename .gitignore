@@ -39,3 +39,7 @@ run/
 .xslate_cache/
 *.swn
 cover_db/
+# What dzil build leaves at the root.  Anchored, or the pattern also hides a
+# test named after the distribution, such as t/tCMS-Foo.t.
+.build
+/tCMS-*

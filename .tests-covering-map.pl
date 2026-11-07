@@ -22,12 +22,14 @@ C<prove -l t/> never reads:
 =item Documentation
 
 Markdown, such as F<Readme.md> and F<design.md>, POD in F<.pod> files outside
-F<lib/>, F<CHANGELOG> and F<LICENSE>.
+F<lib/>, F<Changes>, F<CHANGELOG> and F<LICENSE>.
 
-=item The build and the install
+=item The build, the release and the install
 
-F<Makefile.PL>, F<Installer.mk>, F<package.json> and F<package-lock.json>.
-C<make> and C<npm> read them, and no test does.
+F<dist.ini>, F<weaver.ini>, F<prereqs.yml>, F<metamerge.yml> and
+F<MANIFEST.SKIP>, which C<dzil> reads, and C<dzil test> checks what they build.
+F<Installer.mk>, F<package.json> and F<package-lock.json>, which C<make> and
+C<npm> read, and no test does.
 
 =item The tools and the hooks
 
@@ -47,12 +49,14 @@ wants a rule here that names the tests that read it.
 
 =cut
 
-# Read by the tools, by make or by people, and by no test.
+# Read by the tools, by dzil, make or npm, or by people, and by no test.
 my %NO_TESTS = map { $_ => 1 } qw{
-  CHANGELOG LICENSE
-  Makefile.PL Installer.mk package.json package-lock.json
+  Changes CHANGELOG LICENSE
+  dist.ini weaver.ini prereqs.yml metamerge.yml MANIFEST.SKIP
+  Installer.mk package.json package-lock.json
   .perltidyrc .perlcriticrc .perlcriticrc.compat .pod_stopwords .preferred_modules.ini .preferred_binaries.ini
   .mailmap .gitignore .gitattributes .tests-covering-map.pl
+  .conformance.yml .perl-slop.json .claude/settings.json
 };
 
 return sub {

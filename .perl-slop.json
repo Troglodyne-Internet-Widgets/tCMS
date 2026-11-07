@@ -1,0 +1,13 @@
+{
+  "before_edit": {
+    "**.md": [
+      "simple-english:simple-english"
+    ],
+    "**.pod": [
+      "simple-english:simple-english"
+    ],
+    "Changes": [
+      "simple-english:simple-english"
+    ]
+  }
+}

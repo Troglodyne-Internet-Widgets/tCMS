@@ -1,3 +1,6 @@
+# PODNAME: tCMS::Manual
+# ABSTRACT: How to set up and run a tCMS site
+
 =head1 tCMS Manual
 
 =head2 First time setup

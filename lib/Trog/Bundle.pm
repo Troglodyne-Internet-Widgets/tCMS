@@ -144,7 +144,7 @@ sub save ( $tpsgi, $bundle ) {
             $tpsgi->add_watch(
                 $dir,
                 sub {
-                    my ( $watcher, $change ) = @_;
+                    my ($watcher) = @_;
                     $watcher->invalidate_renders($_) for qw{html js};
                     return 1;
                 },
