@@ -15,6 +15,12 @@
          "x-tcms-label" : "Preview Image",
          "x-tcms-input" : "file"
       },
+      "av1_href" : {
+         "type" : "string"
+      },
+      "h264_href" : {
+         "type" : "string"
+      },
       "file" : {
          "type" : "upload",
          "x-tcms-label" : "File",

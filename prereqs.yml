@@ -25,6 +25,11 @@ runtime:
     DBD::SQLite: 0
     Starman: 0
 
+    # The backend that Minion loads by name for the job queue, in data/jobs.db.
+    Minion: 0
+    Minion::Backend::SQLite: 0
+    Mojolicious: 0
+
     # Listed in Makefile.PL, and loaded by nothing in lib/, bin/ or t/ today.
     # They are kept so that this change installs what Makefile.PL installed.
     Carp::Always: 0

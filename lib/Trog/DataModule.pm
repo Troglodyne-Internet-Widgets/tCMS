@@ -16,6 +16,7 @@ use JSON::Validator::Schema::Troglodyne();
 
 use Time::HiRes();
 use Trog::Themes();
+use Trog::Jobs();
 
 use Trog::Log qw{:all};
 use Trog::Utils;
@@ -930,6 +931,13 @@ my sub handle_upload ( $file, $uuid, $private = 0 ) {
     # Regrettably, we have no control over the perms of the temp file that starman creates for uploads.
     chmod( 0755, "www/assets/$newname" );
     $seen_files{$fname} = "/assets/$newname";
+
+    # The post is written at once with the original, and serves it until the job
+    # has made the files that a browser plays better.  A queue that is down must
+    # not lose an upload, so a failure to enqueue is a warning.
+    if ( ( Trog::Utils::mime_type("www/assets/$newname") // '' ) =~ m{\Avideo/} ) {
+        eval { Trog::Jobs::enqueue_transcode("/assets/$newname"); 1 } or WARN("Could not queue the transcode of /assets/$newname: $@");
+    }
     return $seen_files{$fname};
 }
 
@@ -955,6 +963,9 @@ sub process ($post) {
 
     # If the post is private, make sure it's associated assets are too.
     my $is_private_post = $post->{visibility} eq 'private';
+
+    # A new file is a new video: the transcoded files of the old one are not its.
+    delete @{$post}{qw{av1_href h264_href}} if $post->{file};
 
     $post->{href}      = handle_upload( $post->{file},           $post->{id}, $is_private_post ) if $post->{file};
     $post->{preview}   = handle_upload( $post->{preview_file},   $post->{id}, $is_private_post ) if $post->{preview_file};
