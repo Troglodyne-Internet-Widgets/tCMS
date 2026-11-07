@@ -3,7 +3,7 @@
         <a href="<: $post.local_href :>" class="tile">
             : if ($post.is_video) {
                 <video preload="metadata" class="responsive" controls poster="<: $post.preview :>" >
-                    <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                    : include "video_sources.tx";
                     Your browser does not support the video tag.
                 </video>
             : } else {
@@ -17,7 +17,7 @@
 
         : if ( $post.is_video ) {
             <video preload="metadata" class="responsive" controls poster="<: $post.preview :>" >
-                <source src="<: $post.href :>" type="<: $post.content_type :>" />
+                : include "video_sources.tx";
                 Your browser does not support the video tag.
             </video>
         : }
@@ -50,6 +50,12 @@
         File *<br /><input <: $post.href ? '' : 'required' :> class="cooltext" type="file" name="file" />
         : if ( $post.href ) {
         <input type="hidden" name="href" value="<: $post.href :>" />
+        : if ( $post.av1_href ) {
+        <input type="hidden" name="av1_href" value="<: $post.av1_href :>" />
+        : }
+        : if ( $post.h264_href ) {
+        <input type="hidden" name="h264_href" value="<: $post.h264_href :>" />
+        : }
         : }
         : include "preview.tx";
         : include "visibility.tx";

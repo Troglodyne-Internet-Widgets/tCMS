@@ -32,6 +32,7 @@ use Trog::Utils;
 use Trog::Config;
 use Trog::Auth;
 use Trog::Data;
+use Trog::Jobs;
 use Trog::Themes;
 use Trog::Bundle;
 use Trog::Renderer;
@@ -178,6 +179,13 @@ our %routes = (
         method   => 'GET',
         auth     => 1,
         callback => \&Trog::Routes::HTML::sessions,
+        noindex  => 1,
+        nocache  => 1,
+    },
+    '/admin/jobs' => {
+        method   => 'GET',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::jobs,
         noindex  => 1,
         nocache  => 1,
     },
@@ -2023,7 +2031,8 @@ sub public_host {
 =head2 media_urls($post, $base, $seen)
 
 Put $base in front of each public asset path of $post, and of each post that it
-holds: C<href>, C<preview>, C<wallpaper>, C<video_href>, C<audio_href> and each
+holds: C<href>, C<preview>, C<wallpaper>, C<video_href>, C<audio_href>, C<av1_href>,
+C<h264_href> and each
 of C<attachments>.  Does nothing if $base is empty.
 
 A path changes only if it starts with C</assets/>.  A path under
@@ -2036,7 +2045,7 @@ for redact_private().
 
 =cut
 
-our @media_fields = qw{href preview wallpaper video_href audio_href};
+our @media_fields = qw{href preview wallpaper video_href audio_href av1_href h264_href};
 
 sub media_urls ( $post, $base, $seen = {} ) {
     return unless $base;
@@ -2538,6 +2547,55 @@ sub sessions ($query) {
             limit        => $limit,
             filter_user  => $query->{filter_user}  // '',
             filter_event => $query->{filter_event} // '',
+            %$query,
+        },
+        undef,
+        ['post.css'],
+    );
+}
+
+=head2 jobs
+
+Implements /admin/jobs.  Admin only.
+
+The jobs of the queue, newest first, capped by limit (100 by default): the task
+and the state, the file that the job is for, when it was made, started and
+finished, and for a job that failed, why.
+
+=cut
+
+sub jobs ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    my $limit = int( $query->{limit} // 100 );
+    my $when  = sub ($epoch) {
+        return '' unless $epoch;
+        my @t = localtime($epoch);
+        return sprintf( '%04d-%02d-%02d %02d:%02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1], $t[0] );
+    };
+
+    my @jobs = map {
+        {
+            id       => $_->{id},
+            task     => $_->{task},
+            state    => $_->{state},
+            file     => $_->{notes}{href} // $_->{args}[0] // '',
+            created  => $when->( $_->{created} ),
+            started  => $when->( $_->{started} ),
+            finished => $when->( $_->{finished} ),
+            error    => $_->{state} eq 'failed' ? ( ref $_->{result} ? JSON::MaybeXS::encode_json( $_->{result} ) : $_->{result} // '' ) : '',
+        }
+    } @{ Trog::Jobs::list_jobs($limit) };
+
+    return Trog::Routes::HTML::index(
+        {
+            title     => 'tCMS Jobs',
+            theme_dir => Trog::Themes::td(),
+            template  => 'jobs.tx',
+            is_admin  => 1,
+            jobs      => \@jobs,
+            limit     => $limit,
             %$query,
         },
         undef,

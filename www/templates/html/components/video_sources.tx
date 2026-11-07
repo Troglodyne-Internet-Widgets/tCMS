@@ -1,0 +1,7 @@
+: if ( $post.av1_href ) {
+    <source src="<: $post.av1_href :>" type='video/mp4; codecs="av01.0.08M.08, opus"' />
+: }
+: if ( $post.h264_href ) {
+    <source src="<: $post.h264_href :>" type='video/mp4; codecs="avc1.640028, mp4a.40.2"' />
+: }
+<source src="<: $post.href :>" type="<: $post.content_type :>" />

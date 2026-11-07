@@ -66,6 +66,23 @@ You will be interested particularly in:
 
 Many of the advanced features of tCMS won't work quite right without the configurations encoded therein.
 
+Job Queue
+=========
+
+A request does not wait for slow work. tCMS puts the work in a Minion queue, which is the SQLite database `data/jobs.db`. A separate process, the worker, does the work.
+
+The only job today is the transcode of an uploaded video. The worker uses `ffmpeg` to make `<name>.av1.mp4` and `<name>.h264.mp4` beside the original. Then it saves the posts of that video, so that they list both files. Until then, the post serves the original.
+
+The worker is the `minion worker` command of a small Mojolicious application, `Trog::Jobs::App`, in `lib/Trog/Jobs/App.pm`. To start it, run this command from the root of the tCMS install, as the user that runs tCMS:
+
+    perl bin/tcms-jobs minion worker -j 1
+
+The option `-j 1` runs one job at a time, because an encode uses all the cores. Keep the worker running as a service. The other commands of Minion work the same way. For example, `perl bin/tcms-jobs minion job -s` shows the counts of the queue.
+
+Admins can see the jobs at `/admin/jobs`. The page shows the state of each job, its file, its times, and the reason that it failed.
+
+To transcode the videos that were uploaded before the queue existed, run `perl bin/tcms-transcode-existing` from the root of the install. It queues one job for each video and it changes no file. Add `--dry-run` to see the list first.
+
 Content Types
 =============
 See [design.md](design.md#post-types) for how post types work and what the
