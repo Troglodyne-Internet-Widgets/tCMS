@@ -54,6 +54,7 @@ $index->redefine(
             '/posts/p-one'   => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
             '/posts/{curly}' => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
             '/secure/p-two'  => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
+            '/p-private'     => { method => 'GET', callback => 'Trog::Routes::HTML::posts', secure => 1 },
         );
     }
 );
@@ -189,6 +190,13 @@ subtest 'a secure host' => sub {
     is( $res->[0],                      302,                                           "with it, a reader's page on the secure host is a redirect" );
     is( { @{ $res->[1] } }->{Location}, 'https://routes.test.test/posts/p-one?page=2', 'to the same path and query on the public host' );
     ok( !$posted, 'and its callback does not run' );
+
+    $res = $ask->( qw{GET /p-private secure.test.test}, cookies => 'tcmslogin=good' );
+    is_deeply( $res->[2], ['the post'], 'a secure route of a post is no reader\'s page, so it stays on the secure host' );
+    is( $posted->{user}, 'someone', 'for the user that the cookie names' );
+
+    $res = $ask->( qw{GET /p-private routes.test.test}, cookies => 'tcmslogin=good' );
+    is( { @{ $res->[1] } }->{Location}, 'https://secure.test.test/p-private', 'and on the public host it is a redirect to the secure host' );
 
     $res = $ask->( qw{GET /secure/posts/p-one secure.test.test}, cookies => 'tcmslogin=good' );
     is_deeply( $res->[2], ['the post'], 'the /secure copy of a page stays on the secure host' );

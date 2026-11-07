@@ -102,5 +102,17 @@ subtest 'rebuild is one transaction' => sub {
     is_deeply( index_rows(), $before, 'and leaves the index as it was' );
 };
 
+subtest 'routes' => sub {
+    my $data = Fake::Data->new();
+    Trog::SQLite::TagIndex::add_post( post( id => 'p-private',  tags => [qw{admin private}], local_href => '/posts/p-private' ),  $data );
+    Trog::SQLite::TagIndex::add_post( post( id => 'p-unlisted', tags => [qw{blog unlisted}], local_href => '/posts/p-unlisted' ), $data );
+
+    my %routes = Trog::SQLite::TagIndex::routes();
+    is( $routes{'/posts/p-private'}{secure}, 1, 'the route of a private post is secure' );
+    ok( !exists $routes{'/posts/p-unlisted'}{secure}, 'and the route of an unlisted one is not' );
+    ok( !exists $routes{'/posts/p-one'}{secure},      'nor the route of a public one' );
+    ok( !exists $routes{'/posts/p-private'}{private}, 'and nothing else is added to a route' );
+};
+
 chdir $oldcwd;
 done_testing();

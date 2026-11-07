@@ -518,4 +518,19 @@ subtest 'aliases' => sub {
     }
 };
 
+subtest 'routes' => sub {
+    my $private  = post( id => 'route-private',  local_href => '/posts/route-private',  visibility => 'private', tags => ['admin'] );
+    my $unlisted = post( id => 'route-unlisted', local_href => '/posts/route-unlisted', visibility => 'unlisted' );
+    foreach my $model ( $sqlite, $flat ) {
+        $model->write( [ map { +{ %$_, tags => [ @{ $_->{tags} } ] } } $private, $unlisted ] );
+    }
+
+    foreach my $case ( [ flatfile => $flat ], [ sqlite => $sqlite ] ) {
+        my ( $name, $model ) = @$case;
+        my %routes = $model->routes();
+        is( $routes{'/posts/route-private'}{secure}, 1, "$name: the route of a private post is secure" );
+        ok( !exists $routes{'/posts/route-unlisted'}{secure}, "$name: and the route of an unlisted one is not" );
+    }
+};
+
 done_testing();

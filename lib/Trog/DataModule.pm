@@ -1022,13 +1022,18 @@ sub delete { die 'stub' }
 
 =head2 routes() = HASH
 
-Returns the routes to each post.
+Returns the routes to each post.  The route of a post tagged C<private> has
+C<secure>, so that it answers only to somebody who is logged in.
 You should override this for performance reasons, as it's just a wrapper around get() by default.
 
 =cut
 
 sub routes ($self) {
-    my %routes = map { $_->{local_href} => { method => $_->{method}, callback => \&{ $_->{callback} } } } ( $self->get( limit => 0, acls => ['admin'] ) );
+    my %routes;
+    foreach my $post ( $self->get( limit => 0, acls => ['admin'] ) ) {
+        my $private = List::Util::any { ( $_ // '' ) eq 'private' } @{ $post->{tags} // [] };
+        $routes{ $post->{local_href} } = { method => $post->{method}, callback => \&{ $post->{callback} }, ( $private ? ( secure => 1 ) : () ) };
+    }
     return %routes;
 }
 

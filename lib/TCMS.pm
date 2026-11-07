@@ -133,7 +133,8 @@ that they leave out is a required string.  A route with no method is a GET.
 If C<general.secure_host> names a host (see secure_host() in
 Trog::Routes::HTML), a route with C<secure> or C<auth> answers only on that
 host.  The F</secure> copies of the routes of posts and of the index get
-C<secure>.  On any other host, a GET or a HEAD of such a route is a redirect to
+C<secure>, and so does the route of a private post, which the data model
+marks.  On any other host, a GET or a HEAD of such a route is a redirect to
 the same path and query on the secure host, and any other method gets 404, so
 that a form body never goes to the public host.  On a host other than the
 secure host, tCMS also ignores the login cookie.  On the secure host, a route
