@@ -26,3 +26,9 @@ x_system_packages:
   inkscape:
     deb: inkscape
     test: inkscape --version
+  # Net::SSLeay links libssl and libz.  dzil, which installs tCMS, needs it
+  # through CPAN::Uploader, LWP::Protocol::https and IO::Socket::SSL.
+  libssl:
+    deb: libssl-dev
+  zlib:
+    deb: zlib1g-dev
