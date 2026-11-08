@@ -2569,11 +2569,6 @@ sub jobs ($query) {
     return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
 
     my $limit = int( $query->{limit} // 100 );
-    my $when  = sub ($epoch) {
-        return '' unless $epoch;
-        my @t = localtime($epoch);
-        return sprintf( '%04d-%02d-%02d %02d:%02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1], $t[0] );
-    };
 
     my @jobs = map {
         {
@@ -2581,9 +2576,9 @@ sub jobs ($query) {
             task     => $_->{task},
             state    => $_->{state},
             file     => $_->{notes}{href} // $_->{args}[0] // '',
-            created  => $when->( $_->{created} ),
-            started  => $when->( $_->{started} ),
-            finished => $when->( $_->{finished} ),
+            created  => $_->{created}     // '',
+            started  => $_->{started}     // '',
+            finished => $_->{finished}    // '',
             error    => $_->{state} eq 'failed' ? ( ref $_->{result} ? JSON::MaybeXS::encode_json( $_->{result} ) : $_->{result} // '' ) : '',
         }
     } @{ Trog::Jobs::list_jobs($limit) };

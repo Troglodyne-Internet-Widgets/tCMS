@@ -24,14 +24,15 @@
                 <td style="padding:4px 8px;"><: $job.task :></td>
                 <td style="padding:4px 8px;"><: $job.state :></td>
                 <td style="padding:4px 8px;font-family:monospace;"><: $job.file :></td>
-                <td style="padding:4px 8px;white-space:nowrap;"><: $job.created :></td>
-                <td style="padding:4px 8px;white-space:nowrap;"><: $job.started :></td>
-                <td style="padding:4px 8px;white-space:nowrap;"><: $job.finished :></td>
+                <td style="padding:4px 8px;white-space:nowrap;"><: if $job.created { :><span class="unixtimestamp" data-time="1"><: $job.created :></span><: } :></td>
+                <td style="padding:4px 8px;white-space:nowrap;"><: if $job.started { :><span class="unixtimestamp" data-time="1"><: $job.started :></span><: } :></td>
+                <td style="padding:4px 8px;white-space:nowrap;"><: if $job.finished { :><span class="unixtimestamp" data-time="1"><: $job.finished :></span><: } :></td>
                 <td style="padding:4px 8px;white-space:pre-wrap;"><: $job.error :></td>
             </tr>
             : }
         </tbody>
     </table>
+    : include "localize_times.tx";
     : } else {
     <p>No jobs yet.</p>
     : }

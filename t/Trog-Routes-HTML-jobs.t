@@ -66,14 +66,18 @@ subtest 'what the page shows' => sub {
         [ qw{transcode failed /assets/a.mp4}, "The av1 transcode failed: bad\n" ],
         'a failed job shows its task, state, file and why'
     );
-    like( $failed->{created}, qr/\A\d{4}-\d\d-\d\d\s\d\d:\d\d:\d\d\z/, 'times are dates' );
-    ok( $failed->{started} && $failed->{finished}, '...for the start and the finish too' );
+    is_deeply( [ @{$failed}{qw{created started finished}} ], [ 1700000000, 1700000010, 1700000020 ], 'times are raw epoch seconds, for the browser to localize' );
     is( $done->{file},  '/assets/b.mp4', 'a job without notes shows the file of its arguments' );
     is( $done->{error}, '',              'a job that did not fail shows no error' );
 
     my $text = Text::Xslate->new( path => ["$REPO/www/templates/html/components"], type => 'html' )->render( 'jobs.tx', $page );
     like( $text, qr/\/assets\/a[.]mp4/,              'the template shows the file' );
     like( $text, qr/(?-x:The av1 transcode failed)/, '...and the error' );
+    my $open  = qr{<span[ ]class="unixtimestamp"[ ]data-time="1">};
+    my $close = qr{</span>};
+    like( $text, qr{$open 1700000000 $close}x, 'each time is a raw epoch in a unixtimestamp container' );
+    unlike( $text, qr/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/, '...and no formatted date' );
+    like( $text, qr/toLocaleString/, 'the page carries the script that localizes the times' );
 };
 
 done_testing();

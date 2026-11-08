@@ -69,20 +69,10 @@ document.addEventListener("DOMContentLoaded", function(){
         <hr class="divider" />
     : }
 
+    : include "localize_times.tx";
+
     <script type="text/javascript">
         document.addEventListener("DOMContentLoaded", function(event) {
-
-            // Fix post dates to be localized
-            var timey = document.querySelectorAll('.unixtimestamp');
-            for (var e of timey) {
-                if (parseInt(e.innerText) != e.innerText) {
-                    // Don't do anything.
-                    continue;
-                }
-                var d = new Date(0);
-                d.setUTCSeconds(e.innerText);
-                e.innerHTML = "&nbsp;" + d.toDateString();
-            }
 
             //Make the version switcher do things
             var swit = document.getElementById("<: $post.id :>-<: $post.version :>-version");
