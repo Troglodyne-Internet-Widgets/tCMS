@@ -22,10 +22,17 @@ gets put there in the first place.
     bin/tcms-hostname                  # print the configured hostname
     bin/tcms-hostname example.com      # set it, then print it
     bin/tcms-hostname --user           # print it as a valid username
+    bin/tcms-hostname --secure secure.example.com example.com
 
 =head2 OPTIONS
 
 =over 4
+
+=item --secure HOST
+
+Set C<general.secure_host> to HOST, the host that the pages that need a login
+answer on.  An empty HOST clears it.  It is written with the hostname, if one
+is given too.
 
 =item --user
 
@@ -45,17 +52,19 @@ Dies if asked to print a hostname which was never set.
 
 =cut
 
-my $user;
+my ( $user, $secure );
 GetOptionsFromArray(
     \@ARGV,
-    'user' => \$user,
+    'user'     => \$user,
+    'secure=s' => \$secure,
 );
 
 my $hostname = $ARGV[0];
 
 my $conf = Trog::Config->get();
-if ($hostname) {
-    $conf->param( 'general.hostname', $hostname );
+if ( $hostname || defined $secure ) {
+    $conf->param( 'general.hostname',    $hostname ) if $hostname;
+    $conf->param( 'general.secure_host', $secure )   if defined $secure;
 
     # write(), not save().  save() writes back to whatever file get() loaded,
     # which is the tracked config/default.cfg until the instance has saved a
