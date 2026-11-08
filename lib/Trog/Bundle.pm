@@ -36,6 +36,20 @@ my sub key_of (@names) {
     return join( '+', map { s/[.]js\z//r } @names );
 }
 
+=head2 page_scripts(@names) = LIST
+
+@names with the scripts of every page in front of them: C<main.js>, which
+localizes the times of the page.  finish_render() and TCMS::build_routes() both
+use this, so that the bundle a page links is the bundle its route declared.
+
+=cut
+
+our @global = ('main.js');
+
+sub page_scripts (@names) {
+    return List::Util::uniq( @global, @names );
+}
+
 =head2 declare(@lists)
 
 Declare each list, an ARRAY reference of names as scripts() takes them, so that

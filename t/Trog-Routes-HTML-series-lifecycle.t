@@ -138,7 +138,7 @@ BEGIN {
     # checkout; these stand in for them.
     File::Slurper::Temp::write_text( "$ROOT/www/scripts/reveal.min.js",    "var Reveal = 'spec reveal';" );
     File::Slurper::Temp::write_text( "$ROOT/www/scripts/highlight.min.js", "var hljs = 'spec highlight';" );
-    File::Copy::copy( "$REPO/www/scripts/$_", "$ROOT/www/scripts/$_" ) or die $! for qw{post.js post_relations.js post_wizard.js};
+    File::Copy::copy( "$REPO/www/scripts/$_", "$ROOT/www/scripts/$_" ) or die $! for qw{main.js post.js post_relations.js post_wizard.js};
 
     # Text::Xslate computes its default cache dir from $HOME once, at load time.
     # Without this the sandbox writes compiled templates into the real ~/.xslate_cache.
@@ -1264,11 +1264,11 @@ subtest 'presentation' => sub {
     my @srcs = $page =~ m{<script\b[^>]*\bsrc="([^"]+)"}g;
     is( scalar(@srcs), 1, 'from one script' ) or return diag( explain( \@srcs ) );
     my ( $version, $names ) = $srcs[0] =~ m{\A/bundle/(\w+)/([^/]+)[.]js\z} or return fail("$srcs[0] is a bundle");
-    is( $names, 'highlight.min+reveal.min', 'which bundles what the deck needs, and no editing scripts for a visitor' );
+    is( $names, 'main+highlight.min+reveal.min', 'which bundles main.js and what the deck needs, and no editing scripts for a visitor' );
 
     my ( $bcode, $bundle, $berr, $headers ) = render( anon( route => $srcs[0], version => $version, names => $names ), \&Trog::Routes::HTML::bundle );
     is( $bcode, 200, 'the bundle is served' ) or return diag($berr);
-    like( $bundle, qr/spec[ ]highlight.*spec[ ]reveal/s, 'with both scripts in it, in order' );
+    like( $bundle, qr/toLocaleString.*spec[ ]highlight.*spec[ ]reveal/s, 'with main.js, which localizes times, and both scripts in it, in order' );
     my %h = @$headers;
     is( $h{'Content-type'}, 'text/javascript', 'as javascript' );
     like( $h{'Cache-Control'}, qr/immutable/, 'that the browser keeps, since the href changes with the body' );
@@ -1299,7 +1299,7 @@ subtest 'presentation' => sub {
 
     ( $code, $page, $err ) = render( query( user => 'spec_reader', user_acls => [], $deck_query->() ), \&Trog::Routes::HTML::posts );
     is( $code, 200, 'the deck renders for a reader who is logged in' ) or return diag($err);
-    my $viewing = qr{highlight[.]min[+]reveal[.]min};
+    my $viewing = qr{main[+]highlight[.]min[+]reveal[.]min};
     my $editing = qr{post[+]post_relations};
     like( $page, qr{src="/bundle/\w+/$viewing[+]$editing[.]js"}, 'with the authenticated scripts after the others, though the reader is not an admin' );
 

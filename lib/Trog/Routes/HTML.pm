@@ -3685,9 +3685,9 @@ sub finish_render ( $template, $vars, %headers ) {
 
     # From the route, and never from the request.
     my $route  = $vars->{dispatcher} // {};
-    my $bundle = Trog::Bundle::scripts( @{ $route->{'x-tcms-scripts'} // [] }, $vars->{user} ? @{ $route->{'x-tcms-authenticated_scripts'} // [] } : () );
-    $vars->{scripts} = $bundle ? [ $bundle->{href} ] : [];
-    Trog::Bundle::save( $vars->{tpsgi}, $bundle ) if $bundle;
+    my $bundle = Trog::Bundle::scripts( Trog::Bundle::page_scripts( @{ $route->{'x-tcms-scripts'} // [] }, $vars->{user} ? @{ $route->{'x-tcms-authenticated_scripts'} // [] } : () ) );
+    $vars->{scripts} = [ $bundle->{href} ];
+    Trog::Bundle::save( $vars->{tpsgi}, $bundle );
 
     # Add in avatars.css, it's special
     push( @{ $vars->{stylesheets} }, "/styles/avatars.css" );

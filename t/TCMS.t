@@ -213,10 +213,11 @@ subtest 'the scripts of a route' => sub {
 
     no warnings qw{once};
     my %declared = %Trog::Bundle::declared;
-    ok( $declared{'highlight.min+reveal.min'},                     'the bundle of a post page is declared at startup' );
-    ok( $declared{'highlight.min+reveal.min+post+post_relations'}, 'and the one for a reader who is logged in' );
-    ok( $declared{'chart.min'},                                    'and the bundle of every other route' );
-    ok( !$declared{'reveal.min+highlight.min'},                    'but no other list' );
+    ok( $declared{'main+highlight.min+reveal.min'},                     'the bundle of a post page is declared at startup, with main.js first' );
+    ok( $declared{'main+highlight.min+reveal.min+post+post_relations'}, 'and the one for a reader who is logged in' );
+    ok( $declared{'main+chart.min'},                                    'and the bundle of every other route' );
+    ok( $declared{'main'},                                              'and a route that names no script has main.js alone' );
+    ok( !$declared{'main+reveal.min+highlight.min'},                    'but no other list' );
 };
 
 subtest 'validation' => sub {

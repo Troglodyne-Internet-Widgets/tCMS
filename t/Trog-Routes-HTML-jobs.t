@@ -7,6 +7,8 @@ use Test::More;
 use Test::MockModule qw{strict};
 use Text::Xslate();
 use Cwd();
+use File::Slurper();
+use Trog::Bundle();
 
 use FindBin::libs;
 
@@ -77,7 +79,21 @@ subtest 'what the page shows' => sub {
     my $close = qr{</span>};
     like( $text, qr{$open 1700000000 $close}x, 'each time is a raw epoch in a unixtimestamp container' );
     unlike( $text, qr/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/, '...and no formatted date' );
-    like( $text, qr/toLocaleString/, 'the page carries the script that localizes the times' );
+    unlike( $text, qr/<script|toLocaleString/,         'the page carries no script of its own, since main.js localizes the times' );
+};
+
+subtest 'main.js localizes the times, on every page' => sub {
+    my $js = File::Slurper::read_text("$REPO/www/scripts/main.js");
+    like( $js, qr/DOMContentLoaded/,                      'main.js waits for the page' );
+    like( $js, qr/querySelectorAll[(]'[.]unixtimestamp'/, '...finds the times' );
+    like( $js, qr/toLocaleString/,                        '...and shows the time of day for those with data-time' );
+    ok( !-e "$REPO/www/templates/html/components/localize_times.tx", 'no template carries a copy' );
+
+    my @global = Trog::Bundle::page_scripts();
+    is_deeply( \@global,                                            ['main.js'],           'every page links main.js' );
+    is_deeply( [ Trog::Bundle::page_scripts(qw{main.js post.js}) ], [qw{main.js post.js}], '...once, and before the scripts of the route' );
+    is_deeply( [ Trog::Bundle::page_scripts(qw{post.js}) ],         [qw{main.js post.js}], '...also when the route does not name it' );
+    like( Trog::Bundle::scripts(@global)->{body}, qr/toLocaleString/, 'and the bundle holds the handler' );
 };
 
 done_testing();

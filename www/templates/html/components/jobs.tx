@@ -32,7 +32,6 @@
             : }
         </tbody>
     </table>
-    : include "localize_times.tx";
     : } else {
     <p>No jobs yet.</p>
     : }

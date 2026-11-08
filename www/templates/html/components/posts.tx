@@ -69,8 +69,6 @@ document.addEventListener("DOMContentLoaded", function(){
         <hr class="divider" />
     : }
 
-    : include "localize_times.tx";
-
     <script type="text/javascript">
         document.addEventListener("DOMContentLoaded", function(event) {
 
