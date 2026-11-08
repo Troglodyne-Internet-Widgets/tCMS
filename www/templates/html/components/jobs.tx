@@ -1,0 +1,38 @@
+<div id="backoffice">
+    <h2>Jobs</h2>
+    <form method="GET" action="/admin/jobs">
+        <label>Limit: <input class="cooltext" type="number" name="limit" value="<: $limit :>" min="10" max="1000" /></label>
+        <input class="coolbutton" type="submit" value="Show" />
+    </form>
+    <br />
+    : if ($jobs) {
+    <table class="cooltext" style="width:100%;border-collapse:collapse;">
+        <thead>
+            <tr style="text-align:left;">
+                <th style="padding:4px 8px;">Task</th>
+                <th style="padding:4px 8px;">State</th>
+                <th style="padding:4px 8px;">File</th>
+                <th style="padding:4px 8px;">Created</th>
+                <th style="padding:4px 8px;">Started</th>
+                <th style="padding:4px 8px;">Finished</th>
+                <th style="padding:4px 8px;">Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            : for $jobs -> $job {
+            <tr>
+                <td style="padding:4px 8px;"><: $job.task :></td>
+                <td style="padding:4px 8px;"><: $job.state :></td>
+                <td style="padding:4px 8px;font-family:monospace;"><: $job.file :></td>
+                <td style="padding:4px 8px;white-space:nowrap;"><: if $job.created { :><span class="unixtimestamp" data-time="1"><: $job.created :></span><: } :></td>
+                <td style="padding:4px 8px;white-space:nowrap;"><: if $job.started { :><span class="unixtimestamp" data-time="1"><: $job.started :></span><: } :></td>
+                <td style="padding:4px 8px;white-space:nowrap;"><: if $job.finished { :><span class="unixtimestamp" data-time="1"><: $job.finished :></span><: } :></td>
+                <td style="padding:4px 8px;white-space:pre-wrap;"><: $job.error :></td>
+            </tr>
+            : }
+        </tbody>
+    </table>
+    : } else {
+    <p>No jobs yet.</p>
+    : }
+</div>

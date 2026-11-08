@@ -4,3 +4,11 @@ Revision history for tCMS
     - Build with Dist::Zilla.  dist.ini, prereqs.yml and metamerge.yml replace
       Makefile.PL, and metamerge.yml names the system packages that tCMS needs.
     - The history before this is in CHANGELOG.
+    - Transcode an uploaded video in a Minion queue (data/jobs.db). The worker
+      of bin/tcms-jobs runs the jobs. A post lists an AV1 file and an H.264
+      file, each with its index first, and serves the original until they
+      exist.
+    - Show the jobs to admins at /admin/jobs.
+    - Add bin/tcms-transcode-existing, which queues the videos that are
+      already uploaded.
+    - Declare ffmpeg as a system package that tCMS needs.

@@ -26,6 +26,10 @@ x_system_packages:
   inkscape:
     deb: inkscape
     test: inkscape --version
+  # The transcode job of Trog::Jobs runs ffmpeg, with libsvtav1 and libx264.
+  ffmpeg:
+    deb: ffmpeg
+    test: ffmpeg -version
   # Net::SSLeay links libssl and libz.  dzil, which installs tCMS, needs it
   # through CPAN::Uploader, LWP::Protocol::https and IO::Socket::SSL.
   libssl:

@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use re '/aasx';
+use warnings FATAL => 'all';
+
+use FindBin::libs;
+
+use Mojolicious::Commands();
+
+=head1 SYNOPSIS
+
+Run a command of the job queue of tCMS.
+
+=head2 USAGE
+
+    bin/tcms-jobs minion worker -j 1
+    bin/tcms-jobs minion job -s
+
+Run it from the root of the tCMS install, because the paths of the queue are
+relative to it.  C<minion worker> takes the jobs out of the queue and runs
+them, so keep one running as a service.  The C<-j> option is how many jobs run
+at once.  A transcode uses all the cores, so 1 is right.  The other commands of
+Minion, such as C<minion job>, show and manage the jobs.
+
+See L<Trog::Jobs::App>.
+
+=cut
+
+Mojolicious::Commands->start_app( 'Trog::Jobs::App', @ARGV );

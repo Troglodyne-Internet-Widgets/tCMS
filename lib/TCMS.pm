@@ -162,8 +162,8 @@ sub build_routes {
 
         # The bundles that this route's page can link, for a reader and for a
         # reader who is logged in.
-        my @scripts = @{ $v->{scripts} // [] };
-        Trog::Bundle::declare( \@scripts, [ @scripts, @{ $v->{authenticated_scripts} // [] } ] );
+        my @scripts = Trog::Bundle::page_scripts( @{ $v->{scripts} // [] } );
+        Trog::Bundle::declare( \@scripts, [ Trog::Bundle::page_scripts( @scripts, @{ $v->{authenticated_scripts} // [] } ) ] );
 
         my $method = lc( $v->{method} // 'GET' );
 

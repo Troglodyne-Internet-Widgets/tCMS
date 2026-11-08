@@ -1,0 +1,43 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use re '/aasx';
+use warnings FATAL => 'all';
+
+use FindBin::libs;
+
+use Getopt::Long qw{GetOptions};
+
+use Trog::Jobs();
+
+=head1 SYNOPSIS
+
+Put a transcode job in the queue for each video that tCMS already holds.
+
+=head2 USAGE
+
+    bin/tcms-transcode-existing [--dry-run]
+
+Run it from the root of the tCMS install.  It looks at each file in
+F<www/assets> and F<www/assets/private> and queues a job for each video.  A
+video that already has both transcoded files is skipped.
+
+It changes no file.  The worker, C<bin/tcms-jobs minion worker>, makes the
+new files beside the originals.  When it is done with a video, it saves a new
+version of each post of that video, so that the post lists the new files.
+
+    --dry-run   Say which videos would get a job, and queue nothing.
+
+=cut
+
+GetOptions( 'dry-run' => \my $dry ) or die "Usage: $0 [--dry-run]\n";
+
+my $queued = 0;
+foreach my $href ( Trog::Jobs::video_assets() ) {
+    my $outputs = Trog::Jobs::outputs_for($href);
+    next if !grep { !-e Trog::Jobs::asset_path($_) } values %$outputs;
+
+    say $dry ? "Would queue $href" : sprintf( 'Queued job %s for %s', Trog::Jobs::enqueue_transcode($href), $href );
+    $queued++;
+}
+say "$queued video(s) " . ( $dry ? 'would be queued.' : 'queued.' );
