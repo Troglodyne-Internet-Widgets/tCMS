@@ -28,7 +28,6 @@ http_user=www-data
 user=INSERT_MY_USERNAME_HERE
 domain=INSERT_MY_DOMAIN_NAME_HERE
 routers=tCMS/lib/TCMS.pm
-indices=
 custom_log="/var/log/www/tpsgi.log"
 basedir="tCMS"
 ```
