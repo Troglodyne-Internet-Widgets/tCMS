@@ -11,7 +11,7 @@ use Minion();
 use Path::Tiny();
 
 use Trog::Config();
-use Trog::Updates();
+use Trog::Jobs::Updates();
 use Trog::Utils();
 
 =head1 NAME
@@ -26,7 +26,7 @@ only puts a job in it.  A separate process, the worker of L<Trog::Jobs::App>,
 takes the jobs out and runs them.  See the Readme for how to start it.
 
 The tasks are C<transcode>, whose one argument is the C</assets/...> path of
-an uploaded video, and C<update_check> and C<update> of L<Trog::Updates>.
+an uploaded video, and C<update_check> and C<update> of L<Trog::Jobs::Updates>.
 
 All the paths here are relative to the root of the tCMS install, like the paths
 of the rest of tCMS.
@@ -76,8 +76,8 @@ Teach $minion the tasks of tCMS.  The application of the worker calls this.
 
 sub register_tasks ($minion) {
     $minion->add_task( transcode    => \&transcode_task );
-    $minion->add_task( update_check => \&Trog::Updates::check_task );
-    $minion->add_task( update       => \&Trog::Updates::update_task );
+    $minion->add_task( update_check => \&Trog::Jobs::Updates::check_task );
+    $minion->add_task( update       => \&Trog::Jobs::Updates::update_task );
     return $minion;
 }
 
