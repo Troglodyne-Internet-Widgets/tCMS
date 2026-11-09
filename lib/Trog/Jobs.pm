@@ -11,6 +11,7 @@ use Minion();
 use Path::Tiny();
 
 use Trog::Config();
+use Trog::Updates();
 use Trog::Utils();
 
 =head1 NAME
@@ -24,8 +25,8 @@ an SQLite database in F<data/>, next to the other databases of tCMS.  A request
 only puts a job in it.  A separate process, the worker of L<Trog::Jobs::App>,
 takes the jobs out and runs them.  See the Readme for how to start it.
 
-The only task today is C<transcode>.  Its one argument is the C</assets/...>
-path of an uploaded video.
+The tasks are C<transcode>, whose one argument is the C</assets/...> path of
+an uploaded video, and C<update_check> and C<update> of L<Trog::Updates>.
 
 All the paths here are relative to the root of the tCMS install, like the paths
 of the rest of tCMS.
@@ -74,7 +75,9 @@ Teach $minion the tasks of tCMS.  The application of the worker calls this.
 =cut
 
 sub register_tasks ($minion) {
-    $minion->add_task( transcode => \&transcode_task );
+    $minion->add_task( transcode    => \&transcode_task );
+    $minion->add_task( update_check => \&Trog::Updates::check_task );
+    $minion->add_task( update       => \&Trog::Updates::update_task );
     return $minion;
 }
 

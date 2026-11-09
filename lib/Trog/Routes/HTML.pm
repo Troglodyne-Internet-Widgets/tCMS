@@ -33,6 +33,7 @@ use Trog::Config;
 use Trog::Auth;
 use Trog::Data;
 use Trog::Jobs;
+use Trog::Updates();
 use Trog::Themes;
 use Trog::Bundle;
 use Trog::Renderer;
@@ -123,6 +124,16 @@ our %routes = (
         method   => 'POST',
         auth     => 1,
         callback => \&Trog::Routes::HTML::config_save,
+    },
+    '/config/updates/check' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::updates_check,
+    },
+    '/config/updates/pull' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::updates_pull,
     },
     '/themeclone' => {
         method   => 'POST',
@@ -873,6 +884,7 @@ sub config ( $query = {} ) {
             stylesheets     => [qw{config.css}],
             themes          => get_themes() || [],
             config_sections => config_sections(),
+            updates         => Trog::Updates::summary(),
             message         => $query->{message},
             failure         => $query->{failure},
             to              => '/config',
@@ -1213,6 +1225,41 @@ sub config_apply ( $conf, $query ) {
         }
     }
     return;
+}
+
+=head2 updates_check
+
+Implements the /config/updates/check route.  Queues a check of the commits
+that the site runs, as L<Trog::Updates/enqueue_check> does, and goes back to
+/config.
+
+=cut
+
+sub updates_check ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    Trog::Updates::enqueue_check();
+    return $query->{tpsgi}->see_also('/config');
+}
+
+=head2 updates_pull
+
+Implements the /config/updates/pull route.  Queues an update of the checkout
+named in C<checkout>, as L<Trog::Updates/enqueue_update> does, and goes back
+to /config.  For a name that is not a checkout, it shows /config with the
+reason.
+
+=cut
+
+sub updates_pull ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+
+    my $name = $query->{checkout};
+    $name = $name->[-1] if ref $name eq 'ARRAY';
+    return config( { %$query, failure => 1, message => Trog::Updates::reason($@) } ) unless eval { Trog::Updates::enqueue_update($name); 1 };
+    return $query->{tpsgi}->see_also('/config');
 }
 
 =head2 themeclone

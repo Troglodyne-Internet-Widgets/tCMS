@@ -119,6 +119,7 @@ env
 etags
 favicon
 fb
+ffmpeg
 filehandle
 filesystem
 filetest
@@ -349,6 +350,7 @@ topbar
 totp
 tpm
 tpsgi
+transcode
 trigram
 trog
 troglodyne
@@ -395,6 +397,7 @@ WAL
 webserver
 whitespace
 wilma
+worktree
 xhr
 xml
 xsl

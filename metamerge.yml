@@ -30,6 +30,10 @@ x_system_packages:
   ffmpeg:
     deb: ffmpeg
     test: ffmpeg -version
+  # The update of Trog::Updates fetches and fast forwards with git.
+  git:
+    deb: git
+    test: git --version
   # Net::SSLeay links libssl and libz.  dzil, which installs tCMS, needs it
   # through CPAN::Uploader, LWP::Protocol::https and IO::Socket::SSL.
   libssl:

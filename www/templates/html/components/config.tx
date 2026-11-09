@@ -40,6 +40,57 @@ If for example, you use mysql it will have to rely on either a local server, val
 </form>
 <hr />
 <p class="title">
+ Versions:
+</p>
+The commit that each checkout serving this site runs, and whether its upstream
+has a newer one.  An update is a fast forward, and refuses when the new commits
+need a system package or a perl module that a person must install.
+<br />
+: if ( $updates.checked_at ) {
+Checked <span class="unixtimestamp" data-time="1"><: $updates.checked_at :></span>.
+: } else {
+Not checked yet.
+: }
+: for $updates.pending -> $job {
+<br /><em><: $job.task == 'update' ? 'Update of ' ~ $job.checkout : 'A check' :> is <: $job.state == 'active' ? 'running' : 'waiting' :>.</em>
+: }
+: if ( $updates.last_update && $updates.last_update.state == 'failed' ) {
+<p class="config-help">The last update, of <: $updates.last_update.checkout :>, failed: <: $updates.last_update.error :></p>
+: }
+<table class="cooltext" id="versions">
+    <thead>
+        <tr><th>Checkout</th><th>Branch</th><th>Commit</th><th>Upstream</th><th>State</th><th></th></tr>
+    </thead>
+    <tbody>
+        : for $updates.checkouts -> $co {
+        <tr>
+            <td><: $co.label :></td>
+            <td><: $co.branch :></td>
+            <td><code><: $co.short_head :></code></td>
+            <td><code><: $co.short_upstream :></code></td>
+            <td>
+                <: $co.state :><: if $co.state == 'behind' { :> by <: $co.behind :><: } :><: if $co.dirty { :>, with local changes<: } :>
+                : if ( $co.error ) {
+                <br /><span class="config-help"><: $co.error :></span>
+                : }
+            </td>
+            <td>
+                : if ( $co.state == 'behind' && !$co.dirty ) {
+                <form method="post" action="/config/updates/pull">
+                    <input type="hidden" name="checkout" value="<: $co.name :>" />
+                    <input type="submit" class="coolbutton" value="Update" />
+                </form>
+                : }
+            </td>
+        </tr>
+        : }
+    </tbody>
+</table>
+<form method="post" action="/config/updates/check">
+    <input type="submit" class="coolbutton" value="Check now" />
+</form>
+<hr />
+<p class="title">
  Theme cloner:
 </p>
 Want to write your own theme?
