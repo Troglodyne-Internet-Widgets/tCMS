@@ -70,7 +70,7 @@ Job Queue
 
 A request does not wait for slow work. tCMS puts the work in a Minion queue, which is the SQLite database `data/jobs.db`. A separate process, the worker, does the work.
 
-The only job today is the transcode of an uploaded video. The worker uses `ffmpeg` to make `<name>.av1.mp4` and `<name>.h264.mp4` beside the original. Then it saves the posts of that video, so that they list both files. Until then, the post serves the original.
+The first job is the transcode of an uploaded video. The worker uses `ffmpeg` to make `<name>.av1.mp4` and `<name>.h264.mp4` beside the original. Then it saves the posts of that video, so that they list both files. Until then, the post serves the original.
 
 The worker is the `minion worker` command of a small Mojolicious application, `Trog::Jobs::App`, in `lib/Trog/Jobs/App.pm`. To start it, run this command from the root of the tCMS install, as the user that runs tCMS:
 
@@ -81,6 +81,10 @@ The option `-j 1` runs one job at a time, because an encode uses all the cores. 
 Admins can see the jobs at `/admin/jobs`. The page shows the state of each job, its file, its times, and the reason that it failed.
 
 To transcode the videos that were uploaded before the queue existed, run `perl bin/tcms-transcode-existing` from the root of the install. It queues one job for each video and it changes no file. Add `--dry-run` to see the list first.
+
+The other jobs keep tCMS up to date. The settings page, `/config`, has a section named Versions. It shows the commit of tCMS, of tPSGI in the directory above it, and of the active theme when the theme is a git checkout. It also shows whether the upstream has a newer commit. tCMS and tPSGI come from their public repositories on GitHub. A theme comes from the first of its remotes that git can read over HTTPS without a password. The page checks again when the last check is more than ten minutes old, and the "Check now" button checks at once.
+
+If a checkout is behind and has no changes to tracked files, the Update button fast forwards it. The update refuses if the new commits need a system package, which `metamerge.yml` declares, or a perl module that this perl does not have, which `dzil listdeps --missing` reports. A person must install those. After an update of tCMS or the theme, the update sends HUP to tPSGI, so that its workers load the new code, and then it restarts the worker of the queue. After an update of tPSGI, it restarts the tPSGI service. The restarts use `sudo -n /usr/bin/systemctl restart`, which the tcms and tpsgi recipes of trog-provisioner allow for the user that runs tCMS. See `perldoc Trog::Updates` for the part that a request runs, and `perldoc Trog::Jobs::Updates` for the tasks.
 
 Content Types
 =============

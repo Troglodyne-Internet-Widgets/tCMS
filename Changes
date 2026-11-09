@@ -12,3 +12,8 @@ Revision history for tCMS
     - Add bin/tcms-transcode-existing, which queues the videos that are
       already uploaded.
     - Declare ffmpeg as a system package that tCMS needs.
+    - Show on /config the commit that tCMS, tPSGI and a theme that is a git
+      checkout run, and whether the upstream has a newer one.  An admin can
+      fast forward a checkout that is behind, in the job queue.  The update
+      refuses when the new commits need a system package or a perl module.
+    - Declare git as a system package that tCMS needs.
