@@ -28,9 +28,17 @@ sub posts_for_tags (@tags) {
     return map { $_->{id} } @$rows;
 }
 
+=head2 routes() = HASH
+
+Maps the route of each post to its C<id>, C<route>, C<method> and C<callback>.
+C<secure> is true for the route of a post tagged C<private>, so that it
+answers only to somebody who is logged in.
+
+=cut
+
 sub routes {
     my $dbh  = dbh();
-    my $rows = $dbh->selectall_arrayref( "SELECT id, route, method, callback FROM all_routes", { Slice => {} } );
+    my $rows = $dbh->selectall_arrayref( "SELECT id, route, method, callback, secure FROM all_routes", { Slice => {} } );
     return () unless ref $rows eq 'ARRAY' && @$rows;
 
     #XXX not sure how this gets escaped going in.

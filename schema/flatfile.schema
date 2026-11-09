@@ -39,8 +39,10 @@ CREATE TABLE IF NOT EXISTS callbacks (
     callback TEXT NOT NULL UNIQUE
 );
 
-/* The actual routing table */
-CREATE VIEW IF NOT EXISTS all_routes AS SELECT r.id AS id, r.route AS route, m.method AS method, c.callback AS callback FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id;
+/* The actual routing table.  The route of a post tagged private is secure. */
+CREATE VIEW IF NOT EXISTS all_routes AS SELECT r.id AS id, r.route AS route, m.method AS method, c.callback AS callback,
+    EXISTS (SELECT 1 FROM posts_index AS p JOIN tag AS t ON t.id=p.tag_id WHERE p.post_id=r.post_id AND t.name='private') AS secure
+    FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id;
 
 /* Fill the methods table with the HTTP verbs */
 INSERT OR IGNORE INTO methods (method) VALUES ('GET'),('POST'),('DELETE'),('PUT'),('HEAD'),('PATCH'),('CONNECT'),('OPTIONS'),('TRACE');
