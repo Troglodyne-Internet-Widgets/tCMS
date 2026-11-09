@@ -73,4 +73,11 @@ subtest 'the hostname and the secure host' => sub {
     is( setting('general.secure_host'), q{}, 'and unsets it' );
 };
 
+subtest 'an option it does not know' => sub {
+    my ( $code, $said ) = hostname(qw{--bogus secure.test.test test.test});
+    isnt( $code, 0, 'is refused' );
+    like( $said, qr/Unknown \s option: \s bogus/, 'by name' );
+    is( setting('general.hostname'), 'test.test', 'and the configuration is left as it was' );
+};
+
 done_testing();

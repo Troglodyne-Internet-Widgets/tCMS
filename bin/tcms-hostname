@@ -8,6 +8,7 @@ use FindBin::libs;
 
 use Trog::Config();
 use Getopt::Long qw{GetOptionsFromArray};
+use Pod::Usage   qw{pod2usage};
 
 =head1 SYNOPSIS
 
@@ -57,7 +58,7 @@ GetOptionsFromArray(
     \@ARGV,
     'user'     => \$user,
     'secure=s' => \$secure,
-);
+) or pod2usage( -exitval => 2, -sections => 'SYNOPSIS/USAGE', -verbose => 99 );
 
 my $hostname = $ARGV[0];
 
