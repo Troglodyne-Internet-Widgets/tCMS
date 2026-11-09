@@ -54,6 +54,7 @@ $index->redefine(
         return (
             '/posts/p-one'    => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
             '/posts/p-two'    => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
+            '/posts/p-hidden' => { method => 'GET', callback => 'Trog::Routes::HTML::posts', secure => 1 },
             '/posts/p-series' => { method => 'GET', callback => 'Trog::Routes::HTML::series' },
             '/p-elsewhere'    => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
             '/secure/p-two'   => { method => 'GET', callback => 'Trog::Routes::HTML::posts' },
@@ -117,6 +118,7 @@ subtest 'the routes of posts' => sub {
     ok( $paths->{'/posts/p-series'}{get},     'but a path there that another callback answers keeps its route' );
     ok( $paths->{'/p-elsewhere'}{get},        'as does a post at an href of its own' );
     ok( $paths->{'/secure/p-elsewhere'}{get}, 'and its /secure copy' );
+    is( $paths->{'/posts/p-hidden'}{get}{'x-tcms-secure'}, 1, 'and a private post at /posts keeps a secure route of its own' );
 
     # The flag that says setup is done, or the default route answers instead.
     open( my $fh, '>', 'config/setup' ) or die $!;

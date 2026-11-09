@@ -59,7 +59,8 @@ my sub _routes ( $data = {} ) {
 
     # One template routes every post at the href that a post gets by default,
     # because tPSGI checks a route at a time, and a site has thousands of posts.
-    my @posts = grep { m{\A/posts/[^/]+\z} && _callback_name( $roots{$_}{callback} ) eq 'Trog::Routes::HTML::posts' } keys(%roots);
+    # The template is not secure, so a private post keeps its own route.
+    my @posts = grep { m{\A/posts/[^/]+\z} && !$roots{$_}{secure} && _callback_name( $roots{$_}{callback} ) eq 'Trog::Routes::HTML::posts' } keys(%roots);
     delete @roots{@posts};
     $roots{'/posts/{id}'} = { method => 'GET', callback => 'Trog::Routes::HTML::posts' };
 
