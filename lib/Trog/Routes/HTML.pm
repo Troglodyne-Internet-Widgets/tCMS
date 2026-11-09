@@ -355,6 +355,15 @@ if ($theme_dir) {
     }
 }
 
+# The answer to a request for an admin route from anyone but an admin: the
+# login for a visitor, and 403 for a user who is not an admin.  Undef for an
+# admin, who may go on.
+my sub check_user_is_admin ($query) {
+    return $query->{tpsgi}->see_also('/login') unless $query->{user};
+    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    return;
+}
+
 =head1 PRIMARY ROUTE
 
 =head2 feedback_redirect($query, $to, $failure, $message)
@@ -872,8 +881,7 @@ Renders the configuration page, or redirects you back to the login page.
 =cut
 
 sub config ( $query = {} ) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     $query->{failure} //= -1;
 
@@ -1179,8 +1187,7 @@ editable, not whatever turned up in the request.
 =cut
 
 sub config_save ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $conf = Trog::Config::get();
     config_apply( $conf, $query );
@@ -1236,8 +1243,7 @@ that the site runs, as L<Trog::Updates/enqueue_check> does, and goes back to
 =cut
 
 sub updates_check ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     Trog::Updates::enqueue_check();
     return $query->{tpsgi}->see_also('/config');
@@ -1253,8 +1259,7 @@ reason.
 =cut
 
 sub updates_pull ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $name = $query->{checkout};
     $name = $name->[-1] if ref $name eq 'ARRAY';
@@ -1269,8 +1274,7 @@ Clone a theme by copying a directory.
 =cut
 
 sub themeclone ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my ( $theme, $newtheme ) = ( $query->{theme}, $query->{newtheme} );
 
@@ -1293,8 +1297,7 @@ Saves posts submitted via the /post pages
 =cut
 
 sub post_save ($qq) {
-    return $qq->{tpsgi}->see_also('/login') unless $qq->{user};
-    return $qq->{tpsgi}->forbidden($qq)     unless List::Util::any { $_ eq 'admin' } @{ $qq->{user_acls} };
+    if ( my $denied = check_user_is_admin($qq) ) { return $denied }
 
     my $query = clone($qq);
 
@@ -1356,8 +1359,7 @@ Saves / updates new users.
 =cut
 
 sub profile ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     # Find the user's post and edit it
     state $data;
@@ -1419,8 +1421,7 @@ deletes posts.
 =cut
 
 sub post_delete ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     state $data;
     $data //= Trog::Data->new( Trog::Config::get() );
@@ -2467,8 +2468,7 @@ Basically a thin wrapper around Pod::Html.
 =cut
 
 sub manual ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     require Pod::Html;
     require Capture::Tiny;
@@ -2533,8 +2533,7 @@ compute here.
 =cut
 
 sub metrics ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     $query->{failure} //= -1;
 
@@ -2566,8 +2565,7 @@ session id on a page.
 =cut
 
 sub sessions ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $limit  = int( $query->{limit} // 100 );
     my $events = Trog::Auth::audit_log(
@@ -2613,8 +2611,7 @@ finished, and for a job that failed, why.
 =cut
 
 sub jobs ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $limit = int( $query->{limit} // 100 );
 
@@ -2720,8 +2717,7 @@ captures in parallel instead of us taking them one after another.
 =cut
 
 sub guest_screenshot ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $hypervisor = guest_hypervisor( $query, $query->{hypervisor} );
     return $query->{tpsgi}->notfound($query) unless $hypervisor;
@@ -2750,8 +2746,7 @@ Trog::DataSource::Virt::act.
 =cut
 
 sub guest_act ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $to = $query->{to} || '/';
 
@@ -2788,8 +2783,7 @@ for whichever of those they kept last time.
 =cut
 
 sub guest_reprovision ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     my $to = $query->{to} || '/';
 
@@ -2831,8 +2825,7 @@ reasonable place for a hostname, an IP plan or a package list to turn up.
 =cut
 
 sub guest_reprovision_log ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     require Trog::DataSource::ProvisionedVirt;
 
@@ -2868,8 +2861,7 @@ everything after a rejected submission.
 =cut
 
 sub post_wizard ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     $query->{failure} //= -1;
 
@@ -3064,8 +3056,7 @@ type's own fields survive validation at save time.
 =cut
 
 sub post_wizard_save ($query) {
-    return $query->{tpsgi}->see_also('/login') unless $query->{user};
-    return $query->{tpsgi}->forbidden($query)  unless List::Util::any { $_ eq 'admin' } @{ $query->{user_acls} };
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
 
     # Anchored capture rather than a substitution, so anything containing a '/'
     # or a '..' simply fails to match instead of being silently scrubbed into
