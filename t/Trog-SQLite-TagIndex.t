@@ -20,8 +20,10 @@ use_ok('Trog::SQLite::TagIndex') or BAIL_OUT("Can't find SUT");
 my $oldcwd = Cwd::getcwd();
 my $root   = File::Temp::tempdir( CLEANUP => 1 );
 File::Path::make_path( "$root/schema", "$root/data" );
-File::Copy::copy( "$FindBin::Bin/../schema/flatfile.schema", "$root/schema/flatfile.schema" ) or die "Could not copy the schema: $!";
-chdir $root                                                                                   or die "Could not chdir to $root: $!";
+foreach my $schema ( glob "$FindBin::Bin/../schema/flatfile.schema*" ) {
+    File::Copy::copy( $schema, "$root/schema/" ) or die "Could not copy $schema: $!";
+}
+chdir $root or die "Could not chdir to $root: $!";
 
 # A data model holding whatever posts it is given, answering read() and get()
 # the way build_index() and build_routes() ask.
@@ -108,10 +110,20 @@ subtest 'routes' => sub {
     Trog::SQLite::TagIndex::add_post( post( id => 'p-unlisted', tags => [qw{blog unlisted}], local_href => '/posts/p-unlisted' ), $data );
 
     my %routes = Trog::SQLite::TagIndex::routes();
-    is( $routes{'/posts/p-private'}{secure}, 1, 'the route of a private post is secure' );
-    ok( !exists $routes{'/posts/p-unlisted'}{secure}, 'and the route of an unlisted one is not' );
-    ok( !exists $routes{'/posts/p-one'}{secure},      'nor the route of a public one' );
-    ok( !exists $routes{'/posts/p-private'}{private}, 'and nothing else is added to a route' );
+    ok( $routes{'/posts/p-private'}{secure},   'the route of a private post is secure' );
+    ok( !$routes{'/posts/p-unlisted'}{secure}, 'and the route of an unlisted one is not' );
+    ok( !$routes{'/posts/p-one'}{secure},      'nor the route of a public one' );
+};
+
+subtest 'routes of an index made before the view had secure' => sub {
+    my $dbh = Trog::SQLite::TagIndex::dbh();
+    $dbh->do('DROP VIEW all_routes');
+    $dbh->do('CREATE VIEW all_routes AS SELECT r.id AS id, r.route AS route, m.method AS method, c.callback AS callback FROM routes AS r JOIN methods AS m ON m.id=r.method_id JOIN callbacks AS c ON c.id=r.callback_id');
+    $dbh->do('UPDATE trog_sqlite_schema_version SET version = 0');
+    Trog::SQLite::forget();
+
+    my %routes = Trog::SQLite::TagIndex::routes();
+    ok( $routes{'/posts/p-private'}{secure}, 'the update gives the old view secure' );
 };
 
 chdir $oldcwd;

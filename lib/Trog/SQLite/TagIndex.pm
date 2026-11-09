@@ -31,29 +31,15 @@ sub posts_for_tags (@tags) {
 =head2 routes() = HASH
 
 Maps the route of each post to its C<id>, C<route>, C<method> and C<callback>.
-The route of a post tagged C<private> also has C<secure>, so that it answers
-only to somebody who is logged in.
+C<secure> is true for the route of a post tagged C<private>, so that it
+answers only to somebody who is logged in.
 
 =cut
 
 sub routes {
     my $dbh  = dbh();
-    my $rows = $dbh->selectall_arrayref( <<~'SQL', { Slice => {} } );
-        SELECT ar.id, ar.route, ar.method, ar.callback,
-            EXISTS (
-                SELECT 1 FROM routes AS r
-                JOIN posts_index AS p ON p.post_id = r.post_id
-                JOIN tag AS t ON t.id = p.tag_id
-                WHERE r.id = ar.id AND t.name = 'private'
-            ) AS private
-        FROM all_routes AS ar
-        SQL
+    my $rows = $dbh->selectall_arrayref( "SELECT id, route, method, callback, secure FROM all_routes", { Slice => {} } );
     return () unless ref $rows eq 'ARRAY' && @$rows;
-
-    foreach my $row (@$rows) {
-        my $private = delete $row->{private};
-        $row->{secure} = 1 if $private;
-    }
 
     #XXX not sure how this gets escaped going in.
     my %routes = map { URI::Escape::uri_unescape( $_->{route} ) => $_ } @$rows;
