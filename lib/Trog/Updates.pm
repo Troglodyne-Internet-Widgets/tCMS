@@ -377,9 +377,32 @@ fails.
 =cut
 
 sub restart_unit ( $unit, $no_block = 0 ) {
-    my ( $ok, undef, $err ) = run_command( [ qw{sudo -n /usr/bin/systemctl restart}, ( $no_block ? '--no-block' : () ), $unit ] );
+    my ( $ok, undef, $err ) = run_command( [ restart_command( $unit, $no_block ) ] );
     die "Could not restart $unit: $err" unless $ok;
     return;
+}
+
+=head2 restart_command($unit, $no_block) = LIST
+
+The command of C<restart_unit>, as a list.
+
+=cut
+
+sub restart_command ( $unit, $no_block = 0 ) {
+    return ( qw{sudo -n /usr/bin/systemctl restart}, ( $no_block ? '--no-block' : () ), $unit );
+}
+
+=head2 may_restart($unit, $no_block) = BOOLEAN
+
+True when sudo lets this user run the command of C<restart_unit>, as
+C<sudo -n -l> says.  It restarts nothing.
+
+=cut
+
+sub may_restart ( $unit, $no_block = 0 ) {
+    my ( undef, @command ) = restart_command( $unit, $no_block );
+    my ($ok) = run_command( [ qw{sudo -n -l}, grep { $_ ne '-n' } @command ] );
+    return $ok;
 }
 
 =head2 reinstall()
@@ -458,7 +481,12 @@ sub update_task ( $job, $name ) {
     hup_tpsgi();
     push @reloaded, 'tPSGI workers';
 
+    # The restart comes after the finish, where a refusal could not show, so
+    # ask sudo first.
     my $own = $name eq 'tCMS' ? unit_of('self') : undef;
+    if ( $own && !may_restart( $own, 1 ) ) {
+        return $job->fail( { %result, reloaded => \@reloaded, error => "The pull worked and tPSGI reloaded, but sudo does not let this user restart $own, so a person must restart it to load the new tasks" } );
+    }
     $job->finish( { %result, reloaded => [ @reloaded, $own // () ] } );
     restart_unit( $own, 1 ) if $own;
     return;

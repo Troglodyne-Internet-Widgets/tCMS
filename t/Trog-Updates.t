@@ -219,6 +219,14 @@ subtest 'unit_of' => sub {
     is( Trog::Updates::unit_of(43), undef,               'none for a process that is not there' );
 };
 
+subtest 'may_restart' => sub {
+    my @asked;
+    my $mock = Test::MockModule->new('Trog::Updates');
+    $mock->redefine( run_command => sub ( $command, %options ) { push @asked, $command; return ( 0, '', '' ) } );
+    ok( !Trog::Updates::may_restart( 'tcms-worker-test.test.service', 1 ), 'no, when sudo -l refuses' );
+    is_deeply( \@asked, [ [qw{sudo -n -l /usr/bin/systemctl restart --no-block tcms-worker-test.test.service}] ], '...asked for the command that restart_unit runs' );
+};
+
 subtest 'tpsgi_pid' => sub {
     like( exception { Trog::Updates::tpsgi_pid() }, qr/a[ ]person[ ]must[ ]restart[ ]tPSGI/, 'no pid file' );
     File::Path::make_path('../run');
@@ -245,6 +253,8 @@ subtest 'update_task' => sub {
     $mock->redefine( missing_modules => sub ( $dir, $commit ) { return } );
     $mock->redefine( unit_of         => sub ($pid) { return $pid eq 'self' ? 'tcms-worker-test.test.service' : 'test.test.service' } );
     $mock->redefine( tpsgi_pid       => sub { return 1234 } );
+    my $may = 1;
+    $mock->redefine( may_restart => sub ( $unit, $no_block = 0 ) { return $may } );
 
     # Where the subtests above left the upstream.
     sh( '.', qw{fetch -q}, $up_tcms, 'master' );
@@ -275,6 +285,15 @@ subtest 'update_task' => sub {
     is( scalar @hups,     1, 'tPSGI got a HUP' );
     is_deeply( \@restarts, [ [ 'tcms-worker-test.test.service', 1 ] ], 'and the worker restarts, without waiting' );
     is( $minion->jobs( { tasks => ['update_check'], states => ['inactive'] } )->total, 1, 'a check is queued, to show the new state' );
+
+    @hups = @restarts = ();
+    $may  = 0;
+    commit( $up_tcms, 'e' => 5 );
+    $info = run_update('tCMS');
+    is( $info->{state}, 'failed', 'an update whose worker sudo will not restart fails' );
+    like( $info->{result}{error}, qr/(?-x:so a person must restart it)/, '...and says who must restart it' );
+    is_deeply( [ scalar @hups, \@restarts ], [ 1, [] ], '...after the pull and the HUP, which worked' );
+    $may = 1;
 
     @hups = @restarts = ();
     my $tp = commit( $up_tpsgi, 'd' => 4 );
