@@ -6,6 +6,7 @@ use warnings FATAL => 'all';
 
 use File::Which();
 use IPC::Run();
+use URI::Escape();
 
 use Trog::Config();
 use Trog::Jobs();
@@ -105,8 +106,12 @@ sub transcode ($href) {
 
 =head2 update_posts($href, $outputs) = INTEGER
 
-Point each post whose C<href> is $href at the files of $outputs, and save it as
-a new version.  Returns how many posts it saved.
+Point each post whose C<href> names the file of $href at the files of
+$outputs, and save it as a new version.  Returns how many posts it saved.
+
+The two are compared decoded, because a post can hold its C<href>
+percent-encoded, as C</assets/a%20b.mp4>, and a job holds the name of the
+file, as C</assets/a b.mp4>.
 
 =cut
 
@@ -114,8 +119,9 @@ sub update_posts ( $href, $outputs ) {
     require Trog::Data;    # Not at load: the data models load this module.
     my $data = Trog::Data->new( Trog::Config::get() );
 
+    my $file  = URI::Escape::uri_unescape($href);
     my $saved = 0;
-    foreach my $post ( grep { ( $_->{href} // '' ) eq $href } $data->get( limit => 0, acls => ['admin'] ) ) {
+    foreach my $post ( grep { URI::Escape::uri_unescape( $_->{href} // '' ) eq $file } $data->get( limit => 0, acls => ['admin'] ) ) {
         $post->{ $Trog::Jobs::profiles{$_}{field} } = $outputs->{$_} foreach keys %Trog::Jobs::profiles;
         $data->add($post);
         $saved++;

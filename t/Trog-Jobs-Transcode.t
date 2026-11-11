@@ -173,6 +173,33 @@ subtest 'the posts of the video list the new files' => sub {
     is_deeply( [ $added[0]{av1_href}, $added[0]{h264_href} ], [ '/assets/v.av1.mp4', '/assets/v.h264.mp4' ], 'each now holds both files' );
 };
 
+subtest 'a post finds the file of its video, however its href is encoded' => sub {
+    my @added;
+    my $fake = bless {}, 'FakeEncodedData';
+    {
+        no warnings 'once';
+        *FakeEncodedData::get = sub {
+            return (
+                { id => 'encoded', href => '/assets/a%20b.mp4' },
+                { id => 'plain',   href => '/assets/a b.mp4' },
+                { id => 'other',   href => '/assets/a%2520b.mp4' },
+            );
+        };
+        *FakeEncodedData::add = sub ( $, $post ) { push @added, $post->{id}; return 0 };
+    }
+    my $data = Test::MockModule->new('Trog::Data');
+    $data->redefine( new => sub { return $fake } );
+    my $conf = Test::MockModule->new('Trog::Config');
+    $conf->redefine( get => sub { return {} } );
+
+    # The job of an existing video has the name of the file, with its space.
+    is( Trog::Jobs::Transcode::update_posts( '/assets/a b.mp4', Trog::Jobs::outputs_for('/assets/a b.mp4') ), 2, 'a job named by the file saves the post with the encoded href too' );
+    is_deeply( \@added, [qw{encoded plain}], '...and not the post of a file whose name holds a literal %20' );
+
+    @added = ();
+    is( Trog::Jobs::Transcode::update_posts( '/assets/a%20b.mp4', Trog::Jobs::outputs_for('/assets/a%20b.mp4') ), 2, 'and a job named by the encoded href saves both' );
+};
+
 subtest 'with ffmpeg, a real clip is transcoded' => sub {
     plan skip_all => 'ffmpeg is not installed' unless File::Which::which('ffmpeg');
 
