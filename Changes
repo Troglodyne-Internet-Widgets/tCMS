@@ -17,3 +17,5 @@ Revision history for tCMS
       fast forward a checkout that is behind, in the job queue.  The update
       refuses when the new commits need a system package or a perl module.
     - Declare git as a system package that tCMS needs.
+    - Give each failed job on /admin/jobs a button that puts it back in the
+      queue.  A transcode that runs again skips the outputs that it made.

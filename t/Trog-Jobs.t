@@ -93,6 +93,29 @@ subtest 'the jobs can be listed' => sub {
     is( Trog::Jobs::minion()->job($first)->info->{notes}{href}, '/assets/one.mp4', '...each with the file it is for' );
 };
 
+subtest 'only a failed job is retried' => sub {
+
+    # A queue of its own, so that the dequeue takes this job and no job that an
+    # earlier subtest queued.  A job fails only while a worker holds it, and a
+    # worker takes only a task that it knows, as the worker of tCMS does.
+    my $minion = Trog::Jobs::register_tasks( Trog::Jobs::minion() );
+    my $id     = $minion->enqueue( transcode => ['/assets/three.mp4'], { queue => 'retrytest' } );
+    ok( !Trog::Jobs::retry_failed($id), 'a job that waits in the queue is not retried' );
+
+    my $worker = $minion->worker->register;
+    my $job    = $worker->dequeue( 0, { queues => ['retrytest'] } );
+    is( $job->id, $id, 'the worker holds the job' );
+    ok( !Trog::Jobs::retry_failed($id), 'a job that runs is not retried' );
+
+    $job->fail("The av1 transcode failed\n");
+    is( $minion->job($id)->info->{state}, 'failed', 'the job failed' );
+    ok( Trog::Jobs::retry_failed($id), 'a failed job is retried' );
+    is_deeply( [ @{ $minion->job($id)->info }{qw{state retries}} ], [ 'inactive', 1 ], '...so it waits in the queue again, with one retry counted' );
+    $worker->unregister;
+
+    ok( !Trog::Jobs::retry_failed( $id + 1000 ), 'a job that is not there is not retried' );
+};
+
 subtest 'the video lists AV1 first, then H.264, then the original' => sub {
     my $tx   = Text::Xslate->new( path => ["$REPO/www/templates/html/components"], type => 'html' );
     my $html = $tx->render( 'video_sources.tx', { post => { href => '/assets/v.mov', content_type => 'video/quicktime', av1_href => '/assets/v.av1.mp4', h264_href => '/assets/v.h264.mp4' } } );

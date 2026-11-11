@@ -16,6 +16,7 @@
                 <th style="padding:4px 8px;">Started</th>
                 <th style="padding:4px 8px;">Finished</th>
                 <th style="padding:4px 8px;">Error</th>
+                <th style="padding:4px 8px;"></th>
             </tr>
         </thead>
         <tbody>
@@ -28,6 +29,12 @@
                 <td style="padding:4px 8px;white-space:nowrap;"><: if $job.started { :><span class="unixtimestamp" data-time="1"><: $job.started :></span><: } :></td>
                 <td style="padding:4px 8px;white-space:nowrap;"><: if $job.finished { :><span class="unixtimestamp" data-time="1"><: $job.finished :></span><: } :></td>
                 <td style="padding:4px 8px;white-space:pre-wrap;"><: $job.error :></td>
+                <td style="padding:4px 8px;"><: if $job.state == "failed" { :>
+                    <form method="POST" action="/admin/jobs/retry">
+                        <input type="hidden" name="id" value="<: $job.id :>" />
+                        <input class="coolbutton" type="submit" value="Retry" />
+                    </form>
+                <: } :></td>
             </tr>
             : }
         </tbody>
