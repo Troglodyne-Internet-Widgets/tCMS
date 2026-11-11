@@ -19,3 +19,5 @@ Revision history for tCMS
     - Declare git as a system package that tCMS needs.
     - Give each failed job on /admin/jobs a button that puts it back in the
       queue.  A transcode that runs again skips the outputs that it made.
+    - A transcode finds the posts of a video whose name has a space or another
+      character that a post can hold percent-encoded in its href.
