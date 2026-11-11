@@ -102,6 +102,21 @@ sub list_jobs ( $limit = 100 ) {
     return minion()->backend->list_jobs( 0, $limit )->{jobs};
 }
 
+=head2 retry_failed($id) = BOOL
+
+Put the job $id back in the queue, if it failed.  Returns true if it did, and
+false for a job that is not there or did not fail.  A transcode that runs again
+skips each output that is already there, so the retry of a job whose encode
+finished does only what came after the encode.
+
+=cut
+
+sub retry_failed ($id) {
+    my $job = minion()->job($id) or return 0;
+    return 0 unless $job->info->{state} eq 'failed';
+    return $job->retry ? 1 : 0;
+}
+
 =head2 asset_path($href) = STRING
 
 The file under F<www/> that the C</assets/...> path $href names.  Dies for a

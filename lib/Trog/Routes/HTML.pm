@@ -200,6 +200,13 @@ our %routes = (
         noindex  => 1,
         nocache  => 1,
     },
+    '/admin/jobs/retry' => {
+        method   => 'POST',
+        auth     => 1,
+        callback => \&Trog::Routes::HTML::jobs_retry,
+        noindex  => 1,
+        nocache  => 1,
+    },
 
     # 'guest', not 'domain': the router sets $query->{domain} to the request's
     # own host *after* it applies the path parameters, so a variable by that
@@ -2641,6 +2648,26 @@ sub jobs ($query) {
         undef,
         ['post.css'],
     );
+}
+
+=head2 jobs_retry
+
+Implements /admin/jobs/retry.  Admin only.
+
+Puts the failed job C<id> back in the queue, as L<Trog::Jobs/retry_failed>
+does, and goes back to /admin/jobs, which says whether it did.
+
+=cut
+
+sub jobs_retry ($query) {
+    if ( my $denied = check_user_is_admin($query) ) { return $denied }
+
+    my $id = $query->{id};
+    $id = $id->[-1] if ref $id eq 'ARRAY';
+    return feedback_redirect( $query, '/admin/jobs', 1, 'That is not the number of a job.' ) unless defined $id && $id =~ m/\A\d+\z/;
+
+    my $ok = Trog::Jobs::retry_failed($id);
+    return feedback_redirect( $query, '/admin/jobs', $ok ? 0 : 1, $ok ? "Job $id is in the queue again." : "Job $id is not a failed job, so it was not retried." );
 }
 
 # The canned includes the wizard is willing to splice into a generated form.
