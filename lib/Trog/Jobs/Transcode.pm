@@ -4,6 +4,7 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
+use Config();
 use File::Which();
 use IPC::Run();
 use URI::Escape();
@@ -50,7 +51,8 @@ sub ffmpeg_command ( $in, $out, $profile ) {
 
 Run the command and wait for it for at most C<$ffmpeg_timeout> seconds.  Kills
 it at the limit.  Dies with the reason if it fails, and the reason has the end
-of what ffmpeg said.
+of what ffmpeg said.  The reason gives the exit status, or the name of the
+signal that killed ffmpeg.
 
 =cut
 
@@ -58,14 +60,30 @@ sub run_ffmpeg (@command) {
     die "ffmpeg is not installed\n" unless File::Which::which( $command[0] );
 
     my ( $in, $out, $err ) = ( '', '', '' );
-    my $ok  = eval { IPC::Run::run( \@command, \$in, \$out, \$err, IPC::Run::timeout($ffmpeg_timeout) ); 1 };
-    my $why = $@;
-    return 1 if $ok && $? == 0;
+    my $ok = eval { IPC::Run::run( \@command, \$in, \$out, \$err, IPC::Run::timeout($ffmpeg_timeout) ); 1 };
+    my ( $why, $status ) = ( $@, $? );
+    return 1 if $ok && $status == 0;
 
     $err = substr( $err, -500 ) if length $err > 500;
     $err =~ s/\s+\z//;
-    $why = $why ? ( $why =~ /timeout/ ? "ffmpeg ran for more than $ffmpeg_timeout seconds and was stopped" : "ffmpeg did not run: $why" ) : sprintf( 'ffmpeg exited with status %d', $? >> 8 );
+    $why =
+        $why =~ /timeout/ ? "ffmpeg ran for more than $ffmpeg_timeout seconds and was stopped"
+      : $why              ? "ffmpeg did not run: $why"
+      : $status & 127     ? 'ffmpeg was killed by signal ' . signal_name( $status & 127 )
+      :                     sprintf( 'ffmpeg exited with status %d', $status >> 8 );
     die "$why\n$err\n";
+}
+
+=head2 signal_name($number) = STRING
+
+The name of the signal $number on this system, such as C<SEGV>, or the number
+itself if the system has no name for it.
+
+=cut
+
+sub signal_name ($number) {
+    my @names = split ' ', $Config::Config{sig_name};
+    return $names[$number] // $number;
 }
 
 =head2 transcode($href) = HASHREF

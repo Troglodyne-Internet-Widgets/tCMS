@@ -58,6 +58,11 @@ subtest 'the commands' => sub {
     ok( ( grep { $_ eq 'libx264' } @h264 ) && ( grep { $_ eq 'aac' } @h264 ), 'the H.264 profile uses x264 and AAC' );
 };
 
+subtest 'signal_name' => sub {
+    is( Trog::Jobs::Transcode::signal_name(9),    'KILL', 'a signal that the system names gets its name' );
+    is( Trog::Jobs::Transcode::signal_name(9999), 9999,   'a number that the system does not name stays a number' );
+};
+
 subtest 'run_ffmpeg gives each way of failing a reason' => sub {
     ok( Trog::Jobs::Transcode::run_ffmpeg( $^X, '-e', '1' ), 'a command that succeeds returns true' );
 
@@ -66,6 +71,10 @@ subtest 'run_ffmpeg gives each way of failing a reason' => sub {
     my $failure = exception { Trog::Jobs::Transcode::run_ffmpeg( $^X, '-e', 'print STDERR "bad input\n"; exit 3' ) };
     like( $failure, qr/(?-x:exited with status 3)/, 'a command that fails dies with its status' );
     like( $failure, qr/(?-x:bad input)/,            '...and what it said' );
+
+    my $crash = exception { Trog::Jobs::Transcode::run_ffmpeg( $^X, '-e', 'print STDERR "frame 1\n"; kill SEGV => $$' ) };
+    like( $crash, qr/(?-x:killed by signal SEGV)/, 'a command that a signal kills dies, and names the signal' );
+    like( $crash, qr/(?-x:frame 1)/,               '...and what it said' );
 
     no warnings "once";
     local $Trog::Jobs::Transcode::ffmpeg_timeout = 1;
