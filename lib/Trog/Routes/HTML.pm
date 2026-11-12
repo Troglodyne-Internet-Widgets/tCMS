@@ -793,15 +793,17 @@ Sets the user cookie if the provided user exists, or sets up the user as an admi
 
 sub login ($query) {
 
-    # Redirect if we actually have a logged in user.
     # Note to future me -- this user value is overwritten explicitly in server.psgi.
     # If that ever changes, you will die
+    #
+    # A user who is logged in already followed the login link on purpose: every
+    # page of the public host shows it, since that host never knows who asks.
+    if ( $query->{user} ) {
+        DEBUG("Login by $query->{user}, who is logged in already, redirecting to /config");
+        return $query->{tpsgi}->see_also('/config');
+    }
     $query->{to} //= $query->{route};
     $query->{to} = '/config' if List::Util::any { $query->{to} eq $_ } qw{/login /logout};
-    if ( $query->{user} ) {
-        DEBUG("Login by $query->{user}, redirecting to $query->{to}");
-        return $query->{tpsgi}->see_also( $query->{to} );
-    }
 
     #Check and see if we have no users.  If so we will just accept whatever creds are passed.
     my $hasusers = -f "config/has_users";               ## no critic (ProhibitFiletest_f) -- a flag file, only ever touched

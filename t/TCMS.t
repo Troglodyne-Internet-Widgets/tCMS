@@ -104,6 +104,7 @@ subtest 'the routes of posts' => sub {
     is( $paths->{'/secure/posts/p-one'}{get}{'x-tcms-secure'}, 1, 'which is secure' );
     ok( !exists $paths->{'/posts/p-one'}{get}{'x-tcms-secure'}, 'while the route of the post is not' );
     is( $paths->{'/secure/'}{get}{'x-tcms-secure'},      1, 'and the /secure index is secure too' );
+    is( $paths->{'/secure'}{get}{'x-tcms-secure'},       1, 'at /secure without the slash too' );
     is( $paths->{'/secure/p-two'}{get}{'x-tcms-secure'}, 1, 'a post whose own path is under /secure is secure' );
     ok( !exists $paths->{'/secure/secure/p-two'}, 'and gets no second copy' );
 
