@@ -113,6 +113,7 @@ my sub _routes ( $data = {} ) {
         $routes{$index}          = $routes{'/index'}                       unless exists $routes{$index};
         $routes{"/secure$index"} = { %{ $routes{'/index'} }, secure => 1 } unless exists $routes{"/secure$index"};
     }
+    $routes{'/secure'} = $routes{'/secure/'} unless exists $routes{'/secure'};
 
     return clone( \%routes );
 }
