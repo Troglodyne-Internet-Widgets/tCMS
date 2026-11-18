@@ -24,6 +24,7 @@ gets put there in the first place.
     bin/tcms-hostname example.com      # set it, then print it
     bin/tcms-hostname --user           # print it as a valid username
     bin/tcms-hostname --secure secure.example.com example.com
+    bin/tcms-hostname --media https://media.example.com example.com
 
 =head2 OPTIONS
 
@@ -34,6 +35,12 @@ gets put there in the first place.
 Set C<general.secure_host> to HOST, the host that the pages that need a login
 answer on.  An empty HOST clears it.  It is written with the hostname, if one
 is given too.
+
+=item --media URL
+
+Set C<general.media_base> to URL, the base URL that the public assets of a post
+link to.  An empty URL clears it, and the assets stay on this host.  It is
+written with the hostname, if one is given too.
 
 =item --user
 
@@ -53,19 +60,21 @@ Dies if asked to print a hostname which was never set.
 
 =cut
 
-my ( $user, $secure );
+my ( $user, $secure, $media );
 GetOptionsFromArray(
     \@ARGV,
     'user'     => \$user,
     'secure=s' => \$secure,
+    'media=s'  => \$media,
 ) or pod2usage( -exitval => 2, -sections => 'SYNOPSIS/USAGE', -verbose => 99 );
 
 my $hostname = $ARGV[0];
 
 my $conf = Trog::Config->get();
-if ( $hostname || defined $secure ) {
+if ( $hostname || defined $secure || defined $media ) {
     $conf->param( 'general.hostname',    $hostname ) if $hostname;
     $conf->param( 'general.secure_host', $secure )   if defined $secure;
+    $conf->param( 'general.media_base',  $media )    if defined $media;
 
     # write(), not save().  save() writes back to whatever file get() loaded,
     # which is the tracked config/default.cfg until the instance has saved a
