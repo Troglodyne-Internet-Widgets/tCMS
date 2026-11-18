@@ -21,3 +21,6 @@ Revision history for tCMS
       queue.  A transcode that runs again skips the outputs that it made.
     - A transcode finds the posts of a video whose name has a space or another
       character that a post can hold percent-encoded in its href.
+    - bin/tcms-hostname takes --media, which sets general.media_base.  A
+      provisioner can then set the media host with the hostname and the
+      secure host.

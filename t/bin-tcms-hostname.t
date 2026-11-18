@@ -73,6 +73,25 @@ subtest 'the hostname and the secure host' => sub {
     is( setting('general.secure_host'), q{}, 'and unsets it' );
 };
 
+subtest 'the media base' => sub {
+    my ( $code, $said ) = hostname(qw{--media https://media.test.test test.test});
+    is( $code,                         0,                         'it is set with the hostname' ) or diag($said);
+    is( setting('general.media_base'), 'https://media.test.test', 'which the configuration of the instance now holds' );
+    is( setting('general.hostname'),   'test.test',               'beside the hostname' );
+
+    is( setting( 'general.media_base', 'config/default.cfg' ), q{}, 'and the tracked default.cfg is left alone' );
+
+    ( $code, $said ) = hostname(qw{--media https://other.test.test});
+    is( $code,                          0,                         'it can be set alone' ) or diag($said);
+    is( setting('general.media_base'),  'https://other.test.test', 'and it is' );
+    is( setting('general.hostname'),    'test.test',               'and the hostname stays as it was' );
+    is( setting('general.secure_host'), q{},                       'and so does the secure host' );
+
+    ( $code, $said ) = hostname( '--media', q{} );
+    is( $code,                         0,   'an empty media base is allowed' ) or diag($said);
+    is( setting('general.media_base'), q{}, 'and unsets it' );
+};
+
 subtest 'an option it does not know' => sub {
     my ( $code, $said ) = hostname(qw{--bogus secure.test.test test.test});
     isnt( $code, 0, 'is refused' );
