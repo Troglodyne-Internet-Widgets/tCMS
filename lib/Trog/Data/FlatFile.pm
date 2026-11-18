@@ -177,7 +177,10 @@ sub write ( $self, $data ) {
 
         close($lock);    ## no critic (RequireCheckedSyscalls) -- a lock, with nothing buffered to lose
 
-        Trog::SQLite::TagIndex::add_post( $post, $self );
+        # Indexed as get() returns it: the newest version, dated by the first.
+        # Copies, because dedup_versions() rewrites the hash that it returns.
+        my ($indexed) = Trog::DataModule::dedup_versions( undef, map { +{%$_} } @$update );
+        Trog::SQLite::TagIndex::add_post( $indexed, $self );
     }
     return 1;
 }

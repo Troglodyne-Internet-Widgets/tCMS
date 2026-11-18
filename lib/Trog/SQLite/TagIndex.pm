@@ -61,6 +61,14 @@ sub tags {
     return map { $_->{name} } @$rows;
 }
 
+=head2 add_post($post, $data_obj)
+
+Replace the tag rows and the routes of $post in the index.  posts_for_tags()
+orders by C<created>, so pass the post as get() returns it, dated by its first
+version and not by this save.
+
+=cut
+
 sub add_post ( $post, $data_obj ) {
     my $dbh = dbh();
     Trog::SQLite::transaction(
