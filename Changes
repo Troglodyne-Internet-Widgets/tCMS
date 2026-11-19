@@ -4,6 +4,10 @@ Revision history for tCMS
     - Build with Dist::Zilla.  dist.ini, prereqs.yml and metamerge.yml replace
       Makefile.PL, and metamerge.yml names the system packages that tCMS needs.
     - The history before this is in CHANGELOG.
+    - Check a host name with Data::Validate::Domain, and a Perl module name with
+      Module::Runtime, instead of with a regex. A TOTP domain or a guest name
+      can no longer have an empty label, a label that ends with a hyphen, or an
+      underscore. A datasource or an enrich sub that names no module is refused.
     - Transcode an uploaded video in a Minion queue (data/jobs.db). The worker
       of bin/tcms-jobs runs the jobs. A post lists an AV1 file and an H.264
       file, each with its index first, and serves the original until they

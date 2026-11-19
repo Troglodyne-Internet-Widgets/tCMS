@@ -11,6 +11,7 @@ use Digest::SHA 'sha256';
 use Crypt::Argon2 qw{argon2id_pass argon2id_verify argon2_needs_rehash};
 use Trog::TOTP;
 use Imager::QRCode;
+use Data::Validate::Domain ();
 
 use Trog::Utils;
 use Trog::Log qw{:all};
@@ -179,9 +180,10 @@ sub totp ( $user, $domain ) {
     # path.  Nothing constrains a username -- tcms-useradd will take whatever
     # it is given -- so one containing a slash or .. would otherwise write
     # outside totp/ entirely.  Same whitelist Trog::DataSource::Virt uses for
-    # guest names.
-    my ($safe_user)   = ( $user   // '' ) =~ m/^([\w.-]+)$/;
-    my ($safe_domain) = ( $domain // '' ) =~ m/^([\w.-]+)$/;
+    # guest names.  The domain is a host name, so it has to be one; that also
+    # rules out an empty label, which would make a path of dots.
+    my ($safe_user)   = ( $user // '' ) =~ m/^([\w.-]+)$/;
+    my ($safe_domain) = ( Data::Validate::Domain::is_hostname( $domain // '' ) // '' ) =~ m/^(.+)$/;
     return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe username '" . ( $user // '' ) . "'." ) unless $safe_user;
     return ( undef, undef, 1, "Refusing to build a TOTP QR for unsafe domain '" . ( $domain // '' ) . "'." ) unless $safe_domain;
 
