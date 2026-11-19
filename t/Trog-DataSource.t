@@ -118,6 +118,23 @@ subtest 'for_type' => sub {
     is( Trog::DataSource::for_type('blog.tx'), undef, 'a type with no datasource names none' );
 };
 
+subtest 'load' => sub {
+    require Test::MockModule;
+    my @warnings;
+    my $log = Test::MockModule->new('Trog::DataSource');
+    $log->redefine( WARN => sub { push( @warnings, shift ) } );
+
+    is( Trog::DataSource::load('Trog::DataSource::DirIndex'), 1, 'a real datasource loads' );
+    is_deeply( \@warnings, [], 'without a warning' );
+
+    foreach my $bad ( '::Foo', 'not a module', '../../etc/passwd', 'Trog::DataSource::NoSuchThing' ) {
+        @warnings = ();
+        is( Trog::DataSource::load($bad), 0, "'$bad' does not load" );
+        is( scalar @warnings,             1, '...and says so' );
+        like( $warnings[0], qr/will[ ]not[ ]load/, '...as a failure to load' );
+    }
+};
+
 subtest 'cacheable' => sub {
 
     # A datasource page is cached like any other unless something says not to,

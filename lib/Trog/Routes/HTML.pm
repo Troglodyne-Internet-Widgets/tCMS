@@ -20,6 +20,7 @@ use Encode      qw{encode_utf8};
 use Digest::MD5 qw{md5_hex};
 use Digest::SHA qw{sha256_hex};
 use JSON::MaybeXS();
+use Module::Runtime();
 use IO::Compress::Gzip;
 use Path::Tiny();
 use URI();
@@ -1448,17 +1449,13 @@ my sub enrich_callback ( $post, $query ) {    ## no critic (ProhibitSingleUseLex
     return if !$sub || ref $sub;
 
     my ($modname) = $sub =~ m/^([\w:]+)::\w+$/;
-    if ( !$modname ) {
+    if ( !$modname || !Module::Runtime::is_module_name($modname) ) {
         WARN("Post type '$post->{form}' declares a malformed enrich sub '$sub'");
         return;
     }
 
-    my $modpath = $modname;
-    $modpath =~ s{::}{/}g;
-    $modpath .= '.pm';
-
     local $@;
-    eval { require $modpath; 1 } or do {
+    eval { Module::Runtime::require_module($modname); 1 } or do {
         WARN("Post type '$post->{form}' declares enrich sub '$sub', but $modname will not load: $@");
         return;
     };

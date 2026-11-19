@@ -189,7 +189,7 @@ subtest 'what it refuses to reprovision' => sub {
     like( $why, qr/passphrase/, 'and says why' );
 
     # The name reaches the filesystem and an argument list.
-    foreach my $bad ( '../../etc/passwd', 'guest;rm -rf /', 'guest test.test', '', 'a' x 300, '.hidden' ) {
+    foreach my $bad ( '../../etc/passwd', 'guest;rm -rf /', 'guest test.test', '', 'a' x 300, '.hidden', 'a-.test', 'a..test', 'a_b.test', '..', '-a.test' ) {    ## no critic (RequireQwForLiteralLists) -- includes the empty string and a repeat
         my ( $refused, $message ) = reprovision( domain => $bad );
         is( $refused, 0, "'$bad' is refused" );
         like( $message, qr/bad[ ]guest[ ]name|no[ ]recipe/, '...before anything is run' );

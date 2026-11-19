@@ -6,11 +6,12 @@ use warnings FATAL => 'all';
 
 use parent qw{Trog::DataSource::Virt};
 
-use Cwd                 ();
-use File::Path          ();
-use File::Slurper       ();
-use File::Slurper::Temp ();
-use POSIX               ();
+use Cwd                    ();
+use Data::Validate::Domain ();
+use File::Path             ();
+use File::Slurper          ();
+use File::Slurper::Temp    ();
+use POSIX                  ();
 
 use Trog::Config     ();
 use Trog::DataSource ();
@@ -86,9 +87,8 @@ our %states = (
 # A guest name reaches the filesystem here, so it is a hostname or it is nothing.
 my sub safe_domain ($domain) {
     return undef if !$domain || length $domain >= 254;
-    return undef if $domain =~ m/(?:^|\.)\.\.?(?:\.|$)/;
 
-    my ($safe) = $domain =~ m/^([[:alnum:]][\w.-]*)$/;
+    my ($safe) = ( Data::Validate::Domain::is_hostname($domain) // '' ) =~ m/^(.+)$/;
     return $safe;
 }
 

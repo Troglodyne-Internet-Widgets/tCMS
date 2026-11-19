@@ -102,6 +102,17 @@ subtest 'the enrolment does not change' => sub {
     is( $failure, -1,   'reported as nothing new having been generated' );
 };
 
+subtest 'a domain that is not a host name is refused' => sub {
+    foreach my $bad ( 'a-.test', 'a..test', 'a_b.test', '..', '-a.test', '', '../x', 'a/b.test' ) {    ## no critic (RequireQwForLiteralLists) -- includes the empty string
+        my ( $uri, undef, $failure, $message ) = Trog::Auth::totp( 'bob', $bad );
+        ok( !$uri, "'$bad' gets no URI" );
+        is( $failure, 1, '...and is a failure' );
+        like( $message, qr/unsafe[ ]domain/, '...said to be an unsafe domain' );
+    }
+    my ($uri) = Trog::Auth::totp( 'bob', 'valid.test.test' );
+    ok( $uri, 'while a valid host name still works' );
+};
+
 subtest 'and there is no way to turn it off' => sub {
     ok( !Trog::Auth->can('clear_totp'),                             'Trog::Auth cannot clear a secret' );
     ok( !Trog::Routes::HTML->can('do_totp_clear'),                  'nor is there a route handler to ask it to' );

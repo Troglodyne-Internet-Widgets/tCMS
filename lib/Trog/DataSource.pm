@@ -4,6 +4,7 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
+use Module::Runtime  ();
 use Trog::DataModule ();
 use Trog::Log        qw{:all};
 
@@ -245,12 +246,8 @@ Load a datasource named by for_type(), returning whether it worked.
 =cut
 
 sub load ($source) {
-    my $modpath = $source;
-    $modpath =~ s{::}{/}g;
-    $modpath .= '.pm';
-
     local $@;
-    eval { require $modpath; 1 } or do {
+    eval { Module::Runtime::require_module($source); 1 } or do {
         WARN("Datasource '$source' will not load: $@");
         return 0;
     };
