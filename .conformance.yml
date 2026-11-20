@@ -11,3 +11,6 @@ variables:
   GITHUB_USER: Troglodyne-Internet-Widgets
   CPAN_ID: TEODESIAN
   DATE: '2026-11-06'
+  # The programs run from the checkout until a release, and #!perl works only
+  # once installed.
+  SHEBANG: '#!/usr/bin/env perl'
