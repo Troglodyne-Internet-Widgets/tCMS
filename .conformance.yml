@@ -27,7 +27,7 @@ checks:
           Trog::Log::DBI::log_message Trog::Log::Syslog::log_message Trog::Routes::HTML::series
           Trog::Routes::HTML::users
       ProhibitUnusedImports:
-        allow: re Exporter
+        allow: Exporter
       ProhibitUsageSubs:
         sub_names: usage _usage print_usage usage_message
       RegularExpressions::ProhibitIneffectiveModifiers: off
