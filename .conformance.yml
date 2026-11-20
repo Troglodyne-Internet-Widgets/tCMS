@@ -11,3 +11,35 @@ variables:
   GITHUB_USER: Troglodyne-Internet-Widgets
   CPAN_ID: TEODESIAN
   DATE: '2026-11-06'
+checks:
+  CriticProfile:
+    overrides:
+      ErrorHandling::RequireCheckedIndirectResults:
+        exclude_functions: print say
+      InputOutput::RequireCheckedSyscalls:
+        exclude_functions: print say
+      NamingConventions::Capitalization:
+        package_exemptions: main tcms login useradd blob css email html json text
+      ProhibitUnusedDefinitions:
+        allow_globals: '@TCMS::routes %TCMS::aliases'
+        allow_subs: TCMS::generic_route Trog::DataSource::DirIndex::posts Trog::DataSource::DirIndex::order
+          Trog::DataSource::ProvisionedVirt::posts Trog::Enrich::Invoice::enrich Trog::Log::DBI::create_statement
+          Trog::Log::DBI::log_message Trog::Log::Syslog::log_message Trog::Routes::HTML::series
+          Trog::Routes::HTML::users
+      ProhibitUnusedImports:
+        allow: Exporter
+      ProhibitUsageSubs:
+        sub_names: usage _usage print_usage usage_message
+      RegularExpressions::ProhibitIneffectiveModifiers: off
+      Subroutines::ProhibitBuiltinHomonyms:
+        allow: read write delete index shutdown
+      Subroutines::RequireFinalReturn:
+        terminal_funcs: POSIX::_exit
+      ValuesAndExpressions::ProhibitDescendingRanges: off
+      ValuesAndExpressions::RequireSlices: off
+      Variables::ProhibitTopicIterator: off
+      Variables::RequireNoAutovivification: off
+      # The programs run from the checkout until a release, and #!perl, which the
+      # standards are about to require, works only once installed.
+      logicLAB::RequireSheBang:
+        formats: '#!/usr/bin/env perl'
