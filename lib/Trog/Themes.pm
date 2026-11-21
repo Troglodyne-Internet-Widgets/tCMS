@@ -202,8 +202,9 @@ tree both: the theme's templates where the theme has them, plus the stock ones
 it hasn't overridden.  dir_for() is winner-take-all, so a theme with a forms/
 dir of its own would otherwise hide every core post type.
 
-Returns bare filenames, deduped, theme first.  Which of the two files a given
-name resolves to is then up to whoever renders it -- see template_dirs().
+Returns bare filenames, deduped, theme first, and sorted within each dir.  Which
+of the two files a given name resolves to is then up to whoever renders it --
+see template_dirs().
 
 =cut
 
@@ -216,7 +217,7 @@ sub themed_templates_in_dir ( $path, $ct, $is_component = 0 ) {
         my @files = eval {
             grep { -f } Path::Tiny::path($dir)->children(qr/[.]tx\z/);    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
         };
-        foreach my $template ( map { $_->basename } @files ) {
+        foreach my $template ( sort map { $_->basename } @files ) {
 
             # First one wins, and the theme's dir comes first.
             push( @templates, $template ) unless $seen{$template}++;

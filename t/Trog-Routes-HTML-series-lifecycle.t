@@ -55,6 +55,10 @@ BEGIN {
 # plausibly disturb.  Cheap enough, and it is the only real proof of isolation.
 state sub snapshot {
     my ($dir) = @_;
+
+    # A fresh checkout has no data/ or logs/ until Installer.mk makes them.  A
+    # dir that the test then made in the repo shows up as added files.
+    return () unless -d $dir;
     my %seen;
     File::Find::find(
         {
