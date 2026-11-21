@@ -58,9 +58,19 @@ subtest 'with a partial theme, the stock templates show through' => sub {
         "themed_templates_in_dir() adds back the ones the theme didn't override"
     );
 
+    # The order of readdir depends on the filesystem, so hand the dirs over in
+    # the opposite order to the one that is wanted.
+    my $path = Test::MockModule->new('Path::Tiny');
+    $path->redefine(
+        'children',
+        sub {
+            return reverse sort { "$a" cmp "$b" } $path->original('children')->(@_);
+        }
+    );
+
     my $listed = Trog::Themes::themed_templates_in_dir( 'forms', 'text/html', 1 );
-    is( scalar( grep { $_ eq 'blog.tx' } @$listed ), 1,         "an overridden template is listed once, not twice" );
-    is( $listed->[0],                                'blog.tx', "and the theme's copies come first" );
+    is( scalar( grep { $_ eq 'blog.tx' } @$listed ), 1, "an overridden template is listed once, not twice" );
+    is_deeply( $listed, [qw{blog.tx gallery.tx profile.tx series.tx}], "and the theme's copies come first, each dir in order" );
 };
 
 subtest 'themed_file_in_dir prefers the theme, falls back to stock' => sub {
