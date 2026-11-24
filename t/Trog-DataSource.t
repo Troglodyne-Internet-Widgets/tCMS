@@ -431,7 +431,7 @@ subtest 'offset pagination' => sub {
 
     # Every post appears exactly once across the pages, which is the whole point.
     my @walked;
-    push( @walked, ( Trog::Routes::HTML::paginate_offset( { page => $_ }, 4, @ten ) )[ 2 .. 5 ] ) for 1 .. 3;
+    for my $page ( 1 .. 3 ) { push( @walked, ( Trog::Routes::HTML::paginate_offset( { page => $page }, 4, @ten ) )[ 2 .. 5 ] ) }
     @walked = grep { defined } @walked;
     is_deeply( [ sort map { $_->{title} } @walked ], [ sort map { $_->{title} } @ten ], 'walking the pages visits everything, once' );
 

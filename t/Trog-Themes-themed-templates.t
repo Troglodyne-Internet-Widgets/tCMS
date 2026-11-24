@@ -15,10 +15,10 @@ require_ok('Trog::Themes') or BAIL_OUT("Can't find SUT");
 my $root  = Path::Tiny->tempdir();
 my $stock = $root->child('www/templates/html/components/forms');
 my $theme = $root->child('www/themes/spec/templates/html/components/forms');
-$_->mkpath foreach ( $stock, $theme );
+foreach my $dir ( $stock, $theme ) { $dir->mkpath }
 
-$stock->child($_)->spew_utf8("stock $_")  foreach qw{blog.tx series.tx profile.tx blog.json series.json};
-$theme->child($_)->spew_utf8("themed $_") foreach qw{blog.tx gallery.tx blog.json};
+foreach my $name (qw{blog.tx series.tx profile.tx blog.json series.json}) { $stock->child($name)->spew_utf8("stock $name") }
+foreach my $name (qw{blog.tx gallery.tx blog.json})                       { $theme->child($name)->spew_utf8("themed $name") }
 
 my $themedir = '';
 my $mock     = Test::MockModule->new('Trog::Themes');

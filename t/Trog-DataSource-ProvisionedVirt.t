@@ -27,7 +27,7 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-provisioned-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    File::Path::make_path("$ROOT/$_") for qw{config schema logs totp www/assets};
+    for my $dir (qw{config schema logs totp www/assets}) { File::Path::make_path("$ROOT/$dir") }
 
     # A vault, so that the half of this which is about not having to type a
     # passphrase every time has somewhere to keep one.  The key arrives the way
@@ -572,7 +572,7 @@ subtest 'the route' => sub {
     is( $SPAWNED[0]{credentials}{sudo},    'letmein', 'and so does the sudo password' );
 
     # This hash is cloned, logged around and handed to renderers.
-    ok( !exists $query->{$_}, "the $_ is gone from the query afterwards" ) foreach qw{passphrase sudo totp};
+    foreach my $key (qw{passphrase sudo totp}) { ok( !exists $query->{$key}, "the $key is gone from the query afterwards" ) }
 
     # The log route.  It lives in logs/ rather than under www/, and the output
     # of a provisioner is a fine place for a hostname or an IP plan to turn up.

@@ -36,7 +36,7 @@ BEGIN {
     File::Path::make_path( map { "$ROOT/$_" } qw{config schema data/files logs totp www/statics www/themes} );
 
     # Hardcoded paths in Auth.pm, TagIndex.pm, the data models and Log.pm.
-    File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{auth.schema flatfile.schema log.schema};
+    for my $schema (qw{auth.schema flatfile.schema log.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
 
     open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=totp.test.test\n";

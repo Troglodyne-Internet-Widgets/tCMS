@@ -154,7 +154,7 @@ sub video_assets {
     my @found;
     foreach my $dir ( 'assets', 'assets/private' ) {
         next unless -d "www/$dir";
-        foreach my $file ( sort map { $_->basename } grep { $_->is_file } Path::Tiny::path("www/$dir")->children ) {
+        foreach my $file ( sort map { local ($_) = $_; $_->basename } grep { local ($_) = $_; $_->is_file } Path::Tiny::path("www/$dir")->children ) {
             next if List::Util::any { $file =~ /\Q$_->{suffix}\E\z/ } values %profiles;
             my $href = "/$dir/$file";
             push @found, $href if ( Trog::Utils::mime_type( asset_path($href) ) // '' ) =~ m{\Avideo/};

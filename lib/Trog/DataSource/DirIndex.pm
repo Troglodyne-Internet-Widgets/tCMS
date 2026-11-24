@@ -94,7 +94,7 @@ left out of the listing rather than shown with a link that will not work.
 
 =cut
 
-our $root    = 'www';
+our $root    = q{www};                   ## no critic (ProhibitRegexInStrings) -- only matched through \Q, so a literal
 our @refused = ('www/assets/private');
 
 # Path containment, done on the resolved paths rather than on the strings the
@@ -196,7 +196,7 @@ my sub post_for ( $name, $dir, $series ) {    ## no critic (ProhibitSingleUseLex
     # Escaped per segment: a filename may legally hold a space, a question mark
     # or a hash, and none of those survive being dropped into an href as they
     # are.  Per segment rather than wholesale, or the separators go too.
-    my $href = '/' . join( '/', map { URI::Escape::uri_escape($_) } split( m{/}, $path ) );
+    my $href = '/' . join( '/', map { local ($_) = $_; URI::Escape::uri_escape($_) } split( m{/}, $path ) );
 
     my $post = {
 
@@ -275,7 +275,7 @@ sub posts ( $series, $query ) {
 
     my @entries;
     eval {
-        @entries = map { $_->basename } Path::Tiny::path( $dir->{absolute} )->children(qr/\A[^.]/);
+        @entries = map { local ($_) = $_; $_->basename } Path::Tiny::path( $dir->{absolute} )->children(qr/\A[^.]/);
         1;
     } or do {
         WARN("Could not read $dir->{relative}: $@");

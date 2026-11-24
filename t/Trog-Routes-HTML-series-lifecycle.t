@@ -126,7 +126,7 @@ BEGIN {
     File::Slurper::Temp::write_text( "$ROOT/config/default.cfg", $stock );
 
     # Hardcoded paths in Auth.pm, TagIndex.pm, the data models and Log.pm -- not negotiable.
-    File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{auth.schema flatfile.schema sqlite.schema log.schema};
+    for my $schema (qw{auth.schema flatfile.schema sqlite.schema log.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
 
     # COPY, don't symlink: post_wizard_save() writes into Trog::Themes::forms_dir(),
     # and a symlink would land the generated post type in the real repo.
@@ -142,7 +142,7 @@ BEGIN {
     # checkout; these stand in for them.
     File::Slurper::Temp::write_text( "$ROOT/www/scripts/reveal.min.js",    "var Reveal = 'spec reveal';" );
     File::Slurper::Temp::write_text( "$ROOT/www/scripts/highlight.min.js", "var hljs = 'spec highlight';" );
-    File::Copy::copy( "$REPO/www/scripts/$_", "$ROOT/www/scripts/$_" ) or die $! for qw{main.js post.js post_relations.js post_wizard.js};
+    for my $script (qw{main.js post.js post_relations.js post_wizard.js}) { File::Copy::copy( "$REPO/www/scripts/$script", "$ROOT/www/scripts/$script" ) or die $! }
 
     # Text::Xslate computes its default cache dir from $HOME once, at load time.
     # Without this the sandbox writes compiled templates into the real ~/.xslate_cache.
@@ -368,7 +368,7 @@ my sub save_post {
 
     # Both outcomes redirect now, so the status alone proves nothing -- the
     # outcome is in the query string post_save hands to the destination.
-    if ( $code != 303 || ( $h{Location} // '' ) =~ m/savefailed=/ ) {
+    if ( $code != 303 || index( $h{Location} // q{}, q{savefailed=} ) >= 0 ) {
         fail("$label: saved");
         diag( "post_save returned $code, Location: " . ( $h{Location} // '(none)' ) );
         diag( join( '', @{ $body || [''] } ) ) if $body && @$body;
@@ -830,7 +830,7 @@ subtest 'a directory index series' => sub {
     ok( scalar( @{ pages_saved($tpsgi) } ),                       'the listing was handed to tPSGI to save as a static' );
     ok( ( grep { m{^/specfiles:} } keys %{ $tpsgi->{renders} } ), 'under its own route' );
 
-    my ($watch) = grep { $_->{path} =~ m/spec_downloads/ } @{ $tpsgi->{watches} };
+    my ($watch) = grep { index( $_->{path}, q{spec_downloads} ) >= 0 } @{ $tpsgi->{watches} };
     ok( $watch, 'rendering it registers a watch on the directory' );
     like( $watch->{key}, qr/DirIndex/, 'under a stable key, so a view does not stack another' );
 
@@ -1172,8 +1172,8 @@ subtest 'microblog' => sub {
 
     my $body = series_page( 'microblog', 'specmicroblog', $title, 1 ) or return;
 
-    my $link = q{href='https://test.test/spec' >Spec Microblog Child</a>};
-    like( $body, qr{\Q$link\E},                      'title links out to href' );
+    my $link = quotemeta(q{href='https://test.test/spec' >Spec Microblog Child</a>});
+    like( $body, qr{$link},                          'title links out to href' );
     like( $body, qr{id="postData-\Q$child->{id}\E"}, 'body block rendered' );
     like( $body, qr/Spec[ ]microblog[ ]body\./,      'body text rendered' );
 };
@@ -1222,8 +1222,8 @@ subtest 'file' => sub {
     my $conf = Trog::Config::get();
     $conf->param( 'general.media_base', 'https://media.tcms.test' );
     my $media    = series_page( 'file on a media host', 'specfile', $title, 1 );
-    my $on_media = "href='https://media.tcms.test/assets/$child->{id}.spec-upload.txt'";
-    like( $media, qr/\Q$on_media\E/, 'a reader gets the asset from the media host' );
+    my $on_media = quotemeta("href='https://media.tcms.test/assets/$child->{id}.spec-upload.txt'");
+    like( $media, qr/$on_media/, 'a reader gets the asset from the media host' );
 
     my ( $code, $edit, $err ) = render( admin( route => '/specfile' ), \&Trog::Routes::HTML::series );
     is( $code, 200, 'the editor page renders' ) or diag($err);
@@ -1252,8 +1252,8 @@ subtest 'presentation' => sub {
     my $body = series_page( 'presentation', 'specpresentation', $title, 1 ) or return;
 
     # Slides only render under nochrome; the series page just links to the deck.
-    my $deck = qq{<a href="/posts/$child->{id}?embed=1&nochrome=1">Click Here to view</a>};
-    like( $body, qr{\Q$deck\E}, 'deck link rendered' );
+    my $deck = quotemeta(qq{<a href="/posts/$child->{id}?embed=1&nochrome=1">Click Here to view</a>});
+    like( $body, qr{$deck}, 'deck link rendered' );
     unlike( $body, qr/Slide[ ]one[ ]body\./, 'slides themselves are not rendered inline' );
 
     # The operation that tPSGI hands the callback, which carries the scripts

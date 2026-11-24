@@ -217,7 +217,7 @@ sub themed_templates_in_dir ( $path, $ct, $is_component = 0 ) {
         my @files = eval {
             grep { -f } Path::Tiny::path($dir)->children(qr/[.]tx\z/);    ## no critic (ProhibitFiletest_f) -- listing names, nothing is opened
         };
-        foreach my $template ( sort map { $_->basename } @files ) {
+        foreach my $template ( sort map { local ($_) = $_; $_->basename } @files ) {
 
             # First one wins, and the theme's dir comes first.
             push( @templates, $template ) unless $seen{$template}++;

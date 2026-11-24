@@ -40,7 +40,7 @@ my sub run (@args) {
     return $out;
 }
 
-my $before = { map { $_->stringify => $_->slurp_raw } grep { $_->is_file } Path::Tiny::path('www/assets')->children, Path::Tiny::path('www/assets/private')->children };
+my $before = { map { local ($_) = $_; $_->stringify => $_->slurp_raw } grep { local ($_) = $_; $_->is_file } Path::Tiny::path('www/assets')->children, Path::Tiny::path('www/assets/private')->children };
 
 my $dry = run('--dry-run');
 like( $dry, qr/Would\squeue\s\/assets\/one[.]mp4/, 'a dry run names a video that it would queue' );
@@ -52,7 +52,7 @@ my @jobs = @{ Trog::Jobs::list_jobs(10) };
 is_deeply( [ sort map { $_->{args}[0] } @jobs ], [ '/assets/one.mp4', '/assets/private/two.mp4' ], 'one job for each, for the right files' );
 is_deeply( [ map { $_->{task} } @jobs ],         [ ('transcode') x 2 ],                            '...of the transcode task' );
 
-my $after = { map { $_->stringify => $_->slurp_raw } grep { $_->is_file } Path::Tiny::path('www/assets')->children, Path::Tiny::path('www/assets/private')->children };
+my $after = { map { local ($_) = $_; $_->stringify => $_->slurp_raw } grep { local ($_) = $_; $_->is_file } Path::Tiny::path('www/assets')->children, Path::Tiny::path('www/assets/private')->children };
 is_deeply( $after, $before, 'no file was added, changed or removed' );
 
 done_testing();

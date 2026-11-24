@@ -881,7 +881,7 @@ sub logout ($query) {
 my sub get_themes {
     my $dir = 'www/themes';
     return [] unless -e $dir;
-    return [ map { $_->basename } grep { $_->is_dir } Path::Tiny::path($dir)->children(qr/\A[^.]/) ];
+    return [ map { local ($_) = $_; $_->basename } grep { local ($_) = $_; $_->is_dir } Path::Tiny::path($dir)->children(qr/\A[^.]/) ];
 }
 
 =head2 config
@@ -925,7 +925,7 @@ my %config_choices = (
         foreach my $incdir (@INC) {
             my $dir = "$incdir/Trog/Data";
             next unless -d $dir;
-            return [ map { $_->basename('.pm') } grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/) ];    ## no critic (ProhibitFiletest_f) -- building a menu of module names
+            return [ map { local ($_) = $_; $_->basename('.pm') } grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/) ];    ## no critic (ProhibitFiletest_f) -- building a menu of module names
         }
         die "Could not find tCMS data modules!  Is tCMS in \@INC?";
     },
@@ -1164,7 +1164,7 @@ sub get_datasources {
         my @modules = eval {
             grep { -f } Path::Tiny::path($dir)->children(qr/[.]pm\z/);    ## no critic (ProhibitFiletest_f) -- building an allowlist of names
         } or next;
-        $found{ "Trog::DataSource::" . $_->basename('.pm') } = 1 foreach @modules;
+        foreach my $module (@modules) { $found{ "Trog::DataSource::" . $module->basename('.pm') } = 1 }
     }
     return [ sort keys(%found) ];
 }
@@ -1908,7 +1908,7 @@ sub posts ( $query, $direct = 0 ) {
     # Resolve each post's declared relations.  One cache for the whole page, so
     # 25 invoices don't mean 25 scans of every entities post.
     my %relation_cache;
-    enrich_post( $_, $query, \%relation_cache ) foreach @posts;
+    foreach my $post (@posts) { enrich_post( $post, $query, \%relation_cache ) }
 
     #XXX the only reason this is needed is due to direct=1
     # Last thing before the data becomes a page: anything a type marks private
@@ -2118,7 +2118,7 @@ sub media_urls ( $post, $base, $seen = {} ) {
             foreach my $field (@media_fields) {
                 $node->{$field} = $move->( $node->{$field} ) if exists $node->{$field};
             }
-            $node->{attachments} = [ map { $move->($_) } @{ $node->{attachments} } ] if Ref::Util::is_arrayref( $node->{attachments} );
+            $node->{attachments} = [ map { local ($_) = $_; $move->($_) } @{ $node->{attachments} } ] if Ref::Util::is_arrayref( $node->{attachments} );
         }
     );
     return;
@@ -2622,7 +2622,8 @@ sub jobs ($query) {
     my $limit = int( $query->{limit} // 100 );
 
     my @jobs = map {
-        {
+        local ($_) = $_;
+        +{
             id       => $_->{id},
             task     => $_->{task},
             state    => $_->{state},
@@ -3053,7 +3054,7 @@ my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '
     $out .= qq|        <form class="Submissions" action="/post/save" method="POST" enctype="multipart/form-data">\n|;
     $out .= qq|            Title *<br /><input required class="cooltext" type="text" name="title" placeholder="$placeholder" value="<: \$post.title :>" />\n|
       if $query->{inc_title_input};
-    $out .= wizard_field_html($_) foreach @$fields;
+    foreach my $field (@$fields) { $out .= wizard_field_html($field) }
 
     foreach my $include (@$includes) {
         $out .= qq|            : include "$wizard_includes{$include}";\n|;

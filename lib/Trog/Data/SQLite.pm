@@ -373,7 +373,7 @@ sub delete ( $, @posts ) {
     my $dbh    = dbh();
     my $delete = $dbh->prepare('DELETE FROM posts WHERE uuid = ?');
 
-    $delete->execute( $_->{id} ) foreach @posts;
+    foreach my $post (@posts) { $delete->execute( $post->{id} ) }
 
     return 0;
 }

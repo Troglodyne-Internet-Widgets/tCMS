@@ -100,7 +100,7 @@ subtest 'a transcode writes new files beside the original' => sub {
     is( scalar(@ran),                                           2,            'it ran ffmpeg twice' );
     is( Path::Tiny::path('www/assets/good.av1.mp4')->slurp_raw, 'transcoded', 'the AV1 file is there' );
     is( Path::Tiny::path('www/assets/good.mp4')->slurp_raw,     $mp4,         'the original is as it was' );
-    is_deeply( [ sort grep { /part/ } map { $_->basename } Path::Tiny::path('www/assets')->children ], [], 'no partial file is left' );
+    is_deeply( [ sort grep { index( $_, q{part} ) >= 0 } map { local ($_) = $_; $_->basename } Path::Tiny::path('www/assets')->children ], [], 'no partial file is left' );
 
     @ran = ();
     unlink "www/assets/good.h264.mp4";
@@ -124,7 +124,7 @@ subtest 'a failure keeps the original, leaves nothing, and says why' => sub {
     like( $why, qr/(?-x:av1 transcode failed.*Invalid data found)/s, 'the reason says what failed and what ffmpeg said' );
     is( Path::Tiny::path('www/assets/bad.mp4')->slurp_raw, $mp4, 'the original is as it was' );
     ok( !-e 'www/assets/bad.av1.mp4' && !-e 'www/assets/bad.h264.mp4', 'no output is served' );
-    is_deeply( [ grep { /part/ } map { $_->basename } Path::Tiny::path('www/assets')->children ], [], 'and no partial file is left' );
+    is_deeply( [ grep { index( $_, q{part} ) >= 0 } map { local ($_) = $_; $_->basename } Path::Tiny::path('www/assets')->children ], [], 'and no partial file is left' );
 
     like( exception { Trog::Jobs::Transcode::transcode('/assets/missing.mp4') }, qr/(?-x:original is missing)/, 'a missing original fails, and says so' );
 };
@@ -214,7 +214,7 @@ subtest 'with ffmpeg, a real clip is transcoded' => sub {
 
     my $encoders;
     IPC::Run3::run3( [qw{ffmpeg -hide_banner -encoders}], \undef, \$encoders, \$encoders );
-    plan skip_all => 'ffmpeg has no libx264 or libsvtav1' unless $encoders =~ /libx264/ && $encoders =~ /libsvtav1/;
+    plan skip_all => 'ffmpeg has no libx264 or libsvtav1' if index( $encoders, q{libx264} ) < 0 || index( $encoders, q{libsvtav1} ) < 0;
 
     my $made;
     IPC::Run3::run3( [qw{ffmpeg -nostdin -loglevel error -f lavfi -i testsrc=duration=1:size=128x96:rate=10 -pix_fmt yuv420p www/assets/real.mp4}], \undef, \$made, \$made );

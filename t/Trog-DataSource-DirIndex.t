@@ -29,7 +29,7 @@ BEGIN {
     $ENV{HOME} = $ROOT;
 
     # The paths are relative to the tCMS root, so we need one.
-    File::Path::make_path("$ROOT/$_") for qw{config www/assets/downloads www/assets/private/secrets www/statics outside};
+    for my $dir (qw{config www/assets/downloads www/assets/private/secrets www/statics outside}) { File::Path::make_path("$ROOT/$dir") }
 
     # Trog::Routes::HTML reads the config at load time, and the last subtest
     # loads it to check the wizard can see this datasource.

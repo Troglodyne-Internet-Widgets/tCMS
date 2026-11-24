@@ -41,7 +41,7 @@ my sub sh ( $dir, @cmd ) {
 }
 
 my sub commit ( $dir, %files ) {
-    Path::Tiny::path("$dir/$_")->spew_utf8( $files{$_} ) foreach keys %files;
+    foreach my $name ( keys %files ) { Path::Tiny::path("$dir/$name")->spew_utf8( $files{$name} ) }
     sh( $dir, 'add', '--', keys %files );
     sh( $dir, qw{commit -q -m}, join( ' ', sort keys %files ) );
     return sh( $dir, qw{rev-parse HEAD} );
@@ -90,7 +90,7 @@ subtest 'theme_url' => sub {
     is( Trog::Jobs::Updates::theme_url($theme), undef, 'no remote that answers without credentials' );
 
     my $mock = Test::MockModule->new('Trog::Jobs::Updates');
-    $mock->redefine( public_url => sub ($url) { return $url =~ /bogus/ ? $up_tcms : undef } );
+    $mock->redefine( public_url => sub ($url) { return index( $url, q{bogus} ) >= 0 ? $up_tcms : undef } );
     is( Trog::Jobs::Updates::theme_url($theme), $up_tcms, 'the first remote that answers' );
 };
 
