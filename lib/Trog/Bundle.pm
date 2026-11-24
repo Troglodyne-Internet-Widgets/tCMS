@@ -60,7 +60,9 @@ links it.
 =cut
 
 sub declare (@lists) {
-    $declared{ key_of( List::Util::uniq(@$_) ) } = 1 for grep { @$_ } @lists;
+    for my $list ( grep { @$_ } @lists ) {
+        $declared{ key_of( List::Util::uniq(@$list) ) } = 1;
+    }
     return;
 }
 
@@ -105,6 +107,7 @@ sub scripts (@names) {
     my $body = join(
         "\n;\n",
         map {
+            local ($_) = $_;
             my $js = File::Slurper::read_binary($_);
             m/[.]min[.]js\z/ ? $js : JavaScript::Minifier::XS::minify($js)
         } @files
@@ -159,7 +162,7 @@ sub save ( $tpsgi, $bundle ) {
                 $dir,
                 sub {
                     my ($watcher) = @_;
-                    $watcher->invalidate_renders($_) for qw{html js};
+                    for my $kind (qw{html js}) { $watcher->invalidate_renders($kind) }
                     return 1;
                 },
                 key => "Trog::Bundle:$dir",

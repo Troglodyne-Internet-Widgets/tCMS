@@ -106,6 +106,7 @@ foreach my $size ( reverse sort { $a <=> $b } uniq( @png_sizes, @ico_sizes ) ) {
 # want out of it, so give them all three rather than one scaled at display time.
 print "*** Generating favicon.ico (@{[ join 'x, ', @ico_sizes ]}x) now... ***\n";
 my @members = map {
+    local ($_) = $_;
     my $img = Imager->new;
     $img->read( file => $rendered{$_} ) or die "Could not read $rendered{$_}: " . $img->errstr;
     $img;

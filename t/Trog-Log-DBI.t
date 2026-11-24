@@ -41,8 +41,8 @@ subtest 'a write the database refuses is a warning, not a die' => sub {
 
     is( $died, undef, 'the caller of the log does not die' );
     is( $res,  undef, 'the write reports that it failed' );
-    my $why = 'Could not record request r-2 in the metrics database: ';
-    like( $stderr, qr/\Q$why\E\N*refused[ ]for[ ]the[ ]test/, 'and says why on stderr' );
+    my $why = quotemeta('Could not record request r-2 in the metrics database: ');
+    like( $stderr, qr/$why\N*refused[ ]for[ ]the[ ]test/, 'and says why on stderr' );
 };
 
 subtest 'a message waits for the line of its request' => sub {

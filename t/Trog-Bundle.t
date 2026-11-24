@@ -27,7 +27,7 @@ require_ok('Trog::Bundle') or BAIL_OUT("Can't find SUT");
 
 my $stock = Path::Tiny->new('www/scripts');
 my $theme = Path::Tiny->new('www/themes/spec/scripts');
-$_->mkpath foreach ( $stock, $theme );
+foreach my $dir ( $stock, $theme ) { $dir->mkpath }
 
 $stock->child('one.js')->spew_raw("function one () {\n    return 1;\n}\n");
 $stock->child('two.js')->spew_raw("// two\nvar two = 2;\n");

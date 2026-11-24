@@ -30,8 +30,8 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-migrate-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    File::Path::make_path("$ROOT/$_") for qw{config schema data/files logs};
-    File::Copy::copy( "$REPO/schema/$_", "$ROOT/schema/$_" ) or die $! for qw{flatfile.schema sqlite.schema};
+    for my $dir    (qw{config schema data/files logs}) { File::Path::make_path("$ROOT/$dir") }
+    for my $schema (qw{flatfile.schema sqlite.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
     File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
@@ -103,7 +103,7 @@ my @corpus = (
     post( id => 'p-deck',   title => 'A Deck',       data => [ 'slide one', 'slide two' ], form       => 'presentation.tx' ),
     post( id => 'p-ann',    title => 'By Ann',       data => 'ann wrote this',             user       => 'ann', author => 'ann', tags => [qw{blog rare}] ),
 );
-$flat->write( [$_] ) foreach @corpus;
+foreach my $post (@corpus) { $flat->write( [$post] ) }
 
 # FlatFile memoizes both the tag list and the posts for a given set of tags at
 # load time, and writing a post invalidates neither -- production gets away with
@@ -131,8 +131,8 @@ subtest 'the migration itself' => sub {
     my ( $rc, $out ) = migrate();
     is( $rc, 0, 'it succeeds' ) or diag($out);
     like( $out, qr/Carried[ ]over[ ]6[ ]post[ ]version\(s\),[ ]skipped[ ]0/, 'carrying over every version' );
-    my $landed = 'data/files holds 6 post version(s); data/posts.sqlite now holds 6';
-    like( $out, qr/\Q$landed\E/, 'and says what actually landed' );
+    my $landed = quotemeta('data/files holds 6 post version(s); data/posts.sqlite now holds 6');
+    like( $out, qr/$landed/, 'and says what actually landed' );
 
     is( $sqlite->count(), 4, 'four posts' );
 

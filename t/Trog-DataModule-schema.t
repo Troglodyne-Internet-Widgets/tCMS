@@ -60,8 +60,8 @@ my $generation = 0;
 
 sub set_sidecars {
     %sidecars = @_;
-    $_->remove foreach $formsdir->children();
-    $formsdir->child($_)->spew_utf8('{}') foreach keys %sidecars;
+    foreach my $file ( $formsdir->children() ) { $file->remove }
+    foreach my $name ( keys %sidecars )        { $formsdir->child($name)->spew_utf8('{}') }
     $generation++;
     utime( time() + $generation, time() + $generation, "$formsdir" );
     return;
@@ -71,8 +71,10 @@ sub set_sidecars {
 # get cleared out.
 sub set_components {
     %components = @_;
-    $_->remove foreach grep { !$_->is_dir } $tempdir->children();
-    $tempdir->child($_)->spew_utf8('{}') foreach keys %components;
+    foreach my $file ( grep { local ($_) = $_; !$_->is_dir } $tempdir->children() ) {
+        $file->remove;
+    }
+    foreach my $name ( keys %components ) { $tempdir->child($name)->spew_utf8('{}') }
     $generation++;
     utime( time() + $generation, time() + $generation, "$tempdir" );
     return;

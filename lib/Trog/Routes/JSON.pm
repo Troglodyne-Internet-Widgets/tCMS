@@ -12,6 +12,14 @@ use Trog::Routes::HTML();
 
 use Trog::Log::Metrics();
 
+# What Trog::Utils::uuid() makes, ended by \z because perl's $ allows a final newline.
+my $HEX  = qr/[[:digit:]a-f]/;
+my $HEX4 = qr/(?: $HEX ){4}/;
+my $UUID = qr/\A (?: $HEX ){8} - $HEX4 - $HEX4 - $HEX4 - (?: $HEX ){12} \z/;
+
+# Same shape series.json demands of child_form.
+my $FORM_TX = qr/\A [[:alnum:]_-]+ [.] tx \z/;
+
 # The parameters of a route are OpenAPI 3 parameter objects, which
 # TCMS::build_routes puts in the operation that tPSGI validates a request by.
 our %routes = (
@@ -36,9 +44,7 @@ our %routes = (
                 name     => 'token',
                 in       => 'path',
                 required => true,
-
-                # What Trog::Utils::uuid() makes, ended by \z because perl's $ allows a final newline.
-                schema => { type => 'string', pattern => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z' },
+                schema   => { type => 'string', pattern => "$UUID" },
             },
         ],
         noindex    => 1,
@@ -48,9 +54,7 @@ our %routes = (
         method     => 'GET',
         auth       => 1,
         parameters => [
-
-            # Same shape series.json demands of child_form.
-            { name => 'form', in => 'query', schema => { type => 'string', pattern => '^[A-Za-z0-9_-]+\.tx\z' } },
+            { name => 'form', in => 'query', schema => { type => 'string', pattern => "$FORM_TX" } },
         ],
         callback => \&posts_of_form,
         noindex  => 1,

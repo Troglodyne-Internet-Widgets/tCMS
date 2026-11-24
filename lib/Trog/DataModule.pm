@@ -442,7 +442,7 @@ picks the change up on its very next add() with no restart needed.
 # had a moment ago.  Falls back to whatever stat gives where the filesystem
 # carries no sub-second timestamps.
 my sub sidecar_generation {
-    return join( ':', map { ( ( Time::HiRes::stat("$_/forms") )[9] // 0, ( Time::HiRes::stat($_) )[9] // 0 ) } Trog::Themes::template_dirs( 'text/html', 1 ) );
+    return join( ':', map { local ($_) = $_; ( ( Time::HiRes::stat("$_/forms") )[9] // 0, ( Time::HiRes::stat($_) )[9] // 0 ) } Trog::Themes::template_dirs( 'text/html', 1 ) );
 }
 
 # A signature default only covers an absent arg, and plenty of posts have an

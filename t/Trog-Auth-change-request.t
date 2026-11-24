@@ -27,7 +27,7 @@ sub contact_of ($user) { return $dbh->selectrow_hashref( 'SELECT display_name, c
 subtest 'process_change_request: each reset keeps its own user' => sub {
     Trog::Auth::useradd( qw{alice Alice old}, [], 'alice@test.test' );
     Trog::Auth::useradd( qw{bob Bob old},     [], 'bob@test.test' );
-    Trog::Auth::add_change_request( user => $_, token => "t-$_", type => 'reset_pass', secret => 'new' ) for qw{alice bob};
+    for my $user (qw{alice bob}) { Trog::Auth::add_change_request( user => $user, token => "t-$user", type => 'reset_pass', secret => 'new' ) }
 
     like( Trog::Auth::process_change_request('t-alice'), qr/for[ ]alice/, 'the first reset is done' );
     like( Trog::Auth::process_change_request('t-bob'),   qr/for[ ]bob/,   'and the second' );

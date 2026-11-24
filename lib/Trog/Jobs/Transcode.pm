@@ -67,10 +67,10 @@ sub run_ffmpeg (@command) {
     $err = substr( $err, -500 ) if length $err > 500;
     $err =~ s/\s+\z//;
     $why =
-        $why =~ /timeout/ ? "ffmpeg ran for more than $ffmpeg_timeout seconds and was stopped"
-      : $why              ? "ffmpeg did not run: $why"
-      : $status & 127     ? 'ffmpeg was killed by signal ' . signal_name( $status & 127 )
-      :                     sprintf( 'ffmpeg exited with status %d', $status >> 8 );
+        index( $why, q{timeout} ) >= 0 ? "ffmpeg ran for more than $ffmpeg_timeout seconds and was stopped"
+      : $why                           ? "ffmpeg did not run: $why"
+      : $status & 127                  ? 'ffmpeg was killed by signal ' . signal_name( $status & 127 )
+      :                                  sprintf( 'ffmpeg exited with status %d', $status >> 8 );
     die "$why\n$err\n";
 }
 
@@ -139,7 +139,7 @@ sub update_posts ( $href, $outputs ) {
 
     my $file  = URI::Escape::uri_unescape($href);
     my $saved = 0;
-    foreach my $post ( grep { URI::Escape::uri_unescape( $_->{href} // '' ) eq $file } $data->get( limit => 0, acls => ['admin'] ) ) {
+    foreach my $post ( grep { local ($_) = $_; URI::Escape::uri_unescape( $_->{href} // '' ) eq $file } $data->get( limit => 0, acls => ['admin'] ) ) {
         $post->{ $Trog::Jobs::profiles{$_}{field} } = $outputs->{$_} foreach keys %Trog::Jobs::profiles;
         $data->add($post);
         $saved++;

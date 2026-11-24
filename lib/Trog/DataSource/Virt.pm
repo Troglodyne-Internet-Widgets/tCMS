@@ -339,7 +339,7 @@ sub screenshot ( $hypervisor, $guest_name ) {
 
     local $@;
     my $data = eval {
-        my ($domain) = grep { $_->get_name() eq $safe } $conn->list_all_domains();
+        my ($domain) = grep { local ($_) = $_; $_->get_name() eq $safe } $conn->list_all_domains();
         die "no such guest\n" unless $domain;
 
         my $stream = $conn->new_stream();
@@ -393,7 +393,7 @@ sub act ( $action, $conn_uri, $domain_name, $user ) {
 
     local $@;
     my ($domain) = eval {
-        grep { $_->get_name() eq $safe } $conn->list_all_domains();
+        grep { local ($_) = $_; $_->get_name() eq $safe } $conn->list_all_domains();
     };
     return ( 0, "no guest called '$safe' on that hypervisor" ) unless $domain;
 
