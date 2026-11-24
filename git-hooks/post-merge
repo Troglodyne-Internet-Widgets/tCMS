@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Brings the records of tests-covering up to what a pull or a merge brought in,
+# through refresh-coverage beside this hook, which says why.  git runs this
+# after a merge or a fast-forward, a pull --rebase that only fast-forwards
+# included, and not after a pull that changes nothing.
+exec "${0%/*}/refresh-coverage"

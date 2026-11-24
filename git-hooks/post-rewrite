@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Brings the records of tests-covering up to the commits that a rebase rewrote,
+# a pull --rebase included, through refresh-coverage beside this hook, which
+# says why.  Once, when the rebase ends, because post-commit stands down while
+# it applies the commits.  git runs this hook while the state of the rebase is
+# still there, which is why it does not go through post-commit.
+#
+# Not after commit --amend, which runs post-commit as well.
+[ "$1" = rebase ] || exit 0
+
+exec "${0%/*}/refresh-coverage"

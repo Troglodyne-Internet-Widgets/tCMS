@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# Bring the records of tests-covering up to the working tree.  post-commit,
+# post-merge and post-rewrite run it, each after git has changed the files.
+#
+# git-hooks/pre-commit chooses tests by reading a diff against these records,
+# and a diff describes the files as they were before the change.  So after each
+# change the records must describe the tree, or the next choice falls back to
+# every test that loaded a changed file, and grows coarser with each change.
+#
+# In the background, because it runs each stale test under Devel::Cover, and a
+# full refresh takes much longer than a commit should.  Run it by hand to catch
+# up.  It runs the tests the way the pre-commit hook does, with lib/ on the
+# path and nothing else set, so that the records describe the same runs.
+#
+# Install it with the hooks that run it:
+# cp git-hooks/pre-commit git-hooks/post-commit git-hooks/post-merge git-hooks/post-rewrite git-hooks/refresh-coverage .git/hooks/
+
+command -v tests-covering >/dev/null 2>&1 || exit 0
+
+# Without the GIT_ variables that git sets for a hook, for the reason the
+# pre-commit hook gives: the refresh runs the tests, and a test that runs git
+# in a repository of its own would otherwise work in this one.
+unset $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p')
+
+tests-covering --refresh --jobs "$(nproc 2>/dev/null || echo 1)" >/dev/null 2>&1 &
