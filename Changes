@@ -28,3 +28,6 @@ Revision history for tCMS
     - bin/tcms-hostname takes --media, which sets general.media_base.  A
       provisioner can then set the media host with the hostname and the
       secure host.
+    - Allow the host of general.media_base in the Content-Security-Policy.
+      Before, a browser refused every asset there, such as the previews of a
+      video, unless security.allow_embeds_from also named the host.

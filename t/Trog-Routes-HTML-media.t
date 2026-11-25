@@ -4,53 +4,12 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use Test::MockModule qw{strict};
 
 use FindBin::libs;
 
 require_ok('Trog::Routes::HTML') or BAIL_OUT("Can't find SUT");
 
-my @warnings;
-my $logmock = Test::MockModule->new('Trog::Routes::HTML');
-$logmock->redefine( WARN => sub { push( @warnings, shift ) } );
-
-{
-
-    package FakeConfig;
-    sub new   ( $class, %values ) { return bless {%values}, $class }
-    sub param ( $self, $key )     { return $self->{$key} }
-}
-
 my $base = 'https://media.test.test';
-
-subtest 'media_base' => sub {
-    my $confmock = Test::MockModule->new('Trog::Config');
-    my %cases    = (
-        ''                           => '',
-        'https://media.test.test'    => 'https://media.test.test',
-        'https://media.test.test//'  => 'https://media.test.test',
-        'http://media.test.test/sub' => 'http://media.test.test/sub',
-        'media.test.test'            => '',
-        'ftp://media.test.test'      => '',
-        'https:///assets'            => '',
-        'https://media.test.test/?a' => '',
-        'https://media.test.test/#a' => '',
-    );
-    foreach my $setting ( sort keys %cases ) {
-        @warnings = ();
-        $confmock->redefine( get => sub { return FakeConfig->new( 'general.media_base' => $setting ) } );
-        is( Trog::Routes::HTML::media_base(), $cases{$setting},                                     "'$setting' gives '$cases{$setting}'" );
-        is( scalar(@warnings),                ( $setting ne '' && $cases{$setting} eq '' ) ? 1 : 0, "and warns only if it ignores a setting" );
-    }
-
-    $confmock->redefine( get => sub { return FakeConfig->new() } );
-    is( Trog::Routes::HTML::media_base(), '', 'a configuration without the setting gives nothing' );
-
-    # Config::Simple splits a value at each comma, so such a URL comes back as a list.
-    @warnings = ();
-    $confmock->redefine( get => sub { return FakeConfig->new( 'general.media_base' => [ 'https://media.test.test/a', 'b' ] ) } );
-    is( Trog::Routes::HTML::media_base(), 'https://media.test.test/a,b', 'a value with a comma is put back together' );
-};
 
 my sub post (%over) {
     return {

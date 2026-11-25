@@ -13,6 +13,7 @@ use Trog::Component ();
 use Trog::Themes;
 use Trog::Config;
 use Time::HiRes qw{tv_interval};
+use URI         ();
 
 =head1 Trog::Renderer::Base
 
@@ -119,10 +120,10 @@ sub render (%options) {
     # Users can supply a post_processor to futz with the output (such as with minifiers) if they wish.
     $body = $options{post_processor}->($body) if $options{post_processor} && ref $options{post_processor} eq 'CODE';
 
+    return $body if $options{component};
+
     # Users can supply custom headers as part of the data in options.
     my %headers = headers( \%options, $body );
-
-    return $body if $options{component};
     return [ $code, [%headers], [$body] ] unless $options{deflate};
 
     $headers{"Content-Encoding"} = "gzip";
@@ -173,6 +174,15 @@ sub headers ( $options, $body ) {
 
     my $conf  = Trog::Config::get();
     my $sites = $conf->param('security.allow_embeds_from') // '';
+
+    # The origin alone, because a CSP source with a path matches only that path.
+    my $media = Trog::Config::media_base();
+    if ($media) {
+        my $origin = URI->new($media)->canonical;
+        $origin->userinfo(undef);
+        $origin->path('');
+        $sites .= " $origin";
+    }
     $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' data: 'unsafe-eval' 'unsafe-inline' $sites";
     $headers{'Content-Security-Policy'} .= ";object-src 'none'";
 

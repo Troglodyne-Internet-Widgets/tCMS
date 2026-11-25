@@ -8,6 +8,10 @@ use FindBin::libs;
 
 use Config::Simple;
 use File::Slurper();
+use Ref::Util ();
+use URI       ();
+
+use Trog::Log qw{WARN};
 
 =head1 Trog::Config
 
@@ -42,6 +46,32 @@ sub get {
     }
     die "Could not find config file!" unless $cf;
     return $cf;
+}
+
+=head2 Trog::Config::media_base() = STRING
+
+The base URL from C<general.media_base> in the configuration, with no slash at
+the end.  It is empty if the setting is empty.  It is also empty, with a
+warning, if the setting is not an absolute C<http> or C<https> URL with a host
+and no query or fragment.
+
+    my $base = Trog::Config::media_base();    # https://media.test.test
+
+=cut
+
+sub media_base {
+    my $base = get()->param('general.media_base');
+
+    # Config::Simple splits a value at each comma.
+    $base = join( ',', @$base ) if Ref::Util::is_arrayref($base);
+    $base //= '';
+    return '' if $base eq '';
+
+    my $uri = URI->new( $base =~ s{/+$}{}r );
+    return "$uri" if ( $uri->scheme // '' ) =~ m/^https?$/ && $uri->host && !defined $uri->query && !defined $uri->fragment;
+
+    WARN("general.media_base is not an http or https URL, so the assets stay on this host: $base");
+    return '';
 }
 
 =head2 Trog::Config::schema( STRING file = $default ) = ARRAYREF

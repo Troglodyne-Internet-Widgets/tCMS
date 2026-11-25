@@ -23,7 +23,6 @@ use JSON::MaybeXS();
 use Module::Runtime();
 use IO::Compress::Gzip;
 use Path::Tiny();
-use URI();
 use URI::Escape();
 
 use FindBin::libs;
@@ -2062,7 +2061,7 @@ sub posts ( $query, $direct = 0 ) {
     # at all.
     if ( !$is_admin ) {
         my ( %seen, %moved );
-        my $media = media_base();
+        my $media = Trog::Config::media_base();
         foreach my $post ( @posts, $query->{primary_post} ) {
             redact_private( $post, \%seen );
             media_urls( $post, $media, \%moved );
@@ -2162,30 +2161,6 @@ sub redact_private ( $post, $seen = {} ) {
         }
     );
     return;
-}
-
-=head2 media_base() = STRING
-
-The base URL from C<general.media_base> in the configuration, with no slash at
-the end.  It is empty if the setting is empty.  It is also empty, with a
-warning, if the setting is not an absolute C<http> or C<https> URL with a host
-and no query or fragment.
-
-=cut
-
-sub media_base {
-    my $base = Trog::Config::get()->param('general.media_base');
-
-    # Config::Simple splits a value at each comma.
-    $base = join( ',', @$base ) if Ref::Util::is_arrayref($base);
-    $base //= '';
-    return '' if $base eq '';
-
-    my $uri = URI->new( $base =~ s{/+$}{}r );
-    return "$uri" if ( $uri->scheme // '' ) =~ m/^https?$/ && $uri->host && !defined $uri->query && !defined $uri->fragment;
-
-    WARN("general.media_base is not an http or https URL, so the assets stay on this host: $base");
-    return '';
 }
 
 # The host name that the setting $key holds, in lower case, or an empty string
