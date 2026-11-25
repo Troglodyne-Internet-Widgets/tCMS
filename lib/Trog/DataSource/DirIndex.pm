@@ -7,7 +7,6 @@ use warnings FATAL => 'all';
 use Cwd         ();
 use Digest::SHA qw{sha256_hex};
 use Path::Tiny  ();
-use URI::Escape ();
 
 use Trog::DataSource ();
 use Trog::Utils      ();
@@ -193,10 +192,7 @@ my sub post_for ( $name, $dir, $series ) {    ## no critic (ProhibitSingleUseLex
 
     my $content_type = $is_dir ? 'inode/directory' : ( Trog::Utils::mime_type($absolute) // 'application/octet-stream' );
 
-    # Escaped per segment: a filename may legally hold a space, a question mark
-    # or a hash, and none of those survive being dropped into an href as they
-    # are.  Per segment rather than wholesale, or the separators go too.
-    my $href = '/' . join( '/', map { local ($_) = $_; URI::Escape::uri_escape($_) } split( m{/}, $path ) );
+    my $href = '/' . Trog::Utils::path_href($path);
 
     my $post = {
 

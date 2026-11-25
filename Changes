@@ -31,3 +31,6 @@ Revision history for tCMS
     - Allow the host of general.media_base in the Content-Security-Policy.
       Before, a browser refused every asset there, such as the previews of a
       video, unless security.allow_embeds_from also named the host.
+    - A transcode gives a post the URLs of its AV1 and H.264 files
+      percent-encoded.  Before, the URL of a video whose name has a space held
+      the space, which a browser repairs but curl and other clients do not.
