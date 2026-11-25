@@ -128,9 +128,10 @@ sub transcode ($href) {
 Point each post whose C<href> names the file of $href at the files of
 $outputs, and save it as a new version.  Returns how many posts it saved.
 
-The two are compared decoded, because a post can hold its C<href>
-percent-encoded, as C</assets/a%20b.mp4>, and a job holds the name of the
-file, as C</assets/a b.mp4>.
+$href is the name of the file, as C</assets/a b.mp4>, because transcode() reads
+the file by it, so it is not decoded.  A post matches when its C<href> decoded
+is that name, as C</assets/a%20b.mp4> is.  A post saved before uploads were
+encoded holds the name as it is, and matches too.
 
 The outputs are names of files too, so each post gets them percent-encoded,
 as C</assets/a%20b.av1.mp4>, whatever its own C<href> holds.
@@ -141,9 +142,8 @@ sub update_posts ( $href, $outputs ) {
     require Trog::Data;    # Not at load: the data models load this module.
     my $data = Trog::Data->new( Trog::Config::get() );
 
-    my $file  = URI::Escape::uri_unescape($href);
     my $saved = 0;
-    foreach my $post ( grep { local ($_) = $_; URI::Escape::uri_unescape( $_->{href} // '' ) eq $file } $data->get( limit => 0, acls => ['admin'] ) ) {
+    foreach my $post ( grep { local ($_) = $_; my $stored = $_->{href} // ''; $stored eq $href || URI::Escape::uri_unescape($stored) eq $href } $data->get( limit => 0, acls => ['admin'] ) ) {
         foreach my $profile ( keys %Trog::Jobs::profiles ) {
             $post->{ $Trog::Jobs::profiles{$profile}{field} } = Trog::Utils::path_href( $outputs->{$profile} );
         }

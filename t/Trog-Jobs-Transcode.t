@@ -204,9 +204,32 @@ subtest 'a post finds the file of its video, however its href is encoded' => sub
     # The job of an existing video has the name of the file, with its space.
     is( Trog::Jobs::Transcode::update_posts( '/assets/a b.mp4', Trog::Jobs::outputs_for('/assets/a b.mp4') ), 2, 'a job named by the file saves the post with the encoded href too' );
     is_deeply( \@added, [qw{encoded plain}], '...and not the post of a file whose name holds a literal %20' );
+};
 
-    @added = ();
-    is( Trog::Jobs::Transcode::update_posts( '/assets/a%20b.mp4', Trog::Jobs::outputs_for('/assets/a%20b.mp4') ), 2, 'and a job named by the encoded href saves both' );
+subtest 'the name of the file in a job is not decoded, even where it holds a % and two hex digits' => sub {
+    my @added;
+    my $fake = bless {}, 'FakePercentData';
+    {
+        no warnings 'once';
+        *FakePercentData::get = sub {
+            return (
+                { id => 'encoded', href => '/assets/100%2525%20done.mp4' },
+                { id => 'raw',     href => '/assets/100%25 done.mp4' },
+                { id => 'other',   href => '/assets/100% done.mp4' },
+            );
+        };
+        *FakePercentData::add = sub ( $, $post ) { push @added, $post; return 0 };
+    }
+    my $data = Test::MockModule->new('Trog::Data');
+    $data->redefine( new => sub { return $fake } );
+    my $conf = Test::MockModule->new('Trog::Config');
+    $conf->redefine( get => sub { return {} } );
+
+    # transcode() reads the file by the name in the job, so that name is never an href.
+    my $file = '/assets/100%25 done.mp4';
+    is( Trog::Jobs::Transcode::update_posts( $file, Trog::Jobs::outputs_for($file) ), 2, 'the job saves the posts of that file' );
+    is_deeply( [ map { $_->{id} } @added ], [qw{encoded raw}], '...whether a post holds the name encoded, or as it is, from before uploads were encoded, and not the post of another file' );
+    is( $added[0]{av1_href}, '/assets/100%2525%20done.av1.mp4', 'and the new files are encoded from the name, with its % kept' );
 };
 
 subtest 'a post lists the new files of a name with a space percent-encoded' => sub {
