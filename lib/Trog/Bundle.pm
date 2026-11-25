@@ -92,7 +92,7 @@ sub scripts (@names) {
     return undef unless @names;
 
     my @files = map {
-        my $file = m/\A\w[\w.-]*[.]js\z/ ? Trog::Themes::themed_script($_) =~ s{\A/}{www/}r : undef;
+        my $file = m/\A\w[\w.-]*[.]js\z/ ? Trog::Themes::themed_script($_) : undef;
         $file && -f $file ? $file : undef;    ## no critic (ProhibitFiletest_f) -- a name that is not a file is not a script
     } @names;
     my @missing = map { $names[$_] } grep { !defined $files[$_] } 0 .. $#names;

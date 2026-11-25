@@ -1,4 +1,8 @@
-: include "components/header.tx";
+<: component('Header', {
+    title       => $title,
+    route       => $route,
+    stylesheets => $stylesheets,
+}) :>
 : include "jsalert.tx";
 <style>
 #jsalert {
@@ -56,4 +60,4 @@
 : }
 
 </div>
-: include "components/footer.tx";
+<: component('Footer') :>

@@ -69,13 +69,29 @@ Publishing a post creates a URL because the URL *is* a field on the post. There
 is no separate router config to keep in sync, and no rewrite rules.
 
 A key of the table is a path, or an OpenAPI path template such as
-`/sitemap/{map}.xml` or `/lib/{module+}`. Each variable of a template reaches the
-callback under its name, without the `+`. `TCMS::build_routes` turns the table
-into the OpenAPI 3 document that tPSGI routes by. A route's `parameters` are
-OpenAPI parameter objects, so tPSGI validates the request before the callback
-runs. Its flags, such as `auth` and `totp_exempt`, reach the callback as
-`x-tcms-auth` and so on in `$query->{dispatcher}`. The path of a post cannot
-hold a `{` or a `}`, because OpenAPI has no way to escape them.
+`/sitemap/{map}.xml` or `/lib/{module+}`. `TCMS::build_routes` turns the table
+into the OpenAPI 3 document that tPSGI routes by. Its flags, such as `auth` and
+`totp_exempt`, reach the callback as `x-tcms-auth` and so on in
+`$query->{dispatcher}`. The path of a post cannot hold a `{` or a `}`, because
+OpenAPI has no way to escape them.
+
+A post at the href that every post gets by default, `/posts/<id>`, has no route
+of its own. One template, `/posts/{id}`, routes all of them to
+`Trog::Routes::HTML::posts`, which finds the post by the id in its path. tPSGI
+checks the document a route at a time, and a site can have tens of thousands of
+posts. A post at any other href keeps its own route.
+
+What a request may send is declared, and tPSGI refuses anything else with a 400.
+`%inputs` in `Trog::Routes::HTML` names what each callback takes: the query
+of a GET and the form of a POST.  `build_routes` declares that for every route of
+the callback, so a post that names its callback by string gets the same, less
+what the route fixes in its `data` or holds in its path.  A route can declare
+its own `parameters` instead.  The callback finds the input of the request in
+`$query->{input}`: the query, the form, each variable of the template without
+the `+`, and the route's `data`.  The rest of `$query` is what tPSGI and the
+dispatcher set, which no request can replace.  So a page can hand `%$query` to
+its template, and the request still chooses none of the template's
+variables.
 
 **Adding a content type does not require touching Perl.** A post type is a
 template that says how to display and edit it, plus a JSON sidecar that says what
@@ -417,8 +433,9 @@ file for `X.html`. The page is the same, so this is expected and needs no fix.
 
 A script resolves as a template does. A route names the scripts of its page in
 its definition: `scripts` for every reader, and `authenticated_scripts` for a
-reader who is logged in as well. A template does not write a `<script src>` tag
-of its own. The route of a post gets the scripts of a post page, from
+reader who is logged in as well. A theme names the scripts of every page in
+`@Theme::scripts`, which go before those of the route. A template does not
+write a `<script src>` tag of its own. The route of a post gets the scripts of a post page, from
 `%Trog::Routes::HTML::post_page_scripts`. `finish_render` links the lists as one
 bundle, which `Trog::Bundle` builds and `/bundle/{version}/{names}.js` serves.
 That route serves only a list that a route declares, so a request cannot make

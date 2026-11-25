@@ -7,15 +7,9 @@ use warnings FATAL => 'all';
 use Clone qw{clone};
 
 use Trog::Utils();
-use Trog::Auth();
 use Trog::Routes::HTML();
 
 use Trog::Log::Metrics();
-
-# What Trog::Utils::uuid() makes, ended by \z because perl's $ allows a final newline.
-my $HEX  = qr/[[:digit:]a-f]/;
-my $HEX4 = qr/(?: $HEX ){4}/;
-my $UUID = qr/\A (?: $HEX ){8} - $HEX4 - $HEX4 - $HEX4 - (?: $HEX ){12} \z/;
 
 # Same shape series.json demands of child_form.
 my $FORM_TX = qr/\A [[:alnum:]_-]+ [.] tx \z/;
@@ -39,14 +33,7 @@ our %routes = (
         method     => 'GET',
         secure     => 1,
         callback   => \&process_auth_change_request,
-        parameters => [
-            {
-                name     => 'token',
-                in       => 'path',
-                required => true,
-                schema   => { type => 'string', pattern => "$UUID" },
-            },
-        ],
+        parameters => [ { name => 'token', in => 'path', required => true, schema => Trog::Utils::uuid_schema() } ],
         noindex    => 1,
         robot_name => '/api/auth_change_request/*',
     },
@@ -105,31 +92,23 @@ sub catalog {
 }
 
 sub webmanifest {
-    state $headers = { ETag => 'manifest-' . _version() };
-    my $theme_dir = Trog::Themes::get_dir();
+    state $headers  = { ETag => 'manifest-' . _version() };
     state %manifest = (
-        "icons" => [
-            { "src" => "$theme_dir/img/icon/favicon-32.png",  "type" => "image/png", "sizes" => "32x32" },
-            { "src" => "$theme_dir/img/icon/favicon-48.png",  "type" => "image/png", "sizes" => "48x48" },
-            { "src" => "$theme_dir/img/icon/favicon-167.png", "type" => "image/png", "sizes" => "167x167" },
-            { "src" => "$theme_dir/img/icon/favicon-180.png", "type" => "image/png", "sizes" => "180x180" },
-            { "src" => "$theme_dir/img/icon/favicon-192.png", "type" => "image/png", "sizes" => "192x192" },
-            { "src" => "$theme_dir/img/icon/favicon-512.png", "type" => "image/png", "sizes" => "512x512" },
-        ],
+        "icons" => [ map { +{ "src" => Trog::Themes::url_path( Trog::Themes::themed("img/icon/favicon-$_.png") ), "type" => "image/png", "sizes" => "${_}x$_" } } qw{32 48 167 180 192 512} ],
     );
     return _render( 200, $headers, %manifest );
 }
 
-sub process_auth_change_request ($query) {
-    my $token = $query->{token};
+=head2 process_auth_change_request
 
-    my $msg = Trog::Auth::process_change_request($token);
-    return $query->{tpsgi}->forbidden($query) unless $msg;
-    return _render(
-        200, undef,
-        message => $msg,
-        result  => 'success',
-    );
+Implements GET /api/auth_change_request/{token}, which reset emails linked to
+before /auth_change_request/{token} took over.  It changes nothing, and sends the
+browser to the page where the user chooses the new password.
+
+=cut
+
+sub process_auth_change_request ($query) {
+    return $query->{tpsgi}->see_also("/auth_change_request/$query->{input}{token}");
 }
 
 =head2 posts_of_form
@@ -147,7 +126,7 @@ nobody's business here.
 =cut
 
 sub posts_of_form ($query) {
-    my @posts = Trog::Routes::HTML::post_helper( { form => $query->{form}, limit => 0 }, [], [ Trog::Routes::HTML::viewer_acls($query) ] );
+    my @posts = Trog::Routes::HTML::post_helper( { form => $query->{input}{form}, limit => 0 }, [], [ Trog::Routes::HTML::viewer_acls($query) ] );
 
     return _render(
         200, undef,
@@ -156,10 +135,11 @@ sub posts_of_form ($query) {
 }
 
 sub requests_per ($query) {
-    my $code = Trog::Utils::coerce_array( $query->{code} );
+    my $in   = $query->{input};
+    my $code = Trog::Utils::coerce_array( $in->{code} );
     return _render(
         200, undef,
-        %{ Trog::Log::Metrics::requests_per( $query->{period}, $query->{num_periods}, $query->{before}, @$code ) }
+        %{ Trog::Log::Metrics::requests_per( $in->{period}, $in->{num_periods}, $in->{before}, @$code ) }
     );
 }
 

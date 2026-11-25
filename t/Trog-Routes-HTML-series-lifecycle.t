@@ -269,8 +269,18 @@ our $ADMIN_PASS    = 'spec-password';
 
 # Always build a fresh query: posts() pushes onto user_acls, and series()
 # rewrites route/aclname/tag/in_series/primary_post in place.
+# What tPSGI and the dispatcher set on a query.  Anything else a test passes is
+# the input of the request, as tPSGI hands it over in $query->{input}.
+my %set_on_query = map { $_ => 1 } qw{route method scheme domain start deflate streaming ranges last_fetched has_query social_meta user_acls body tpsgi user fullpath cookies dispatcher primary_post};
+
 my sub query {
     my (%over) = @_;
+    my %input = map { $_ => delete $over{$_} } grep { !$set_on_query{$_} } keys(%over);
+
+    # The dispatcher keeps the path of where the request asks to go next.
+    $over{to}    = $input{to} if defined $input{to};
+    $over{input} = \%input;
+
     my %q = (
         route        => '/',
         method       => 'GET',
@@ -1130,6 +1140,22 @@ subtest 'blog' => sub {
     unlike( $body, qr/Spec[ ]Payee[ ]Entity/, 'no bleed from the entities series' );
 };
 
+subtest 'search' => sub {
+    my ( $code, $body, $err ) = render( anon( route => '/search', like => 'Spec blog body' ), \&Trog::Routes::HTML::search );
+    is( $code, 200, 'a search renders' ) or return diag($err);
+    like( $body, qr/Spec[ ]Blog[ ]Child/, 'with the post whose body holds what was searched for' );
+    unlike( $body, qr/Spec[ ]Payee[ ]Entity/, 'and not one whose does not' );
+    like( $body, qr{<form[ ]action="/search"}, 'and its own search box searches again' );
+
+    ( $code, $body, $err ) = render( anon( route => '/search', like => 'bogus-nothing-matches-this' ), \&Trog::Routes::HTML::search );
+    is( $code, 200, 'a search that finds nothing is a page that says so, not a 404' ) or diag($err);
+
+    ( $code, $body ) = render( anon( route => '/specblog' ), \&Trog::Routes::HTML::series );
+    like( $body, qr{<form[ ]action="/specblog"}, 'the search box of a page of posts searches that page' );
+    ( $code, $body ) = render( anon( route => '/processed' ), \&Trog::Routes::HTML::processed );
+    like( $body, qr{<form[ ]action="/search"}, 'and the search box of any other page sends its search to /search' );
+};
+
 subtest 'a post that embeds another' => sub {
     my $embedded = find_post('Spec Blog Child') or return fail('the blog child is there to embed');
     my $host     = save_post(
@@ -1711,6 +1737,20 @@ subtest 'the topbar did not silently overflow' => sub {
     is( scalar @titles, 9, 'every series we made is in the topbar' )
       or diag( 'topbar was: ' . join( ', ', @titles ) );
     cmp_ok( scalar @titles, '<=', 10, 'and we are not at the _get_series limit' );
+};
+
+subtest 'the sitemap page' => sub {
+    my ( $code, undef, $err ) = render( anon( route => '/sitemap' ), \&Trog::Routes::HTML::sitemap );
+    is( $code, 200, 'renders' ) or diag($err);
+};
+
+subtest 'the error pages' => sub {
+    require TCMS;
+    foreach my $code (qw{400 403 404 405 415 419 500 503}) {
+        my ( $got, $body, $err ) = render( anon( route => '/nowhere' ), sub ($query) { TCMS::generic_route( "/$code", $code, 'Some Error', $query ) } );
+        is( $got, $code, "the page for a $code renders" ) or diag($err);
+        like( $body, qr{No[ ]such[ ]resource[ ]/nowhere}, 'and names the path that is not there' ) if $code == 404;
+    }
 };
 
 subtest 'the tpsgi side effects stayed inert' => sub {

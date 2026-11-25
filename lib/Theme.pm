@@ -27,8 +27,8 @@ Fallback <title> for pages which have no post of their own to name them.
 
 =item $default_image
 
-The image handed to social media scrapers as the site's preview, relative to
-the theme directory.
+The image handed to social media scrapers as the site's preview, as a path
+relative to www/.  The theme's copy wins when it has one.
 
 =item $display_name
 
@@ -41,6 +41,12 @@ Fallback meta description, used when the page has no post body to summarize.
 =item $default_tags
 
 Comma separated keywords for the meta keywords tag.
+
+=item @scripts
+
+The names of scripts that every page links, before the scripts of the page
+itself.  Each is a file in the theme's scripts/ directory or in www/scripts,
+as the scripts of a route are.
 
 =item $twitter_account, $fb_app_id
 
@@ -56,6 +62,8 @@ our $default_image = 'img/icon/favicon-48.png';
 our $display_name  = 'tCMS';
 our $description   = 'tCMS is a content management system written in perl.';
 our $default_tags  = 'tcms';
+
+our @scripts = ();
 
 our $twitter_account = '';
 our $fb_app_id       = '';

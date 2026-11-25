@@ -565,14 +565,14 @@ subtest 'the route' => sub {
     # The passphrase must not survive the request: this hash gets cloned, logged
     # around and handed to renderers.
     @SPAWNED = ();
-    my $query = { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, guest => 'guest.test.test', passphrase => 'hunter2', sudo => 'letmein', to => '/vms' };
+    my $query = { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, to => '/vms', input => { guest => 'guest.test.test', passphrase => 'hunter2', sudo => 'letmein' } };
     Trog::Routes::HTML::guest_reprovision($query);
     is( scalar(@SPAWNED),                  1,         'an admin gets their run' );
     is( $SPAWNED[0]{credentials}{keepass}, 'hunter2', 'the passphrase reaches the provisioner' );
     is( $SPAWNED[0]{credentials}{sudo},    'letmein', 'and so does the sudo password' );
 
     # This hash is cloned, logged around and handed to renderers.
-    foreach my $key (qw{passphrase sudo totp}) { ok( !exists $query->{$key}, "the $key is gone from the query afterwards" ) }
+    foreach my $key (qw{passphrase sudo totp}) { ok( !exists $query->{input}{$key}, "the $key is gone from the input afterwards" ) }
 
     # The log route.  It lives in logs/ rather than under www/, and the output
     # of a provisioner is a fine place for a hostname or an IP plan to turn up.
@@ -584,7 +584,7 @@ subtest 'the route' => sub {
     $res = Trog::Routes::HTML::guest_reprovision_log( { user => 'bob', user_acls => ['public'], tpsgi => $tpsgi } );
     is( $res->[0], 403, 'a non-admin cannot read it' );
 
-    $res = Trog::Routes::HTML::guest_reprovision_log( { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, guest => 'never.test.test' } );
+    $res = Trog::Routes::HTML::guest_reprovision_log( { user => 'admin', user_acls => ['admin'], tpsgi => $tpsgi, input => { guest => 'never.test.test' } } );
     is( $res->[0], 404, 'and a guest with no log is a 404 rather than an empty page' );
 };
 

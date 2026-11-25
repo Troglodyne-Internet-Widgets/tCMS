@@ -6,6 +6,8 @@ use warnings FATAL => 'all';
 
 use Text::Xslate ();
 
+use Trog::Themes ();
+
 =head1 Trog::Component
 
 Dispatcher for the UI components living under the Trog::Component namespace.
@@ -17,9 +19,9 @@ string into their data hash:
     <: component('EmojiPicker') :>
     <: component('Gallery', { album => $post.id, cols => 3 }) :>
 
-Deliberately depends on nothing but Text::Xslate.  Trog::Renderer::Base uses
-this module, and components use Trog::Renderer, so anything heavier here would
-close a compile-time load cycle.  Components are loaded lazily, at call time,
+Deliberately depends on nothing that loads Trog::Renderer.  Trog::Renderer::Base
+uses this module, and components use Trog::Renderer, so such a dependency here
+would close a compile-time load cycle.  Components are loaded lazily, at call time,
 for the same reason.
 
 =head1 Termination Conditions
@@ -135,6 +137,9 @@ sub component ( $name, $args = {} ) {
 Render a component template and hand back the body, for the many components
 whose whole job is exactly that.
 
+The template gets theme_dir as well as $data, unless $data gives it a value:
+Trog::Themes::td(), for building asset links.
+
 Dies naming the template if the render fails, rather than answering with the
 PSGI triplet Trog::Renderer::render() produces on failure.
 
@@ -147,11 +152,14 @@ sub render_template ( $template, $data = {} ) {
     # would close the cycle.  By the time anyone calls this it is already loaded.
     require Trog::Renderer;
 
+    my %data = %$data;
+    $data{theme_dir} //= Trog::Themes::td();
+
     my $out = Trog::Renderer->render(
         contenttype => 'text/html',
         component   => 1,
         template    => $template,
-        data        => $data,
+        data        => \%data,
     );
 
     die "Could not render component template '$template'\n" if ref $out;

@@ -197,6 +197,28 @@ my sub filter_acls ( $query, @filtered ) {
     } @filtered;
 }
 
+=head2 searchable_match($like, @values) = BOOL
+
+Whether any of @values contains $like, case insensitively.  This is what a
+search means: filter() applies it to a stored post's title and body, and
+Trog::DataSource gives it to a datasource by the same name.  Quotemeta'd, so a
+search for '*' looks for an asterisk.
+
+Anything in @values which isn't a plain string is skipped, so a missing title
+or a nested structure is passed over rather than matched against its address.
+
+=cut
+
+sub searchable_match ( $like, @values ) {
+    return 0 if ( $like // q{} ) eq q{};
+
+    foreach my $value (@values) {
+        next     if !defined $value || ref $value;
+        return 1 if $value =~ m/\Q$like\E/i;
+    }
+    return 0;
+}
+
 =head2 filter($query, @posts) = @filtered
 
 Apply a get() request's filters to a list of posts: tags, exclude_tags, acls,
@@ -256,7 +278,8 @@ sub filter ( $, $query, @filtered ) {
 
     @filtered = grep { ( $_->{form} || '' ) eq $query->{form} } @filtered if $query->{form};
 
-    @filtered = grep { $_->{title} =~ m/\Q$query->{like}\E/i || $_->{data} =~ m/\Q$query->{like}\E/i } @filtered if $query->{like};
+    # Each slide of a body that is a list, such as a presentation's.
+    @filtered = grep { local ($_) = $_; searchable_match( $query->{like}, $_->{title}, Ref::Util::is_arrayref( $_->{data} ) ? @{ $_->{data} } : $_->{data} ) } @filtered if $query->{like};
 
     @filtered = grep { $_->{user} eq $query->{author} } @filtered if $query->{author};
 

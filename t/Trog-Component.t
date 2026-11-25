@@ -4,7 +4,8 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use Test::Fatal qw{exception};
+use Test::Fatal      qw{exception};
+use Test::MockModule qw{strict};
 
 use FindBin::libs;
 
@@ -186,6 +187,32 @@ subtest 'a failure inside a template is not swallowed' => sub {
     like( $err, qr/TestBoom/, "the first failure wins, not the last" );
 };
 
+subtest 'render_template' => sub {
+    require Trog::Renderer;
+
+    my %seen;
+    my $renderer = Test::MockModule->new('Trog::Renderer');
+    $renderer->redefine( render => sub ( $class, %args ) { %seen = %{ $args{data} }; return 'rendered' } );
+    my $themes = Test::MockModule->new('Trog::Themes');
+
+    $themes->redefine( td => sub { '/themes/bogus' } );
+    is( Trog::Component::render_template( 'bogus.tx', { title => 'x' } ), 'rendered', "the body of the render comes back" );
+    is_deeply( \%seen, { title => 'x', theme_dir => '/themes/bogus' }, "a template that is passed no theme_dir gets the URL path of the theme" );
+
+    Trog::Component::render_template( 'bogus.tx', { theme_dir => undef } );
+    is( $seen{theme_dir}, '/themes/bogus', "an undefined theme_dir is filled in, as the Header component passes one" );
+
+    Trog::Component::render_template( 'bogus.tx', { theme_dir => '/themes/other' } );
+    is( $seen{theme_dir}, '/themes/other', "a theme_dir that the caller passes wins" );
+
+    $themes->redefine( td => sub { '' } );
+    Trog::Component::render_template('bogus.tx');
+    is( $seen{theme_dir}, '', "theme_dir is empty when there is no theme" );
+
+    $renderer->redefine( render => sub { [ 500, [], ['boom'] ] } );
+    like( exception { Trog::Component::render_template('bogus.tx') }, qr/component[ ]template[ ]'bogus[.]tx'/, "a failed render dies naming the template" );
+};
+
 subtest 'through the real renderer' => sub {
     require Trog::Renderer::Base;
 
@@ -202,6 +229,7 @@ subtest 'through the real renderer' => sub {
                 failure  => -1,
                 posts    => [],
                 forms    => [],
+                ( map { $_ => undef } qw{acls app category embed footers headers in_series like limit message months newer nochrome older page pages pages_total paginate_offset post post_visibilities primary_post route rss sizes style subhead tiled to years} ),
             },
         );
     };

@@ -126,27 +126,13 @@ sub filter ( $query, @posts ) {
 
 =head2 searchable_match($like, @values) = BOOL
 
-Whether any of @values contains $like, case insensitively.
-
-The same case insensitive substring test Trog::DataModule::filter() applies to a
-stored post's title and body, factored out so that a datasource can hand it the
-fields its own posts actually carry without having to restate what a search
-means.  Quotemeta'd, so a search for '*' looks for an asterisk.
-
-Anything in @values which isn't a plain string is skipped, so an arrayref body
-or a nested structure is passed over rather than matched against its address.
+Trog::DataModule::searchable_match(), which is what a search of stored posts
+means, so that a datasource can hand it the fields its own posts actually carry
+without having to restate it.
 
 =cut
 
-sub searchable_match ( $like, @values ) {
-    return 0 if ( $like // q{} ) eq q{};
-
-    foreach my $value (@values) {
-        next     if !defined $value || ref $value;
-        return 1 if $value =~ m/\Q$like\E/i;
-    }
-    return 0;
-}
+*searchable_match = \&Trog::DataModule::searchable_match;
 
 =head2 order($query, @posts) = @posts
 

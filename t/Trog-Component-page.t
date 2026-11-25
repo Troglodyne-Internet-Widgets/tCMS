@@ -4,7 +4,8 @@ use re '/aasx';
 use warnings FATAL => 'all';
 
 use Test::More;
-use Test::Fatal qw{exception};
+use Test::Fatal      qw{exception};
+use Test::MockModule qw{strict};
 use FindBin;
 
 use FindBin::libs;
@@ -24,6 +25,9 @@ BEGIN {
 require_ok('Trog::Component')             or BAIL_OUT("Can't find SUT");
 require_ok('Trog::Component::Header')     or BAIL_OUT("Can't find SUT");
 require_ok('Trog::Component::PostHeader') or BAIL_OUT("Can't find SUT");
+
+# What index.tx reads that a page can leave empty, which a render of it here must still pass.
+my %unset_frame = map { $_ => undef } qw{author default_tags embed failure is_admin lang message meta_desc meta_tags search_help search_lang search_route secure_base show_madeby to user user_class};
 
 subtest 'the furniture with no arguments' => sub {
 
@@ -51,8 +55,13 @@ subtest 'Header' => sub {
         }
     );
 
-    like( $out, qr/<!doctype[ ]html>/i,            "the doctype is emitted by default" );
-    like( $out, qr{<title>A[ ]Page</title>},       "the title lands" );
+    like( $out, qr/<!doctype[ ]html>/i,      "the doctype is emitted by default" );
+    like( $out, qr{<title>A[ ]Page</title>}, "the title lands" );
+    like(
+        Trog::Component::component( 'Header', { title => '<b>x</b>' } ),
+        qr{<title>&lt;b&gt;x&lt;/b&gt;</title>},
+        "and is text, not markup"
+    );
     like( $out, qr{href="/styles/screen\.css"},    "stylesheets land" );
     like( $out, qr{src="/scripts/post\.js"},       "scripts land" );
     like( $out, qr{lang="en-US"},                  "lang defaults rather than rendering empty" );
@@ -61,13 +70,39 @@ subtest 'Header' => sub {
     # rss_style() renders into an XSL document, so the doctype has to go.
     my $xsl = Trog::Component::component( 'Header', { title => 'RSS', no_doctype => 1 } );
     unlike( $xsl, qr/<!doctype/i, "no_doctype suppresses it" );
+    like(
+        Trog::Component::component( 'Header', { title => 'RSS', title_select => 'rss/channel/title', no_doctype => 1 } ),
+        qr{<title><xsl:value-of[ ]select="rss/channel/title"/></title>},
+        "and title_select makes the title an XSL value"
+    );
 
     # It also has no stylesheets or scripts to give, and must not invent any.
     unlike( $xsl, qr/rel="stylesheet"[ ]type="text\/css"[ ]href="\/styles\/screen/, "no stylesheets are conjured up" );
 
+    like(
+        exception { Trog::Component::component( 'Header', { bogus => 1 } ) },
+        qr/takes[ ]no[ ]argument[ ]named[ ]bogus/,
+        "an argument it does not take is fatal"
+    );
+
     # header.tx marks meta_tags raw, so social markup has to survive as markup.
     my $social = Trog::Component::component( 'Header', { meta_tags => '<meta name="twitter:card" />' } );
     like( $social, qr{<meta[ ]name="twitter:card"[ ]/>}, "meta_tags stay markup" );
+};
+
+subtest 'Header links each icon from the theme or the stock icons' => sub {
+    my $themes = Test::MockModule->new('Trog::Themes');
+    $themes->redefine( get_dir => sub { '' } );
+
+    my $stock = Trog::Component::component('Header');
+    like( $stock, qr{href="/img/icon/favicon[.]svg"}, "with no theme, the stock icon is linked from the root of the site" );
+    unlike( $stock, qr{href="(?!/)[^"]*favicon}, "and no icon has a relative link, which would break below the top level" );
+
+    my $original = Trog::Themes->can('themed');
+    $themes->redefine( themed => sub ($resource) { $resource eq 'img/icon/favicon.svg' ? "www/themes/spec/$resource" : $original->($resource) } );
+    my $themed = Trog::Component::component('Header');
+    like( $themed, qr{href="/themes/spec/img/icon/favicon\.svg"}, "an icon that the theme has is linked from the theme" );
+    like( $themed, qr{href="/img/icon/favicon-48\.png"},          "and one that it has not is linked from the stock icons" );
 };
 
 subtest 'CategoryBar' => sub {
@@ -132,6 +167,7 @@ subtest 'the whole page still composes' => sub {
                 stylesheets  => ['/styles/screen.css'],
                 print_styles => [],
                 scripts      => [],
+                %unset_frame,
             },
         );
     };
@@ -160,7 +196,7 @@ subtest 'the login link' => sub {
             template    => 'index.tx',
             contenttype => 'text/html',
             code        => 200,
-            data        => { title => 'Login', route => '/posts/p-one', content => '', categories => [], stylesheets => [], print_styles => [], scripts => [], %data },
+            data        => { %unset_frame, title => 'Login', route => '/posts/p-one', content => '', categories => [], stylesheets => [], print_styles => [], scripts => [], %data },
         );
         my ($href) = $psgi->[2][0] =~ m{<a[ ]href="([^"]*)"[ ]title="Login"};
         return $href;

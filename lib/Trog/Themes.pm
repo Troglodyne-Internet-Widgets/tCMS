@@ -16,7 +16,10 @@ Utility functions for getting themed paths.
 
 =cut
 
-our $template_dir = 'www/templates';
+# The directory that the webserver serves at /.
+our $docroot = 'www';
+
+our $template_dir = "$docroot/templates";
 
 =head2 routes() = %routes
 
@@ -62,7 +65,7 @@ sub get_dir {
     my $conf  = Trog::Config::get();
     my $theme = $conf->param('general.theme') || '';
     if ($theme) {
-        my $themedir = "www/themes/$theme";
+        my $themedir = "$docroot/themes/$theme";
         $tdir = $themedir if -d $themedir;
     }
     return $tdir;
@@ -70,14 +73,27 @@ sub get_dir {
 
 =head2 td() = STRING $dir
 
-get_dir() as a rooted URL path rather than a filesystem one, for templates to
-build asset links with.  Empty string when there's no theme.
+The URL path of the active theme's directory, e.g. C</themes/mytheme>, for
+templates to build asset links with.  Empty string when there's no theme.
 
 =cut
 
 sub td {
     my $dir = get_dir();
-    return $dir ? "/$dir" : '';
+    return $dir ? url_path($dir) : '';
+}
+
+=head2 url_path($file) = STRING $path
+
+The URL path at which the webserver serves $file, a path under the document
+root such as C<www/themes/mytheme/img/a.png>.  Dies when $file is not under it,
+as the webserver does not serve it.
+
+=cut
+
+sub url_path ($file) {
+    die "$file is not under $docroot/\n" unless CORE::index( $file, "$docroot/" ) == 0;
+    return substr( $file, length $docroot );
 }
 
 # The theme's template dir and the stock one, in that order of preference.
@@ -134,41 +150,39 @@ my sub dir_for_resource ($resource) {
     return $theme_dir && -f "$theme_dir/$resource" ? $theme_dir : '';    ## no critic (ProhibitFiletest_f) -- theme override, else stock
 }
 
-=head2 themed($resource)
+=head2 themed($resource) = STRING $file
 
-Path to a www/-relative resource, preferring the theme's copy.
+The file of $resource, a path relative to the document root, preferring the
+theme's copy, e.g. C<www/themes/mytheme/img/a.png> or C<www/img/a.png>.  Hand
+it to url_path() for its link.
 
 =cut
 
 sub themed ($resource) {
-    return dir_for_resource("$resource") . "/$resource";
+    return ( dir_for_resource($resource) || $docroot ) . "/$resource";
 }
 
 =head2 themed_style($resource) = @hrefs
 
-Stylesheets are the exception to the "one or the other" rule: you get the stock
-sheet *and* the theme's, in that order, so a theme can override a handful of
-rules without restating the whole thing.
+Stylesheets are the exception to the "one or the other" rule: you get the URL
+path of the stock sheet *and* the theme's, in that order, so a theme can
+override a handful of rules without restating the whole thing.
 
 =cut
 
-# For style we want to load *both* style files and have the override come later.
 sub themed_style ($resource) {
-    my @styles = ("/styles/$resource");
-    my $styled = dir_for_resource("styles/$resource");
-    $styled =~ s/^www\///;
-    push( @styles, "/$styled/styles/$resource" ) if $styled;
-    return @styles;
+    my $theme = dir_for_resource("styles/$resource");
+    return ( "/styles/$resource", $theme ? url_path("$theme/styles/$resource") : () );
 }
 
-=head2 themed_script($resource)
+=head2 themed_script($resource) = STRING $file
 
-Path to a script under www/scripts, preferring the theme's copy.
+themed() for a script under scripts/.
 
 =cut
 
 sub themed_script ($resource) {
-    return dir_for_resource("scripts/$resource") . "/scripts/$resource";
+    return themed("scripts/$resource");
 }
 
 =head2 dir_for($path, $content_type, $is_component)

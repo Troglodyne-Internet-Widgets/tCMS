@@ -4,7 +4,8 @@ use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Encode qw{encode_utf8};
+use Encode     qw{encode_utf8};
+use Hash::Util ();
 use IO::Compress::Gzip;
 
 use Text::Xslate;
@@ -12,6 +13,7 @@ use Trog::Component ();
 use Trog::Themes;
 use Trog::Config;
 use Time::HiRes qw{tv_interval};
+use URI         ();
 
 =head1 Trog::Renderer::Base
 
@@ -42,8 +44,11 @@ Recognized options:
     child_processor / child_renderer => override how post bodies are rendered by
                    the render_it() template function.  Built for you if omitted.
 
-Dies unless Xslate can resolve and render the template.  Returns the body
-string for components, and a PSGI arrayref of [ code, headers, body ] otherwise.
+Dies unless Xslate can resolve and render the template.  It also dies when the
+template reads a variable that data does not have, so a variable that a
+template may read must be in data, as undef if it has no value.  Returns the
+body string for components, and a PSGI arrayref of [ code, headers, body ]
+otherwise.
 
 =cut
 
@@ -98,9 +103,15 @@ sub render (%options) {
     # renders on with an empty string in its place, so the render below succeeds
     # with a hole in it.  Localised here so that a nested render (a component
     # rendering its own template) doesn't answer for its parent's failure.
+    # Sized first, because perl checks the keys of a locked hash only once the
+    # hash has buckets, and an empty one has none.
+    my %vars;
+    keys(%vars) = 1;
+    %vars = %{ $options{data} // {} };
+    Hash::Util::lock_keys(%vars);
     my $body = eval {
         local $Trog::Component::error;
-        my $out = encode_utf8( $renderers{$renderer_key}->render( $options{template}, $options{data} ) );
+        my $out = encode_utf8( $renderers{$renderer_key}->render( $options{template}, \%vars ) );
         die $Trog::Component::error if $Trog::Component::error;
         $out;
     };
@@ -109,10 +120,10 @@ sub render (%options) {
     # Users can supply a post_processor to futz with the output (such as with minifiers) if they wish.
     $body = $options{post_processor}->($body) if $options{post_processor} && ref $options{post_processor} eq 'CODE';
 
+    return $body if $options{component};
+
     # Users can supply custom headers as part of the data in options.
     my %headers = headers( \%options, $body );
-
-    return $body if $options{component};
     return [ $code, [%headers], [$body] ] unless $options{deflate};
 
     $headers{"Content-Encoding"} = "gzip";
@@ -163,6 +174,15 @@ sub headers ( $options, $body ) {
 
     my $conf  = Trog::Config::get();
     my $sites = $conf->param('security.allow_embeds_from') // '';
+
+    # The origin alone, because a CSP source with a path matches only that path.
+    my $media = Trog::Config::media_base();
+    if ($media) {
+        my $origin = URI->new($media)->canonical;
+        $origin->userinfo(undef);
+        $origin->path('');
+        $sites .= " $origin";
+    }
     $headers{'Content-Security-Policy'} .= ";default-src $scheme 'self' data: 'unsafe-eval' 'unsafe-inline' $sites";
     $headers{'Content-Security-Policy'} .= ";object-src 'none'";
 
