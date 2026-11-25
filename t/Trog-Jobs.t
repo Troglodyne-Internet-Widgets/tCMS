@@ -78,6 +78,37 @@ subtest 'an upload of a video is queued, and anything else is not' => sub {
     ok( !exists $replaced->{av1_href} && !exists $replaced->{h264_href}, 'a new file does not keep the transcodes of the old one' );
 };
 
+subtest 'an upload whose name has a space is stored percent-encoded' => sub {
+    my @queued;
+    my $jobs = Test::MockModule->new('Trog::DataModule');
+    $jobs->redefine( WARN => sub { fail("Unexpected warning: @_") } );
+    my $queue = Test::MockModule->new('Trog::Jobs');
+    $queue->redefine( enqueue_transcode => sub ($href) { push @queued, $href; return 1 } );
+
+    my $post = Trog::DataModule::process(
+        {
+            id           => 'sp',
+            visibility   => 'public',
+            file         => upload( 'my clip.mp4', $mp4 ),
+            preview_file => upload( 'a still.jpg', 'jpg' ),
+            attachments  => [ upload( 'notes #1.txt', "words\n" ) ],
+        }
+    );
+    is( $post->{href},           '/assets/sp.my%20clip.mp4',    'the href of the file is percent-encoded' );
+    is( $post->{preview},        '/assets/sp.a%20still.jpg',    'and so is the preview' );
+    is( $post->{attachments}[0], '/assets/sp.notes%20%231.txt', 'and an attachment, whose # would end the path' );
+    ok( -e 'www/assets/sp.my clip.mp4', 'the file is stored under its own name' );
+    is( $post->{content_type}, 'video/mp4', 'its type is read from that name' );
+    is_deeply( \@queued, ['/assets/sp.my clip.mp4'], 'and the transcode is queued with the name of the file, not the href' );
+
+    my $private = Trog::DataModule::process( { id => 'pv', visibility => 'private', file => upload( 'a b.txt', "x\n" ) } );
+    is( $private->{href}, '/assets/private/pv.a%20b.txt', 'a private file keeps the slash of its directory' );
+
+    # libmagic reads the file when the extension says nothing, so it must get the name, not the href.
+    my $unknown = Trog::DataModule::process( { id => 'uk', visibility => 'public', file => upload( 'some notes.qqqzz', "just some words\n" ) } );
+    is( $unknown->{content_type}, 'text/plain', 'a file of no known extension gets its type from what is in it' );
+};
+
 subtest 'the outputs, and the assets they come from' => sub {
     my %out = %{ Trog::Jobs::outputs_for('/assets/id.My Clip.mov') };
     is_deeply( \%out, { av1 => '/assets/id.My Clip.av1.mp4', h264 => '/assets/id.My Clip.h264.mp4' }, 'the outputs have new names beside the original' );

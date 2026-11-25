@@ -34,3 +34,6 @@ Revision history for tCMS
     - A transcode gives a post the URLs of its AV1 and H.264 files
       percent-encoded.  Before, the URL of a video whose name has a space held
       the space, which a browser repairs but curl and other clients do not.
+    - An upload gives a post the URLs of its file, preview, wallpaper and
+      attachments percent-encoded, as a transcode does.  A file whose name
+      has a space or a # was linked with the name as it is.

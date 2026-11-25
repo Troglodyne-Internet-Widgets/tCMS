@@ -15,6 +15,7 @@ use JSON::MaybeXS();
 use JSON::Validator::Schema::Troglodyne();
 
 use Time::HiRes();
+use URI::Escape();
 use Trog::Themes();
 use Trog::Jobs();
 
@@ -953,7 +954,7 @@ my sub handle_upload ( $file, $uuid, $private = 0 ) {
 
     # Regrettably, we have no control over the perms of the temp file that starman creates for uploads.
     chmod( 0755, "www/assets/$newname" );
-    $seen_files{$fname} = "/assets/$newname";
+    $seen_files{$fname} = Trog::Utils::path_href("/assets/$newname");
 
     # The post is written at once with the original, and serves it until the job
     # has made the files that a browser plays better.  A queue that is down must
@@ -1027,10 +1028,10 @@ sub process ($post) {
     @{ $post->{tags} }    = List::Util::uniq( grep { $_ } @{ $post->{tags} } );
     @{ $post->{aliases} } = List::Util::uniq( grep { $_ } @{ $post->{aliases} } );
 
-    # Handle multimedia content types
-    $post->{content_type}       = Trog::Utils::mime_type("www/$post->{href}")       if $post->{href};
-    $post->{video_content_type} = Trog::Utils::mime_type("www/$post->{video_href}") if $post->{video_href};
-    $post->{audio_content_type} = Trog::Utils::mime_type("www/$post->{audio_href}") if $post->{audio_href};
+    # Handle multimedia content types.  An href is percent-encoded, and the file has the decoded name.
+    $post->{content_type}       = Trog::Utils::mime_type( 'www/' . URI::Escape::uri_unescape( $post->{href} ) )       if $post->{href};
+    $post->{video_content_type} = Trog::Utils::mime_type( 'www/' . URI::Escape::uri_unescape( $post->{video_href} ) ) if $post->{video_href};
+    $post->{audio_content_type} = Trog::Utils::mime_type( 'www/' . URI::Escape::uri_unescape( $post->{audio_href} ) ) if $post->{audio_href};
     $post->{content_type} ||= 'text/html';
 
     $post->{is_video}   = 1 if $post->{content_type} =~ m/^video\//;
