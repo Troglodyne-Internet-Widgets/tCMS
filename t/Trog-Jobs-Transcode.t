@@ -209,6 +209,30 @@ subtest 'a post finds the file of its video, however its href is encoded' => sub
     is( Trog::Jobs::Transcode::update_posts( '/assets/a%20b.mp4', Trog::Jobs::outputs_for('/assets/a%20b.mp4') ), 2, 'and a job named by the encoded href saves both' );
 };
 
+subtest 'a post lists the new files of a name with a space percent-encoded' => sub {
+    my @added;
+    my $fake = bless {}, 'FakeSpacedData';
+    {
+        no warnings 'once';
+        *FakeSpacedData::get = sub { return ( { id => 'spaced', href => '/assets/u.a%20b-1.m4v' } ) };
+        *FakeSpacedData::add = sub ( $, $post ) { push @added, $post; return 0 };
+    }
+    my $data = Test::MockModule->new('Trog::Data');
+    $data->redefine( new => sub { return $fake } );
+    my $conf = Test::MockModule->new('Trog::Config');
+    $conf->redefine( get => sub { return {} } );
+
+    # The job names the file on disk, and its outputs are files on disk too.
+    my $file = '/assets/u.a b-1.m4v';
+    is( Trog::Jobs::Transcode::update_posts( $file, Trog::Jobs::outputs_for($file) ), 1, 'the job saves the post of the file' );
+    is_deeply(
+        [ $added[0]{av1_href},         $added[0]{h264_href} ],
+        [ '/assets/u.a%20b-1.av1.mp4', '/assets/u.a%20b-1.h264.mp4' ],
+        '...and each new href is percent-encoded, as the href of the original is'
+    );
+    is( $added[0]{href}, '/assets/u.a%20b-1.m4v', '...and the href of the original is not encoded again' );
+};
+
 subtest 'with ffmpeg, a real clip is transcoded' => sub {
     plan skip_all => 'ffmpeg is not installed' unless File::Which::which('ffmpeg');
 

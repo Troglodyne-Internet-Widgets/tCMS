@@ -8,7 +8,8 @@ use UUID;
 use Plack::MIME;
 use Mojo::File;
 use File::LibMagic;
-use Ref::Util qw{is_hashref};
+use Ref::Util   qw{is_hashref};
+use URI::Escape ();
 
 =head1 Trog::Utils
 
@@ -47,6 +48,20 @@ sub strip_and_trunc ($s) {
     return unless $s;
     $s =~ s/<[^>]*>//g;
     return substr $s, 0, 280;
+}
+
+=head2 path_href(STRING path) = STRING
+
+$path, the path of a file under F<www/>, such as C</assets/a b.mp4>, as a URL
+path: each segment percent-encoded, and the slashes between them kept.  A file name may hold a
+space, a question mark or a hash, and none of those survive in an href as they
+are.  Give it the name of the file, not an href, or what is encoded already is
+encoded again.
+
+=cut
+
+sub path_href ($path) {
+    return join( '/', map { local ($_) = $_; URI::Escape::uri_escape($_) } split( m{/}, $path, -1 ) );
 }
 
 =head2 uuid() = STRING

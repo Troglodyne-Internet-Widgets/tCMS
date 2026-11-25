@@ -11,6 +11,7 @@ use URI::Escape();
 
 use Trog::Config();
 use Trog::Jobs();
+use Trog::Utils();
 
 =head1 NAME
 
@@ -131,6 +132,9 @@ The two are compared decoded, because a post can hold its C<href>
 percent-encoded, as C</assets/a%20b.mp4>, and a job holds the name of the
 file, as C</assets/a b.mp4>.
 
+The outputs are names of files too, so each post gets them percent-encoded,
+as C</assets/a%20b.av1.mp4>, whatever its own C<href> holds.
+
 =cut
 
 sub update_posts ( $href, $outputs ) {
@@ -140,7 +144,9 @@ sub update_posts ( $href, $outputs ) {
     my $file  = URI::Escape::uri_unescape($href);
     my $saved = 0;
     foreach my $post ( grep { local ($_) = $_; URI::Escape::uri_unescape( $_->{href} // '' ) eq $file } $data->get( limit => 0, acls => ['admin'] ) ) {
-        $post->{ $Trog::Jobs::profiles{$_}{field} } = $outputs->{$_} foreach keys %Trog::Jobs::profiles;
+        foreach my $profile ( keys %Trog::Jobs::profiles ) {
+            $post->{ $Trog::Jobs::profiles{$profile}{field} } = Trog::Utils::path_href( $outputs->{$profile} );
+        }
         $data->add($post);
         $saved++;
     }
