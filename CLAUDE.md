@@ -32,7 +32,7 @@ if you raise or lower the floor, change the profile as well as the `use` lines.
 
 | | |
 |---|---|
-| `Readme.md` | what tCMS is for, and how to deploy it |
+| `docs/README.md` | what tCMS is for, and how to deploy it |
 | `design.md` | the architecture, and where a given change belongs |
 | `.perlcriticrc` | the policies, which are the house style made enforceable |
 | `Changes` | what changed and when, per release |

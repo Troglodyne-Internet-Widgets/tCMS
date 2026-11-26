@@ -21,7 +21,7 @@ Trog::Jobs - the job queue of tCMS, and the video transcode that runs in it
 Work that a request must not wait for goes in a L<Minion> queue.  The queue is
 an SQLite database in F<data/>, next to the other databases of tCMS.  A request
 only puts a job in it.  A separate process, the worker of L<Trog::Jobs::App>,
-takes the jobs out and runs them.  See the Readme for how to start it.
+takes the jobs out and runs them.  See F<docs/README.md> for how to start it.
 
 This module is the queue, and the part of each task that a request, or a
 script such as F<bin/tcms-transcode-existing>, runs: it queues the jobs and

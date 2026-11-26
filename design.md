@@ -4,7 +4,7 @@ tCMS Design
 This document describes how tCMS is put together and, more importantly, *why* --
 so that you can tell at a glance where your change belongs.
 
-Read the [Readme](Readme.md) first for installation and the feature-by-feature
+Read the [Readme](docs/README.md) first for installation and the feature-by-feature
 tour. This is the architecture behind it.
 
 What tCMS is for
@@ -508,7 +508,7 @@ of. Log lines start with an ISO8601 date because fail2ban parses them; do not
 change that. UTM parameters are captured per request, so the analytics are yours
 too.
 
-**Deployment** is tPSGI behind nginx. See the Readme for development, and the
+**Deployment** is tPSGI behind nginx. See docs/README.md for development, and the
 `trog-provisioner` recipes (`tcms`, `tpsgi`, `nginxproxy`) for production --
 several features want the configuration encoded there.
 

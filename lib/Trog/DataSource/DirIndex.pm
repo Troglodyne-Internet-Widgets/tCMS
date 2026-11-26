@@ -83,7 +83,7 @@ genuinely want to publish a listing of it, put the files somewhere public instea
 -- that is what the distinction between the two directories is for.
 
 None of this holds if the site is served without that nginx configuration.  See
-the nginxproxy recipe referenced in the Readme; several features besides this one
+the nginxproxy recipe referenced in F<docs/README.md>; several features besides this one
 assume it.
 
 =head2 SYMLINKS
