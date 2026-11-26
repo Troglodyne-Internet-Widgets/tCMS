@@ -210,7 +210,7 @@ All but the last two also have C<upstream>, the upstream commit.
 
 =over 4
 
-=item co - HashRef - a checkout, as L<Trog::Updates/checkouts> gives it, with C<dir>, C<name>, and C<label> or C<url> or both
+=item co - HashRef - a checkout, as C<checkouts()> of L<Trog::Updates> gives it, with C<dir>, C<name>, and C<label> or C<url> or both
 
 =back
 
@@ -506,8 +506,9 @@ sub reinstall {
 
 =head2 check_task($job)
 
-The task C<update_check>.  Finishes with C<checked_at> and L<Trog::Updates/checkouts>, the
-C<status> of each of L<Trog::Updates/checkouts>.  A checkout that git cannot read is
+The task C<update_check>.  Finishes with C<checked_at> and C<checkouts>, the
+C<status> of each checkout that C<checkouts()> of L<Trog::Updates> returns.  A
+checkout that git cannot read is
 C<unreachable>, with the reason in C<error>.
 
 =over 4
@@ -544,7 +545,7 @@ C<to> and C<reloaded>.
 
 =item job - Minion::Job - the job
 
-=item name - Str - the name of the checkout, as L<Trog::Updates/checkouts> names it
+=item name - Str - the name of the checkout, as C<checkouts()> of L<Trog::Updates> names it
 
 =back
 

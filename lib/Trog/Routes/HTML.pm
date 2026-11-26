@@ -1634,7 +1634,7 @@ sub config_apply ( $conf, $input ) {
 =head2 updates_check($query)
 
 Implements the /config/updates/check route.  Queues a check of the commits
-that the site runs, as L<Trog::Updates/enqueue_check> does, and goes back to
+that the site runs, as C<enqueue_check()> of L<Trog::Updates> does, and goes back to
 /config.
 
     my $response = Trog::Routes::HTML::updates_check($query);
@@ -1661,7 +1661,7 @@ sub updates_check ($query) {
 =head2 updates_pull($query)
 
 Implements the /config/updates/pull route.  Queues an update of the checkout
-named in C<checkout>, as L<Trog::Updates/enqueue_update> does, and goes back
+named in C<checkout>, as C<enqueue_update()> of L<Trog::Updates> does, and goes back
 to /config.  For a name that is not a checkout, it shows /config with the
 reason.
 
@@ -3425,7 +3425,7 @@ sub jobs ($query) {
 
 Implements /admin/jobs/retry.  Admin only.
 
-Puts the failed job C<id> back in the queue, as L<Trog::Jobs/retry_failed>
+Puts the failed job C<id> back in the queue, as C<retry_failed()> of L<Trog::Jobs>
 does, and goes back to /admin/jobs, which says whether it did.
 
     my $response = Trog::Routes::HTML::jobs_retry($query);
