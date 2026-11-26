@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: tcms-hostname
+# ABSTRACT: Get or set the hostname that this tCMS instance serves
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -53,7 +56,7 @@ stored in the configuration.
 =head2 CAVEATS
 
 Writes to $Trog::Config::home_cfg rather than saving over whatever get()
-loaded, as that is the tracked config/default.cfg until the instance has a
+loaded, as that is the tracked share/default.cfg until the instance has a
 configuration of its own.
 
 Dies if asked to print a hostname which was never set.
@@ -77,7 +80,7 @@ if ( $hostname || defined $secure || defined $media ) {
     $conf->param( 'general.media_base',  $media )    if defined $media;
 
     # write(), not save().  save() writes back to whatever file get() loaded,
-    # which is the tracked config/default.cfg until the instance has saved a
+    # which is the tracked share/default.cfg until the instance has saved a
     # configuration of its own.
     $conf->write($Trog::Config::home_cfg) or die "Could not write $Trog::Config::home_cfg";
 }

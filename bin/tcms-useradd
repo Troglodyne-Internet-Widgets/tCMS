@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: tcms-useradd
+# ABSTRACT: Add or edit a tCMS user
+
 package tcms::useradd;
 
 use 5.040;

@@ -31,10 +31,10 @@ BEGIN {
     # TCMS.pm builds its document at file scope, against whatever cwd is
     # current when it loads, and every path in tCMS is relative to that.
     $ENV{HOME} = $ROOT;
-    File::Path::make_path( map { "$ROOT/$_" } qw{config schema data/files logs totp www/statics www/themes} );
+    File::Path::make_path( map { "$ROOT/$_" } qw{config share schema data/files logs totp www/statics www/themes} );
     for my $schema (qw{auth.schema flatfile.schema log.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
 
-    open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
+    open( my $fh, '>', "$ROOT/share/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=routes.test.test\n";
     close($fh) or die $!;
 

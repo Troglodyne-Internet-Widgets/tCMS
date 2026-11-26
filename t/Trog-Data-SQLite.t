@@ -31,9 +31,9 @@ BEGIN {
     # Both models resolve their storage relative to cwd, and Text::Xslate reads
     # $HOME once at load time.  Both have to be settled before anything loads.
     $ENV{HOME} = $ROOT;
-    for my $dir    (qw{config schema data/files logs}) { File::Path::make_path("$ROOT/$dir") }
-    for my $schema (qw{flatfile.schema sqlite.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
-    File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
+    for my $dir    (qw{config share schema data/files logs}) { File::Path::make_path("$ROOT/$dir") }
+    for my $schema (qw{flatfile.schema sqlite.schema})       { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
+    File::Copy::copy( "$REPO/share/default.cfg", "$ROOT/share/default.cfg" ) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }

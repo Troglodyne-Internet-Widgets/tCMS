@@ -111,7 +111,7 @@ BEGIN {
     File::Path::make_path(
         map { "$ROOT/$_" }
           qw{
-          config schema data/files logs totp upload-src
+          config share schema data/files logs totp upload-src
           www/assets/private www/statics www/themes www/scripts
           }
     );
@@ -121,9 +121,9 @@ BEGIN {
     # one unless the environment names another, which is how this whole file
     # gets run against each of them -- the point being that a data model is only
     # finished when the app cannot tell which one it is talking to.
-    my $stock = File::Slurper::read_text("$REPO/config/default.cfg");
+    my $stock = File::Slurper::read_text("$REPO/share/default.cfg");
     $stock =~ s/^(\s*data_model=)\N*$/$1$MODEL/m or die "could not set the data model in default.cfg";
-    File::Slurper::Temp::write_text( "$ROOT/config/default.cfg", $stock );
+    File::Slurper::Temp::write_text( "$ROOT/share/default.cfg", $stock );
 
     # Hardcoded paths in Auth.pm, TagIndex.pm, the data models and Log.pm -- not negotiable.
     for my $schema (qw{auth.schema flatfile.schema sqlite.schema log.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
@@ -405,9 +405,9 @@ sub find_post {
 
 subtest 'the sandbox is what we are actually running against' => sub {
     is( Cwd::getcwd(), Cwd::abs_path($ROOT), 'cwd is the sandbox' );
-    ok( -d 'data/files',         'datastore dir exists' );
-    ok( -e 'config/default.cfg', 'config was seeded' );
-    ok( !-e 'config/main.cfg',   'and there is no main.cfg, so we fall through to the default' );
+    ok( -d 'data/files',        'datastore dir exists' );
+    ok( -e 'share/default.cfg', 'config was seeded' );
+    ok( !-e 'config/main.cfg',  'and there is no main.cfg, so we fall through to the default' );
 
     my $conf = Trog::Config::get();
     is( $conf->param('general.data_model'), $MODEL, 'config resolves inside the sandbox' );

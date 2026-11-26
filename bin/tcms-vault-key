@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: tcms-vault-key
+# ABSTRACT: Write a vault key into config/secrets.key
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

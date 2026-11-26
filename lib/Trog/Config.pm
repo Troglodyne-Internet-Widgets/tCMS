@@ -34,7 +34,7 @@ configuration put it somewhere get() would never look.
 our $home_cfg = "config/main.cfg";
 
 # Shipped defaults.  Tracked in git -- never write to this.
-our $default = "config/default.cfg";
+our $default = "share/default.cfg";
 
 sub get {
     state $cf;
@@ -78,7 +78,7 @@ sub media_base {
 
 The shape of the configuration, as described by the file we ship.
 
-config/default.cfg is the only place which says what settings exist at all, so
+share/default.cfg is the only place which says what settings exist at all, so
 it is also what the /config editor is built out of -- add a key there and it
 becomes editable, leave one out and it isn't.  Sections and keys come back in
 file order:

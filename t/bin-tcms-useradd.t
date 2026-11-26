@@ -27,9 +27,9 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-useradd-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    for my $dir    (qw{config schema data/files logs totp www/themes})        { File::Path::make_path("$ROOT/$dir") }
+    for my $dir    (qw{config share schema data/files logs totp www/themes})  { File::Path::make_path("$ROOT/$dir") }
     for my $schema (qw{auth.schema flatfile.schema log.schema sqlite.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
-    File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
+    File::Copy::copy( "$REPO/share/default.cfg", "$ROOT/share/default.cfg" ) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }

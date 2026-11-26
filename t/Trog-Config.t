@@ -29,7 +29,7 @@ END {
     File::Path::remove_tree($ROOT) if $ROOT && -d $ROOT;
 }
 
-File::Path::make_path("$ROOT/config");
+File::Path::make_path( "$ROOT/config", "$ROOT/share" );
 chdir($ROOT) or die $!;
 
 subtest 'the defaults are where the app actually keeps them' => sub {
@@ -37,15 +37,15 @@ subtest 'the defaults are where the app actually keeps them' => sub {
     # The whole bug this test exists for: get() used to hardcode the 'config/'
     # prefix internally, so $home_cfg was a bare basename and every writer that
     # used it put the file somewhere get() would never look.
-    is( $Trog::Config::home_cfg, 'config/main.cfg',    'home_cfg is a usable path' );
-    is( $Trog::Config::default,  'config/default.cfg', 'and so is the default' );
+    is( $Trog::Config::home_cfg, 'config/main.cfg',   'home_cfg is a usable path' );
+    is( $Trog::Config::default,  'share/default.cfg', 'and so is the default' );
 
     like( $Trog::Config::home_cfg, qr{^config/}, 'home_cfg is under config/' );
     unlike( $Trog::Config::home_cfg, qr{^/}, 'and is relative, so it follows the instance root' );
 };
 
 subtest 'a config written to home_cfg is the one that gets read back' => sub {
-    Path::Tiny->new('config/default.cfg')->spew_utf8("[general]\ndata_model=FlatFile\ntitle=Stock\n");
+    Path::Tiny->new('share/default.cfg')->spew_utf8("[general]\ndata_model=FlatFile\ntitle=Stock\n");
 
     # This is the round trip that was broken: write where the writers write,
     # read where the readers read, and check they agree.
@@ -70,7 +70,7 @@ subtest 'the shipped defaults are left alone' => sub {
     # point: bin/tcms-hostname used to call save() on it, and save() writes back
     # to whichever file it was constructed from.
     is(
-        Path::Tiny->new('config/default.cfg')->slurp_utf8,
+        Path::Tiny->new('share/default.cfg')->slurp_utf8,
         "[general]\ndata_model=FlatFile\ntitle=Stock\n",
         'default.cfg is untouched'
     );

@@ -17,14 +17,12 @@ www/styles/obsidian.min.css
 www/styles/reveal.css
 www/styles/reveal-white.css
 www/.well_known
-config/auth.db
-config/has_users
-# The vault key, when bin/tcms-vault-key --file put one here rather than the
-# service handing one over.  Committing it would put the key in the same place
-# as everything it protects, which is the one thing it exists not to be.
-config/secrets.key
-config/main.cfg
-config/setup
+# What the site writes: config/main.cfg, config/auth.db, the flags has_users and
+# setup, and config/secrets.key, the vault key, when bin/tcms-vault-key --file
+# put one here rather than the service handing one over.  Committing the key
+# would put it in the same place as everything it protects.  The defaults that
+# tCMS ships are in share/.
+config/
 Makefile
 MYMETA.yml
 MYMETA.json

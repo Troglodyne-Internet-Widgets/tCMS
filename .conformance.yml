@@ -11,6 +11,8 @@ variables:
   GITHUB_USER: Troglodyne-Internet-Widgets
   CPAN_ID: TEODESIAN
   DATE: '2026-11-06'
+  # The version that dist.ini had before tags gave it, for the first release tag.
+  VERSION: '0.01'
 checks:
   CriticProfile:
     overrides:
@@ -43,3 +45,32 @@ checks:
       # standards are about to require, works only once installed.
       logicLAB::RequireSheBang:
         formats: '#!/usr/bin/env perl'
+  DistIni:
+    settings:
+      license: GPL_3
+      # The distribution is tCMS, and its module is TCMS.
+      main_module: lib/TCMS.pm
+    overrides:
+      # Playwright is for the browser tests, which skip without it, and TPSGI
+      # is the server, which the install provides beside tCMS.
+      AutoPrereqs:
+        skip:
+          - ^Playwright$
+          - '^TPSGI::'
+      # The tests run in the build, and need the directories that Installer.mk
+      # makes in a checkout.
+      Run::Test:
+        run:
+          - cp $(git rev-parse --show-toplevel)/.perltidyrc            .perltidyrc
+          - cp $(git rev-parse --show-toplevel)/.perlcriticrc          .perlcriticrc
+          - cp $(git rev-parse --show-toplevel)/.preferred_modules.ini .preferred_modules.ini
+          - cp $(git rev-parse --show-toplevel)/.pod_stopwords         .pod_stopwords
+          - mkdir -p data/files www/themes www/assets/private www/statics totp logs
+          - echo .perltidyrc >> MANIFEST
+          - echo .perlcriticrc >> MANIFEST
+          - echo .preferred_modules.ini >> MANIFEST
+          - echo .pod_stopwords >> MANIFEST
+    authordeps:
+      # 0.007 counts a call to a method of the same name, as a delegation or a
+      # call through SUPER makes, as a use; an older one reports its sub unused.
+      Perl::Critic::Policy::ProhibitUnusedDefinitions: '0.007'

@@ -1018,7 +1018,7 @@ my sub config_title ($name) {
 
 =head2 config_sections() = ARRAYREF
 
-The configuration editor's form, one entry per section of config/default.cfg,
+The configuration editor's form, one entry per section of share/default.cfg,
 each holding the fields that section describes:
 
     { section => 'general', title => 'General', fields => [ { name, key, title, comment, value, options, multiline } ] }
@@ -1312,7 +1312,7 @@ sub datasource_editable ($module) {
 
 Implements /config/save route.  Saves the configuration to config/main.cfg.
 
-Only the keys config/default.cfg describes are saved, so a form which posts
+Only the keys share/default.cfg describes are saved, so a form which posts
 something the defaults never heard of writes nothing -- the schema is what is
 editable, not whatever turned up in the request.
 
@@ -1342,7 +1342,7 @@ sub config_save ($query) {
 Copy whatever settings the form posted onto $conf, keyed by their full
 'section.key' name.  $input is the input of the request.
 
-The schema is the allowlist: a request naming something config/default.cfg does
+The schema is the allowlist: a request naming something share/default.cfg does
 not describe writes nothing, so a stray form field cannot invent configuration.
 Values are taken as posted, empty string included -- clearing a setting is how
 you go back to having none.

@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: tcmslogin
+# ABSTRACT: Log a user in and print the session cookie
+
 package tcms::login;
 
 use 5.040;

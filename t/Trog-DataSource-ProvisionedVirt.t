@@ -27,7 +27,7 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-provisioned-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    for my $dir (qw{config schema logs totp www/assets}) { File::Path::make_path("$ROOT/$dir") }
+    for my $dir (qw{config share schema logs totp www/assets}) { File::Path::make_path("$ROOT/$dir") }
 
     # A vault, so that the half of this which is about not having to type a
     # passphrase every time has somewhere to keep one.  The key arrives the way
@@ -70,12 +70,12 @@ my $config_mock;
 
 sub write_config {
     my (%section) = @_;
-    open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
+    open( my $fh, '>', "$ROOT/share/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n[provisioner]\n" . join( '', map { "    $_=$section{$_}\n" } sort keys %section );
     close($fh) or die $!;
 
     require Config::Simple;
-    my $conf = Config::Simple->new("$ROOT/config/default.cfg");
+    my $conf = Config::Simple->new("$ROOT/share/default.cfg");
     local $@;
     $config_mock //= Test::MockModule->new('Trog::Config');
     $config_mock->redefine( get => sub { return $conf } );

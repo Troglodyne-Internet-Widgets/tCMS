@@ -29,11 +29,11 @@ BEGIN {
     # tests stand in an instance root of their own.  A BEGIN, because the route
     # modules read the configuration as they load.
     $ENV{HOME} = $ROOT;
-    File::Path::make_path( map { "$ROOT/$_" } qw{config schema data/files logs totp www/statics www/themes} );
+    File::Path::make_path( map { "$ROOT/$_" } qw{config share schema data/files logs totp www/statics www/themes} );
     foreach my $schema (qw{auth.schema flatfile.schema log.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
     symlink( "$REPO/www/templates", "$ROOT/www/templates" ) or die "could not link the templates: $!";
 
-    open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
+    open( my $fh, '>', "$ROOT/share/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=reset.test.test\n";
     close($fh) or die $!;
 

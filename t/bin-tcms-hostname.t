@@ -28,8 +28,8 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-hostname-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    File::Path::make_path("$ROOT/config");
-    File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
+    File::Path::make_path( "$ROOT/config", "$ROOT/share" );
+    File::Copy::copy( "$REPO/share/default.cfg", "$ROOT/share/default.cfg" ) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }
@@ -61,7 +61,7 @@ subtest 'the hostname and the secure host' => sub {
     is( setting('general.hostname'),    'test.test',        'which the configuration of the instance now holds' );
     is( setting('general.secure_host'), 'secure.test.test', 'with the secure host beside it' );
 
-    is( setting( 'general.secure_host', 'config/default.cfg' ), q{}, 'and the tracked default.cfg is left alone' );
+    is( setting( 'general.secure_host', 'share/default.cfg' ), q{}, 'and the tracked default.cfg is left alone' );
 
     ( $code, $said ) = hostname(qw{--secure other.test.test});
     is( $code,                          0,                 'the secure host can be set alone' ) or diag($said);
@@ -79,7 +79,7 @@ subtest 'the media base' => sub {
     is( setting('general.media_base'), 'https://media.test.test', 'which the configuration of the instance now holds' );
     is( setting('general.hostname'),   'test.test',               'beside the hostname' );
 
-    is( setting( 'general.media_base', 'config/default.cfg' ), q{}, 'and the tracked default.cfg is left alone' );
+    is( setting( 'general.media_base', 'share/default.cfg' ), q{}, 'and the tracked default.cfg is left alone' );
 
     ( $code, $said ) = hostname(qw{--media https://other.test.test});
     is( $code,                          0,                         'it can be set alone' ) or diag($said);

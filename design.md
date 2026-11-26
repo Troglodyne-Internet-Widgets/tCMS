@@ -498,7 +498,7 @@ its window. No key means no vault, and the things that would have used one ask
 for the password directly.
 
 **Config** (`Trog::Config`) is a thin wrapper over `Config::Simple` reading
-`config/main.cfg` and falling back to the shipped `config/default.cfg`. It is
+`config/main.cfg` and falling back to the shipped `share/default.cfg`. It is
 memoised, so a config change signals the workers to restart.
 
 **Logging** (`Trog::Log`) goes to a rotating file, to the screen at error level

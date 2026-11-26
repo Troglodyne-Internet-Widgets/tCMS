@@ -3,7 +3,7 @@
  General settings:
 </p>
 Everything tCMS reads out of its configuration file lives here, grouped the way
-config/default.cfg groups it.  Open the section you care about and leave the
+share/default.cfg groups it.  Open the section you care about and leave the
 rest folded up.
 <br />
 The Data Model <em>must</em> be 0-configuration.

@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: tcms-jobs
+# ABSTRACT: Run a command of the job queue of tCMS
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

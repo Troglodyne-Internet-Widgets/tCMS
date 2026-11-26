@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: tcms-transcode-existing
+# ABSTRACT: Queue a transcode job for each video that tCMS already holds
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
