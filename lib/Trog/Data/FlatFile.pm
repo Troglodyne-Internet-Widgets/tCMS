@@ -1,5 +1,7 @@
 package Trog::Data::FlatFile;
 
+# ABSTRACT: A data model that stores each post as a JSON file, with an SQLite index of its tags
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -19,16 +21,36 @@ use Trog::SQLite::TagIndex;
 
 use parent qw{Trog::DataModule};
 
-our $datastore = 'data/files';
-sub lang { return 'Perl Regex in Quotemeta' }
-sub help { return 'https://perldoc.perl.org/functions/quotemeta.html' }
-
 =head1 Trog::Data::FlatFile
 
 This data model has multiple drawbacks, but is "good enough" for most low-content and few editor applications.
-You can only post once per second due to it storing each post as a file named after the timestamp.
+Each post is a file in data/files, named after its id, which holds every version of the post as a JSON array.
 
 =cut
+
+our $datastore = 'data/files';
+
+=head1 METHODS
+
+=head2 lang()
+
+Returns Str, C<Perl Regex in Quotemeta>, the name of the query language.
+
+    my $language = $data->lang();
+
+=cut
+
+sub lang { return 'Perl Regex in Quotemeta' }
+
+=head2 help()
+
+Returns Str, the URL of the documentation of quotemeta.
+
+    my $help = $data->help();
+
+=cut
+
+sub help { return 'https://perldoc.perl.org/functions/quotemeta.html' }
 
 our $parser = JSON::MaybeXS->new( utf8 => 1 );
 
@@ -43,6 +65,32 @@ my sub _index {
     my @sorted = reverse sort @index;
     return @sorted;
 }
+
+=head2 read($query)
+
+The posts of the files in data/files, filtered by filter() file by file.  With
+C<id>, only the file of that post.  Otherwise the files of the posts that have
+one of the C<tags> of $query, from the tag index, or every file when the index
+has none.  It stops reading files once it has the posts of C<limit> times
+C<page>, and reads every file when C<limit> is 0.  With C<raw>, it returns
+every version of each post, and does not filter.  It sets the C<limit> of
+$query to 25 when that is undef, and drops the tags that no post has.
+
+It skips a file that it cannot read or decode, with a warning.
+
+=over 4
+
+=item query - HashRef - the request of get().  The default is an empty request.
+
+=back
+
+Returns ArrayRef[HashRef], the posts.
+
+Dies when data/files is not a directory.
+
+    my $posts = $data->read( { id => $id, raw => 1 } );
+
+=cut
 
 sub read ( $self, $query = {} ) {
     $query->{limit} //= 25;
@@ -126,13 +174,55 @@ sub read ( $self, $query = {} ) {
     return \@items;
 }
 
+=head2 routes()
+
+The routes of the posts, from the tag index rather than from get().
+
+Returns a HASH as a list: each route, and a HashRef of its id, route, method,
+callback and secure.
+
+    my %routes = $data->routes();
+
+=cut
+
 sub routes {
     return Trog::SQLite::TagIndex::routes();
 }
 
+=head2 aliases()
+
+The aliases of the posts, from the tag index rather than from get().
+
+Returns a HASH as a list: each alias, and the route of its post.
+
+    my %aliases = $data->aliases();
+
+=cut
+
 sub aliases {
     return Trog::SQLite::TagIndex::aliases();
 }
+
+=head2 write($data)
+
+Add each post as a new version to the end of the file of its id, and update
+the tag index for it.  A lock beside the datastore keeps two writers from
+losing a version, and the file is replaced by a rename, so a reader never sees
+half of it.
+
+=over 4
+
+=item data - ArrayRef[HashRef] - the posts
+
+=back
+
+Returns 1.
+
+Dies when a post has no id, or when it cannot open or lock the lock file.
+
+    $data->write( \@posts );
+
+=cut
 
 sub write ( $self, $data ) {
 
@@ -185,10 +275,40 @@ sub write ( $self, $data ) {
     return 1;
 }
 
+=head2 count()
+
+Returns Int, the number of files in data/files, which is the number of posts.
+
+Dies when data/files is not a directory.
+
+    my $total = $data->count();
+
+=cut
+
 sub count {
     my @index = _index();
     return scalar(@index);
 }
+
+=head2 delete(@posts)
+
+Remove the file of each post, with every version in it, and its rows in the
+tag index.
+
+=over 4
+
+=item @posts - HashRef - the posts to delete.  Only the id of each counts.
+
+=back
+
+Returns 0.
+
+Dies when it cannot remove the file of a post, such as when the post does not
+exist.
+
+    $data->delete( { id => $id } );
+
+=cut
 
 sub delete ( $, @posts ) {
     foreach my $update (@posts) {
@@ -198,6 +318,14 @@ sub delete ( $, @posts ) {
 
     return 0;
 }
+
+=head2 tags()
+
+Returns a list of Str, every tag in the tag index.
+
+    my @tags = $data->tags();
+
+=cut
 
 sub tags {
     return Trog::SQLite::TagIndex::tags();

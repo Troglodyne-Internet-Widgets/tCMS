@@ -1,5 +1,7 @@
 package Trog::Data;
 
+# ABSTRACT: The factory that makes the data model which the configuration names
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -15,11 +17,23 @@ use Trog::Log qw{:all};
 
 This is a data model factory.
 
-=head2 Trog::Data->new(Trog::Config) = $handle
+=head2 new($config)
 
-Returns a new Trog::Data::* class appropriate to what is configured in the Trog::Config object passed.
+Make the data model that model() chooses for $config, loading its class.
 
 Memoized: every call after the first returns the first handle, whatever it is passed.
+
+=over 4
+
+=item config - Config::Simple - the configuration, as Trog::Config::get() returns it
+
+=back
+
+Returns Trog::DataModule, the data model, an object of a Trog::Data::* class.
+
+Dies when the class of the data model cannot be loaded.
+
+    my $data = Trog::Data->new( Trog::Config::get() );
 
 =cut
 
@@ -33,7 +47,7 @@ sub new ( $, $config ) {
     return $datamodule;
 }
 
-=head2 model(Trog::Config) = STRING
+=head2 model($config)
 
 The data model to serve from: general.data_model, except on a site which never
 moved its posts across with bin/migrate.pl.
@@ -43,7 +57,17 @@ data_model of its own, or which saved the default back, is configured for a
 database that does not exist.  While data/posts.sqlite is missing and data/files
 holds posts, this answers FlatFile and warns, so the site keeps serving the
 posts it has.  Once the migration has written the database, the configuration
-applies as written.
+applies as written.  A function, not a method.
+
+=over 4
+
+=item config - Config::Simple - the configuration, as Trog::Config::get() returns it
+
+=back
+
+Returns Str, the name of the data model under Trog::Data, such as C<SQLite>.
+
+    my $module = "Trog::Data::" . Trog::Data::model($config);
 
 =cut
 

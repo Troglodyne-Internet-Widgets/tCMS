@@ -1,5 +1,7 @@
 package Trog::Data::SQLite;
 
+# ABSTRACT: A data model that stores each version of each post as a row of SQLite
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -12,14 +14,6 @@ use Trog::Log qw{:all};
 use Trog::SQLite;
 
 use parent qw{Trog::DataModule};
-
-our $schema = 'schema/sqlite.schema';
-our $dbname = 'data/posts.sqlite';
-
-our $parser = JSON::MaybeXS->new( utf8 => 1 );
-
-sub lang { return 'SQLite FTS5 substring match' }
-sub help { return 'https://sqlite.org/fts5.html' }
 
 =head1 Trog::Data::SQLite
 
@@ -50,6 +44,47 @@ which mean there is no data model to serve from.
 
 =cut
 
+our $schema = 'schema/sqlite.schema';
+our $dbname = 'data/posts.sqlite';
+
+our $parser = JSON::MaybeXS->new( utf8 => 1 );
+
+=head1 METHODS
+
+=head2 lang()
+
+Returns Str, C<SQLite FTS5 substring match>, the name of the query language.
+
+    my $language = $data->lang();
+
+=cut
+
+sub lang { return 'SQLite FTS5 substring match' }
+
+=head2 help()
+
+Returns Str, the URL of the documentation of FTS5.
+
+    my $help = $data->help();
+
+=cut
+
+sub help { return 'https://sqlite.org/fts5.html' }
+
+=head2 dbh()
+
+The handle to data/posts.sqlite, with its schema and its update files applied.
+Trog::SQLite caches it, so each call in a process gets the same one.  A
+function, not a method.
+
+Returns DBI::db, the handle.
+
+Dies when the database cannot be opened, or its schema cannot be applied.
+
+    my $dbh = Trog::Data::SQLite::dbh();
+
+=cut
+
 sub dbh {
     return Trog::SQLite::dbh( $schema, $dbname );
 }
@@ -63,7 +98,19 @@ Trog::DataModule::get() without the filtering pass: the query does that.
 Everything filter() would have grepped for is a WHERE clause, and paginate()'s
 slice is LIMIT/OFFSET, so what comes back out of the database is already the
 answer.  fixup() still runs, as that fills in display fields rather than
-choosing rows.
+choosing rows.  With C<raw>, it returns what read() gives, with no fixup.
+
+=over 4
+
+=item %request - Any - the request, as Trog::DataModule::get() takes it
+
+=back
+
+Returns a list of HashRef, the posts that match.
+
+Dies when the query fails, or when fixup() dies.
+
+    my @posts = $data->get( id => $id, acls => ['admin'] );
 
 =cut
 
@@ -250,7 +297,7 @@ my sub build_query ($query) {    ## no critic (ProhibitSingleUseLexicalSubs) -- 
     return ( $sql, @$bind, @extra );
 }
 
-=head2 read($query) = ARRAYREF $posts
+=head2 read($query)
 
 The rows a query selects, decoded back into posts.
 
@@ -258,6 +305,21 @@ With C<raw>, every version of everything the query matches, untouched -- that is
 what an index build or a version history wants.  Otherwise one post per id: the
 newest version, carrying the version_max, created, modified and author fields
 that Trog::DataModule::dedup_versions() would have computed by hand.
+
+It skips a row that it cannot decode, with a warning.
+
+=over 4
+
+=item query - HashRef - the request of get().  The default is an empty request.
+
+=back
+
+Returns ArrayRef[HashRef], the posts.  It is empty when the caller may see no
+post.
+
+Dies when the query fails.
+
+    my $posts = $data->read( { limit => 0, acls => ['admin'] } );
 
 =cut
 
@@ -321,7 +383,7 @@ my sub insert ( $dbh, $data ) {    ## no critic (ProhibitSingleUseLexicalSubs) -
 
 =head1 WRITING
 
-=head2 write($posts)
+=head2 write($data)
 
 Insert each post as a new row.
 
@@ -336,6 +398,19 @@ add() hands us everything it was given at once, and half a save is not a state
 anybody asked for.  It is also the difference between a migration taking seconds
 and taking minutes, since SQLite otherwise commits once per row.
 
+=over 4
+
+=item data - ArrayRef[HashRef] - the posts
+
+=back
+
+Returns 1.
+
+Dies when a post has no id, or when the database refuses a row, such as a
+version of a post that is already stored.  Then it writes none of the posts.
+
+    $data->write( \@posts );
+
 =cut
 
 sub write ( $, $data ) {
@@ -345,12 +420,17 @@ sub write ( $, $data ) {
     return 1;
 }
 
-=head2 versions_present() = HASHREF
-
-Every (uuid, version) already stored, as C<< { uuid => { version => 1 } } >>.
+=head2 versions_present()
 
 For bulk importers, which would otherwise ask the database once per post
 whether it has seen it before.  See bin/migrate.pl.
+
+Returns HashRef, every (uuid, version) already stored, as
+C<< { uuid => { version => 1 } } >>.
+
+Dies when the query fails.
+
+    my $present = $data->versions_present();
 
 =cut
 
@@ -367,6 +447,18 @@ sub versions_present {
 Remove every version of each post.  The triggers in the schema take the tag rows
 and the search index with them.
 
+=over 4
+
+=item @posts - HashRef - the posts to delete.  Only the id of each counts.
+
+=back
+
+Returns 0.
+
+Dies when the database refuses the delete.
+
+    $data->delete( { id => $id } );
+
 =cut
 
 sub delete ( $, @posts ) {
@@ -378,9 +470,14 @@ sub delete ( $, @posts ) {
     return 0;
 }
 
-=head2 count() = INT
+=head2 count()
 
-How many posts there are, counting a post once however many versions it has.
+Returns Int, how many posts there are, counting a post once however many
+versions it has.
+
+Dies when the query fails.
+
+    my $total = $data->count();
 
 =cut
 
@@ -409,7 +506,20 @@ and re-ticking the box then only has to rebuild the index.
 
 Field names are re-validated here rather than trusted from the caller -- they
 reach SQLite as an identifier and a JSON path, neither of which can be bound as
-a parameter.
+a parameter.  It skips a name that is not a field name, or that is a column
+of the schema, with a warning.
+
+=over 4
+
+=item @fields - Str - the names of the fields to index, of every post type
+
+=back
+
+Returns Int, the number of fields that it indexed.
+
+Dies when it cannot add a column, make an index, or drop an index.
+
+    $data->index_fields( sort keys %indexed );
 
 =cut
 
@@ -483,9 +593,15 @@ sub index_fields ( $, @fields ) {
     return $built;
 }
 
-=head2 tags() = @tags
+=head2 tags()
 
 Every tag in use, from the index the schema's triggers maintain.
+
+Returns a list of Str, the tags, sorted.
+
+Dies when the query fails.
+
+    my @tags = $data->tags();
 
 =cut
 

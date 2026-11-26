@@ -1,5 +1,7 @@
 package Trog::Component::RightBar;
 
+# ABSTRACT: The right sidebar of a page
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -16,6 +18,12 @@ The right sidebar.
 
 Render rightbar.tx.  Stock reads no variables; anything passed is handed to the
 template, so a theme's override is free to want some.
+
+Returns Str, the rendered body.
+
+Dies, as Trog::Component::render_template() does, when the render fails.
+
+    my $html = Trog::Component::RightBar::render();
 
 =cut
 

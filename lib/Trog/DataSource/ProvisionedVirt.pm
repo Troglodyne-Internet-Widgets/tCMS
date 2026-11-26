@@ -1,5 +1,7 @@
 package Trog::DataSource::ProvisionedVirt;
 
+# ABSTRACT: The libvirt guest datasource, with the recipe of each guest and a way to reprovision it
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -215,6 +217,20 @@ about how it was built:
 A guest with no recipe is still listed.  Plenty of guests on a hypervisor were
 not built by this, and saying nothing about them is better than hiding them.
 
+=over 4
+
+=item series - HashRef - the series post, as Trog::DataSource::Virt::posts()
+takes it
+
+=item query - HashRef - the query of the request; its C<user> says whose vault
+to ask about stored passwords
+
+=back
+
+Returns List[HashRef], one post per guest and one per unreachable hypervisor.
+
+    my @guests = Trog::DataSource::ProvisionedVirt::posts( $series, $query );
+
 =cut
 
 sub posts ( $series, $query ) {
@@ -248,6 +264,18 @@ A run whose status still says 'running' but whose process is gone therefore
 crashed, was killed, or took the machine down with it, and reads as interrupted.
 That is a guess from the one piece of evidence there is, and it is the honest
 one: the alternative is a page that says a provision is in progress forever.
+
+=over 4
+
+=item domain - Str - the name of the guest
+
+=back
+
+Returns HashRef|undef, the fields of the status file.  It is undef when the name
+is not a hostname, when the guest was never reprovisioned, when the file cannot
+be read, or when the file has no C<state>.
+
+    my $status = Trog::DataSource::ProvisionedVirt::status($domain);
 
 =cut
 
@@ -308,6 +336,18 @@ The last of whatever the previous reprovision said, or nothing.
 The run happens in a detached process which nobody is waiting on, so this file
 is the only account of it there is.
 
+=over 4
+
+=item domain - Str - the name of the guest
+
+=back
+
+Returns Str|undef, the last C<$log_tail_bytes> (4096) bytes of the log.  It is
+undef when the name is not a hostname, when there is no log, or when the log
+cannot be read.
+
+    my $tail = Trog::DataSource::ProvisionedVirt::log_tail($domain);
+
 =cut
 
 our $log_tail_bytes = 4096;
@@ -332,6 +372,18 @@ The whole reprovision log for a guest, for the route which serves it.
 Undef when there has never been a run, or when the name is not a guest name --
 this reaches the filesystem, so it is checked here rather than trusted from the
 route that called it.
+
+=over 4
+
+=item domain - Str - the name of the guest
+
+=back
+
+Returns Str|undef, the log.  A log longer than C<$log_max_bytes> (1 MiB) is cut
+to its last 1 MiB, under a line that says so.  It is undef when the name is not
+a hostname, when there is no log, or when the log cannot be read.
+
+    my $log = Trog::DataSource::ProvisionedVirt::log_for( $query->{input}{guest} );
 
 =cut
 
@@ -444,10 +496,23 @@ recipe and then builds the machine.
     totp        a code, instead of those, when they have been stored.
     remember    store what they just typed, so that next time is a code.
 
-Returns immediately.  Provisioning a machine takes minutes and an HTTP worker
+It returns at once.  Provisioning a machine takes minutes and an HTTP worker
 does not have minutes, so the work is handed to a detached process and the
 caller is told it started rather than told it finished.  What happened is in
 logs/reprovision/$domain.log, which is what log_tail reads back onto the page.
+
+Returns a list of two: a Bool, 1 when the run started, and a Str, the message
+for the user.  On failure the message says why: a bad guest name, the guest is
+this server, no provisioner is configured, the guest has no recipe, the
+credentials are missing or wrong, a credential has a line break in it, a run is
+already going on, bin/provision is not there, or the fork failed.
+
+    my ( $ok, $message ) = Trog::DataSource::ProvisionedVirt::reprovision(
+        domain     => $in->{guest},
+        user       => $query->{user},
+        passphrase => $in->{passphrase},
+        sudo       => $in->{sudo},
+    );
 
 =head3 WHY IT ASKS FOR ANYTHING AT ALL
 
@@ -544,9 +609,31 @@ read as one.
 The passwords go down its stdin as a credentials block, which is
 Trog::Credentials' format over there: one C<name: value> per line, and a blank
 line to say that is all of them.  A value with a newline in it would be two
-lines, and the second could name a credential we were not asked to send, so one
-is refused rather than escaped -- there is no password anybody meant to type
-that has a newline in the middle of it.
+lines, and the second could name a credential we were not asked to send, so
+reprovision() refuses one rather than escaping it -- there is no password anybody
+meant to type that has a newline in the middle of it.  This sub does not check
+again.
+
+=over 4
+
+=item domain - Str - the name of the guest, already checked as a hostname
+
+=item credentials - HashRef - the credentials block, by name
+
+=item dir - Str - the checkout of trog-provisioner, which the program runs in
+
+=item command - ArrayRef[Str] - the program and its arguments
+
+=item user - Str|undef - who asked, for the log
+
+=back
+
+Returns a list of two in the process that called it: a Bool, 1 when the fork
+worked, and a Str, C<started> or the reason that it failed.  The reason is that
+the log directory cannot be made, or that fork() failed.  The forked processes
+never return: they end with POSIX::_exit().
+
+    my ( $ok, $failed ) = Trog::DataSource::ProvisionedVirt::spawn( $safe, $credentials, $config->{trog_provisioner}, \@command, $args{user} );
 
 =cut
 

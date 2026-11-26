@@ -1,5 +1,7 @@
 package Trog::Log::Metrics;
 
+# ABSTRACT: Time series of the requests that Trog::Log::DBI records
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -13,20 +15,40 @@ and for reasoning about the various things that it's Urchin-compatible data can 
 
 =cut
 
-=head2 requests_per(ENUM period{second,minute,hour,day,month,year}, INTEGER num_periods, [TIME_T before], INTEGER[] @codes)
+=head2 requests_per($period, $num_periods, $before, @codes)
 
-Returns a data structure of the following form
+Count the requests in the log database for $num_periods periods of length
+$period, before the time $before.  Optionally filter by response code(s).
+
+'month' and 'year' are approximations for performance reasons: a month is 30
+days, and a year is 31356000 seconds.
+
+=over 4
+
+=item period - Str - one of C<second>, C<minute>, C<hour>, C<day>, C<week>,
+C<month> and C<year>
+
+=item num_periods - Int - how many periods to count, at most
+
+=item before - Int|undef - a Unix time; a false value means now
+
+=item codes - List[Int] - the response codes to count; none means all
+
+=back
+
+Returns HashRef, of the following form:
 
     {
-        labels => [TIME_STR, TIME_STR, ...],
-        data   => [INT, INT,...]
+        labels => [ '3 day(s) ago', '2 day(s) ago', '1 day(s) ago' ],
+        data   => [ 12, 40, 7 ],
     }
 
-Describing the # of requests for the requested $num_periods $period(s) before $before.
+C<data> holds one count for each period that has requests, and no more than
+$num_periods of them.  C<labels> holds one label for each count.
 
-'month' and 'year' are approximations for performance reasons; 30 day and 365 day periods.
+Dies when $period is not one of the names above.
 
-Optionally filter by response code(s).
+    my $counts = Trog::Log::Metrics::requests_per( $in->{period}, $in->{num_periods}, $in->{before}, @$code );
 
 =cut
 

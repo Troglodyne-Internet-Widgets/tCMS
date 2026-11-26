@@ -1,5 +1,7 @@
 package Trog::Renderer::Base;
 
+# ABSTRACT: Render a template with Text::Xslate, and build the PSGI response around it
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -44,11 +46,15 @@ Recognized options:
     child_processor / child_renderer => override how post bodies are rendered by
                    the render_it() template function.  Built for you if omitted.
 
-Dies unless Xslate can resolve and render the template.  It also dies when the
-template reads a variable that data does not have, so a variable that a
-template may read must be in data, as undef if it has no value.  Returns the
-body string for components, and a PSGI arrayref of [ code, headers, body ]
-otherwise.
+Returns Str|ArrayRef, the body for a component, and the PSGI response
+[ code, headers, body ] otherwise.
+
+Dies when no template is given, and unless Xslate can resolve and render the
+template.  It also dies when the template reads a variable that data does not
+have, so a variable that a template may read must be in data, as undef if it
+has no value.
+
+    my $body = Trog::Renderer::Base::render( contenttype => 'text/html', component => 1, template => 'emojis.tx', data => \%data );
 
 =cut
 
@@ -143,6 +149,18 @@ on https, nosniff).  Anything in $options->{headers} is merged over the top.
 
 ETags are only set for logged in users, as everyone else is served out of the
 static render cache.
+
+=over 4
+
+=item options - HashRef - the options of render(), of which it reads C<data>, C<contenttype> and C<headers>
+
+=item body - Str - the rendered body
+
+=back
+
+Returns Hash, the headers by name.
+
+    my %headers = Trog::Renderer::Base::headers( \%options, $body );
 
 =cut
 

@@ -1,5 +1,7 @@
 package Trog::Component;
 
+# ABSTRACT: Render the UI components under Trog::Component by name, for templates
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -112,6 +114,24 @@ its way out of Trog/Component/.
 $args is an optional HASHREF, flattened into the component's render().  Nullary
 components simply ignore it.
 
+=over 4
+
+=item name - Str - the name of the component, such as C<Header>
+
+=item args - HashRef - the arguments of its render(), an empty hash by default.  Any other value counts as an empty hash.
+
+=back
+
+Returns Text::Xslate::Type::Raw, the rendered body, marked raw.
+
+Dies when $name is empty or not a word, when the component does not load or
+has no render(), when components nest more than C<$MAX_DEPTH> deep, and when
+the render dies, returns a reference or returns undef.  The first such failure
+of a render is also kept in C<$Trog::Component::error>, as
+L</Termination Conditions> says.
+
+    my $html = Trog::Component::component( 'Header', { title => 'RSS', no_doctype => 1 } );
+
 =cut
 
 sub component ( $name, $args = {} ) {
@@ -140,8 +160,20 @@ whose whole job is exactly that.
 The template gets theme_dir as well as $data, unless $data gives it a value:
 Trog::Themes::td(), for building asset links.
 
+=over 4
+
+=item template - Str - the file name of the template, under the components directory
+
+=item data - HashRef - the variables of the template, an empty hash by default
+
+=back
+
+Returns Str, the rendered body.
+
 Dies naming the template if the render fails, rather than answering with the
 PSGI triplet Trog::Renderer::render() produces on failure.
+
+    return Trog::Component::render_template( 'categories.tx', \%args );
 
 =cut
 

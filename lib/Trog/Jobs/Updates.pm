@@ -1,5 +1,7 @@
 package Trog::Jobs::Updates;
 
+# ABSTRACT: The tasks that check and update the checkouts of the site, in the worker of the queue
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -11,10 +13,6 @@ use JSON::MaybeXS();
 use YAML::XS();
 
 use Trog::Updates();
-
-=head1 NAME
-
-Trog::Jobs::Updates - the tasks that check and update the checkouts of the site, in the worker of the queue
 
 =head1 DESCRIPTION
 
@@ -73,6 +71,24 @@ Run @command, which no shell reads, and wait for it.  C<dir> is the directory
 to run it in, C<env> a hashref of variables to add, and C<timeout> the seconds
 that it may run, C<$git_timeout> by default.  $ok is true when it exited 0.
 
+=over 4
+
+=item command - ArrayRef[Str] - the program and its arguments
+
+=item dir - Str - the directory to run it in, the current one by default
+
+=item env - HashRef[Str] - the variables to add to the environment
+
+=item timeout - Int - the seconds that it may run
+
+=back
+
+Returns Array, three values: $ok, 1 when the command exited 0 and 0 otherwise,
+then what it printed on stdout, then what it printed on stderr.  When the
+command did not run, or ran for too long, stderr says so.
+
+    my ( $ok, $out, $err ) = run_command( [ $dzil, qw{listdeps --missing} ], dir => "$tree/build", timeout => $dzil_timeout );
+
 =cut
 
 sub run_command ( $command, %options ) {
@@ -92,6 +108,18 @@ Run git in $dir with @args, and return what it printed, without the last
 newline.  It never asks for a password, and uses no credential helper.  Dies
 with the first line that git printed on stderr, if it fails.
 
+=over 4
+
+=item dir - Str - the checkout to run git in
+
+=item @args - Str - the arguments of git
+
+=back
+
+Returns Str, what git printed on stdout, without the last newline.
+
+    my $head = Trog::Jobs::Updates::git( $dir, qw{rev-parse HEAD} );
+
 =cut
 
 sub git ( $dir, @args ) {
@@ -104,7 +132,17 @@ sub git ( $dir, @args ) {
 =head2 public_url($url) = STRING
 
 $url, if git can fetch it over HTTPS.  A GitHub URL over ssh, in either form,
-becomes its HTTPS URL.  Undef for any other URL.
+becomes its HTTPS URL.
+
+=over 4
+
+=item url - Str - the URL of a remote
+
+=back
+
+Returns Str|Undef, the URL to fetch over HTTPS, or undef for any other URL.
+
+    my $url = Trog::Jobs::Updates::public_url('git@github.com:o/r.git');
 
 =cut
 
@@ -119,7 +157,19 @@ sub public_url ($url) {
 =head2 theme_url($dir) = STRING
 
 The first remote of the git checkout $dir, as C<public_url> gives it, that
-answers C<git ls-remote> with no credentials.  Undef when none does.
+answers C<git ls-remote> with no credentials.
+
+=over 4
+
+=item dir - Str - the checkout of the theme
+
+=back
+
+Returns Str|Undef, the URL, or undef when no remote answers.
+
+Dies when git cannot list the remotes of $dir.
+
+    my $url = Trog::Jobs::Updates::theme_url($theme);
 
 =cut
 
@@ -132,9 +182,9 @@ sub theme_url ($dir) {
     return;
 }
 
-=head2 status($checkout) = HASHREF
+=head2 status($co) = HASHREF
 
-Fetches the upstream of $checkout and compares it with the checkout.  The
+Fetches the upstream of the checkout $co and compares it with the checkout.  The
 upstream of a checkout with no C<url> is C<theme_url>.  The
 result has C<name>, C<label>, C<head>, the commit of the checkout, C<branch>,
 C<dirty>, true when a tracked file has changes, and C<state>:
@@ -157,6 +207,19 @@ forward reaches it.
 =back
 
 All but the last two also have C<upstream>, the upstream commit.
+
+=over 4
+
+=item co - HashRef - a checkout, as L<Trog::Updates/checkouts> gives it, with C<dir>, C<name>, and C<label> or C<url> or both
+
+=back
+
+Returns HashRef, the result above.
+
+Dies when git cannot read the commit, the branch or the changes of the
+checkout.  A failed fetch does not die: it gives C<unreachable>.
+
+    my $s = Trog::Jobs::Updates::status($co);
 
 =cut
 
@@ -199,6 +262,18 @@ The C<@system_keys> of F<metamerge.yml> at $commit of the checkout $dir, as
 canonical JSON, so that two commits compare as strings.  Empty keys when the
 commit has no F<metamerge.yml>.
 
+=over 4
+
+=item dir - Str - the checkout
+
+=item commit - Str - the commit to read F<metamerge.yml> at
+
+=back
+
+Returns Str, the JSON.
+
+    my $json = Trog::Jobs::Updates::system_packages( $dir, $s->{upstream} );
+
 =cut
 
 sub system_packages ( $dir, $commit ) {
@@ -215,6 +290,18 @@ $dir, which this perl does not have.  It checks the commit out into a
 temporary worktree, and removes it.  An empty list when the commit has no
 F<dist.ini>.  Dies when dzil is not installed, or fails, because then nothing
 can tell what the commit needs.
+
+=over 4
+
+=item dir - Str - the checkout
+
+=item commit - Str - the commit to ask about
+
+=back
+
+Returns Array of Str, the names of the missing modules.
+
+    my @missing = Trog::Jobs::Updates::missing_modules( $dir, $to );
 
 =cut
 
@@ -236,8 +323,21 @@ sub missing_modules ( $dir, $commit ) {
 =head2 new_needs($dir, $from, $to) = LIST
 
 A sentence for each thing that $to needs and $from did not, which the service
-user cannot install: system packages, and perl modules.  Empty when there is
-none.
+user cannot install: system packages, and perl modules.
+
+=over 4
+
+=item dir - Str - the checkout
+
+=item from - Str - the commit that the checkout has
+
+=item to - Str - the commit to update to
+
+=back
+
+Returns Array of Str, the sentences, or an empty list when there is none.
+
+    my @needs = Trog::Jobs::Updates::new_needs( $co->{dir}, $s->{head}, $s->{upstream} );
 
 =cut
 
@@ -253,7 +353,18 @@ sub new_needs ( $dir, $from, $to ) {
 =head2 unit_of($pid) = STRING
 
 The systemd unit that the process $pid runs in, such as
-C<example.test.service>.  Undef outside a unit.
+C<example.test.service>.
+
+=over 4
+
+=item pid - Int|Str - the process ID, or C<self> for this process
+
+=back
+
+Returns Str|Undef, the unit, or undef outside a unit, or when its cgroup
+cannot be read.
+
+    my $unit = Trog::Jobs::Updates::unit_of( Trog::Jobs::Updates::tpsgi_pid() );
 
 =cut
 
@@ -268,6 +379,10 @@ sub unit_of ($pid) {
 
 The process of the master of tPSGI, from F<run/tpsgi.pid> of the tPSGI
 checkout.  Dies when there is none.
+
+Returns Int, the process ID.
+
+    my $pid = Trog::Jobs::Updates::tpsgi_pid();
 
 =cut
 
@@ -285,6 +400,10 @@ sub tpsgi_pid {
 Sends HUP to the master of tPSGI, so that it replaces its workers, which load
 the code of tCMS again.  Dies if it cannot.
 
+Returns nothing.
+
+    Trog::Jobs::Updates::hup_tpsgi();
+
 =cut
 
 sub hup_tpsgi {
@@ -300,6 +419,18 @@ C<--no-block> when $no_block is true.  These are the commands that the tcms
 and tpsgi recipes grant, as they are written.  Dies with what sudo said if it
 fails.
 
+=over 4
+
+=item unit - Str - the systemd unit
+
+=item no_block - Bool - true to not wait for the restart, false by default
+
+=back
+
+Returns nothing.
+
+    Trog::Jobs::Updates::restart_unit( $own, 1 );
+
 =cut
 
 sub restart_unit ( $unit, $no_block = 0 ) {
@@ -312,6 +443,18 @@ sub restart_unit ( $unit, $no_block = 0 ) {
 
 The command of C<restart_unit>, as a list.
 
+=over 4
+
+=item unit - Str - the systemd unit
+
+=item no_block - Bool - true for C<--no-block>, false by default
+
+=back
+
+Returns Array of Str, the command and its arguments.
+
+    my @command = Trog::Jobs::Updates::restart_command( $unit, 1 );
+
 =cut
 
 sub restart_command ( $unit, $no_block = 0 ) {
@@ -322,6 +465,18 @@ sub restart_command ( $unit, $no_block = 0 ) {
 
 True when sudo lets this user run the command of C<restart_unit>, as
 C<sudo -n -l> says.  It restarts nothing.
+
+=over 4
+
+=item unit - Str - the systemd unit
+
+=item no_block - Bool - true for C<--no-block>, false by default
+
+=back
+
+Returns Bool, 1 when sudo allows the command, else 0.
+
+    my $ok = Trog::Jobs::Updates::may_restart( $own, 1 );
 
 =cut
 
@@ -337,6 +492,10 @@ Runs the C<install> and C<prereq-frontend> targets of F<Installer.mk>, as the
 provision does, so that a new directory or front-end file of the new commit is
 there.  Dies with what make said if it fails.
 
+Returns nothing.
+
+    Trog::Jobs::Updates::reinstall();
+
 =cut
 
 sub reinstall {
@@ -350,6 +509,18 @@ sub reinstall {
 The task C<update_check>.  Finishes with C<checked_at> and L<Trog::Updates/checkouts>, the
 C<status> of each of L<Trog::Updates/checkouts>.  A checkout that git cannot read is
 C<unreachable>, with the reason in C<error>.
+
+=over 4
+
+=item job - Minion::Job - the job
+
+=back
+
+Returns Bool, what L<Minion::Job/finish> returns.
+
+Minion calls it as
+
+    Trog::Jobs::Updates::check_task($job);
 
 =cut
 
@@ -368,6 +539,27 @@ and reloads what runs it, as the L</DESCRIPTION> says.  Fails with the reason
 when it refuses.  One update runs at a time.  It queues a check when it is
 done, so that /config shows the new state.  The result has C<name>, C<from>,
 C<to> and C<reloaded>.
+
+=over 4
+
+=item job - Minion::Job - the job
+
+=item name - Str - the name of the checkout, as L<Trog::Updates/checkouts> names it
+
+=back
+
+Returns Bool, what L<Minion::Job/fail> returns, when it refuses or fails, or
+what L<Minion::Job/finish> returns, after an update of tPSGI.
+
+Returns nothing after it finishes an update of tCMS or the theme.
+
+Dies after the fast forward when tPSGI does not run in a systemd unit, or when
+the restart of tPSGI, its HUP or the restart of the job worker fails.  Minion
+then fails the job with the reason.
+
+Minion calls it as
+
+    Trog::Jobs::Updates::update_task( $job, 'tCMS' );
 
 =cut
 

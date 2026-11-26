@@ -1,5 +1,7 @@
 package Trog::Auth;
 
+# ABSTRACT: Users, passwords, sessions, TOTP and the audit log of tCMS, in SQLite
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -36,11 +38,20 @@ Throws exceptions in the event the session database cannot be accessed.
 
 =head1 FUNCTIONS
 
-=head2 session2user(STRING sessid) = STRING
+=head2 session2user($sessid)
 
 Translate a session UUID into a username.
 
-Returns empty string on no active session.
+=over 4
+
+=item sessid - Str - the UUID of the session, from the C<tcmslogin> cookie
+
+=back
+
+Returns Str, the name of the user, or an empty string when there is no such
+session.
+
+    my $active_user = Trog::Auth::session2user( $cookies->{tcmslogin}->value );
 
 =cut
 
@@ -51,10 +62,21 @@ sub session2user ($sessid) {
     return $rows->[0]->{name};
 }
 
-=head2 user_has_session
+=head2 user_has_session($user)
 
-Return whether the user has an active session.
-If the user has an active session, things like password reset requests should fail when not coming from said session.
+Whether the user has an active session.  If the user has an active session,
+things like password reset requests should fail when they do not come from
+that session.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=back
+
+Returns Bool, 1 when the user has a session, else 0.
+
+    return $tpsgi->forbidden($query) if Trog::Auth::user_has_session($user);
 
 =cut
 
@@ -65,9 +87,19 @@ sub user_has_session ($user) {
     return 1;
 }
 
-=head2 user_exists
+=head2 user_exists($user)
 
-Return whether the user exists at all.
+Whether the user exists at all.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=back
+
+Returns Bool, 1 when the user exists, else 0.
+
+    return $tpsgi->forbidden($query) if !Trog::Auth::user_exists($user);
 
 =cut
 
@@ -78,9 +110,22 @@ sub user_exists ($user) {
     return 1;
 }
 
-=head2 get_existing_user_data
+=head2 get_existing_user_data($user)
 
-Fetch existing settings for a user.
+Fetch the existing settings of a user.  useradd() calls it to keep what the
+caller does not pass.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=back
+
+Returns a list of five: the password hash, the salt, the TOTP secret, the
+display name and the contact email, each a Str.  When the user does not
+exist, it returns a list of three undefs.
+
+    my ( $hash, $salt, $totp_secret, $display_name, $email ) = Trog::Auth::get_existing_user_data($user);
 
 =cut
 
@@ -91,9 +136,20 @@ sub get_existing_user_data ($user) {
     return ( $rows->[0]{hash}, $rows->[0]{salt}, $rows->[0]{totp_secret}, $rows->[0]{display_name}, $rows->[0]{contact_email} );
 }
 
-=head2 email4user(STRING username) = STRING
+=head2 email4user($user)
 
-Return the associated contact email for the user.
+The contact email of the user.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=back
+
+Returns Str, the contact email, or an empty string when the user does not
+exist.
+
+    my $email = Trog::Auth::email4user($user);
 
 =cut
 
@@ -104,6 +160,24 @@ sub email4user ($user) {
     return $rows->[0]{contact_email};
 }
 
+=head2 display2username($display_name)
+
+The name of the user who has a display name, for a route that names a user by
+the display name.
+
+=over 4
+
+=item display_name - Str - the display name of the user
+
+=back
+
+Returns Str, the name of the user, or an empty string when no user has that
+display name.
+
+    my $username = Trog::Auth::display2username($display_name);
+
+=cut
+
 sub display2username ($display_name) {
     my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT name FROM user WHERE display_name=?", { Slice => {} }, $display_name );
@@ -111,12 +185,49 @@ sub display2username ($display_name) {
     return $rows->[0]{name};
 }
 
+=head2 username2display($name)
+
+The display name of a user.
+
+=over 4
+
+=item name - Str - the name of the user
+
+=back
+
+Returns Str, the display name, or an empty string when the user does not
+exist.
+
+    my $display_name = Trog::Auth::username2display( $post->{user} );
+
+=cut
+
 sub username2display ($name) {
     my $dbh  = dbh();
     my $rows = $dbh->selectall_arrayref( "SELECT display_name FROM user WHERE name=?", { Slice => {} }, $name );
     return '' unless ref $rows eq 'ARRAY' && @$rows;
     return $rows->[0]{display_name};
 }
+
+=head2 username2classname($name)
+
+A CSS class name for a user, made from the id of the user's post, the post
+tagged C<about> whose C<user> is that user.  The first call reads those posts
+and keeps them for the life of the process, so a user whose post is made
+later gets no id until the process restarts.
+
+=over 4
+
+=item name - Str - the name of the user
+
+=back
+
+Returns Str, C<a_> and the id of the post, with each dash turned into an
+underscore.  It is C<a_> alone when the user has no such post.
+
+    my $user_class = Trog::Auth::username2classname( $post->{user} );
+
+=cut
 
 sub username2classname ($name) {
 
@@ -136,12 +247,25 @@ sub username2classname ($name) {
     return "a_$classname";
 }
 
-=head2 acls4user(STRING username) = ARRAYREF
+=head2 acls4user($username)
 
-Return the list of ACLs belonging to the user.
-The function of ACLs are to allow you to access content tagged 'private' which are also tagged with the ACL name.
+The ACLs of the user.  An ACL lets you access content that is tagged
+'private' and also tagged with the name of the ACL.
 
-The 'admin' ACL is the only special one, as it allows for authoring posts, configuring tCMS, adding series (ACLs) and more.
+The 'admin' ACL is the only special one, as it allows for authoring posts,
+configuring tCMS, adding series (ACLs) and more.
+
+=over 4
+
+=item username - Str - the name of the user
+
+=back
+
+Returns ArrayRef[Str], the names of the ACLs.  Returns an empty list (undef
+in scalar context) when the user has none, so callers write
+C<// []>.
+
+    my $acls = Trog::Auth::acls4user($username) // [];
 
 =cut
 
@@ -164,13 +288,34 @@ my sub _totp {
     return $totp;
 }
 
-=head2 totp(user, domain)
+=head2 totp($user, $domain)
 
-Enable TOTP 2fa for the specified user, or if already enabled return the existing info.
-Returns a QR code and URI for pasting into authenticator apps.
+Enable TOTP 2fa for the specified user, or, if it is already enabled, return
+the existing enrollment.  It writes the QR code for authenticator apps to
+F<totp/E<lt>userE<gt>@E<lt>domainE<gt>.bmp>.
 
 Refuses a user or domain that would not be safe as a filename, as the QR code
-is written to totp/<user>@<domain>.bmp.
+is written to that path.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=item domain - Str - the host name of the site, which is the issuer of the
+code
+
+=back
+
+Returns a list of five: Str, the C<otpauth:> URI; Str, the file name of the QR
+code under F<totp/>; Int, 0 when it made a new secret, -1 when the user already
+had one, and 1 on failure; Str, a message; and Trog::TOTP, the client.  On
+failure the URI and the file name are undef, the message says why, and there
+is no client.  It fails for an unsafe user or domain, when it cannot store a
+new secret, and when it cannot write the QR code.
+
+Dies when Trog::TOTP cannot be instantiated.
+
+    my ( $uri, $qr, $failure, $message, $totp ) = Trog::Auth::totp( $active_user, $domain );
 
 =cut
 
@@ -250,7 +395,7 @@ sub totp ( $user, $domain ) {
     return ( $uri, $qr, $failure, $message, $totp );
 }
 
-=head2 has_totp(user) = BOOL
+=head2 has_totp($user)
 
 Whether this user has enrolled in TOTP yet.
 
@@ -263,6 +408,16 @@ stop having a second factor, and the answer to it is bin/totp, which re-reads a
 user their enrollment out of band -- the secret is still in the database, so it
 is the same enrollment rather than a new one.
 
+=over 4
+
+=item user - Str - the name of the user
+
+=back
+
+Returns Bool, 1 when the user has a TOTP secret, else 0.
+
+    $query->{to} = '/totp' unless Trog::Auth::has_totp($username);
+
 =cut
 
 sub has_totp ($user) {
@@ -272,7 +427,7 @@ sub has_totp ($user) {
     return $rows->[0]{totp_secret} ? 1 : 0;
 }
 
-=head2 spend_totp(user, code) = ($ok, $why)
+=head2 spend_totp($user, $code)
 
 Check a TOTP code and spend it.  A code that has been spent, or that is older
 than one this user has already spent, is refused however valid the arithmetic
@@ -291,6 +446,25 @@ is the point.
 Tolerance is one step either way, for clocks that disagree a little.  It used to
 be three, which was ninety seconds of a code staying good, and there is no
 reason for that once a code cannot be used twice anyway.
+
+A wrong code and a spent code are each an audit_log row.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=item code - Str - the code, six digits
+
+=back
+
+Returns a list of two: Bool, 1 when the code is right and was not spent, else
+0; and Str, why it was refused, or an empty string when it was not.  It
+refuses a code that is not six digits, a user with no TOTP secret, a wrong
+code, a spent code, and a code that it cannot record as spent.
+
+Dies when Trog::TOTP cannot be instantiated.
+
+    my ( $ok, $why ) = Trog::Auth::spend_totp( $user, $code );
 
 =cut
 
@@ -342,9 +516,9 @@ sub spend_totp ( $user, $code ) {
     return ( 1, '' );
 }
 
-=head2 check_password(user, pass) = BOOL
+=head2 check_password($user, $pass)
 
-Whether this is the user's password, upgrading how it is stored if it is.
+Whether this is the password of the user, upgrading how it is stored if it is.
 
 Passwords were kept as a single unstretched sha256 of the password and a salt,
 which is a hash built to be fast over a thing built to be guessed: a commodity
@@ -360,6 +534,19 @@ nobody has to be told, and the old hashes leave as their owners come back.
 
 The same rewrite happens when the parameters here are raised, which is what
 makes raising them later a one-line change rather than a migration.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=item pass - Str - the password to check, in plaintext
+
+=back
+
+Returns Bool, 1 when the password is right, else 0.  It is 0 for an empty
+password and for a user who does not exist.
+
+    my $ok = Trog::Auth::check_password( $user, $pass );
 
 =cut
 
@@ -415,11 +602,29 @@ sub check_password ( $user, $pass ) {
     return 1;
 }
 
-=head2 mksession(user, pass, token) = STRING
+=head2 mksession($user, $pass, $token, $ip_addr)
 
-Create a session for the user and waste all other sessions.
+Create a session for the user and waste all other sessions.  The TOTP code is
+checked and spent only when the user has enrolled.  Each login and each
+failure is an audit_log row.
 
-Returns a session ID, or blank string in the event the user does not exist or incorrect auth was passed.
+=over 4
+
+=item user - Str - the name of the user
+
+=item pass - Str - the password, in plaintext
+
+=item token - Str - the TOTP code
+
+=item ip_addr - Str - where the login comes from, for the audit log.  The
+default is an empty string.
+
+=back
+
+Returns Str, the new session ID, or an empty string when the user does not
+exist, the password is wrong, or the TOTP code is refused.
+
+    my $cookie = Trog::Auth::mksession( $username, $password, $token, $ip );
 
 =cut
 
@@ -455,9 +660,23 @@ sub mksession ( $user, $pass, $token, $ip_addr = '' ) {
     return $uuid;
 }
 
-=head2 killsession(user) = BOOL
+=head2 killsession($user, $ip_addr)
 
-Delete the provided user's session from the auth db.
+Delete the session of the user from the auth db.  The logout is an audit_log
+row.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=item ip_addr - Str - where the logout comes from, for the audit log.  The
+default is an empty string.
+
+=back
+
+Returns 1, also when the user had no session.
+
+    Trog::Auth::killsession( $user, $ip );
 
 =cut
 
@@ -468,13 +687,40 @@ sub killsession ( $user, $ip_addr = '' ) {
     return 1;
 }
 
-=head2 useradd(user, displayname, pass, acls, contactemail) = BOOL
+=head2 useradd($user, $displayname, $pass, $acls, $contactemail)
 
-Adds a user identified by the provided password into the auth DB.
-Also used to alter users.
+Adds a user identified by the provided password into the auth DB.  Also used
+to alter users.  An undef display name, password or contact email keeps the
+one that the user has.
 
-Returns true.  Dies if the user cannot be stored, as the rest of this module
-does when the auth database fails.
+To alter a user, it replaces the row of the user.  That deletes everything in
+the auth DB that refers to the user: the session, the change requests, the
+ACLs, the secrets of Trog::Vault and the spent TOTP steps.  It writes the ACLs
+in $acls back, and keeps the TOTP secret.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=item displayname - Str - the display name.  It must differ from the name
+of the user.
+
+=item pass - Str - the password, in plaintext
+
+=item acls - ArrayRef[Str] - the names of the ACLs of the user
+
+=item contactemail - Str - the contact email of the user
+
+=back
+
+Returns 1.
+
+Dies when there is no name, no display name, or no contact email, when the
+name and the display name are the same, when a new user has no password, when
+$acls is not an ArrayRef, and when the user cannot be stored, as the rest of
+this module does when the auth database fails.
+
+    Trog::Auth::useradd( $username, $display_name, $password, ['admin'], $contact_email );
 
 =cut
 
@@ -503,12 +749,27 @@ sub useradd ( $user, $displayname, $pass, $acls, $contactemail ) {
     return 1;
 }
 
-=head2 reset_password(user, pass) = BOOL
+=head2 reset_password($user, $pass)
 
 Give an existing user a new password, and end their session.  The user keeps
-their display name, contact address, ACLs and TOTP enrollment.
+their display name, contact address, ACLs and TOTP enrollment.  It calls
+useradd(), so the change requests, the secrets of Trog::Vault and the spent
+TOTP steps of the user are deleted too.
 
-Returns false, and changes nothing, if the user does not exist or the password is empty.
+=over 4
+
+=item user - Str - the name of the user
+
+=item pass - Str - the new password, in plaintext
+
+=back
+
+Returns Bool, 1 when the password is changed.  Returns 0, and changes
+nothing, if the user does not exist or the password is empty.
+
+Dies when useradd() dies.
+
+    my $ok = Trog::Auth::reset_password( $user, $password );
 
 =cut
 
@@ -521,10 +782,24 @@ sub reset_password ( $user, $pass ) {
     return 1;
 }
 
-=head2 add_change_request(user => USER, token => TOKEN, type => TYPE) = BOOL
+=head2 add_change_request(%args)
 
-Record a change that the owner of TOKEN can make to USER later.  The one TYPE is
-C<reset_pass>.  The new password is not stored: process_change_request() takes it.
+Record a change that the owner of the token can make to the user later.  The
+new password is not stored: process_change_request() takes it.
+
+=over 4
+
+=item user - Str - the name of the user
+
+=item token - Str - the token that authorizes the change, a UUID
+
+=item type - Str - the kind of change.  The one kind is C<reset_pass>.
+
+=back
+
+Returns 1.
+
+    my $res = Trog::Auth::add_change_request( type => 'reset_pass', user => $user, token => $token );
 
 =cut
 
@@ -534,13 +809,27 @@ sub add_change_request (%args) {
     return 1;
 }
 
-=head2 process_change_request(token, secret) = STRING
+=head2 process_change_request($token, $secret)
 
-Make the change that TOKEN was issued for, with SECRET as the new password, and
-spend the token.  Returns a message that names the user and not the secret.
+Make the change that the token was issued for, with the secret as the new
+password, and spend the token.
 
-Returns false, and leaves the token unspent, if there is no unspent request for
-TOKEN, or if SECRET is empty.
+=over 4
+
+=item token - Str - the token of the change request
+
+=item secret - Str - the new password, in plaintext
+
+=back
+
+Returns Str, a message that names the user and not the secret.  Returns 0,
+and leaves the token unspent, if there is no unspent request for the token,
+or if the secret is empty.
+
+Dies when the request is of a type other than C<reset_pass>, and when
+reset_password() dies.
+
+    my $done = Trog::Auth::process_change_request( $token, $password );
 
 =cut
 
@@ -561,10 +850,26 @@ sub process_change_request ( $token, $secret ) {
     return $res;
 }
 
-=head2 audit_log(%opts) = ARRAYREF
+=head2 audit_log(%opts)
 
-Return recent authentication events.
-Supports filtering by C<username>, C<event_type>, and C<limit> (default 100).
+Recent authentication events, newest first.
+
+=over 4
+
+=item username - Str - only the events of this user.  A false value does not
+filter.
+
+=item event_type - Str - only the events of this type, such as
+C<login_failure>.  A false value does not filter.
+
+=item limit - Int - the most events to return.  The default is 100.
+
+=back
+
+Returns ArrayRef[HashRef], one HashRef per event, with the keys C<id>,
+C<event_time>, C<username>, C<session_id>, C<ip_addr> and C<event_type>.
+
+    my $events = Trog::Auth::audit_log( limit => 50, username => $user );
 
 =cut
 
@@ -603,6 +908,22 @@ the same kind of event as logging in as them, and it belongs in the same list.
 Swallows its own errors.  A login that fails because the audit table is unhappy
 would be a worse outcome than a login nobody wrote down.
 
+=over 4
+
+=item event_type - Str - what happened, such as C<login_success>
+
+=item username - Str - the name of the user it happened to
+
+=item ip_addr - Str - where it came from.  The default is an empty string.
+
+=item session_id - Str - the session, if there is one.  The default is undef.
+
+=back
+
+Returns nothing.
+
+    Trog::Auth::log_event( 'secret_read', $user );
+
 =cut
 
 sub log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
@@ -617,9 +938,14 @@ sub log_event ( $event_type, $username, $ip_addr = '', $session_id = undef ) {
     return;
 }
 
-=head2 users_with_emails() = ARRAYREF
+=head2 users_with_emails()
 
-Return all users and their contact emails, for use in libravatar lookups.
+All users who have a contact email, for use in libravatar lookups.
+
+Returns ArrayRef[HashRef], one HashRef per user, with the keys C<name> and
+C<contact_email>.
+
+    my $users = Trog::Auth::users_with_emails();
 
 =cut
 

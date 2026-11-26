@@ -1,5 +1,7 @@
 package Trog::Vars;
 
+# ABSTRACT: Constants that the data model, the renderer and the routes share
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

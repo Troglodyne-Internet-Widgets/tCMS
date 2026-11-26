@@ -1,5 +1,7 @@
 package Trog::Component::PostFooter;
 
+# ABSTRACT: The footer that a series names for each of its posts
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -21,13 +23,20 @@ directory of the stock templates or the theme's.
 Render footers/$args{name}.
 
 The name comes out of post data, so it is checked against the footers/ listing
-before it becomes a path -- see available().  Returns the empty string when no
-name is given, so that the caller can ask unconditionally.
+before it becomes a path -- see available().
 
 Beyond the name, the template gets the post it belongs to and the route it is
 being shown at, plus theme_dir for building asset paths.  That is narrower than
 the whole request hash these used to be rendered with; a theme whose footer
 wants something else should be handed it at the call site in posts.tx.
+
+Returns Str, the rendered body, or the empty string when no name is given, so
+that the caller can ask unconditionally.
+
+Dies when the name is not in available(), and, as
+Trog::Component::render_template() does, when the render fails.
+
+    my $html = Trog::Component::PostFooter::render( name => $name, post => $post, route => $route );
 
 =cut
 
@@ -45,6 +54,10 @@ sub render (%args) {
 The footers a post may name: every .tx in footers/, the theme's and the stock ones
 both.  This is the same list the series edit form offers, so anything the form
 can pick renders, and nothing else does.
+
+Returns ArrayRef[Str], the file names of the templates.
+
+    my $footers = Trog::Component::PostFooter::available();
 
 =cut
 

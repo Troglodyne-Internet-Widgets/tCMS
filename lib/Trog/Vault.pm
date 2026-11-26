@@ -1,5 +1,7 @@
 package Trog::Vault;
 
+# ABSTRACT: Keep the secrets of users encrypted under a key that is not in the database
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -152,15 +154,25 @@ my sub look_further {    ## no critic (ProhibitSingleUseLexicalSubs) -- 21 lines
     return decode( $raw, $key_file );
 }
 
-=head2 key() = STRING or undef
+=head2 key()
 
-The master key, or undef when this installation has none.
+The master key.  The first call looks in the files of WHERE THE KEY IS when
+the environment gave no key.  Later calls do not look again.
 
-=head2 has_key() = BOOL
+Returns Str|Undef, the 32 raw bytes of the master key, or undef when this
+installation has none.
+
+    my $master = Trog::Vault::key();
+
+=head2 has_key()
 
 Whether there is a vault at all.  Ask this before offering a user anywhere to
 put a secret, so that a site with no key says so rather than accepting one and
 losing it.
+
+Returns Bool, 1 when there is a master key, else 0.
+
+    my $has_vault = Trog::Vault::has_key();
 
 =cut
 
@@ -171,10 +183,15 @@ sub key {
 
 sub has_key { return key() ? 1 : 0 }
 
-=head2 key_id() = STRING
+=head2 key_id()
 
 A fingerprint of the master key, stored on each row so that a row written under
 a key which is no longer here can say which.
+
+Returns Str, the first 16 hex digits of the SHA-256 of the master key, or an
+empty string when there is no master key.
+
+    my $fingerprint = Trog::Vault::key_id();
 
 =cut
 
@@ -195,9 +212,31 @@ my sub derive ($salt) {
 # The same database the users are in, since a secret belongs to one.
 my sub dbh { return Trog::SQLite::dbh( 'schema/auth.schema', 'config/auth.db' ) }
 
-=head2 set($user, $name, $secret) = ($ok, $message)
+=head2 set($user, $name, $secret)
 
 Remember one thing for one user, replacing whatever was there under that name.
+Each write is an audit_log row.
+
+=over 4
+
+=item user - Str - the name of the user who owns the secret
+
+=item name - Str - the name of the secret.  It must start with a letter or a
+digit, hold only word characters, dots and dashes, and be at most 64
+characters long.
+
+=item secret - Str - the secret to keep.  It must not be empty.
+
+=back
+
+Returns a list of two: Bool, 1 when the secret is stored, else 0; and Str, a
+message for the user that says what happened.  It returns 0 when there is no
+master key, when the name is not valid, when the secret is empty, and when the
+database refuses the row.
+
+Dies when the database cannot be opened.
+
+    my ( $ok, $message ) = Trog::Vault::set( $user, $name, $secret );
 
 =cut
 
@@ -281,13 +320,27 @@ my sub stored ( $user, $name ) {
     return _open( $rows->[0], $user, $name );
 }
 
-=head2 get($user, $name) = STRING or undef
+=head2 get($user, $name)
 
-What was stored, or undef if there is nothing under that name, no key to open it
-with, or a key which is not the one it was sealed under.
+What was stored.  Each call that finds a secret moves its C<last_used> and is
+an audit_log row.  Reading a stored password is the interesting event here,
+not writing one.
 
-Every call is an audit_log row.  Reading a stored password is the interesting
-event here, not writing one.
+=over 4
+
+=item user - Str - the name of the user who owns the secret
+
+=item name - Str - the name of the secret
+
+=back
+
+Returns Str|Undef, the secret, or undef if there is nothing under that name, no key
+to open it with, a key which is not the one it was sealed under, or a row that
+fails its tag check.
+
+Dies when the database cannot be opened or a query fails.
+
+    my $stored = Trog::Vault::get( $user, $secret_name );
 
 =cut
 
@@ -301,11 +354,25 @@ sub get ( $user, $name ) {
     return $secret;
 }
 
-=head2 list($user) = ARRAYREF
+=head2 list($user)
 
-What this user has stored, as names and dates.  Never values -- there is no
+What this user has stored, as names and dates.  Never values: there is no
 route, page or log line anywhere that shows one back to them, because a secret
 you can read off a screen is one you did not need us to keep.
+
+=over 4
+
+=item user - Str - the name of the user who owns the secret
+
+=back
+
+Returns ArrayRef[HashRef], one HashRef per secret, sorted by name.  Each has
+the keys C<name>, C<created>, C<last_used>, C<key_id>, and C<readable>, which
+is 1 when the secret opens under this installation, else 0.
+
+Dies when the database cannot be opened or the query fails.
+
+    my $secrets = Trog::Vault::list($user);
 
 =cut
 
@@ -341,11 +408,42 @@ or a code box, and the honest answer to that is the one where the code works.
 Separate from get() because reading a secret is an event and asking about one is
 not.  This moves nothing and writes nothing to the audit log.
 
+=over 4
+
+=item user - Str - the name of the user who owns the secret
+
+=item name - Str - the name of the secret
+
+=back
+
+Returns Bool, 1 when the secret is there and opens, else 0.
+
+Dies when the database cannot be opened or the query fails.
+
+    my $remembered = Trog::Vault::has( $user, $secret_name );
+
 =cut
 
 sub has ( $user, $name ) { return defined stored( $user, $name ) ? 1 : 0 }
 
-=head2 forget($user, $name) = BOOL
+=head2 forget($user, $name)
+
+Delete one secret of one user.  A deletion is an audit_log row.
+
+=over 4
+
+=item user - Str - the name of the user who owns the secret
+
+=item name - Str - the name of the secret
+
+=back
+
+Returns Bool, 1 when a secret was deleted, 0 when there was none under that
+name.
+
+Dies when the database cannot be opened or the query fails.
+
+    my $gone = Trog::Vault::forget( $user, $name );
 
 =cut
 

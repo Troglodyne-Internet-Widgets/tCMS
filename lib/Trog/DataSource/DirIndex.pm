@@ -1,5 +1,7 @@
 package Trog::DataSource::DirIndex;
 
+# ABSTRACT: A datasource that builds posts out of the entries of a directory under www/
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -36,6 +38,10 @@ has nothing behind it to save, so a post type backed by this wants no editor:
 a form posting to /post/save would write a real post to sit alongside, and
 collide with, the synthesized ones.  Put files in the directory instead.
 
+Returns Bool, always 0.
+
+    my $editable = Trog::DataSource::DirIndex->EDITABLE;
+
 =cut
 
 sub EDITABLE { return 0 }
@@ -49,6 +55,10 @@ exactly the thing inotify tells us about.
 
 Take that watch away and this has to become false, or the page is stale with no
 way of ever becoming right again.
+
+Returns Bool, always 1.
+
+    my $cacheable = Trog::DataSource::DirIndex->CACHEABLE;
 
 =cut
 
@@ -261,6 +271,24 @@ Registers an inotify watch on the directory the first time it is asked, so that
 the static render of this page is thrown away when the directory changes.  See
 watch().
 
+Entries whose names start with a dot are left out, and so are entries that
+resolve outside www/.  The posts come sorted by name.
+
+=over 4
+
+=item series - HashRef - the series post; its C<directory> names the directory,
+with or without the C<www/> prefix
+
+=item query - HashRef - the query of the request; its C<tpsgi> gets the watch
+
+=back
+
+Returns List[HashRef], one post per entry.  The list is empty, and a warning is
+logged, when the directory is missing, walks upwards, resolves outside www/, is
+under www/assets/private, or cannot be read.
+
+    my @posts = Trog::DataSource::DirIndex::posts( \%series, $query );
+
 =cut
 
 sub posts ( $series, $query ) {
@@ -296,6 +324,18 @@ and body -- would only ever match the name.  Search the path and the extension
 as well, so that 'pdf' finds the PDFs and a subdirectory's name finds what is
 under it.
 
+=over 4
+
+=item query - HashRef|undef - the reader's query; undef means no query
+
+=item posts - List[HashRef] - the posts of the listing
+
+=back
+
+Returns List[HashRef], the posts that match.
+
+    my @posts = Trog::DataSource::DirIndex::filter( { like => 'pdf' }, @entries );
+
 =cut
 
 sub filter ( $query, @posts ) {
@@ -318,6 +358,19 @@ reader expects from one is the convention every file browser has -- which also
 means page two holds what page one alphabetically ran out of, rather than
 whatever happened to be touched least recently.
 
+The names are compared without case first, and then with case.  The first
+argument is the query.  This sub does not read it.
+
+=over 4
+
+=item posts - List[HashRef] - the posts to sort
+
+=back
+
+Returns List[HashRef], the posts in order.
+
+    my @sorted = Trog::DataSource::DirIndex::order( $query, @posts );
+
 =cut
 
 sub order ( $, @posts ) {
@@ -329,13 +382,24 @@ sub order ( $, @posts ) {
 
 What the search box searches on a directory listing.
 
-=head2 help() = STRING
+Returns Str, the name of the query language.
 
-Where to read about it.
+    my $lang = Trog::DataSource::DirIndex::lang();
 
 =cut
 
 sub lang { return 'Case insensitive substring of a file name, path or extension' }
+
+=head2 help() = STRING
+
+Where to read about it.
+
+Returns Str, the URL of a page about the query language.
+
+    my $help = Trog::DataSource::DirIndex::help();
+
+=cut
+
 sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
 =head2 watch($query, $directory)
@@ -358,6 +422,20 @@ would stack a new copy of the same callback on every single view.
 The callback uses the tPSGI object it is handed rather than the one from the
 request that registered it: watches are shared between workers, so whichever
 worker notices the change is the one that must do the invalidating.
+
+=over 4
+
+=item query - HashRef - the query of the request; its C<tpsgi> is the tPSGI
+object
+
+=item directory - Str - the directory to watch, relative to the tCMS root
+
+=back
+
+Returns Bool, 1 when it registered the watch, or 0 when the query has no tPSGI
+object or that object has no C<add_watch>.
+
+    Trog::DataSource::DirIndex::watch( $query, $dir->{relative} );
 
 =cut
 
