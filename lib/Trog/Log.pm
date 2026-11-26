@@ -185,7 +185,8 @@ Get, or set, the request ID stamped onto every log line.
 A request ID lets the lines that belong to one request be picked back out of an
 interleaved log, and lets Trog::Log::DBI group a request's messages under the
 request itself.  Nothing in tCMS sets one per request: log_init() sets it to
-C<INIT>, and the server calls log_init() for each request.
+C<INIT>, and the server calls log_init() for each request.  tPSGI stamps the
+lines that its own logger writes with an ID of each request.
 
 =over 4
 
