@@ -40,3 +40,11 @@ x_system_packages:
     deb: libssl-dev
   zlib:
     deb: zlib1g-dev
+  aspell:
+    deb: aspell
+    rpm: aspell
+    test: aspell --version
+  aspell-en:
+    deb: aspell-en
+    rpm: aspell-en
+    test: aspell --lang=en_US -a

@@ -1,5 +1,7 @@
 package Trog::Component::Header;
 
+# ABSTRACT: The head of an HTML page, from the doctype down to the opening body tag
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -38,6 +40,13 @@ not.
 The list arguments default to empty rather than to the stock sheets, so that a
 caller which has none -- rss_style(), notably -- gets a header with none, as it
 did when the route rendered this itself.
+
+Returns Str, the rendered body.
+
+Dies when it gets an argument that is not in the list above, and, as
+Trog::Component::render_template() does, when the render fails.
+
+    my $html = Trog::Component::Header::render( title => 'RSS', no_doctype => 1 );
 
 =cut
 

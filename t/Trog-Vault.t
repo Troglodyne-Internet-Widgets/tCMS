@@ -27,10 +27,10 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-vault-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    File::Path::make_path( map { "$ROOT/$_" } qw{config schema logs totp} );
+    File::Path::make_path( map { "$ROOT/$_" } qw{config share schema logs totp} );
     File::Copy::copy( "$REPO/schema/auth.schema", "$ROOT/schema/auth.schema" ) or die $!;
 
-    open( my $fh, '>', "$ROOT/config/default.cfg" ) or die $!;
+    open( my $fh, '>', "$ROOT/share/default.cfg" ) or die $!;
     print {$fh} "[general]\n    data_model=FlatFile\n    hostname=vault.test.test\n";
     close($fh) or die $!;
 

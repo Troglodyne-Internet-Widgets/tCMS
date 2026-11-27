@@ -1,5 +1,7 @@
 package Trog::DataSource;
 
+# ABSTRACT: The contract of a datasource, and the defaults for its optional parts
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -98,6 +100,18 @@ Nor does it paginate.  That is the route's job and is the same for every source
 A source with more to search than a title should say so by implementing filter()
 rather than by hoping this one covers it.
 
+=over 4
+
+=item query - HashRef|undef - the viewer's query; undef means no query
+
+=item posts - List[HashRef] - the synthesized posts
+
+=back
+
+Returns List[HashRef], the posts that match, in the order they came.
+
+    my @posts = Trog::DataSource::filter( { like => 'web' }, @posts );
+
 =cut
 
 sub filter ( $query, @posts ) {
@@ -148,6 +162,18 @@ weight in practice, because a source that builds its posts on the fly tends to
 stamp them all with the time it built them: every libvirt guest comes back with
 the same created, so what this really does for that page is sort it by name.
 
+The first argument is the query.  This default does not read it.
+
+=over 4
+
+=item posts - List[HashRef] - the posts to sort
+
+=back
+
+Returns List[HashRef], the posts in order.
+
+    my @sorted = Trog::DataSource::order( $query, @posts );
+
 =cut
 
 sub order ( $, @posts ) {
@@ -162,6 +188,10 @@ What the search box searches on a page drawn from a datasource which hasn't said
 Not the data model's answer: the model's query language describes what it can do
 to the datastore, and a datasource page is not being served out of the datastore.
 
+Returns Str, the name of the query language.
+
+    my $lang = Trog::DataSource::lang();
+
 =cut
 
 sub lang { return 'Case insensitive substring' }
@@ -169,6 +199,10 @@ sub lang { return 'Case insensitive substring' }
 =head2 help() = STRING
 
 Where to read about it.
+
+Returns Str, the URL of a page about the query language.
+
+    my $help = Trog::DataSource::help();
 
 =cut
 
@@ -193,6 +227,16 @@ Absent means not cacheable.  A source whose author has not thought about
 invalidation gets the answer that is merely slow rather than the one that is
 wrong.
 
+=over 4
+
+=item source - Str - the name of a loaded datasource module
+
+=back
+
+Returns Bool, 1 when $source can CACHEABLE and it returns true, else 0.
+
+    $query->{nocache} = 1 unless Trog::DataSource::cacheable($source);
+
 =cut
 
 sub cacheable ($source) {
@@ -206,7 +250,20 @@ The datasource a post type names, or nothing when it names none.
 
 Checked against this namespace rather than requiring whatever we were told to:
 the name comes out of a sidecar, and a sidecar cannot be allowed to make us load
-an arbitrary module.  Returns the module name without loading it; see load().
+an arbitrary module.  It does not load the module; see load().  It warns when
+the type names a module outside this namespace.
+
+=over 4
+
+=item form - Str - the name of a post type, such as C<blog.tx>; the default is
+the empty string
+
+=back
+
+Returns Str|undef, the name of the datasource module, or undef when $form is
+empty, names no datasource, or names one outside this namespace.
+
+    my $source = Trog::DataSource::for_type( $series->{child_form} );
 
 =cut
 
@@ -227,7 +284,18 @@ sub for_type ( $form = '' ) {
 
 =head2 load($source) = BOOL
 
-Load a datasource named by for_type(), returning whether it worked.
+Load a datasource named by for_type(), returning whether it worked.  When the
+module does not load, it warns with the reason.
+
+=over 4
+
+=item source - Str - the name of the datasource module
+
+=back
+
+Returns Bool, 1 when the module loads, else 0.
+
+    return @$posts unless Trog::DataSource::load($source);
 
 =cut
 

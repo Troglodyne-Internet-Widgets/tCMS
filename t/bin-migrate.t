@@ -30,9 +30,9 @@ BEGIN {
     $ROOT   = File::Temp::tempdir( 'tcms-migrate-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
     $ENV{HOME} = $ROOT;
-    for my $dir    (qw{config schema data/files logs}) { File::Path::make_path("$ROOT/$dir") }
-    for my $schema (qw{flatfile.schema sqlite.schema}) { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
-    File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
+    for my $dir    (qw{config share schema data/files logs}) { File::Path::make_path("$ROOT/$dir") }
+    for my $schema (qw{flatfile.schema sqlite.schema})       { File::Copy::copy( "$REPO/schema/$schema", "$ROOT/schema/$schema" ) or die $! }
+    File::Copy::copy( "$REPO/share/default.cfg", "$ROOT/share/default.cfg" ) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }

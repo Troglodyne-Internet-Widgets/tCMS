@@ -1,5 +1,7 @@
 package Trog::Log;
 
+# ABSTRACT: Logging for tCMS, to a rotated file, the screen and the log database
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -41,9 +43,9 @@ Import the level subroutines you need, or C<:all>:
 =head1 Termination Conditions
 
 log_init() dies if it isn't told where to log and at what level.  FATAL() dies
-by design, that being the point of it.  Note that the level subroutines will
-themselves die on an undefined $log, so log_init() has to have run first --
-which the server does per-worker, and CLI tools have to do for themselves.
+by design, that being the point of it.  The level subroutines do not need
+log_init() to have run: before it, they write to stderr.  The server calls
+log_init() for each request, and CLI tools have to call it for themselves.
 
 =head1 VARIABLES
 
@@ -62,7 +64,7 @@ Where the current request came from, same deal.  Defaults to '0.0.0.0'.
 
 =head1 FUNCTIONS
 
-=head2 log_init(STRING logname, STRING level, [ARRAYREF loggers]) = BOOL
+=head2 log_init($logname, $level, $loggers) = BOOL
 
 Build the logger.  Must be called before anything tries to log.
 
@@ -75,7 +77,24 @@ C<min_level> and C<log_dir> as tPSGI gives them.  The server passes the
 C<loggers> of tpsgi.ini, so that one setting sends the lines of tPSGI and of
 tCMS to the same places.  See Trog::Log::Syslog.
 
+It also sets the request ID to C<INIT>; see uuid().
+
+=over 4
+
+=item logname - Str - the path of the log file
+
+=item level - Str - a Log::Dispatch level, such as C<info> or C<debug>
+
+=item loggers - ArrayRef[Str]|undef - the classes of more outputs; optional
+
+=back
+
 Returns 1.
+
+Dies when $logname or $level is false.  It also dies when a class in $loggers
+does not load, or when the log database cannot be opened.
+
+    log_init( "$tpsgi->{log_dir}/tpsgi.log", $tpsgi->{verbose} ? 'debug' : 'info', $tpsgi->{loggers} );
 
 =cut
 
@@ -132,6 +151,10 @@ my $rq;
 The handle to the log database, under the log directory, with its schema
 applied.  Trog::SQLite caches it, so every call gets the same one.
 
+Returns DBI::db, the handle.
+
+    my $rows = Trog::Log::dbh()->selectall_arrayref( $query, undef, @input );
+
 =cut
 
 sub dbh {
@@ -143,6 +166,11 @@ sub dbh {
 Whether we were initialized at debug level.  Useful for skipping the
 construction of an expensive message which would only be thrown away.
 
+Returns Bool, true when the level is C<debug>.  Before log_init() has run, the
+level is C<info>, so it returns false.
+
+    $totp->{DEBUG} = 1 if is_debug();
+
 =cut
 
 sub is_debug {
@@ -150,13 +178,28 @@ sub is_debug {
     return $LEVEL eq 'debug';
 }
 
-=head2 uuid([STRING requestid]) = STRING
+=head2 uuid($requestid) = STRING
 
 Get, or set, the request ID stamped onto every log line.
 
-The server sets this once per request so that the lines belonging to it can be
-picked back out of an interleaved log, and so that Trog::Log::DBI can group a
-request's messages under the request itself.
+A request ID lets the lines that belong to one request be picked back out of an
+interleaved log, and lets Trog::Log::DBI group a request's messages under the
+request itself.  Nothing in tCMS sets one per request: log_init() sets it to
+C<INIT>, and the server calls log_init() for each request.  tPSGI stamps the
+lines that its own logger writes with an ID of each request.
+
+=over 4
+
+=item requestid - Str - the new request ID; optional.  A false value does not
+change the stored ID.
+
+=back
+
+Returns Str|undef, $requestid when it is defined, else the stored ID.  The
+stored ID is undef until something sets it.
+
+    uuid($requestid);
+    my $requestid = uuid();
 
 =cut
 
@@ -182,9 +225,9 @@ my sub _log {
     return "$tstamp [$level]: RequestId $uuid From $Trog::Log::ip |$Trog::Log::user| $msg\n";
 }
 
-=head2 DEBUG(STRING msg), INFO(STRING msg), WARN(STRING msg), FATAL(STRING msg)
+=head2 DEBUG($msg)
 
-Log a message at the named level.
+Log a message at the debug level.
 
 Lines are formatted as an ISO8601 timestamp, the level, the request ID, the
 originating IP and the user, followed by the message.  Don't change the leading
@@ -197,6 +240,20 @@ the thing you reach for when something has already gone wrong, so a logger that
 dies because it wasn't set up first turns a diagnostic into an outage -- and
 plenty of callers legitimately run uninitialized, such as the scripts in bin/
 and the test suite.
+
+The same is true of INFO(), WARN() and FATAL().
+
+=over 4
+
+=item msg - Str|undef - the message.  When it is undef, the line says that no
+message was passed.
+
+=back
+
+Returns 1 when it writes the line to stderr, and nothing when the logger has
+the line.
+
+    DEBUG("Skipping $name: it points outside $root");
 
 =cut
 
@@ -211,9 +268,61 @@ my sub emit ( $level, $method, $msg ) {
 
 sub DEBUG { return emit( 'DEBUG', 'debug', shift ) }
 
+=head2 INFO($msg)
+
+Log a message at the info level, as DEBUG() does.
+
+=over 4
+
+=item msg - Str|undef - the message
+
+=back
+
+Returns 1 when it writes the line to stderr, and nothing when the logger has
+the line.
+
+    INFO("Guest action '$action' on '$safe' requested by $user");
+
+=cut
+
 sub INFO { return emit( 'INFO', 'info', shift ) }
 
+=head2 WARN($msg)
+
+Log a message at the warning level, as DEBUG() does.
+
+=over 4
+
+=item msg - Str|undef - the message
+
+=back
+
+Returns 1 when it writes the line to stderr, and nothing when the logger has
+the line.
+
+    WARN("Datasource '$source' will not load: $@");
+
+=cut
+
 sub WARN { return emit( 'WARN', 'warning', shift ) }
+
+=head2 FATAL($msg)
+
+Log a message at the error level, and then die with the line.  It never
+returns.  Before log_init() has run, it dies with the line and writes nothing
+else.
+
+=over 4
+
+=item msg - Str|undef - the message
+
+=back
+
+Dies always, with the formatted line as the error.
+
+    FATAL("Could not send email from $from to $email!");
+
+=cut
 
 sub FATAL {
     my $line = _log( shift, 'FATAL' );

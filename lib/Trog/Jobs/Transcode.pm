@@ -1,5 +1,7 @@
 package Trog::Jobs::Transcode;
 
+# ABSTRACT: The transcode of an uploaded video, in the worker of the queue
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -12,10 +14,6 @@ use URI::Escape();
 use Trog::Config();
 use Trog::Jobs();
 use Trog::Utils();
-
-=head1 NAME
-
-Trog::Jobs::Transcode - the transcode of an uploaded video, in the worker of the queue
 
 =head1 DESCRIPTION
 
@@ -42,6 +40,20 @@ The command line, as a list, that makes the file $out of the file $in.  A list
 because no shell reads it.  C<-protocol_whitelist file> comes before C<-i>, so
 that a playlist inside an upload can fetch no URL and read no other file.
 
+=over 4
+
+=item in - Str - the file to read
+
+=item out - Str - the file to write
+
+=item profile - Str - the name of a profile in C<%Trog::Jobs::profiles>, such as C<av1>
+
+=back
+
+Returns Array of Str, the program C<ffmpeg> and its arguments.
+
+    my @cmd = Trog::Jobs::Transcode::ffmpeg_command( 'www/in.mov', 'www/out.part', 'av1' );
+
 =cut
 
 sub ffmpeg_command ( $in, $out, $profile ) {
@@ -54,6 +66,19 @@ Run the command and wait for it for at most C<$ffmpeg_timeout> seconds.  Kills
 it at the limit.  Dies with the reason if it fails, and the reason has the end
 of what ffmpeg said.  The reason gives the exit status, or the name of the
 signal that killed ffmpeg.
+
+=over 4
+
+=item @command - Str - the program and its arguments, as ffmpeg_command() gives them
+
+=back
+
+Returns Int, 1 when the command exits 0.
+
+Dies when the program is not installed, does not run, runs for too long, is
+killed by a signal, or exits with a status that is not 0.
+
+    run_ffmpeg( ffmpeg_command( $in, $part, $profile ) );
 
 =cut
 
@@ -80,6 +105,16 @@ sub run_ffmpeg (@command) {
 The name of the signal $number on this system, such as C<SEGV>, or the number
 itself if the system has no name for it.
 
+=over 4
+
+=item number - Int - the number of the signal
+
+=back
+
+Returns Str|Int, the name, or $number.
+
+    my $name = Trog::Jobs::Transcode::signal_name(9);
+
 =cut
 
 sub signal_name ($number) {
@@ -89,13 +124,26 @@ sub signal_name ($number) {
 
 =head2 transcode($href) = HASHREF
 
-Make the files of outputs_for($href) from the original at $href.  Returns the
-outputs by profile name.  Dies with the reason if one fails, and then leaves no
-partial file.  The original stays.
+Make the files of outputs_for($href) from the original at $href.  The original
+stays.
 
 A file that is there is not made again, and one is never written over.  A
 finished output takes its name by a hard link, which fails if the name is
 taken.  So a file that tCMS served is never changed in place.
+
+=over 4
+
+=item href - Str - the C</assets/...> path of the original
+
+=back
+
+Returns HashRef[Str], the outputs by profile name, as outputs_for() of
+L<Trog::Jobs> gives them.
+
+Dies with the reason if $href is not an asset path, if the original is
+missing, or if one output fails, and then leaves no partial file.
+
+    my $outputs = Trog::Jobs::Transcode::transcode($href);
 
 =cut
 
@@ -126,7 +174,7 @@ sub transcode ($href) {
 =head2 update_posts($href, $outputs) = INTEGER
 
 Point each post whose C<href> names the file of $href at the files of
-$outputs, and save it as a new version.  Returns how many posts it saved.
+$outputs, and save it as a new version.
 
 $href is the name of the file, as C</assets/a b.mp4>, because transcode() reads
 the file by it, so it is not decoded.  A post matches when its C<href> decoded
@@ -135,6 +183,18 @@ encoded holds the name as it is, and matches too.
 
 The outputs are names of files too, so each post gets them percent-encoded,
 as C</assets/a%20b.av1.mp4>, whatever its own C<href> holds.
+
+=over 4
+
+=item href - Str - the C</assets/...> path of the original, not encoded
+
+=item outputs - HashRef[Str] - the outputs by profile name, as transcode() gives them
+
+=back
+
+Returns Int, how many posts it saved.
+
+    my $saved = Trog::Jobs::Transcode::update_posts( $href, $outputs );
 
 =cut
 
@@ -152,6 +212,31 @@ sub update_posts ( $href, $outputs ) {
     }
     return $saved;
 }
+
+=head2 transcode_task($job, $href)
+
+The task C<transcode>.  Makes the outputs of $href with transcode(), and
+points the posts at them with update_posts().  When no post holds $href yet,
+it retries the job in a minute, up to five times.  The result of the job has
+C<outputs> and C<posts>, how many posts it saved.  When the transcode fails,
+the job fails with the reason.
+
+=over 4
+
+=item job - Minion::Job - the job
+
+=item href - Str - the C</assets/...> path of the video
+
+=back
+
+Returns Bool, what L<Minion::Job/fail>, L<Minion::Job/retry> or
+L<Minion::Job/finish> returns.
+
+Minion calls it as
+
+    Trog::Jobs::Transcode::transcode_task( $job, $href );
+
+=cut
 
 # The post may not be written when the job starts, because the upload enqueues
 # the job before add() stores the post.  So with no post to update, try again

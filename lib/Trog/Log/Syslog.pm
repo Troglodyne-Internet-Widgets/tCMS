@@ -1,5 +1,7 @@
 package Trog::Log::Syslog;
 
+# ABSTRACT: A Log::Dispatch output that sends each line to the syslog of the machine
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -34,11 +36,31 @@ arrive.
 
 =head1 METHODS
 
-=head2 new(%options) = Trog::Log::Syslog
+=head2 new(%p) = Trog::Log::Syslog
 
 Takes what tPSGI hands every logger, C<min_level> and C<log_dir>, and ignores
 C<log_dir>.  C<socket> is where to send, F</dev/log> unless a test says
 otherwise.  C<ident> is the tag, C<tcms> unless given.
+
+=over 4
+
+=item name - Str - the name of the output; optional
+
+=item min_level - Str - the lowest Log::Dispatch level to send
+
+=item max_level - Str - the highest Log::Dispatch level to send; optional
+
+=item socket - Str - the path of the unix socket; F</dev/log> by default
+
+=item ident - Str - the tag of each line; C<tcms> by default
+
+=back
+
+Returns Trog::Log::Syslog, the output.
+
+Dies when it cannot connect to the socket.
+
+    my $output = Trog::Log::Syslog->new( min_level => 'info', log_dir => $dir );
 
 =cut
 
@@ -62,7 +84,21 @@ sub new ( $class, %p ) {
 
 =head2 log_message(%p)
 
-Called by Log::Dispatch for each line at or above C<min_level>.
+Called by Log::Dispatch for each line at or above C<min_level>.  It sends
+the message without its trailing newline, at the syslog severity of its level.
+A line that cannot be sent is dropped.
+
+=over 4
+
+=item level - Str - the Log::Dispatch level of the line
+
+=item message - Str - the line
+
+=back
+
+Returns nothing.
+
+    $output->log_message( level => 'info', message => "a line\n" );
 
 =cut
 

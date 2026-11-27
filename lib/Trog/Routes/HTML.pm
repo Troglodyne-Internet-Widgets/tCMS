@@ -1,5 +1,7 @@
 package Trog::Routes::HTML;
 
+# ABSTRACT: The routes of tCMS that answer with HTML pages, and the helpers that build them
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -481,9 +483,19 @@ my sub feedback_redirect ( $query, $to, $failure, $message ) {
     return $response;
 }
 
-=head2 feedback_cookie($failure, $message) = STRING
+=head2 feedback_cookie($failure, $message)
 
 The Set-Cookie which carries a save's outcome to the page it redirects to.
+
+    my $cookie = feedback_cookie( $failure, $message );
+
+=over 4
+
+=item failure - Bool - true when the save failed
+
+=item message - Str|Undef - the message for the banner
+
+=back
 
 A cookie because a redirect's own headers are gone by the time the destination
 renders, and a cookie is the one header that survives the hop.  It used to be a
@@ -496,6 +508,8 @@ Trimmed to one line, because the banner puts it in a JS string literal, and
 capped at $feedback_max characters, because a cookie has a size limit of its own
 and nothing a person needs to read is longer than that.  The whole of it is in
 the log either way.
+
+Returns Str, the value of a Set-Cookie header for the cookie C<tcmsfeedback>.
 
 =cut
 
@@ -548,11 +562,21 @@ my sub absorb_feedback ($query) {
     return;
 }
 
-=head2 feedback_from_cookie($cookies) = ($failure, $message)
+=head2 feedback_from_cookie($cookies)
 
 Pull a save's outcome back out of the cookie feedback_redirect set.
 
-Returns nothing when there isn't one.
+    my ( $failure, $message ) = feedback_from_cookie( $query->{cookies} );
+
+=over 4
+
+=item cookies - Str|Undef - the Cookie header of the request
+
+=back
+
+Returns a list of two: Int, 1 when the save failed and 0 when it did not, and
+Str, the message.  Returns the empty list when the request has no such cookie,
+or when its value is not valid.
 
 =cut
 
@@ -646,10 +670,33 @@ my sub get_series ( $edit = 0 ) {    ## no critic (ProhibitSingleUseLexicalSubs)
     return @series;
 }
 
-=head2 index
+=head2 index($query, $content, $i_styles)
 
 Implements the primary route used by all pages not behind auth.
 Most subsequent functions simply pass content to this function.
+
+    return Trog::Routes::HTML::index( $query, undef, [qw{post.css}] );
+
+=over 4
+
+=item query - HashRef - the request, and the data for the templates.  It reads
+C<template>, the template of the content, which is the landing page when it is
+not given; C<< input->{embed} >> and C<< input->{nochrome} >>; C<cookies>, for
+the feedback of a save; C<user>; C<primary_post> and C<title>, for the title of
+the page; and C<social_meta>, C<route> and C<domain>, for the tags of social
+media.  It sets C<theme_dir>, and C<user_class> for a user.  Each other key goes
+on to the template.
+
+=item content - Str - the HTML of the content.  When it is false, index()
+renders C<template> for it.
+
+=item i_styles - ArrayRef[Str] - more stylesheets for the page.  It defaults to
+none.
+
+=back
+
+Returns ArrayRef, the PSGI response of the page.  When the render of the
+content returns a response rather than HTML, index() returns that response.
 
 =cut
 
@@ -734,9 +781,20 @@ my sub build_themed_styles ($styles) {
 
 These are expected to either return a 200, or redirect to something which does.
 
-=head2 setup
+=head2 setup($query)
 
 One time setup page; should only display to the first user to visit the site which we presume to be the administrator.
+It touches the file config/setup.
+
+    my $response = Trog::Routes::HTML::setup($query);
+
+=over 4
+
+=item query - HashRef - the request.  Each key goes on to the template.
+
+=back
+
+Returns ArrayRef, the PSGI response of the setup page, with status 200.
 
 =cut
 
@@ -754,15 +812,27 @@ sub setup ($query) {
     );
 }
 
-=head2 totp
+=head2 totp($query)
 
 Enable 2 factor auth via TOTP for the currently authenticated user.
-Returns a page with a QR code & TOTP uri for pasting into your authenticator app of choice.
+It shows a page with a QR code & TOTP uri for pasting into your authenticator app of choice.
+
+    my $response = Trog::Routes::HTML::totp($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user>, the user to enroll,
+and C<domain>, the issuer of the TOTP.  It sets C<failure> to -1 when it is not
+set.
+
+=back
 
 Every user has to enroll, so this is where a login without one lands and the only
 page it can reach until it has one.  Showing the same enrollment again is the
 point rather than a fallback: a user who lost their authenticator scans it again
 and is back where they were.
+
+Returns ArrayRef, the PSGI response of the page.
 
 =cut
 
@@ -866,9 +936,26 @@ my sub setup_initial_db ( $dat, $user, $display_name, $contact_email ) {    ## n
     return 1;
 }
 
-=head2 login
+=head2 login($query)
 
 Sets the user cookie if the provided user exists, or sets up the user as an admin with the provided credentials in the event that no users exist.
+
+    my $response = Trog::Routes::HTML::login($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user>, C<to>, C<route>,
+C<ip> and C<scheme>, and these keys of C<input>: C<username>, C<password>,
+C<token> (the TOTP code), and C<display_name> and C<contact_email> for the
+first user.
+
+=back
+
+A user who is logged in already goes to /config.  A user who logs in and has
+no TOTP yet goes to /totp.
+
+Returns ArrayRef, a PSGI response: the login page with status 200, which sets
+the cookie C<tcmslogin> when the login succeeds, or a redirect to /config.
 
 =cut
 
@@ -946,9 +1033,20 @@ sub login ($query) {
     );
 }
 
-=head2 logout
+=head2 logout($query)
 
 Deletes your users' session and opens the index.
+
+    my $response = Trog::Routes::HTML::logout($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<ip>, and deletes
+C<user>.
+
+=back
+
+Returns ArrayRef, the PSGI response of index().
 
 =cut
 
@@ -964,9 +1062,23 @@ my sub get_themes {
     return [ map { local ($_) = $_; $_->basename } grep { local ($_) = $_; $_->is_dir } Path::Tiny::path($dir)->children(qr/\A[^.]/) ];
 }
 
-=head2 config
+=head2 config($query)
 
 Renders the configuration page, or redirects you back to the login page.
+A user who is not an admin gets 403.
+
+    my $response = Trog::Routes::HTML::config($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, and
+C<message>, C<failure> and C<scheme> for the page.  C<failure> defaults to -1.
+Each other key goes on to the template.  It defaults to an empty HashRef.
+
+=back
+
+Returns ArrayRef, a PSGI response: the configuration page, a redirect to
+/login, or 403.
 
 =cut
 
@@ -1016,10 +1128,12 @@ my sub config_title ($name) {
     return join( ' ', map { ucfirst } split( ' ', $name ) );
 }
 
-=head2 config_sections() = ARRAYREF
+=head2 config_sections()
 
-The configuration editor's form, one entry per section of config/default.cfg,
+The configuration editor's form, one entry per section of share/default.cfg,
 each holding the fields that section describes:
+
+    my $sections = Trog::Routes::HTML::config_sections();
 
     { section => 'general', title => 'General', fields => [ { name, key, title, comment, value, options, multiline } ] }
 
@@ -1027,6 +1141,8 @@ Fields carry the value this instance is running with, defaulting to what
 default.cfg ships.  A field with 'options' renders as a menu, one with
 'multiline' as a textarea -- a list of embed sources is not something to edit
 through a one line input.
+
+Returns ArrayRef[HashRef], the sections, in the order of the schema.
 
 =cut
 
@@ -1092,31 +1208,11 @@ my sub stamp ($epoch) {
     return sprintf( '%04d-%02d-%02d %02d:%02d', $t[5] + 1900, $t[4] + 1, $t[3], $t[2], $t[1] );
 }
 
-=head2 resetpass
-
-=head2 do_resetpass
-
-Routes for user service of their authentication details.
-
-do_resetpass lets a logged-in user set their own password, and an admin set the
-password of anybody.  A request without a login only sends the user an email,
-whose link leads to change_request_form.  Such a request cannot carry the new
-password, so whoever asks for a reset cannot choose it.
-
-There is no route here for turning TOTP off.  Everybody has it, and losing an
-authenticator is not a reason to stop having a second factor -- bin/totp reads a
-user their existing enrollment back out of band, which is the same enrollment
-rather than a new one.
-
-=cut
-
-=head2 secrets
-
-=head2 secrets_save
-
-=head2 secrets_forget
+=head2 secrets($query)
 
 Implements /secrets, where a user manages what tCMS remembers on their behalf.
+secrets() shows the page, secrets_save() stores a secret, and secrets_forget()
+deletes one.
 
 These are passwords that are not tCMS's -- the KeePass passphrase a provisioning
 recipe's secret: values are behind, to begin with.  Storing one means the next
@@ -1131,6 +1227,19 @@ ciphertext, so a row is not readable as anybody but its owner.
 Nothing ever renders a value back.  A secret you can read off a screen is one
 you did not need us to keep -- if they have forgotten it, the answer is to
 replace it, not to be shown it.
+
+    my $response = Trog::Routes::HTML::secrets($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user>, whose secrets it
+lists, and C<failure>, which defaults to -1.  Each other key goes on to the
+template.
+
+=back
+
+Returns ArrayRef, the PSGI response of the page.  It shows when each secret was
+stored and last used, and never its value.
 
 =cut
 
@@ -1161,6 +1270,25 @@ sub secrets ($query) {
     );
 }
 
+=head2 secrets_save($query)
+
+Stores a secret of the user, encrypted, under a name.
+
+    my $response = Trog::Routes::HTML::secrets_save($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user>, the owner, and these
+keys of C<input>: C<name>, the name of the secret, and C<secret>, its value.
+It deletes C<< input->{secret} >>.
+
+=back
+
+Returns ArrayRef, a PSGI response that redirects to /secrets, with the outcome
+in the feedback cookie.
+
+=cut
+
 sub secrets_save ($query) {
     require Trog::Vault;
 
@@ -1172,6 +1300,25 @@ sub secrets_save ($query) {
     return feedback_redirect( $query, '/secrets', $ok ? 0 : 1, $message );
 }
 
+=head2 secrets_forget($query)
+
+Deletes a secret of the user.
+
+    my $response = Trog::Routes::HTML::secrets_forget($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user>, the owner, and
+C<< input->{name} >>, the name of the secret.
+
+=back
+
+Returns ArrayRef, a PSGI response that redirects to /secrets, with the outcome
+in the feedback cookie.  The outcome is a failure when nothing was stored under
+the name.
+
+=cut
+
 sub secrets_forget ($query) {
     require Trog::Vault;
 
@@ -1180,6 +1327,25 @@ sub secrets_forget ($query) {
 
     return feedback_redirect( $query, '/secrets', $gone ? 0 : 1, $gone ? "'$name' forgotten" : "there was nothing stored as '$name'" );
 }
+
+=head2 resetpass($query)
+
+Implements the page where a user asks for a reset of their authentication
+details.  do_resetpass() takes its form.
+
+    my $response = Trog::Routes::HTML::resetpass($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user_acls>, to see whether
+the user is an admin, and C<message>, C<failure> and C<scheme> for the page.
+C<failure> defaults to -1.  Each other key goes on to the template.
+
+=back
+
+Returns ArrayRef, the PSGI response of the page.
+
+=cut
 
 sub resetpass ($query) {
     $query->{failure} //= -1;
@@ -1202,6 +1368,40 @@ sub resetpass ($query) {
         [qw{config.css}],
     );
 }
+
+=head2 do_resetpass($query)
+
+Routes for user service of their authentication details.
+
+do_resetpass lets a logged-in user set their own password, and an admin set the
+password of anybody.  A request without a login only sends the user an email,
+whose link leads to change_request_form.  Such a request cannot carry the new
+password, so whoever asks for a reset cannot choose it.
+
+There is no route here for turning TOTP off.  Everybody has it, and losing an
+authenticator is not a reason to stop having a second factor -- bin/totp reads a
+user their existing enrollment back out of band, which is the same enrollment
+rather than a new one.
+
+    my $response = Trog::Routes::HTML::do_resetpass($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>; these
+keys of C<input>: C<username>, the user to reset, and C<password>, the new
+password, which only a request with a login can set; and C<domain> and
+C<scheme>, for the email and its link.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to /processed when it set the
+password or sent the email; 403 when the user does not exist, when a user who
+is not an admin names another user, or when a request without a login names a
+user who has a session; and 400 when no password was given.
+
+Dies when it cannot store the change request.
+
+=cut
 
 sub do_resetpass ($query) {
     my $user = $query->{input}{username};
@@ -1232,10 +1432,22 @@ sub do_resetpass ($query) {
     return $query->{tpsgi}->see_also("/processed");
 }
 
-=head2 change_request_form
+=head2 change_request_form($query)
 
 The page that the link in a reset email leads to: a form for the new password.
 It changes nothing, so a GET of the link by a mail scanner does no harm.
+
+    my $response = Trog::Routes::HTML::change_request_form($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<< input->{token} >>, the token
+of the change request, and puts it in the form.  Each other key goes on to the
+template.
+
+=back
+
+Returns ArrayRef, the PSGI response of the page.
 
 =cut
 
@@ -1254,10 +1466,22 @@ sub change_request_form ($query) {
     );
 }
 
-=head2 do_change_request
+=head2 do_change_request($query)
 
 Takes the form of change_request_form, and sets the new password if the token
 is one that has not been spent.  The response does not hold the password.
+
+    my $response = Trog::Routes::HTML::do_change_request($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads these keys of C<input>:
+C<token>, the token of the change request, and C<password>, the new password.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to /processed, or 403 when the
+token is spent or unknown.
 
 =cut
 
@@ -1267,14 +1491,18 @@ sub do_change_request ($query) {
     return $query->{tpsgi}->see_also("/processed");
 }
 
-=head2 get_datasources
+=head2 get_datasources()
 
 Every Trog::DataSource::* module on disk.
+
+    my $datasources = Trog::Routes::HTML::get_datasources();
 
 The wizard offers these as somewhere other than the datastore for a post type
 to get its posts from, and post_wizard_save checks a submitted one against this
 list -- the name ends up in a sidecar and is later require()d, so it has to be
 something we found rather than something we were told.
+
+Returns ArrayRef[Str], the names of the modules, sorted, each once.
 
 =cut
 
@@ -1299,6 +1527,17 @@ A datasource says so with an EDITABLE method.  One that does not say is
 assumed editable, since that is what a post type is unless it has a reason not
 to be.
 
+    if ( !Trog::Routes::HTML::datasource_editable($datasource) ) { ... }
+
+=over 4
+
+=item module - Str|Undef - the name of a Trog::DataSource module
+
+=back
+
+Returns Bool, 1 or 0.  It is 1 when $module is false, when it does not load, or
+when it has no EDITABLE method.
+
 =cut
 
 sub datasource_editable ($module) {
@@ -1308,13 +1547,26 @@ sub datasource_editable ($module) {
     return $module->EDITABLE ? 1 : 0;
 }
 
-=head2 config_save
+=head2 config_save($query)
 
 Implements /config/save route.  Saves the configuration to config/main.cfg.
 
-Only the keys config/default.cfg describes are saved, so a form which posts
+Only the keys share/default.cfg describes are saved, so a form which posts
 something the defaults never heard of writes nothing -- the schema is what is
 editable, not whatever turned up in the request.
+
+    my $response = Trog::Routes::HTML::config_save($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>,
+C<tpsgi>, to restart the workers, and C<input>, the settings by their full
+'section.key' name.  It sets C<failure> and C<message>.
+
+=back
+
+Returns ArrayRef, a PSGI response: the configuration page of config(), with
+the outcome, or the response of a request that is not from an admin.
 
 =cut
 
@@ -1337,15 +1589,28 @@ sub config_save ($query) {
     return config($query);
 }
 
-=head2 config_apply( Config::Simple conf, HASHREF input )
+=head2 config_apply($conf, $input)
 
 Copy whatever settings the form posted onto $conf, keyed by their full
 'section.key' name.  $input is the input of the request.
 
-The schema is the allowlist: a request naming something config/default.cfg does
+    config_apply( $conf, $query->{input} );
+
+=over 4
+
+=item conf - Config::Simple - the configuration to change
+
+=item input - HashRef - the input of the request.  A value can be a Str, or an
+ArrayRef of them, of which the last one counts.
+
+=back
+
+The schema is the allowlist: a request naming something share/default.cfg does
 not describe writes nothing, so a stray form field cannot invent configuration.
 Values are taken as posted, empty string included -- clearing a setting is how
 you go back to having none.
+
+Returns nothing.  It does not write $conf to disk.
 
 =cut
 
@@ -1366,11 +1631,23 @@ sub config_apply ( $conf, $input ) {
     return;
 }
 
-=head2 updates_check
+=head2 updates_check($query)
 
 Implements the /config/updates/check route.  Queues a check of the commits
-that the site runs, as L<Trog::Updates/enqueue_check> does, and goes back to
+that the site runs, as C<enqueue_check()> of L<Trog::Updates> does, and goes back to
 /config.
+
+    my $response = Trog::Routes::HTML::updates_check($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, and C<tpsgi>.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to /config, or the response of a
+request that is not from an admin.
 
 =cut
 
@@ -1381,12 +1658,27 @@ sub updates_check ($query) {
     return $query->{tpsgi}->see_also('/config');
 }
 
-=head2 updates_pull
+=head2 updates_pull($query)
 
 Implements the /config/updates/pull route.  Queues an update of the checkout
-named in C<checkout>, as L<Trog::Updates/enqueue_update> does, and goes back
+named in C<checkout>, as C<enqueue_update()> of L<Trog::Updates> does, and goes back
 to /config.  For a name that is not a checkout, it shows /config with the
 reason.
+
+    my $response = Trog::Routes::HTML::updates_pull($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, C<tpsgi>, and C<checkout>, the name of the
+checkout, a Str or an ArrayRef of which the last one counts.  It reads
+C<checkout> from the top of $query, not from C<input>.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to /config, the configuration
+page with the reason when the update cannot be queued, or the response of a
+request that is not from an admin.
 
 =cut
 
@@ -1399,9 +1691,23 @@ sub updates_pull ($query) {
     return $query->{tpsgi}->see_also('/config');
 }
 
-=head2 themeclone
+=head2 themeclone($query)
 
-Clone a theme by copying a directory.
+Clone a theme by copying a directory under www/themes.
+
+    my $response = Trog::Routes::HTML::themeclone($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, C<tpsgi>, and these keys of C<input>:
+C<theme>, the theme to copy, and C<newtheme>, the name of the copy.  It sets
+C<failure> and C<message>.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to /config, or the response of a
+request that is not from an admin.  The redirect does not carry the outcome.
 
 =cut
 
@@ -1422,9 +1728,30 @@ sub themeclone ($query) {
     return $query->{tpsgi}->see_also('/config');
 }
 
-=head2 post_save
+=head2 post_save($qq)
 
-Saves posts submitted via the /post pages
+Saves posts submitted via the /post pages.  The post is the input of the
+request, by the user who is logged in.  It drops C<acls> and C<to> of the
+input, and makes the method GET.  It then clears the cached renders, and
+restarts the workers, so that they load the new routes.
+
+    my $response = Trog::Routes::HTML::post_save($query);
+
+=over 4
+
+=item qq - HashRef - the request.  It reads C<user> and C<user_acls>, to see
+whether the user is an admin, C<tpsgi>, C<to>, the path to go back to, under
+/secure, and C<input>, the fields of the post.  C<< input->{tags} >> and
+C<< input->{attachments} >> can each be a Str or an ArrayRef.
+C<< input->{data} >> becomes an ArrayRef when C<< input->{data_is_array} >> is
+true.
+
+=back
+
+Returns ArrayRef, a PSGI response that redirects to C<to> under /secure, with
+the outcome in the feedback cookie, or the response of a request that is not
+from an admin.  A post that fails validation is not saved, and the feedback
+holds the errors.
 
 =cut
 
@@ -1482,9 +1809,26 @@ sub post_save ($qq) {
     return feedback_redirect( $qq, '/secure' . $to, 0, "Saved post '$query->{title}'." );
 }
 
-=head2 profile
+=head2 profile($query)
 
-Saves / updates new users.
+Saves / updates new users.  It changes the user in the auth database when the
+username, the password, the contact email or the display name changed, and
+then saves the profile post with post_save().
+
+    my $response = Trog::Routes::HTML::profile($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, C<tpsgi>, and C<input>: C<username>,
+C<password>, C<display_name> and C<contact_email>, and each other field of the
+profile post.
+
+=back
+
+Returns ArrayRef, a PSGI response: that of post_save(), 400 with the errors
+when the profile post is not valid, or the response of a request that is not
+from an admin.
 
 =cut
 
@@ -1541,9 +1885,24 @@ sub profile ($query) {
     return post_save( { %$query, user => $username, input => \%merged } );
 }
 
-=head2 post_delete
+=head2 post_delete($query)
 
-deletes posts.
+Deletes a post.
+
+    my $response = Trog::Routes::HTML::post_delete($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, C<tpsgi>, C<input>, the post to delete, by
+its C<id>, and C<to>, the path to go to afterwards.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to C<to>, or the response of a
+request that is not from an admin.
+
+Dies when the data model cannot delete the post.
 
 =cut
 
@@ -1604,6 +1963,23 @@ display wants.
 $cache is a per-request memo of the per-type lookups.  Without it a page of
 invoices re-scans every entities post once per invoice.
 
+    foreach my $post (@posts) { enrich_post( $post, $query, \%relation_cache ) }
+
+=over 4
+
+=item post - HashRef - the post to change.  A post that is not a HashRef, or
+has no C<form>, stays as it is.
+
+=item query - HashRef - the request.  It reads C<user_acls>, the ACLs to fetch
+the related posts with.  The enrich sub gets it too.
+
+=item cache - HashRef - the memo, by the template of each type.  It defaults to
+a new HashRef.
+
+=back
+
+Returns nothing.  It changes $post in place.
+
 =cut
 
 sub enrich_post ( $post, $query, $cache = {} ) {
@@ -1634,10 +2010,23 @@ sub enrich_post ( $post, $query, $cache = {} ) {
     return;
 }
 
-=head2 series
+=head2 series($query)
 
 Series specific view, much like the users/ route
 Displays identified series, not all series.
+
+    my $response = Trog::Routes::HTML::series($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<route>, as /$aclname or
+/series/$id, under /secure or not, and C<user_acls>.  It sets C<subhead>,
+C<title>, C<tag>, C<primary_post> and C<in_series> from the series post, and
+hands $query to posts().
+
+=back
+
+Returns ArrayRef, the PSGI response of posts().
 
 =cut
 
@@ -1701,9 +2090,21 @@ sub series ($query) {
     return posts($query);
 }
 
-=head2 avatars
+=head2 avatars($query)
 
-Returns the avatars.css.
+Renders the avatars.css: a class for the avatar of each user.
+
+    my $response = Trog::Routes::HTML::avatars($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user_acls>, and
+C<< input->{tag} >>, a Str or an ArrayRef of tags of the posts to read the
+avatars from.  It sets C<user_acls> and C<etag>.
+
+=back
+
+Returns ArrayRef, a PSGI response with status 200, whose body is the CSS.
 
 =cut
 
@@ -1731,12 +2132,23 @@ sub avatars ($query) {
     );
 }
 
-=head2 libravatar
+=head2 libravatar($query)
 
 Implements the libravatar protocol (https://wiki.libravatar.org/running_your_own/).
 Accepts GET /avatar/{hash} where {hash} is the MD5 or SHA-256 of the user's
 lowercased email address, and redirects to their profile avatar image.
-Returns 404 when no matching user is found or the user has no avatar.
+
+    my $response = Trog::Routes::HTML::libravatar($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<tpsgi>, and
+C<< input->{avatar_hash} >>, the hash, in any case.
+
+=back
+
+Returns ArrayRef, a PSGI response: a permanent redirect to the avatar, or 404
+when no matching user is found or the user has no avatar.
 
 =cut
 
@@ -1764,9 +2176,24 @@ sub libravatar ($query) {
     return $query->{tpsgi}->redirect_permanent("/$preview");
 }
 
-=head2 users
+=head2 users($query)
 
-Implements direct user profile view.
+Implements direct user profile view: the profile of the user, then their
+posts.
+
+    my $response = Trog::Routes::HTML::users($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<route>, as
+/users/$display_name, under /secure or not, C<username>, C<user_acls> and
+C<tpsgi>.  It sets C<user_obj>, C<primary_post> and other keys, and hands
+$query to posts().
+
+=back
+
+Returns ArrayRef, a PSGI response: that of posts(), or 404 when no user has
+the display name.
 
 =cut
 
@@ -1863,11 +2290,23 @@ my sub _rss ( $query, $subtitle, $posts ) {    ## no critic (ProhibitSingleUseLe
     );
 }
 
-=head2 search
+=head2 search($query)
 
 Implements /search, which the search box of a page that is not a page of
 posts sends its search to: every post that the reader can see whose title or
 body holds like.
+
+    my $response = Trog::Routes::HTML::search($query);
+
+=over 4
+
+=item query - HashRef - the request, which goes on to posts().  It sets
+C<title> and C<may_be_empty>.
+
+=back
+
+Returns ArrayRef, the PSGI response of posts().  It is a page with no posts,
+not 404, when nothing matches.
 
 =cut
 
@@ -1879,9 +2318,33 @@ sub search ($query) {
     return posts($query);
 }
 
-=head2 posts
+=head2 posts($query, $direct)
 
 Display multi or single posts, supports RSS and pagination.
+
+    return posts($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads these keys of C<input>:
+C<older>, C<newer>, C<page>, C<limit>, C<like> and C<version>, which it copies
+to the top of $query; C<format>, which is C<rss> for RSS; C<tag>; and
+C<embed> and C<nochrome>.  It also reads C<route> (or C<to> when there is no
+route), whose third part is the id of a post; C<tag>, C<in_series>,
+C<user_obj>, C<primary_post>, C<subhead> and C<title>, which a wrapping route
+such as series() or users() sets; C<user>, C<user_acls>, C<domain>,
+C<may_be_empty>, C<is_datasource>, C<form>, C<style>, C<failure>, C<message>
+and C<tpsgi>.  It changes many of them.
+
+=item direct - Bool - true to return the HTML of the posts rather than a page.
+It defaults to false.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page of posts, the RSS when C<format>
+is C<rss>, or 404 when there are no posts for a reader who is not an admin,
+unless C<may_be_empty> is true.  Returns Str, the HTML of the posts, when
+$direct is true.  When the render fails, it returns the response of the error.
 
 =cut
 
@@ -2150,6 +2613,19 @@ edited by people who did not write the type, and a value that was never handed
 over cannot be printed by mistake.  It walks into the post's relations too,
 because they are posts and carry their own private fields.
 
+    redact_private( $post, \%seen );
+
+=over 4
+
+=item post - HashRef - the post to change
+
+=item seen - HashRef - the hashes that the walk has visited, so that a hash is
+done once.  It defaults to a new HashRef.
+
+=back
+
+Returns nothing.  It changes $post in place.
+
 =cut
 
 sub redact_private ( $post, $seen = {} ) {
@@ -2178,7 +2654,7 @@ my sub host_setting ( $key, $consequence ) {
     return '';
 }
 
-=head2 secure_host() = STRING
+=head2 secure_host()
 
 The host name from C<general.secure_host> in the configuration, in lower case.
 It is empty if the setting is empty.  It is also empty, with a warning, if the
@@ -2186,16 +2662,24 @@ setting is not a bare host name of letters, digits, hyphens and dots: a
 scheme, a port, a path or a user in it is refused.  TCMS.pm says what tCMS
 does differently when it is set.
 
+    my $secure_host = Trog::Routes::HTML::secure_host();
+
+Returns Str, the host name, or an empty string.
+
 =cut
 
 sub secure_host {
     return host_setting( 'general.secure_host', 'the pages that need a login stay on every host' );
 }
 
-=head2 public_host() = STRING
+=head2 public_host()
 
 The host name from C<general.hostname>, checked as secure_host() checks its
 setting.  It is where the secure host sends a reader's page.
+
+    my $public_host = Trog::Routes::HTML::public_host();
+
+Returns Str, the host name, or an empty string.
 
 =cut
 
@@ -2217,6 +2701,21 @@ logged in reader fetch those files, and the media host knows no session.
 It changes $post in place.  So call it only for a reader who cannot edit the
 post, because an edit form would save the new URL into the post.  $seen is as
 for redact_private().
+
+    media_urls( $post, Trog::Config::media_base(), \%moved );
+
+=over 4
+
+=item post - HashRef - the post to change
+
+=item base - Str - the URL of the media host, with no slash at the end
+
+=item seen - HashRef - the hashes that the walk has visited.  It defaults to a
+new HashRef.
+
+=back
+
+Returns nothing.
 
 =cut
 
@@ -2247,8 +2746,22 @@ sub media_urls ( $post, $base, $seen = {} ) {
 =head2 datasource_posts($query, $posts)
 
 Swap a series' children for whatever its datasource says they are, if its child
-type declares one.
+type declares one.  The datasource builds, filters and orders them.  When one
+of those steps dies, it logs a warning and keeps the posts of the step before.
 
+    @posts = datasource_posts( $query, \@posts );
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<primary_post>, the series,
+whose C<child_form> names the type.  It sets C<is_datasource>, and C<nocache>
+when the datasource cannot say when its posts go stale.
+
+=item posts - ArrayRef[HashRef] - the posts from the datastore
+
+=back
+
+Returns a list of HashRef, the posts that the datasource built.
 Returns the posts unchanged for every ordinary type, which is nearly all of
 them -- this is a hook, not a detour every page takes.
 
@@ -2313,9 +2826,24 @@ sub datasource_posts ( $query, $posts ) {
     return @ordered;
 }
 
-=head2 paginate_offset($query, $limit, @posts) = ($page, $pages_total, @page_of_posts)
+=head2 paginate_offset($query, $limit, @posts)
 
 The slice of @posts the reader asked for, by page number.
+
+    my ( $page_of, $pages_total, @page ) = paginate_offset( $query, $limit, @posts );
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<page>, the page number.  It
+keeps only the digits of it.  It defaults to 1, and a page past the end is the
+last page.
+
+=item limit - Int - the number of posts on a page.  It is 25 when it is not 1
+or more.
+
+=item posts - List of HashRef - all the posts
+
+=back
 
 Stored posts page by a cursor: the datastore is asked for the $limit posts older
 than a timestamp, and the paginator hands back the oldest one on the page as the
@@ -2327,6 +2855,9 @@ the time we see them -- and it does not work at all for one which stamps them
 all with the time it built them, as libvirt guests are.  Every cursor on such a
 page is the same instant, so Prev asks for everything older than now and gets
 nothing.  Offset costs nothing here and moves.
+
+Returns a list: Int, the page number; Int, the number of pages, at least 1;
+and the posts of the page.
 
 =cut
 
@@ -2355,6 +2886,18 @@ sub paginate_offset ( $query, $limit, @posts ) {
 
 What to tell the reader the search box searches, as (language, help link).
 
+    my ( $search_lang, $search_help ) = search_language($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<primary_post>, whose
+C<child_form> can name a type with a datasource.
+
+=back
+
+Returns a list of two Str: the language of the search, and the link to its
+help.
+
 The data model's answer describes what it can do to the datastore, which is the
 right answer for nearly every page.  It is the wrong one for a page whose posts
 are built by a datasource rather than read out of the datastore, so such a page
@@ -2377,12 +2920,25 @@ sub search_language ($query) {
     return ( scalar $lang->(), scalar $help->() );
 }
 
-=head2 viewer_acls($query, $direct) = LIST
+=head2 viewer_acls($query, $direct)
 
 The acls to fetch posts for this viewer with: their own, and public, plus
 unlisted when the route names one post directly, plus private for an admin.
 A logged out visitor holds no acls of their own, and would see nothing without
 this.
+
+    $query->{user_acls} = [ viewer_acls( $query, $query->{id} ) ];
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user_acls>.
+
+=item direct - Bool - true when the route names one post.  It defaults to
+false.
+
+=back
+
+Returns a list of Str, the acls, each once.
 
 =cut
 
@@ -2393,11 +2949,29 @@ sub viewer_acls ( $query, $direct = 0 ) {
     return List::Util::uniq(@acls);
 }
 
-=head2 post_helper($query, $tags, $acls) = LIST
+=head2 post_helper($query, $tags, $acls)
 
 The posts that a listing shows: those tagged one of @$tags that @$acls can
 see, filtered and paged by the fields of $query.  page defaults to 1 and limit
 to 25.  For a logged in user, each local_href is under /secure.
+
+    my @posts = post_helper( $query, $tags, $query->{user_acls} );
+
+=over 4
+
+=item query - HashRef - the filters.  It reads C<older>, C<newer>, C<page>,
+C<limit>, C<exclude_tags>, C<aclname>, C<like>, C<author>, C<id>, C<version>,
+C<form> and C<user>.  It sets C<page> and C<limit> to their defaults when they
+are false.
+
+=item tags - ArrayRef[Str] - the tags.  An empty ArrayRef does not filter by
+tag.
+
+=item acls - ArrayRef[Str] - the acls to see posts with
+
+=back
+
+Returns a list of HashRef, the posts.
 
 =cut
 
@@ -2431,7 +3005,7 @@ sub post_helper ( $query, $tags, $acls ) {
     return @d;
 }
 
-=head2 sitemap
+=head2 sitemap($query)
 
 Return the sitemap index unless the static or a set of dynamic routes is requested.
 We have a maximum of 99,990,000 posts we can make under this model
@@ -2442,6 +3016,21 @@ Passing ?xml=1 will result in an appropriate sitemap.xml instead.
 This is used to generate the static sitemaps as expected by search engines.
 
 Passing compressed=1 will gzip the output.
+
+    my $response = Trog::Routes::HTML::sitemap($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads these keys of C<input>: C<map>,
+which is empty for the index, C<static> for the static routes, or the number
+of a page of posts; C<xml>; and C<compressed>.  It also reads C<domain>.  For
+the page of HTML, it sets C<title>, C<template>, C<to_map> and other keys, and
+hands $query to index().
+
+=back
+
+Returns ArrayRef, a PSGI response: the XML when C<xml> is true, which is gzip
+when C<compressed> is true, or else the page of HTML of index().
 
 =cut
 
@@ -2587,11 +3176,27 @@ sub sitemap ($query) {
     return Trog::Routes::HTML::index( $query, undef, $styles );
 }
 
-=head2 manual
+=head2 manual($query)
 
-Implements the /manual and /lib/* routes.
+Implements the /manual and /lib/* routes.  Admin only.
 
 Basically a thin wrapper around Pod::Html.
+
+    my $response = Trog::Routes::HTML::manual($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, C<tpsgi>, and C<< input->{module} >>, the
+path of a module under a directory of @INC, without C<.pm>.  A C<.html> at the
+end is dropped.  With no module, it shows tCMS/Manual.pod.  Each other key
+goes on to the template.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page of the POD, 404 when no directory
+of @INC holds the file, or the response of a request that is not from an
+admin.
 
 =cut
 
@@ -2629,13 +3234,17 @@ sub manual ($query) {
     );
 }
 
-=head2 processed
+=head2 processed()
 
 Implements /processed.
 
 The "we got it, go check your email" page, shown after a request that finishes
 out of band -- password and TOTP resets, chiefly.  Deliberately says nothing
-about whether the account existed.
+about whether the account existed.  It reads nothing of the query.
+
+    my $response = Trog::Routes::HTML::processed();
+
+Returns ArrayRef, the PSGI response of the page.
 
 =cut
 
@@ -2650,13 +3259,26 @@ sub processed {
     );
 }
 
-=head2 metrics
+=head2 metrics($query)
 
 Implements /metrics.  Admin only.
 
 Renders the request metrics dashboard.  The page pulls its actual numbers from
 /api/requests_per over XHR and draws them with chart.js, so there's nothing to
 compute here.
+
+    my $response = Trog::Routes::HTML::metrics($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, and C<failure>, which defaults to -1.  Each
+other key goes on to the template.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page, or the response of a request that
+is not from an admin.
 
 =cut
 
@@ -2678,7 +3300,7 @@ sub metrics ($query) {
     );
 }
 
-=head2 sessions
+=head2 sessions($query)
 
 Implements /sessions.  Admin only.
 
@@ -2689,6 +3311,19 @@ parameters, and capped by limit (100 by default).
 Timestamps are formatted here rather than in the template, and session ids are
 truncated to their first 8 characters -- there's no reason to put a live
 session id on a page.
+
+    my $response = Trog::Routes::HTML::sessions($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, and these keys of C<input>: C<limit>,
+C<filter_user> and C<filter_event>.  Each other key goes on to the template.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page, or the response of a request that
+is not from an admin.
 
 =cut
 
@@ -2729,13 +3364,26 @@ sub sessions ($query) {
     );
 }
 
-=head2 jobs
+=head2 jobs($query)
 
 Implements /admin/jobs.  Admin only.
 
 The jobs of the queue, newest first, capped by limit (100 by default): the task
 and the state, the file that the job is for, when it was made, started and
 finished, and for a job that failed, why.
+
+    my $response = Trog::Routes::HTML::jobs($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, and C<< input->{limit} >>.  Each other key
+goes on to the template.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page, or the response of a request that
+is not from an admin.
 
 =cut
 
@@ -2773,12 +3421,27 @@ sub jobs ($query) {
     );
 }
 
-=head2 jobs_retry
+=head2 jobs_retry($query)
 
 Implements /admin/jobs/retry.  Admin only.
 
-Puts the failed job C<id> back in the queue, as L<Trog::Jobs/retry_failed>
+Puts the failed job C<id> back in the queue, as C<retry_failed()> of L<Trog::Jobs>
 does, and goes back to /admin/jobs, which says whether it did.
+
+    my $response = Trog::Routes::HTML::jobs_retry($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin, C<tpsgi>, and C<< input->{id} >>, the number
+of the job, a Str or an ArrayRef of which the last one counts.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to /admin/jobs with the outcome
+in the feedback cookie, or the response of a request that is not from an
+admin.  The outcome is a failure when C<id> is not a number, or when the job
+is not a failed job.
 
 =cut
 
@@ -2856,13 +3519,29 @@ my sub guest_hypervisor ( $query, $id ) {
     return $found[0];
 }
 
-=head2 guest_screenshot
+=head2 guest_screenshot($query)
 
 Implements GET /guest/screenshot/$hypervisor/$guest.  Admin only.
 
 Served as its own route rather than inlined into the guest listing, so that a
 page of guests renders immediately and the browser fetches the console
 captures in parallel instead of us taking them one after another.
+
+    my $response = Trog::Routes::HTML::guest_screenshot($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin and to find the hypervisor post; these keys
+of C<input>: C<hypervisor>, the id of the hypervisor post, and C<guest>, the
+name of the guest; and C<tpsgi>, C<route>, C<start>, C<streaming>, C<ranges>,
+C<last_fetched> and C<deflate>, to serve the file.
+
+=back
+
+Returns ArrayRef, a PSGI response: the screenshot, 404 when there is no such
+hypervisor or the screenshot fails, or the response of a request that is not
+from an admin.
 
 =cut
 
@@ -2886,13 +3565,27 @@ sub guest_screenshot ($query) {
     );
 }
 
-=head2 guest_act
+=head2 guest_act($query)
 
 Implements POST /guest/act.  Admin only.
 
 Powering a guest on or off, snapshotting it, or destroying it.  Separate from
 everything that merely reads a guest, and the only route which reaches
 Trog::DataSource::Virt::act.
+
+    my $response = Trog::Routes::HTML::guest_act($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>,
+C<tpsgi>, C<to>, the path to go back to, which defaults to /, and these keys
+of C<input>: C<action>, C<hypervisor>, the id of the hypervisor post, and
+C<guest>, the name of the guest.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to C<to> with the outcome in the
+feedback cookie, or the response of a request that is not from an admin.
 
 =cut
 
@@ -2914,7 +3607,7 @@ sub guest_act ($query) {
     return feedback_redirect( $query, $to, $ok ? 0 : 1, "$in->{guest}: $message" );
 }
 
-=head2 guest_reprovision
+=head2 guest_reprovision($query)
 
 Implements POST /guest/reprovision.  Admin only.
 
@@ -2929,6 +3622,20 @@ What the provisioner needs arrives with the request and never lands in this hash
 the passphrase to its secrets database, the sudo password on the hypervisor if
 that login has no passwordless sudo, or a TOTP code which is spent and exchanged
 for whichever of those they kept last time.
+
+    my $response = Trog::Routes::HTML::guest_reprovision($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>,
+C<tpsgi>, C<to>, the path to go back to, which defaults to /, and these keys
+of C<input>: C<guest>, C<passphrase>, C<sudo>, C<totp> and C<remember>.  It
+deletes C<passphrase>, C<sudo> and C<totp> from C<input>.
+
+=back
+
+Returns ArrayRef, a PSGI response: a redirect to C<to> with the outcome in the
+feedback cookie, or the response of a request that is not from an admin.
 
 =cut
 
@@ -2958,7 +3665,7 @@ sub guest_reprovision ($query) {
     return feedback_redirect( $query, $to, $ok ? 0 : 1, ( $in->{guest} // 'guest' ) . ": $message" );
 }
 
-=head2 guest_reprovision_log
+=head2 guest_reprovision_log($query)
 
 Implements GET /guest/reprovision/log/$guest.  Admin only.
 
@@ -2969,6 +3676,20 @@ account of what happened there is.
 Admin only and served rather than linked directly, because it lives in logs/
 rather than under www/ -- and because the output of a provisioner is a
 reasonable place for a hostname, an IP plan or a package list to turn up.
+
+    my $response = Trog::Routes::HTML::guest_reprovision_log($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>,
+C<tpsgi>, and C<< input->{guest} >>, the name of the guest.  Each other key
+goes on to the template.
+
+=back
+
+Returns ArrayRef, a PSGI response: the log as plain text with status 200, 404
+when the guest has no log, or the response of a request that is not from an
+admin.
 
 =cut
 
@@ -2994,7 +3715,7 @@ my sub wizard_scalar ( $value = '' ) {
     return $value;
 }
 
-=head2 post_wizard
+=head2 post_wizard($query)
 
 Implements /admin/wyzzerdd.  Admin only.
 
@@ -3005,6 +3726,22 @@ form comes back.
 Re-rendered by post_wizard_save() on both success and failure, so it keeps the
 submitted values and checkbox states rather than making the admin retype
 everything after a rejected submission.
+
+    my $response = Trog::Routes::HTML::post_wizard($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>, to
+see whether the user is an admin; C<wizard_submitted>, which post_wizard_save()
+sets; C<failure>, which defaults to -1, C<message> and C<to>; and these keys
+of C<input>: each checkbox, C<description>, C<datasource>, C<name>,
+C<title_placeholder>, C<body_form> and C<display>.  Each other key goes on to
+the template.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page of the wizard, or the response of
+a request that is not from an admin.
 
 =cut
 
@@ -3190,14 +3927,31 @@ my sub wizard_template ( $query, $fields, $includes, $body_form, $datasource = '
     return $out;
 }
 
-=head2 post_wizard_save
+=head2 post_wizard_save($query)
 
-Implements POST /admin/wyzzerdd/save.
+Implements POST /admin/wyzzerdd/save.  Admin only.
 
 Writes a new post type template into whichever forms directory is currently in
 use, along with a JSON sidecar naming its custom fields so that
 Trog::DataModule::schema_for will merge it over the base post schema, so the
 type's own fields survive validation at save time.
+
+    my $response = Trog::Routes::HTML::post_wizard_save($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<user> and C<user_acls>,
+C<tpsgi>, and C<input>, the form of the wizard: C<name>, C<overwrite>,
+C<datasource>, C<description>, C<display>, C<title_placeholder>,
+C<body_form>, the checkboxes, and the C<param_*> arrays that wizard_fields()
+reads.  It always ticks the checkboxes of a title, a visibility and acls.
+
+=back
+
+Returns ArrayRef, a PSGI response: the page of post_wizard() with the outcome,
+or the response of a request that is not from an admin.  A failure, such as a
+name that is not valid, a type that exists without C<overwrite>, a datasource
+that is not on disk, or a write that fails, shows the page with the reason.
 
 =cut
 
@@ -3297,10 +4051,19 @@ sub post_wizard_save ($query) {
     );
 }
 
-=head2 short_error($error) = STRING
+=head2 short_error($error)
 
 An error as a person should see it: the first line, without the file and line
 number Perl glued onto the end.
+
+    my $why = join( "\n", map { short_error($_) } @errors );
+
+=over 4
+
+=item error - Str - the error, or an object that becomes one as a string.  It
+defaults to an empty string.
+
+=back
 
 add() dies with an arrayref of validation errors precisely so that they arrive
 clean, but a failure further down -- a write that could not land, say -- is an
@@ -3308,6 +4071,8 @@ ordinary string die, and Carp::Always decorates those with the entire call
 stack.  That whole thing used to go to the user.
 
 The undecorated original is logged; this is only what reaches the banner.
+
+Returns Str, the first line of the error, without its location.
 
 =cut
 
@@ -3473,9 +4238,21 @@ my sub wizard_display_from_template ($form) {    ## no critic (ProhibitSingleUse
     return $display;
 }
 
-=head2 wizard_types($forms) = HASHREF
+=head2 wizard_types($forms)
 
 Every post type on disk, in the shape the wizard's form is in.
+
+    my $types = Trog::Routes::HTML::wizard_types($forms);
+
+=over 4
+
+=item forms - ArrayRef[Str] - the templates of the post types, such as
+C<blog.tx>
+
+=back
+
+Returns HashRef, by template, of HashRef: the state of the form of the wizard
+for that type.
 
 This is the other direction from wizard_sidecar: it reads a type back out and
 says what the wizard would have had to be told to produce it, so that picking one
@@ -3544,9 +4321,20 @@ sub wizard_types ($forms) {
     return \%types;
 }
 
-=head2 wizard_types_json($forms) = STRING
+=head2 wizard_types_json($forms)
 
 wizard_types() as JSON, safe to drop into a script element.
+
+    my $json = wizard_types_json($forms);
+
+=over 4
+
+=item forms - ArrayRef[Str] - the templates of the post types
+
+=back
+
+Returns Str, the JSON.  Returns C<{}>, with a warning, when the types cannot be
+described.
 
 Every '<' is escaped, which is still valid JSON and means the string cannot
 close the element it is sitting in -- a display template is full of markup, and
@@ -3573,6 +4361,17 @@ Free text rather than template source: it is shown to whoever picks the type in
 the wizard, and rendered as text, so the only thing to do to it is keep it a
 sane length and stop it being something other than a string.
 
+    my $description = wizard_description( $in->{description} );
+
+=over 4
+
+=item description - Str - the description.  It defaults to an empty string.
+A reference, such as the ArrayRef of a repeated field, becomes an empty string.
+
+=back
+
+Returns Str, the description, cut to $wizard_description_max characters.
+
 =cut
 
 our $wizard_description_max = 2048;
@@ -3583,11 +4382,24 @@ sub wizard_description ( $description = '' ) {
     return $description;
 }
 
-=head2 kolon_safe
+=head2 kolon_safe($string)
 
 Make a submitted string safe to splice into a generated Kolon template.
 Newlines have to go, as a ':' at the start of a line is a Kolon directive, and
-the angle brackets have to go so that '<:' can never be reassembled.
+the angle brackets have to go so that '<:' can never be reassembled.  It also
+escapes C<&> and C<">.
+
+    my $label = kolon_safe( $labels->[$index] );
+
+=over 4
+
+=item string - Str - the submitted string.  It defaults to an empty string.  A
+reference becomes an empty string.
+
+=back
+
+Returns Str, the string with each run of newlines as one space, and C<&>,
+C<< < >>, C<< > >> and C<"> as HTML entities.
 
 =cut
 
@@ -3601,11 +4413,31 @@ sub kolon_safe ( $string = '' ) {
     return $string;
 }
 
-=head2 wizard_fields
+=head2 wizard_fields($query)
 
 Zip the parallel param_* arrays submitted by the wizard back into a list of
 field definitions.  Every row always submits exactly one of each param, so the
 arrays stay aligned even when a row is left blank.
+
+    my $fields = wizard_fields( \%form );
+
+=over 4
+
+=item query - HashRef - the form of the wizard, not the request.  It reads
+C<param_name>, C<param_type>, C<param_label>, C<param_placeholder>,
+C<param_required>, C<param_relation_form>, C<param_relation_mode>,
+C<param_private> and C<param_indexed>, each a Str or an ArrayRef.
+
+=back
+
+A row is dropped when its name is blank or not valid, when the name came
+before, or when it is the name of a core attribute of a post or a reserved
+name.  A type that is not known becomes C<text>, and so does a relation with
+no valid target type.
+
+Returns ArrayRef[HashRef], the fields, each with the keys C<name>, C<type>,
+C<label>, C<placeholder>, C<required>, C<relation_form>, C<relation_mode>,
+C<private> and C<indexed>.
 
 =cut
 
@@ -3659,13 +4491,37 @@ sub wizard_fields ($query) {
     return \@fields;
 }
 
-=head2 wizard_sidecar
+=head2 wizard_sidecar($name, $fields, $includes, $body_form, $datasource, $extra)
 
 Turn the wizard's field list into the post type's JSON sidecar: an OpenAPIv3
 object schema describing what this type ingests, with the wizard's own UI
 metadata hung off x- extension keys so there's only one file to keep in sync.
 
 Trog::DataModule::schema_for() merges this over the base post schema.
+
+    my $spec = wizard_sidecar( $name, $fields, \@includes, $body_form, $datasource, \%extra );
+
+=over 4
+
+=item name - Str - the name of the post type, without C<.tx>
+
+=item fields - ArrayRef[HashRef] - the fields, as wizard_fields() returns them
+
+=item includes - ArrayRef[Str] - the checkboxes of the includes that are
+ticked, such as C<inc_tags>
+
+=item body_form - Str - C<form_common.tx> or C<form_multi.tx>
+
+=item datasource - Str - the name of a Trog::DataSource module, or an empty
+string, which is the default, for none
+
+=item extra - HashRef - what else the wizard was told: C<description>,
+C<display>, C<title_placeholder>, C<wrapper>, C<inc_post_title> and
+C<inc_post_tags>.  It defaults to an empty HashRef.
+
+=back
+
+Returns HashRef, the sidecar, ready to encode as JSON.
 
 =cut
 
@@ -3742,12 +4598,24 @@ sub wizard_sidecar ( $name, $fields, $includes, $body_form, $datasource = '', $e
 
 # basically a file rewrite rule for themes
 
-=head2 icon
+=head2 icon($query)
 
 Implements the /img/icon/* routes.
 
 Serves a themed icon, falling back to the stock one.  A rewrite rule with extra
 steps, essentially, so that themes can replace individual icons.
+
+    my $response = Trog::Routes::HTML::icon($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<route>, the path of the icon
+under img/icon, C<tpsgi>, and C<start>, C<streaming>, C<ranges>,
+C<last_fetched> and C<deflate>, to serve the file.
+
+=back
+
+Returns ArrayRef, the PSGI response of the file, from TPSGI's serve().
 
 =cut
 
@@ -3757,7 +4625,7 @@ sub icon ($query) {
     return $query->{tpsgi}->serve( $path, $tpath, $query->{start}, $query->{streaming}, $query->{ranges}, $query->{last_fetched}, $query->{deflate} );
 }
 
-=head2 bundle
+=head2 bundle($query)
 
 Implements /bundle/{version}/{names}.js, the scripts of a page as one response.
 See Trog::Bundle.
@@ -3771,6 +4639,19 @@ even one of real scripts.  TCMS::build_routes() declares the C<scripts> and
 C<authenticated_scripts> of every route at startup, and finish_render() declares
 the list of each page that it links.  Both take the lists from the routing
 table, so a URL cannot name a list for this route to build.
+
+    my $response = Trog::Routes::HTML::bundle($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<< input->{names} >>, the
+names of the scripts without C<.js>, joined by C<+>; C<route>, to compare with
+the current href of the bundle; and C<tpsgi>.
+
+=back
+
+Returns ArrayRef, a PSGI response: the JavaScript with status 200, a redirect
+to the current href, or 404 for a list that no route declared.
 
 =cut
 
@@ -3788,7 +4669,7 @@ sub bundle ($query) {
     ];
 }
 
-=head2 totp_qr
+=head2 totp_qr($query)
 
 Implements the /totp/* routes.
 
@@ -3796,6 +4677,18 @@ Serves the QR code generated when a user enables TOTP.  These live outside
 www/, so they go out through serve() rather than the static file handler --
 handing someone else's enrollment QR out to the world would be handing them the
 shared secret.
+
+    my $response = Trog::Routes::HTML::totp_qr($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<route>, whose last part is
+the name of the file under totp/, C<tpsgi>, and C<start>, C<streaming>,
+C<ranges>, C<last_fetched> and C<deflate>, to serve the file.
+
+=back
+
+Returns ArrayRef, the PSGI response of the file, from TPSGI's serve().
 
 =cut
 
@@ -3814,7 +4707,7 @@ sub totp_qr ($query) {
     );
 }
 
-=head2 rss_style
+=head2 rss_style($query)
 
 Implements /styles/rss-style.xsl.
 
@@ -3824,6 +4717,17 @@ rss-style.tx pulls the header and footer in with component(), which works here
 where an include directive would not: the output is XSL rather than HTML, so
 the two are rendered separately and composed, and the header is asked for
 without a doctype.
+
+    my $response = Trog::Routes::HTML::rss_style($query);
+
+=over 4
+
+=item query - HashRef - the request.  It reads C<port>, which it changes to
+start with C<:>, and C<lang>.  Each other key goes on to the template.
+
+=back
+
+Returns ArrayRef, a PSGI response with status 200, whose body is the XSL.
 
 =cut
 
@@ -3850,6 +4754,23 @@ resolved stylesheet and script lists are passed on to Trog::Component::Header
 rather than being rendered into a string here.
 
 Just about everything in this module ends up here; index() is the usual way in.
+
+    return finish_render( $tmpl, \%vars, %headers );
+
+=over 4
+
+=item template - Str - the template of the page, such as C<index.tx>
+
+=item vars - HashRef - the data for the template.  It reads and sets C<lang>,
+C<title>, C<stylesheets>, C<print_styles>, C<contenttype>, C<cachecontrol>
+and C<code>, which default as above.  It reads C<dispatcher>, the route, for
+its scripts, C<user>, and C<tpsgi>.  It sets C<scripts>.
+
+=item headers - Hash - more headers of the response
+
+=back
+
+Returns ArrayRef, the PSGI response of the page.
 
 =cut
 

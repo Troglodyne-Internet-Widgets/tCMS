@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: favicon_mongler.pl
+# ABSTRACT: Render a favicon SVG to every size and format that a browser asks for
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

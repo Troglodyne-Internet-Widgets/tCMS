@@ -1,5 +1,7 @@
 package Trog::DataModule;
 
+# ABSTRACT: The base class of the data models, which store, query and validate posts
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -25,7 +27,7 @@ use Trog::Auth();
 
 =head1 QUERY FORMAT
 
-The $query_language and $query_help variables are presented to the user as to how to use the search box in the tCMS header.
+lang() and help() tell the user how to use the search box in the tCMS header.
 
 =head1 POST STRUCTURE
 
@@ -36,7 +38,7 @@ Posts generally need to have the following:
     href: Primary link.  This is the subject of a news post, or a link to the item itself.  Can be local or remote.
     local_href: Backup link.  Automatically created link to a static cache of the content.
     title: Title of the content.  Used as link name for the 'href' attribute.
-    user: User was banned for this post
+    user: The user who wrote this version of the post.
     id: Internal identifier in datastore for the post.
     tags: array ref of appropriate tags.
     created: timestamp of creation of this version of the post
@@ -44,9 +46,21 @@ Posts generally need to have the following:
 
 =head1 CONSTRUCTOR
 
-=head2 new(Config::Simple $config)
+=head2 new($config)
 
-Try not to do expensive things here.
+Make the data model.  The object is a hash of the variables of the
+configuration, blessed into the class that new() is called on.  Try not to do
+expensive things here.
+
+=over 4
+
+=item config - Config::Simple - the configuration of tCMS
+
+=back
+
+Returns Trog::DataModule, the data model, as an object of the subclass.
+
+    my $data = Trog::Data::SQLite->new($conf);
 
 =cut
 
@@ -61,29 +75,71 @@ Subclasses must implement all of these; the stubs here do nothing but die.
 count() belongs to this set as well, and is documented with the rest of the
 querying interface below.
 
-=head2 lang() = STRING $language
+=head2 lang()
 
 The name of the query language this data model understands, shown to the user
 beside the search bar.
 
-=head2 help() = STRING $help
+Returns Str, the name of the query language.
+
+Dies when the subclass does not implement it.
+
+    my $language = $data->lang();
+
+=head2 help()
 
 Documentation for that query language, shown to the user alongside it.
 
-=head2 read($query) = ARRAYREF $posts
+Returns Str, the help text or a URL of it.
+
+Dies when the subclass does not implement it.
+
+    my $help = $data->help();
+
+=head2 read($query)
 
 Every post the data model holds, as an arrayref of hashrefs.  Filtering is
 get()'s job unless your storage engine can do it more cheaply itself, in which
 case honor $query here and override get() too.
 
+=over 4
+
+=item query - HashRef - the request of get(), which a subclass may ignore
+
+=back
+
+Returns ArrayRef[HashRef], the posts.
+
+Dies when the subclass does not implement it.
+
+    my $posts = $data->read( { limit => 0, acls => ['admin'] } );
+
 =head2 write($posts)
 
 Commit an arrayref of posts to storage.  Called by add() once the posts have
-been filtered and validated; don't validate again here.
+been filtered and validated.  Do not validate them again here.
 
-=head2 tags() = ARRAYREF $tags
+=over 4
+
+=item posts - ArrayRef[HashRef] - the posts to store
+
+=back
+
+Returns 1 in each subclass, when the posts are stored.
+
+Dies when the subclass does not implement it.
+
+    $data->write( \@posts );
+
+=head2 tags()
 
 Every tag known to the datastore, for building tag pickers.
+
+Returns a list of Str, the tags.
+
+Dies when the subclass does not implement it.
+
+    my @tags = $data->tags();
 
 =cut
 
@@ -99,7 +155,7 @@ sub tags  { die "Trog::DataModule subclasses must implement tags()\n" }
 
 =head2 get(%request)
 
-Queries the data model.  Should return the following:
+Queries the data model.  The keys of %request are these:
 
     id   => Filter down to just the post by ID.  May be subsequently filtered by ACL, resulting in a 404 (which is good, as it does not disclose info).
 
@@ -117,8 +173,14 @@ Queries the data model.  Should return the following:
 
     author => filter by post author
 
+    raw => return every post that read() gives, with no filter, fixup or pagination.
+
 If it is more efficient to filter within your data storage engine, you probably should override this method.
 As implemented, this takes the data as a given and filters in post.
+
+Returns a list of HashRef, the posts that match.
+
+    my @posts = $data->get( tags => ['about'], acls => [qw{admin}] );
 
 =cut
 
@@ -133,12 +195,26 @@ sub get ( $self, %request ) {
     return @filtered;
 }
 
-=head2 fixup(@posts) = LIST
+=head2 fixup(@filtered)
 
 Fill in what a post needs for display and routing, and does not store: the
 author's display_name and user_class, and a local_href, callback and method
 where the post has none.  Spaces in its href fields become %20.  Called by
-get(), and by a subclass whose get() does not call the base one.
+get(), and by a subclass whose get() does not call the base one.  It changes
+the posts that it is given.
+
+=over 4
+
+=item @filtered - HashRef - the posts
+
+=back
+
+Returns a list of HashRef, the same posts.
+
+Dies when a post tagged C<about> has no local_href and its user has no display
+name.
+
+    @posts = $self->fixup(@posts);
 
 =cut
 
@@ -198,7 +274,7 @@ my sub filter_acls ( $query, @filtered ) {
     } @filtered;
 }
 
-=head2 searchable_match($like, @values) = BOOL
+=head2 searchable_match($like, @values)
 
 Whether any of @values contains $like, case insensitively.  This is what a
 search means: filter() applies it to a stored post's title and body, and
@@ -207,6 +283,19 @@ search for '*' looks for an asterisk.
 
 Anything in @values which isn't a plain string is skipped, so a missing title
 or a nested structure is passed over rather than matched against its address.
+A function, not a method.
+
+=over 4
+
+=item like - Str - the search term.  An undef or empty term matches nothing.
+
+=item @values - Str - the strings to search
+
+=back
+
+Returns Bool, 1 when a value contains $like, else 0.
+
+    my $found = Trog::DataModule::searchable_match( $like, $post->{title}, $post->{data} );
 
 =cut
 
@@ -220,14 +309,28 @@ sub searchable_match ( $like, @values ) {
     return 0;
 }
 
-=head2 filter($query, @posts) = @filtered
+=head2 filter($query, @filtered)
 
 Apply a get() request's filters to a list of posts: tags, exclude_tags, acls,
-visibility, id, title, form, search terms and author.
+visibility, id, title, aclname, version, older, newer, form, search terms and
+author.  It sets the acls, tags and exclude_tags of $query to an empty
+ArrayRef where they are undef, and strips the non digits from older and newer.
 
 The ACL check is the load bearing one -- a post is only visible if the caller
 holds one of its acls, or the post is public or unlisted.  Callers holding the
 'admin' acl skip that filter entirely.
+
+=over 4
+
+=item query - HashRef - the request of get()
+
+=item @filtered - HashRef - the posts to filter
+
+=back
+
+Returns a list of HashRef, the posts that pass.
+
+    my @filtered = $self->filter( $query, @posts );
 
 =cut
 
@@ -287,10 +390,23 @@ sub filter ( $, $query, @filtered ) {
     return @filtered;
 }
 
-=head2 paginate($query, @posts) = @page
+=head2 paginate($query, @filtered)
 
-The slice of @posts named by the request's page and limit.  Both have to be
-present to page at all; limit defaults to 25 when computing the offset.
+The slice of @filtered named by the page and the limit of the request.  Both
+have to be true to page at all.  Otherwise it returns every post.
+
+=over 4
+
+=item query - HashRef - the request of get(), with its page and limit
+
+=item @filtered - HashRef - the posts to page
+
+=back
+
+Returns a list of HashRef, the posts of the page, or an empty list when the
+page is past the end.
+
+    @posts = $self->paginate( $query, @posts );
 
 =cut
 
@@ -310,13 +426,27 @@ sub paginate ( $, $query, @filtered ) {
     return splice( @filtered, $start, $offset );
 }
 
-=head2 dedup_versions($version, @posts) = LIST
+=head2 dedup_versions($version, @posts)
 
 Given a $version, the posts of that version, each with version_max set to the
 newest version among @posts.
 
 Given undef, one post per id: its newest version, with version_max set, created
 and author taken from its oldest version, and modified from the newest one.
+
+It changes the posts that it returns.  A function, not a method.
+
+=over 4
+
+=item version - Int|Undef - the version to keep, or undef for the newest of each post
+
+=item @posts - HashRef - the versions of the posts
+
+=back
+
+Returns a list of HashRef, the posts that it keeps.
+
+    my ($indexed) = Trog::DataModule::dedup_versions( undef, @versions );
 
 =cut
 
@@ -352,14 +482,19 @@ sub dedup_versions ( $version = -1, @posts ) {
     return @deduped;
 }
 
-=head2 count() = INT $num
+=head2 count()
 
-Returns the total number of posts.
 Used to determine paginator parameters.
+
+Returns Int, the total number of posts.
+
+Dies when the subclass does not implement it.
+
+    my $total = $data->count();
 
 =cut
 
-=head2 add(@posts) = BOOL $failed_or_not
+=head2 add(@posts)
 
 Add the provided posts to the datastore.
 If any post already exists with the same id, a new post with a version higher than it will be added.
@@ -372,7 +507,24 @@ hold up, this dies with an ARRAYREF of validation error strings -- a ref rather
 than a string so that Carp::Always doesn't staple a stack trace onto something
 we intend to show the user.
 
-You probably won't want to override this.
+It also asks get() for the post of the same id, and dies with an ARRAYREF of
+errors as well when the post that process() built does not fit the schema.
+add() changes each post that it is given.
+
+You probably will not want to override this.
+
+=over 4
+
+=item @posts - HashRef - the posts to add, as a form submits them
+
+=back
+
+Returns 0.  A failure dies rather than returning.
+
+Dies with an ArrayRef of error strings when a post does not fit its schema,
+before or after process().
+
+    eval { $data->add($post); 1 } or do { ... };
 
 =cut
 
@@ -435,7 +587,7 @@ our %upload_schema = (
 
 =head2 schema_for($form)
 
-Return the OpenAPIv3 schema describing what the named post type ingests: the
+The OpenAPIv3 schema describing what the named post type ingests: the
 base post schema above, with the type's JSON sidecar merged over the top.
 
 Sidecars live beside their templates (blog.tx has blog.json) and are written
@@ -450,6 +602,18 @@ of a field beats the block's, and the base schema beats both.
 Cached, but keyed on the mtimes of the component dirs rather than memoized
 outright: adding or editing a sidecar bumps one of them, so every forked worker
 picks the change up on its very next add() with no restart needed.
+
+A function, not a method.
+
+=over 4
+
+=item form - Str - the template of the post type, such as C<blog.tx>.  Anything else, undef included, names no type.
+
+=back
+
+Returns HashRef, the schema.  Callers share it, so do not change it.
+
+    my $schema = Trog::DataModule::schema_for( $post->{form} );
 
 =cut
 
@@ -538,6 +702,19 @@ schema_for() deliberately keeps only properties and required, since everything
 else would be noise to the validator -- but the relation tables and the post
 type's own metadata live out there and something has to read them.
 
+A function, not a method.
+
+=over 4
+
+=item form - Str - the template of the post type, such as C<blog.tx>
+
+=back
+
+Returns HashRef, the keys of the sidecar other than properties, required and
+type.  It is empty when the type has no sidecar.
+
+    my $meta = Trog::DataModule::type_meta_for($form);
+
 =cut
 
 sub type_meta_for ( $form = '' ) {
@@ -575,8 +752,19 @@ it apart from a field somebody had typed in; and a generated type had no
 declaration at all, so validate() dropped the preview image its own editor had
 just collected.
 
-Returns an empty hashref for an include which has no sidecar -- which is most of
-them, since edit_head.tx and friends collect nothing.
+A function, not a method.
+
+=over 4
+
+=item include - Str - the template of the include, such as C<preview.tx>
+
+=back
+
+Returns HashRef, the sidecar of the include.  It is empty for an include which
+has no sidecar -- which is most of them, since edit_head.tx and friends collect
+nothing.
+
+    my $properties = Trog::DataModule::include_schema_for($include)->{properties};
 
 =cut
 
@@ -631,6 +819,19 @@ Everything the template includes is returned, not just the blocks the wizard
 offers -- it is include_schema_for() which decides whether a given one collects
 anything.
 
+A function, not a method.
+
+=over 4
+
+=item form - Str - the template of the post type, such as C<blog.tx>
+
+=back
+
+Returns ArrayRef[Str], the names of the templates that it includes.  It is
+empty when $form names no type.
+
+    my %includes = map { $_ => 1 } @{ Trog::DataModule::includes_for($form) };
+
 =cut
 
 sub includes_for ( $form = '' ) {
@@ -656,6 +857,18 @@ A field is public unless it says otherwise.  The point of declaring it here
 rather than guarding it in the template is that the value can then be dropped
 before rendering, so no amount of getting a template wrong can leak it.
 
+A function, not a method.
+
+=over 4
+
+=item form - Str - the template of the post type, such as C<blog.tx>
+
+=back
+
+Returns ArrayRef[Str], the names of the private fields.
+
+    delete $post->{$_} foreach @{ Trog::DataModule::private_fields_for( $post->{form} ) };
+
 =cut
 
 sub private_fields_for ( $form = '' ) {
@@ -670,6 +883,18 @@ as declared by x-tcms-indexed in the sidecar.
 
 A field is unindexed unless it says otherwise.  What indexing a field actually
 means is up to the data model -- see index_fields(), which most of them ignore.
+
+A function, not a method.
+
+=over 4
+
+=item form - Str - the template of the post type, such as C<blog.tx>
+
+=back
+
+Returns ArrayRef[Str], the names of the indexed fields, sorted.
+
+    my @indexed = @{ Trog::DataModule::indexed_fields_for($form) };
 
 =cut
 
@@ -696,6 +921,17 @@ Called with the full set every time rather than with a delta, so a model that
 does act on it can bring itself into line in one pass -- including letting go of
 what is no longer asked for.
 
+=over 4
+
+=item @fields - Str - the names of the fields to index
+
+=back
+
+Returns Int, the number of fields that it indexed.  The default indexes none,
+and returns 0.
+
+    $data->index_fields( sort keys %indexed );
+
 =cut
 
 sub index_fields { return 0 }
@@ -707,6 +943,18 @@ variable the resolved posts land in.  Empty when the type declares none.
 
 Each entry is { form => 'other.tx', from => 'field_name' } -- 'from' naming the
 field holding a UUID to resolve, or absent to mean every post of that type.
+
+A function, not a method.
+
+=over 4
+
+=item form - Str - the template of the post type, such as C<blog.tx>
+
+=back
+
+Returns HashRef, the relations of the type.
+
+    my $relations = Trog::DataModule::relations_for( $post->{form} );
 
 =cut
 
@@ -779,13 +1027,24 @@ sub schema_for ( $form = '' ) {
 
 =head2 validate($post)
 
-Filter a post down to the fields its type actually describes, then run what's
-left through the schema.
+Filter a post down to the fields its type actually describes, then run what is
+left through the schema.  It deletes the other fields from $post, and the empty
+strings of the fields that are not strings.
 
-Returns the list of validation errors, which is empty when the post is good.
-Note that filtering happens first and silently: the query hash handed to us by
-the router is full of things which aren't post fields at all, and never was
-meant to round-trip.
+Filtering happens first and silently: the query hash handed to us by the
+router is full of things which are not post fields at all, and never was meant
+to round-trip.  A function, not a method.
+
+=over 4
+
+=item post - HashRef - the post, as a form submits it
+
+=back
+
+Returns a list of JSON::Validator::Error objects, the validation errors.  The
+list is empty when the post is good.
+
+    my @errors = Trog::DataModule::validate( clone( \%post ) );
 
 =cut
 
@@ -841,7 +1100,18 @@ schema has never heard of -- content_type, is_video, attachments -- and dropping
 what it does not recognize would throw away the work it just did.  So this looks
 only at the fields the schema actually describes, on a copy, and changes nothing.
 
-Returns the list of validation errors, empty when the post is fit to store.
+A function, not a method.
+
+=over 4
+
+=item post - HashRef - the post that process() built
+
+=back
+
+Returns a list of JSON::Validator::Error objects, the validation errors.  The
+list is empty when the post is fit to store.
+
+    my @errors = Trog::DataModule::validate_built($post);
 
 =cut
 
@@ -968,12 +1238,23 @@ my sub handle_upload ( $file, $uuid, $private = 0 ) {
 #XXX this level of post-processing seems gross, but may be unavoidable
 # Not actually a subprocess, kek
 
-=head2 process($post) = HASHREF
+=head2 process($post)
 
 Build the post that gets stored from the one that was submitted.  It stores
 the uploaded files, folds the visibility, the acls and the series into the
 tags, removes the fields that only the form uses, and sets the content type
-fields from the files the post points at.  Changes $post, and returns it.
+fields from the files the post points at.  Changes $post.  A function, not a
+method.
+
+=over 4
+
+=item post - HashRef - the post, after validate()
+
+=back
+
+Returns HashRef, the same $post.
+
+    $post = Trog::DataModule::process($post);
 
 =cut
 
@@ -1051,15 +1332,32 @@ Will remove all versions of said post.
 
 You should override this, it is a stub here.
 
+=over 4
+
+=item @posts - HashRef - the posts to delete.  Only the id of each counts.
+
+=back
+
+Returns 0 in each subclass, when the posts are deleted.
+
+Dies here, because the base class does not implement it.
+
+    $data->delete( { id => $id } );
+
 =cut
 
 sub delete { die 'stub' }
 
-=head2 routes() = HASH
+=head2 routes()
 
-Returns the routes to each post.  The route of a post tagged C<private> has
+The routes to each post.  The route of a post tagged C<private> has
 C<secure>, so that it answers only to somebody who is logged in.
-You should override this for performance reasons, as it's just a wrapper around get() by default.
+You should override this for performance reasons, as it is just a wrapper around get() by default.
+
+Returns a HASH as a list: the local_href of each post, and a HashRef of its
+method, callback and secure.
+
+    my %routes = $data->routes();
 
 =cut
 
@@ -1072,10 +1370,14 @@ sub routes ($self) {
     return %routes;
 }
 
-=head2 aliases() = HASH
+=head2 aliases()
 
-Returns the aliases for each post, indexed by aliases.
-You should override this for performance reasons, as it's just a wrapper around get() by default.
+The aliases for each post, indexed by aliases.
+You should override this for performance reasons, as it is just a wrapper around get() by default.
+
+Returns a HASH as a list: each alias, and the local_href of its post.
+
+    my %aliases = $data->aliases();
 
 =cut
 

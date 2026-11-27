@@ -1,5 +1,7 @@
 package Theme;
 
+# ABSTRACT: An example of the variables that the routes.pm of a theme sets
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

@@ -1,5 +1,7 @@
 package Trog::Bundle;
 
+# ABSTRACT: Serve the scripts that a page names as one minified response
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -42,6 +44,16 @@ my sub key_of (@names) {
 localizes the times of the page.  finish_render() and TCMS::build_routes() both
 use this, so that the bundle a page links is the bundle its route declared.
 
+=over 4
+
+=item @names - Str - the file names of scripts, such as C<post.js>
+
+=back
+
+Returns Array of Str, the names, with C<main.js> first and each name once.
+
+    my @scripts = Trog::Bundle::page_scripts( @{ $v->{scripts} // [] } );
+
 =cut
 
 our @global = ('main.js');
@@ -56,6 +68,16 @@ Declare each list, an ARRAY reference of names as scripts() takes them, so that
 the route serves its bundle.  TCMS::build_routes() declares the lists of every
 route at startup, so that a worker serves a bundle before it renders a page that
 links it.
+
+=over 4
+
+=item @lists - ArrayRef[Str] - the lists of names.  An empty list is skipped.
+
+=back
+
+Returns nothing.
+
+    Trog::Bundle::declare( \@scripts, [ Trog::Bundle::page_scripts( @scripts, @authenticated ) ] );
 
 =cut
 
@@ -73,17 +95,29 @@ F<www/scripts>, such as C<post.js>.  The theme's copy of a script is used in
 place of the stock one.  The order is the order of @names, and a name that is
 given twice is used once.
 
-Returns undef for an empty list, and dies if a name is not a script.  The list
-is declared, as declare() does, since only a route can have named it.
+The list is declared, as declare() does, since only a route can have named it.
+
+=over 4
+
+=item @names - Str - the file names of the scripts
+
+=back
+
+Returns HashRef|Undef, the bundle, or undef for an empty list.
+
+Dies if a name is not a script.
 
 The hash has these keys:
 
-    href     where the bundle is served, which changes when its body does
-    version  a digest of the body, which is in the href
-    body     the scripts, each one minified unless its name ends in .min.js
+    href       where the bundle is served, which changes when its body does
+    version    a digest of the body, which is in the href
+    body       the scripts, each one minified unless its name ends in .min.js
+    signature  the size and the time of change of each file, to tell when to build it again
 
 A process builds each bundle once, and builds it again when a file in it
 changes.
+
+    my $bundle = Trog::Bundle::scripts( Trog::Bundle::page_scripts('post.js') );
 
 =cut
 
@@ -123,8 +157,20 @@ sub scripts (@names) {
 
 =head2 served(@names) = HASHREF or undef
 
-The bundle that the route serves for @names, as scripts() returns it, or undef
-if a route did not declare the list.
+The bundle that the route serves for @names, as scripts() returns it.
+
+=over 4
+
+=item @names - Str - the file names of the scripts
+
+=back
+
+Returns HashRef|Undef, the bundle, or undef if @names is empty or a route did
+not declare the list.
+
+Dies, as scripts() does, if a name of a declared list is not a script.
+
+    my $bundle = Trog::Bundle::served( map { "$_.js" } split( /[+]/, $query->{input}{names} ) );
 
 =cut
 
@@ -146,6 +192,19 @@ the saved pages and bundles are thrown away: the pages are rendered again and
 link the new bundle, and a page that still links an old one is redirected by
 the route.  The route also serves a bundle whose static is gone, so a worker
 that still counts it as saved is slower, not wrong.
+
+=over 4
+
+=item tpsgi - Object - the tPSGI object of the request, or a false value when there is none
+
+=item bundle - HashRef - the bundle, as scripts() returns it
+
+=back
+
+Returns Bool, 1 when it asked tPSGI to save the bundle, and 0 when there is no
+tPSGI or the process saved the bundle already.
+
+    Trog::Bundle::save( $vars->{tpsgi}, $bundle );
 
 =cut
 

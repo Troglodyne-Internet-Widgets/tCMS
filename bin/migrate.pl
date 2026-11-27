@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: migrate.pl
+# ABSTRACT: Move a site from the FlatFile data model to the SQLite one
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

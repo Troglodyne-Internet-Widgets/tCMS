@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: totp
+# ABSTRACT: Print the TOTP enrollment details of a user
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

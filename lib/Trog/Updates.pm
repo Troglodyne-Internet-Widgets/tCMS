@@ -1,5 +1,7 @@
 package Trog::Updates;
 
+# ABSTRACT: What commit tCMS, tPSGI and the theme run, as /config shows it
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -8,10 +10,6 @@ use File::Basename();
 
 use Trog::Jobs();
 use Trog::Themes();
-
-=head1 NAME
-
-Trog::Updates - what commit tCMS, tPSGI and the theme run, as /config shows it
 
 =head1 DESCRIPTION
 
@@ -61,6 +59,16 @@ our $stale_after = 600;
 $error, a message that ends in a newline as a die message here does, without
 the newline.
 
+=over 4
+
+=item error - Str - the message, such as C<$@>
+
+=back
+
+Returns Str, the message without its last newline.
+
+    my $message = Trog::Updates::reason($@);
+
 =cut
 
 sub reason ($error) {
@@ -75,6 +83,10 @@ the upstream.  The names are C<tCMS>, C<tPSGI> and C<theme>.  A theme has no
 C<url>, because only the network can tell which of its remotes is public, and
 C<status> of L<Trog::Jobs::Updates> asks.  It has C<label>, the name of its
 directory.  This asks nothing of the network, so a request can call it.
+
+Returns Array of HashRef, the checkouts, in the order tCMS, tPSGI, theme.
+
+    my @checkouts = Trog::Updates::checkouts();
 
 =cut
 
@@ -94,6 +106,16 @@ sub checkouts {
 
 The checkout of C<checkouts> named $name.  Dies if there is none.
 
+=over 4
+
+=item name - Str - C<tCMS>, C<tPSGI> or C<theme>
+
+=back
+
+Returns HashRef, the checkout.
+
+    my $co = Trog::Updates::checkout($name);
+
 =cut
 
 sub checkout ($name) {
@@ -104,8 +126,11 @@ sub checkout ($name) {
 
 =head2 enqueue_check() = ID
 
-Queues an C<update_check>, unless one is waiting or running.  Returns its id,
-or undef when it queued none.
+Queues an C<update_check>, unless one is waiting or running.
+
+Returns Int|Undef, the ID of the job, or undef when it queued none.
+
+    Trog::Updates::enqueue_check();
 
 =cut
 
@@ -119,6 +144,16 @@ sub enqueue_check {
 
 Queues an C<update> of the checkout named $name.  Dies for a name that
 C<checkouts> does not have.
+
+=over 4
+
+=item name - Str - C<tCMS>, C<tPSGI> or C<theme>
+
+=back
+
+Returns Int, the ID of the job.
+
+    my $id = Trog::Updates::enqueue_update('tCMS');
 
 =cut
 
@@ -136,6 +171,12 @@ C<$stale_after> seconds, or there is none.  C<last_update> is the newest
 C<update> that finished or failed, with C<state>, C<checkout>, and C<error>
 when it failed.  Each checkout also has C<short_head> and C<short_upstream>,
 the first twelve characters of the commits.
+
+Returns HashRef, with the keys C<checked_at>, C<checkouts>, C<pending> and
+C<last_update>.  C<checked_at> is undef when no check has finished, and
+C<last_update> is undef when no update has finished or failed.
+
+    my $updates = Trog::Updates::summary();
 
 =cut
 

@@ -131,7 +131,7 @@ my sub _routes ( $data = {} ) {
 
 # Troglodyne philosophy - simple as possible
 
-=head2 build_routes() = HASH
+=head2 build_routes()
 
 The OpenAPI 3 document that tPSGI routes by, made from the routing table that
 _routes() returns.  Each route becomes the operation of its method, under its
@@ -164,6 +164,11 @@ C<< $query->{input} >>, and sets C<to> beside it, as a path on this site.
 
 The C<default> route is not a path.  The wrapper calls it when there is no
 F<config/setup>.
+
+Returns the document as a list of key and value pairs, C<openapi>, C<info>
+and C<paths>, to assign to a hash.
+
+    our %openapi = TCMS::build_routes();
 
 =cut
 
@@ -330,11 +335,23 @@ sub build_routes {
     );
 }
 
-=head2 on_public_host($query, $secure_host) = BOOL
+=head2 on_public_host($query, $secure_host)
 
 Whether the request came to a host other than $secure_host, which secure_host()
 in Trog::Routes::HTML returned.  The port of the host is ignored.  It is false
 when $secure_host is empty, because then there is one host for everything.
+
+=over 4
+
+=item query - HashRef - the query of the request, of which it reads C<domain>
+
+=item secure_host - Str - the secure host, or an empty string
+
+=back
+
+Returns Bool, 1 when the request came to another host, else 0.
+
+    return redirect_to_host( $tpsgi, $query, $secure ) if on_public_host( $query, $secure );
 
 =cut
 
@@ -343,13 +360,27 @@ sub on_public_host ( $query, $secure_host ) {
     return ( lc( $query->{domain} // '' ) =~ s/:\d+\z//r ) ne $secure_host;
 }
 
-=head2 redirect_to_host($tpsgi, $query, $host) = PSGI response
+=head2 redirect_to_host($tpsgi, $query, $host)
 
 The answer to a request that came to the wrong one of the two hosts.  A GET or
 a HEAD gets a redirect to the same path and query on $host, over https.  Any
 other method gets 404, so that a browser never sends a form body to the host
 that should not see it.  The redirect is not permanent, because the settings
 can change.
+
+=over 4
+
+=item tpsgi - TPSGI - the server, which makes the response
+
+=item query - HashRef - the query of the request, of which it reads C<method>, C<route> and C<query_string>
+
+=item host - Str - the host to send the request to
+
+=back
+
+Returns ArrayRef, the PSGI response: the redirect, or the 404.
+
+    return redirect_to_host( $tpsgi, $query, $secure ) if on_public_host( $query, $secure );
 
 =cut
 
@@ -362,7 +393,7 @@ sub redirect_to_host ( $tpsgi, $query, $host ) {
     return $tpsgi->redirect("$to");
 }
 
-=head2 needs_enrolment($user, $dispatcher) = BOOL
+=head2 needs_enrolment($user, $dispatcher)
 
 Whether this request should be turned around and sent to /totp.
 
@@ -377,6 +408,18 @@ the exemption belongs next to the route rather than in a list over here that the
 routing table knows nothing about.  $dispatcher is the operation that
 build_routes() made, so it holds them as x-tcms-auth and x-tcms-totp_exempt.
 
+=over 4
+
+=item user - Str - the user who is logged in, or an empty string
+
+=item dispatcher - HashRef - the operation of the route
+
+=back
+
+Returns Bool, 1 when the user must enrol first, else 0.
+
+    my $enrol = TCMS::needs_enrolment( $user, $query->{dispatcher} );
+
 =cut
 
 sub needs_enrolment ( $user, $dispatcher ) {
@@ -385,7 +428,30 @@ sub needs_enrolment ( $user, $dispatcher ) {
     return Trog::Auth::has_totp($user) ? 0 : 1;
 }
 
-# Override the generic error handler to look spiffy
+=head2 generic_route($rname, $code, $title, $query)
+
+The page of an error, which tPSGI asks the router for in place of its own plain
+one.  It renders the template of the code, such as F<404.tx>, through
+Trog::Routes::HTML::index(), with the path that the request asked for.
+
+=over 4
+
+=item rname - Str - the route of the error, such as C</404>
+
+=item code - Int - the HTTP status
+
+=item title - Str - the title of the page, which tPSGI gives as the name of the error
+
+=item query - HashRef - the query of the request, which it changes
+
+=back
+
+Returns ArrayRef, the PSGI response of the page.
+
+    return TCMS::generic_route( '/404', 404, 'Not Found', $query );
+
+=cut
+
 sub generic_route ( $rname, $code, $title, $query ) {
     $query->{code} = $code;
     $query->{route} //= $rname;
@@ -403,17 +469,33 @@ sub generic_route ( $rname, $code, $title, $query ) {
 our %openapi = build_routes();
 our %aliases = aliases();
 
+=head2 aliases()
+
+The aliases of the posts, from the data model that the configuration names,
+which tPSGI reads from C<%TCMS::aliases>.
+
+Returns the aliases as a list of key and value pairs, from each alias to the
+path that it stands for.
+
+    our %aliases = TCMS::aliases();
+
+=cut
+
 sub aliases {
     my $conf = Trog::Config::get();
     my $data = Trog::Data->new($conf);
     return $data->aliases();
 }
 
-=head2 robots
+=head2 robots($query)
 
 Return an appropriate robots.txt
 
 This is a "special" route as it needs to know about all the routes in order to disallow noindex=1 routes.
+
+Returns ArrayRef, the PSGI response of the text.
+
+    my $response = TCMS::robots($query);
 
 =cut
 

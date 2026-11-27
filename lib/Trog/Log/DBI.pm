@@ -1,5 +1,7 @@
 package Trog::Log::DBI;
 
+# ABSTRACT: A Log::Dispatch output that files the request log of tCMS into SQLite
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -48,6 +50,10 @@ Called by Log::Dispatch::DBI at construction.  Prepares, and returns, the
 statement for the requests view, and prepares the two extra statements
 log_message() needs for messages and urchin data.
 
+Returns DBI::st, the statement that inserts into C<all_requests>.
+
+    my $sth = $output->create_statement();
+
 =cut
 
 sub create_statement {
@@ -79,13 +85,24 @@ my $LINE    = qr/\A($STAMP)[ ]\[(\w+)\]:[ ]$WHO[ ](\N+)/;
 # code, the bytes, and the route.
 my $SERVED = qr/\A(\w+)[ ](\d+)[ ](\d+)[ ](\N+)/;
 
-=head2 log_message(HASH params) = MIXED
+=head2 log_message(%params) = MIXED
 
-Record one log line.
+Record one log line.  Log::Dispatch calls it for each line at or above
+C<min_level>.
+
+=over 4
+
+=item message - Str - the line, as Trog::Log formats it
+
+=back
+
+Log::Dispatch also passes C<level> and C<name>, which this does not read.
 
 Returns the request insert's result for a request line, 1 for a message that
 got buffered, and undef for a line we couldn't make sense of or could not write.
 A write that fails is a warning on stderr, and never dies.
+
+    $output->log_message( level => 'info', message => $line );
 
 =cut
 

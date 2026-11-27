@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# PODNAME: reset_install
+# ABSTRACT: Remove the users, configuration and content of a tCMS checkout
+
 rm config/auth.db
 rm config/has_users
 rm config/main.cfg

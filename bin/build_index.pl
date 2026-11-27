@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# PODNAME: build_index.pl
+# ABSTRACT: Rebuild the tag index and route table of the FlatFile data model
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

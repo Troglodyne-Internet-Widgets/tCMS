@@ -11,7 +11,7 @@ use Path::Tiny();
 
 use FindBin::libs;
 
-# The config editor is built out of config/default.cfg rather than a hardcoded
+# The config editor is built out of share/default.cfg rather than a hardcoded
 # list of fields, so what it can edit is whatever that file describes.  These
 # tests stand inside an instance root, since every path in this app is
 # cwd-relative -- and they stand there before the SUT is loaded, because reading
@@ -24,11 +24,11 @@ END {
     File::Path::remove_tree($ROOT) if $ROOT && -d $ROOT;
 }
 
-File::Path::make_path("$ROOT/config");
+File::Path::make_path( "$ROOT/config", "$ROOT/share" );
 File::Path::make_path("$ROOT/www/themes/spec");
 chdir($ROOT) or die $!;
 
-Path::Tiny->new('config/default.cfg')->spew_utf8(<<'CFG');
+Path::Tiny->new('share/default.cfg')->spew_utf8(<<'CFG');
 [general]
     # FlatFile or SQLite.
     data_model=FlatFile

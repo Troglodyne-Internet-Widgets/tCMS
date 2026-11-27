@@ -1,5 +1,7 @@
 package Trog::Renderer::html;
 
+# ABSTRACT: Render an HTML template, in which a post can embed another post
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

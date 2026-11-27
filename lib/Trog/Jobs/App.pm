@@ -1,16 +1,14 @@
 package Trog::Jobs::App;
 
+# ABSTRACT: The Mojolicious application that runs the job queue of tCMS
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
 
-use Mojo::Base 'Mojolicious';    ## no critic (ProhibitUnusedImports) -- it makes this class a Mojolicious application
+use Mojo::Base 'Mojolicious';
 
 use Trog::Jobs();
-
-=head1 NAME
-
-Trog::Jobs::App - the Mojolicious application that runs the job queue of tCMS
 
 =head1 DESCRIPTION
 

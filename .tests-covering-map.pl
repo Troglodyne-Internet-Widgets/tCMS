@@ -21,7 +21,7 @@ C<prove -l t/> never reads:
 
 =item Documentation
 
-Markdown, such as F<Readme.md> and F<design.md>, POD in F<.pod> files outside
+Markdown, such as F<docs/README.md> and F<design.md>, POD in F<.pod> files outside
 F<lib/>, F<Changes>, F<CHANGELOG> and F<LICENSE>.
 
 =item The build, the release and the install

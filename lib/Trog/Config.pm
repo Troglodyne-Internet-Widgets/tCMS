@@ -1,5 +1,7 @@
 package Trog::Config;
 
+# ABSTRACT: Read the configuration of a tCMS instance, and the shape of it
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -17,16 +19,24 @@ use Trog::Log qw{WARN};
 
 A thin wrapper around Config::Simple which reads the configuration from the appropriate place.
 
-=head2 Trog::Config::get() = Config::Simple
+=head2 Trog::Config::get()
 
-Returns a configuration object that will be used by server.psgi, the data model and Routing modules.
-Memoized, so you will need to HUP the children on config changes.
+The configuration object that server.psgi, the data model and the routing
+modules use.  It is memoized, so you need to HUP the children when the
+configuration changes.
 
 Reads $home_cfg, falling back to $default when the instance has never saved a
 configuration of its own.  Both are full paths relative to the tCMS root, so
-that writers can use them too -- an earlier version had the 'config/' prefix
-hardcoded here and nowhere else, which meant everything that *wrote* the
-configuration put it somewhere get() would never look.
+that writers can use them too.  An earlier version had the 'config/' prefix
+hardcoded here and nowhere else, which meant that everything that I<wrote> the
+configuration put it somewhere that get() would never look.
+
+Returns Config::Simple, the configuration, the same object on each call.
+
+Dies when neither file exists, or when Config::Simple cannot read the first
+one that exists.
+
+    my $conf = Trog::Config::get();
 
 =cut
 
@@ -34,7 +44,7 @@ configuration put it somewhere get() would never look.
 our $home_cfg = "config/main.cfg";
 
 # Shipped defaults.  Tracked in git -- never write to this.
-our $default = "config/default.cfg";
+our $default = "share/default.cfg";
 
 sub get {
     state $cf;
@@ -55,6 +65,8 @@ the end.  It is empty if the setting is empty.  It is also empty, with a
 warning, if the setting is not an absolute C<http> or C<https> URL with a host
 and no query or fragment.
 
+Returns Str, the base URL, or an empty string.
+
     my $base = Trog::Config::media_base();    # https://media.test.test
 
 =cut
@@ -74,14 +86,23 @@ sub media_base {
     return '';
 }
 
-=head2 Trog::Config::schema( STRING file = $default ) = ARRAYREF
+=head2 Trog::Config::schema($file)
 
-The shape of the configuration, as described by the file we ship.
+The shape of the configuration, as described by the file that tCMS ships.
 
-config/default.cfg is the only place which says what settings exist at all, so
-it is also what the /config editor is built out of -- add a key there and it
-becomes editable, leave one out and it isn't.  Sections and keys come back in
-file order:
+share/default.cfg is the only place which says what settings exist at all, so
+it is also what the /config editor is built out of.  Add a key there and it
+becomes editable.  Leave one out and it is not.
+
+=over 4
+
+=item file - Str - the path of the configuration file to read.  The default
+is $default, F<share/default.cfg>.
+
+=back
+
+Returns ArrayRef[HashRef], one HashRef per section.  Sections and keys come
+back in file order:
 
     [
         {
@@ -100,10 +121,16 @@ file order:
 Comment lines accumulate until a key claims them, so a comment block is the
 help text for whatever setting follows it.  Config::Simple throws both comments
 and ordering away when it reads a file, which is why this reads it again rather
-than asking the object we already have.
+than asking the object that get() returns.
 
-Keys appearing before any section header are skipped -- Config::Simple has no
-name for them, so neither do we.
+Keys that appear before any section header are skipped.  Config::Simple has
+no name for them, so neither does this.
+
+Dies when the file cannot be read.
+
+    foreach my $section ( @{ Trog::Config::schema() } ) {
+        say $_->{name} for @{ $section->{fields} };
+    }
 
 =cut
 

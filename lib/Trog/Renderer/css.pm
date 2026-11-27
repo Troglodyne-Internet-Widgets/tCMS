@@ -1,5 +1,7 @@
 package Trog::Renderer::css;
 
+# ABSTRACT: Render a CSS template, and minify the output
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

@@ -9,6 +9,7 @@ install:
 	test -d totp/ || mkdir -p totp
 	test -d ~/.tcms || mkdir ~/.tcms
 	test -d logs || mkdir -p logs
+	test -d config || mkdir -p config
 	$(RM) pod2htmd.tmp;
 
 .PHONY: prereq-node

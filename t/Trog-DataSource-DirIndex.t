@@ -29,11 +29,11 @@ BEGIN {
     $ENV{HOME} = $ROOT;
 
     # The paths are relative to the tCMS root, so we need one.
-    for my $dir (qw{config www/assets/downloads www/assets/private/secrets www/statics outside}) { File::Path::make_path("$ROOT/$dir") }
+    for my $dir (qw{config share www/assets/downloads www/assets/private/secrets www/statics outside}) { File::Path::make_path("$ROOT/$dir") }
 
     # Trog::Routes::HTML reads the config at load time, and the last subtest
     # loads it to check the wizard can see this datasource.
-    File::Copy::copy( "$REPO/config/default.cfg", "$ROOT/config/default.cfg" ) or die $!;
+    File::Copy::copy( "$REPO/share/default.cfg", "$ROOT/share/default.cfg" ) or die $!;
 
     chdir($ROOT) or die "could not chdir to the sandbox: $!";
 }

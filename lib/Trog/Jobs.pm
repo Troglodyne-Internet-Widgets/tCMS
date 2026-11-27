@@ -1,5 +1,7 @@
 package Trog::Jobs;
 
+# ABSTRACT: The job queue of tCMS, and the video transcode that runs in it
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -12,16 +14,12 @@ use Trog::Jobs::Transcode();
 use Trog::Jobs::Updates();
 use Trog::Utils();
 
-=head1 NAME
-
-Trog::Jobs - the job queue of tCMS, and the video transcode that runs in it
-
 =head1 DESCRIPTION
 
 Work that a request must not wait for goes in a L<Minion> queue.  The queue is
 an SQLite database in F<data/>, next to the other databases of tCMS.  A request
 only puts a job in it.  A separate process, the worker of L<Trog::Jobs::App>,
-takes the jobs out and runs them.  See the Readme for how to start it.
+takes the jobs out and runs them.  See F<docs/README.md> for how to start it.
 
 This module is the queue, and the part of each task that a request, or a
 script such as F<bin/tcms-transcode-existing>, runs: it queues the jobs and
@@ -61,6 +59,10 @@ our %profiles = (
 
 The queue.  Memoized.
 
+Returns Minion, the queue in C<$dsn>.
+
+    my $minion = Trog::Jobs::minion();
+
 =cut
 
 sub minion {
@@ -71,6 +73,16 @@ sub minion {
 =head2 register_tasks($minion) = $minion
 
 Teach $minion the tasks of tCMS.  The application of the worker calls this.
+
+=over 4
+
+=item minion - Minion - the queue
+
+=back
+
+Returns Minion, $minion.
+
+    my $minion = Trog::Jobs::register_tasks( Trog::Jobs::minion() );
 
 =cut
 
@@ -86,6 +98,16 @@ sub register_tasks ($minion) {
 Put a transcode of the video at C</assets/...> $href in the queue.  A post that
 holds that path is updated when the job is done.
 
+=over 4
+
+=item href - Str - the C</assets/...> path of the video
+
+=back
+
+Returns Int, the ID of the job.
+
+    Trog::Jobs::enqueue_transcode("/assets/$newname");
+
 =cut
 
 sub enqueue_transcode ($href) {
@@ -96,6 +118,16 @@ sub enqueue_transcode ($href) {
 
 The newest $limit jobs, each a hashref as L<Minion::Backend/list_jobs> gives it.
 
+=over 4
+
+=item limit - Int - how many jobs, 100 by default
+
+=back
+
+Returns ArrayRef[HashRef], the jobs, newest first.
+
+    my $jobs = Trog::Jobs::list_jobs($limit);
+
 =cut
 
 sub list_jobs ( $limit = 100 ) {
@@ -104,10 +136,20 @@ sub list_jobs ( $limit = 100 ) {
 
 =head2 retry_failed($id) = BOOL
 
-Put the job $id back in the queue, if it failed.  Returns true if it did, and
-false for a job that is not there or did not fail.  A transcode that runs again
+Put the job $id back in the queue, if it failed.  A transcode that runs again
 skips each output that is already there, so the retry of a job whose encode
 finished does only what came after the encode.
+
+=over 4
+
+=item id - Int - the ID of the job
+
+=back
+
+Returns Bool, 1 if it put the job back, and 0 for a job that is not there or
+did not fail.
+
+    my $ok = Trog::Jobs::retry_failed($id);
 
 =cut
 
@@ -123,6 +165,16 @@ The file under F<www/> that the C</assets/...> path $href names.  Dies for a
 path that is not directly in F<www/assets> or F<www/assets/private>, so that
 nothing outside them reaches ffmpeg.
 
+=over 4
+
+=item href - Str - the C</assets/...> path
+
+=back
+
+Returns Str, the path of the file, such as C<www/assets/a.mp4>.
+
+    my $file = Trog::Jobs::asset_path($href);
+
 =cut
 
 sub asset_path ($href) {
@@ -136,6 +188,17 @@ sub asset_path ($href) {
 The paths of the files that the transcode of $href writes, by profile name.
 They sit beside the original, under names that tCMS never served before.
 
+=over 4
+
+=item href - Str - the C</assets/...> path of the video
+
+=back
+
+Returns HashRef[Str], the C</assets/...> path of each output, by the name of
+its profile in C<%profiles>.
+
+    my $outputs = Trog::Jobs::outputs_for($href);
+
 =cut
 
 sub outputs_for ($href) {
@@ -147,6 +210,10 @@ sub outputs_for ($href) {
 
 The C</assets/...> path of each video file in F<www/assets> and
 F<www/assets/private>, except the outputs of a transcode.
+
+Returns Array of Str, the paths, sorted by name within each directory.
+
+    foreach my $href ( Trog::Jobs::video_assets() ) { ... }
 
 =cut
 

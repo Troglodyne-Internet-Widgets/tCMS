@@ -1,5 +1,7 @@
 package Trog::Renderer::text;
 
+# ABSTRACT: Render a plain text template
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';

@@ -50,7 +50,7 @@ a.topbar {
     display: none;
 }
 
-/* The configuration form, one <details> per section of config/default.cfg. */
+/* The configuration form, one <details> per section of share/default.cfg. */
 .config-section {
     margin: .5rem 0;
     padding: .25rem .5rem;

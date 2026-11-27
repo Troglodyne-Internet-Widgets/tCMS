@@ -1,5 +1,7 @@
 package Trog::Email;
 
+# ABSTRACT: Send templated mail to the users of tCMS
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -19,20 +21,43 @@ Sending mail out of tCMS.
 
 Dies when asked to mail a user who has no contact email set on their profile.
 Failure to actually send is logged as FATAL rather than thrown, as by then the
-message has already been built and there's nothing the caller can do about it.
+message has already been built and there is nothing the caller can do about it.
 
 =head1 FUNCTIONS
 
-=head2 contact(STRING user, STRING from, STRING subject, HASHREF data) = BOOL
+=head2 contact($user, $from, $subject, $data)
 
-Send a templated message to a user's contact email.
+Send a templated message to the contact email of a user.
 
-$data must have a 'template' key naming the template to render; everything else
-in it is passed through to that template as its data.  The template is rendered
-twice, once as text and once as HTML, and both are attached to a multipart
-message so that the recipient's client can pick whichever it prefers.
+The template is rendered twice, once as text and once as HTML, and both are
+attached to a multipart message, so that the client of the recipient can pick
+whichever it prefers.
 
-Returns 1.
+=over 4
+
+=item user - Str - the name of the user to mail
+
+=item from - Str - the address that the mail comes from
+
+=item subject - Str - the subject of the mail
+
+=item data - HashRef - its key C<template> names the template to render.
+Everything in it, C<template> too, is passed through to that template as its
+data.
+
+=back
+
+Returns 1, also when the mail could not be sent.  That failure is logged as
+FATAL.
+
+Dies when the user has no contact email.
+
+    Trog::Email::contact(
+        $user,
+        "root\@$domain",
+        "$domain: Password reset URL for $user",
+        { uri => "https://$domain/auth_change_request/$token", template => 'password_reset.tx' }
+    );
 
 =cut
 

@@ -1,5 +1,7 @@
 package Trog::Renderer;
 
+# ABSTRACT: Render a template, or data, with the renderer of its content type
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -20,7 +22,7 @@ Idea here is to have a renderer per known/supported content-type we need to outp
 
 We have an abstraction here, render() which you feed everything to.
 
-=cut;
+=cut
 
 our %renderers = (
     text  => \&Trog::Renderer::text::render,
@@ -61,8 +63,44 @@ my sub yeet ( $renderer, $error, %options ) {
 
 =head2 Trog::Renderer->render(%options)
 
-Returns either the 3-arg arrayref suitable to emit at the end of a PSGI session or a response body if the component field of options is truthy.
+Picks the renderer in C<%renderers> by C<contenttype>, through
+C<%Trog::Vars::byct>, and hands it %options.  When a request can be served from
+the static render cache later, it has tPSGI save the render after the response.
+When the options are not valid, or the render dies, it renders the 500 page
+instead, with the error in it.
+
+It takes the options of render() in Trog::Renderer::Base.  These it checks
+itself:
+
+=over 4
+
+=item contenttype - Str - the content type, which %Trog::Vars::byct must know.  Required.
+
+=item code - Int - the HTTP status.  Required unless C<component> is true.
+
+=item component - Bool - true to get the body of a component rather than a response
+
+=item template - Str - the file name of the template.  Required.
+
+=item data - HashRef - the variables of the template.  Required.
+
+=item nocache - Bool - true to never save the render as a static file
+
+=back
+
+Returns ArrayRef|Str|HashRef: either the 3-arg arrayref suitable to emit at the end of a PSGI session, or a response body if the component field of options is truthy.
+The renderer of C<multipart/related>, Trog::Renderer::email, gives a HashRef of the text and HTML parts.
 The idea is that components will be concatenated to other rendered templates until we finish having everything ready.
+
+Dies when the 500 page does not render either, or when the content type is
+missing or unknown, as then there is no renderer to render the 500 page.
+
+    my $out = Trog::Renderer->render(
+        contenttype => 'text/plain',
+        template    => 'robots.tx',
+        data        => { banned => \@banned, %$query },
+        code        => 200,
+    );
 
 =cut
 

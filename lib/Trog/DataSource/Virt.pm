@@ -1,5 +1,7 @@
 package Trog::DataSource::Virt;
 
+# ABSTRACT: A datasource that builds posts out of libvirt guests
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -34,6 +36,10 @@ nothing behind it to save, so a post type backed by this wants no editor: a
 form posting to /post/save would write a real post into the datastore which
 would then sit alongside, and collide with, the synthesized ones.
 
+Returns Bool, always 0.
+
+    my $editable = Trog::DataSource::Virt->EDITABLE;
+
 =cut
 
 sub EDITABLE { return 0 }
@@ -48,6 +54,10 @@ There is also nothing that could invalidate it.  A guest starting or stopping is
 not a post being saved, and libvirt is not going to tell us about it -- so a
 cached listing would not merely be stale, it would have no way of ever becoming
 right again.
+
+Returns Bool, always 0.
+
+    my $cacheable = Trog::DataSource::Virt->CACHEABLE;
 
 =cut
 
@@ -132,8 +142,17 @@ Such a guest is acting as dom0: it is serving the page the guest list appears
 on, so powering it off or destroying it takes the site down along with whatever
 asked for that.
 
-Returns true if the guest name is the same as the fqdn of this machine.
-Returns false otherwise.
+=over 4
+
+=item name - Str|undef - the name of the guest
+
+=back
+
+Returns Bool, 1 when the name, compared without case, is the fqdn of this
+machine, else 0.  When perl cannot find the fqdn, it uses the configured
+C<general.hostname>.
+
+    my $refuse = Trog::DataSource::Virt::is_self( $domain->get_name() );
 
 =cut
 
@@ -175,6 +194,22 @@ One post per guest, across every hypervisor the series' relations pulled in.
 A hypervisor we cannot reach becomes a single post saying so, rather than
 vanishing -- a page that silently omits half your infrastructure is worse than
 one that tells you the connection is broken.
+
+The relation that holds the hypervisors is named by the series'
+C<x-tcms-datasource-relation>, and is C<hypervisors> when it names none.  A
+hypervisor without a C<conn_uri> is skipped.  The second argument is the query.
+This sub does not read it.
+
+=over 4
+
+=item series - HashRef - the series post, with its relations pulled in
+
+=back
+
+Returns List[HashRef], one post per guest and one per unreachable hypervisor.
+The list is empty when the relation is not an ARRAY reference.
+
+    my @guests = Trog::DataSource::Virt::posts( $series, $query );
 
 =cut
 
@@ -225,6 +260,18 @@ box on this page is trying to do.
 Everything else about the query means what it does elsewhere, so it is left to
 Trog::DataSource::filter.
 
+=over 4
+
+=item query - HashRef|undef - the reader's query; undef means no query
+
+=item posts - List[HashRef] - the guest posts
+
+=back
+
+Returns List[HashRef], the posts that match.
+
+    my @posts = Trog::DataSource::Virt::filter( { like => 'shut' }, @guests );
+
 =cut
 
 sub filter ( $query, @posts ) {
@@ -248,19 +295,46 @@ sub filter ( $query, @posts ) {
 
 What the search box searches on a page of guests.
 
-=head2 help() = STRING
+Returns Str, the name of the query language.
 
-Where to read about it.
+    my $lang = Trog::DataSource::Virt::lang();
 
 =cut
 
 sub lang { return 'Case insensitive substring of a guest name, state or hypervisor' }
+
+=head2 help() = STRING
+
+Where to read about it.
+
+Returns Str, the URL of a page about the query language.
+
+    my $help = Trog::DataSource::Virt::help();
+
+=cut
+
 sub help { return 'https://en.wikipedia.org/wiki/Substring' }
 
 =head2 post_for($domain, $hypervisor, $series, $form) = HASHREF
 
 The post that stands for the guest $domain, a Sys::Virt::Domain, on
 $hypervisor, in the listing of $series, rendered with $form.
+
+=over 4
+
+=item domain - Sys::Virt::Domain - the guest
+
+=item hypervisor - HashRef - the hypervisor post, with its C<id> and C<title>
+
+=item series - HashRef - the series post, for its tags, visibility and user
+
+=item form - Str - the form that renders the post
+
+=back
+
+Returns HashRef, the post.  Its C<id> is the UUID of the guest.
+
+    my @posts = map { Trog::DataSource::Virt::post_for( $_, $hypervisor, $series, $form ) } @domains;
 
 =cut
 
@@ -312,6 +386,21 @@ mimetype; qemu gives us PNG already, so there is nothing to convert.
 Keyed by hypervisor as well as by guest -- guest names are only unique within
 one hypervisor, and two of them called 'staging' would otherwise show each
 other's console.
+
+=over 4
+
+=item hypervisor - HashRef - the hypervisor post, with its C<id> and C<conn_uri>
+
+=item guest_name - Str - the name of the guest
+
+=back
+
+Returns a list of two.  On success, the path of the PNG and undef.  On failure,
+undef and the reason: a bad guest name or hypervisor id, no connection URI, a
+hypervisor that does not answer, no such guest, or a file that cannot be
+written.
+
+    my ( $path, $why ) = Trog::DataSource::Virt::screenshot( $hypervisor, $in->{guest} );
 
 =cut
 
@@ -372,6 +461,28 @@ The operations which change a guest.
 Deliberately the only sub here that does, and deliberately not reachable from
 the render path -- see the safety note at the top.  Everything it does is
 logged with the user who asked for it.
+
+It refuses to C<poweroff> or C<destroy> the guest that is this machine; see
+is_self().
+
+=over 4
+
+=item action - Str - one of C<poweron>, C<poweroff>, C<snapshot> and C<destroy>
+
+=item conn_uri - Str - the libvirt URI of the hypervisor
+
+=item domain_name - Str - the name of the guest
+
+=item user - Str - the user who asked, for the log
+
+=back
+
+Returns a list of two: a Bool, 1 when the action was done, and a Str, the
+message for the user.  On failure the message says why: a bad guest name, the
+guest is this server, the hypervisor does not answer, no such guest, an
+unknown action, or the error of libvirt.
+
+    my ( $ok, $message ) = Trog::DataSource::Virt::act( $in->{action}, $hypervisor->{conn_uri}, $in->{guest}, $query->{user} );
 
 =cut
 

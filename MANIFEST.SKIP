@@ -1,6 +1,6 @@
 # What perl Makefile.PL, make and the tests leave in a build, which is not in
 # MANIFEST.  This is written out rather than #!include_default: the default
-# skips every file named Makefile, and config/nginx-unit/Makefile is part of tCMS.
+# skips every file named Makefile, and share/nginx-unit/Makefile is part of tCMS.
 ^Makefile$
 ^Makefile\.old$
 ^MYMETA\.
@@ -14,3 +14,17 @@
 ^www/assets/
 ^www/statics/
 ^www/themes/
+
+# For the people who work on tCMS, not for anyone who installs it.
+^CLAUDE\.md$
+^git-hooks/
+
+# Read by dzil at the build, which writes what they say into META.json,
+# Makefile.PL and the POD.
+^dist\.ini$
+^weaver\.ini$
+^prereqs\.(?:yml|json)$
+^metamerge\.(?:yml|json)$
+
+# What Devel::Cover leaves.
+^cover_db/

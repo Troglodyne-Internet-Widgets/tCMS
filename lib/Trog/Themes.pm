@@ -1,5 +1,7 @@
 package Trog::Themes;
 
+# ABSTRACT: Find the files, templates and URL paths of the active theme, or the stock ones
+
 use 5.040;
 use re '/aasx';
 use warnings FATAL => 'all';
@@ -26,9 +28,15 @@ our $template_dir = "$docroot/templates";
 The active theme's own routing table, from its routes.pm.
 
 Themes can add routes of their own by shipping a routes.pm which populates
-%Theme::routes.  Returns an empty list when there's no theme, or when the theme
-hasn't got one.  Dies if there is a routes.pm and it won't load, as silently
-serving a site with half its routes missing is worse than not starting.
+%Theme::routes.
+
+Returns Hash, the pairs of %Theme::routes.  The list is empty when there is no
+theme, or when the theme has no routes.pm.
+
+Dies when there is a routes.pm and it does not load, as to serve a site with
+half its routes missing is worse than not to start.
+
+    my %routes = Trog::Themes::routes();
 
 =cut
 
@@ -57,6 +65,10 @@ and truthiness is the test for "is there a theme".
 Memoized for the life of the process: changing the theme goes through
 /config/save, which signals the workers to restart.
 
+Returns Str, the directory of the theme, or an empty string.
+
+    my $theme = Trog::Themes::get_dir();
+
 =cut
 
 sub get_dir {
@@ -74,7 +86,11 @@ sub get_dir {
 =head2 td() = STRING $dir
 
 The URL path of the active theme's directory, e.g. C</themes/mytheme>, for
-templates to build asset links with.  Empty string when there's no theme.
+templates to build asset links with.
+
+Returns Str, the URL path, or an empty string when there is no theme.
+
+    my $td = Trog::Themes::td();
 
 =cut
 
@@ -86,8 +102,20 @@ sub td {
 =head2 url_path($file) = STRING $path
 
 The URL path at which the webserver serves $file, a path under the document
-root such as C<www/themes/mytheme/img/a.png>.  Dies when $file is not under it,
-as the webserver does not serve it.
+root such as C<www/themes/mytheme/img/a.png>.
+
+=over 4
+
+=item file - Str - a path under the document root
+
+=back
+
+Returns Str, the URL path, such as C</themes/mytheme/img/a.png>.
+
+Dies when $file is not under the document root, as the webserver does not
+serve it.
+
+    my $href = Trog::Themes::url_path( Trog::Themes::themed($Theme::default_image) );
 
 =cut
 
@@ -118,6 +146,19 @@ Every directory which could satisfy a template, most specific first.
 Hand this to Text::Xslate as its C<path> and a theme gets to override
 individual templates without having to fork every last one of them.
 
+=over 4
+
+=item content_type - Str - a content type that %Trog::Vars::byct knows, such as C<text/html>
+
+=item is_component - Bool - true for the components directory under it, false by default
+
+=back
+
+Returns Array of Str, the directories that exist: the theme's, then the stock
+one.
+
+    my @dirs = Trog::Themes::template_dirs( 'text/html', 1 );
+
 =cut
 
 sub template_dirs ( $content_type, $is_component = 0 ) {
@@ -133,6 +174,23 @@ headers, footers) rather than a file.
 This answers "who owns this one thing", which is what you want when *writing*.
 For reading a whole directory you almost always want themed_templates_in_dir()
 instead, which spans both rather than making you pick.
+
+=over 4
+
+=item template - Str - the file name of the template, or the name of a subdirectory
+
+=item content_type - Str - a content type that %Trog::Vars::byct knows, such as C<text/html>
+
+=item is_component - Bool - true for the components directory, false by default
+
+=item is_dir - Bool - true when $template names a subdirectory, false by default
+
+=back
+
+Returns Str, the directory of the theme when it has $template, else the stock
+directory.
+
+    my $dir = Trog::Themes::template_dir( 'forms', 'text/html', 1, 1 );
 
 =cut
 
@@ -156,6 +214,16 @@ The file of $resource, a path relative to the document root, preferring the
 theme's copy, e.g. C<www/themes/mytheme/img/a.png> or C<www/img/a.png>.  Hand
 it to url_path() for its link.
 
+=over 4
+
+=item resource - Str - a path relative to the document root
+
+=back
+
+Returns Str, the path of the file, under the theme or the document root.
+
+    my $tpath = Trog::Themes::themed( 'img/icon' . $path );
+
 =cut
 
 sub themed ($resource) {
@@ -168,6 +236,17 @@ Stylesheets are the exception to the "one or the other" rule: you get the URL
 path of the stock sheet *and* the theme's, in that order, so a theme can
 override a handful of rules without restating the whole thing.
 
+=over 4
+
+=item resource - Str - the file name of a stylesheet under styles/
+
+=back
+
+Returns Array of Str, the URL path of the stock sheet, then that of the
+theme's sheet when the theme has one.
+
+    my @styles = Trog::Themes::themed_style('screen.css');
+
 =cut
 
 sub themed_style ($resource) {
@@ -179,18 +258,42 @@ sub themed_style ($resource) {
 
 themed() for a script under scripts/.
 
+=over 4
+
+=item resource - Str - the file name of a script under scripts/
+
+=back
+
+Returns Str, the path of the script, under the theme or the document root.
+
+    my $file = Trog::Themes::themed_script('post.js');
+
 =cut
 
 sub themed_script ($resource) {
     return themed("scripts/$resource");
 }
 
-=head2 dir_for($path, $content_type, $is_component)
+=head2 dir_for($path, $ct, $is_component)
 
 The single directory which owns a given component subdir: the theme's if it has
 one, the stock one otherwise.  This is the right answer for I<writing> -- see
 forms_dir() and the post type wizard.  For reading, you almost certainly want
 themed_templates_in_dir() instead, which spans both.
+
+=over 4
+
+=item path - Str - the name of the subdirectory, such as C<forms>
+
+=item ct - Str - a content type that %Trog::Vars::byct knows, such as C<text/html>
+
+=item is_component - Bool - true for the components directory, false by default
+
+=back
+
+Returns Str, the path of the subdirectory, under the theme or the stock tree.
+
+    my $dir = Trog::Themes::dir_for( 'forms', 'text/html', 1 );
 
 =cut
 
@@ -203,22 +306,38 @@ sub dir_for ( $path, $ct, $is_component = 0 ) {
 dir_for() the post type forms directory, which is where the post type wizard
 writes new types and their schema sidecars.
 
+Returns Str, the path of the forms directory.
+
+    my $forms = Trog::Themes::forms_dir();
+
 =cut
 
 sub forms_dir {
     return dir_for( 'forms', 'text/html', 1 );
 }
 
-=head2 themed_templates_in_dir($path, $content_type, $is_component)
+=head2 themed_templates_in_dir($path, $ct, $is_component)
 
 The template names in an abstract template dir, from the theme and the stock
 tree both: the theme's templates where the theme has them, plus the stock ones
 it hasn't overridden.  dir_for() is winner-take-all, so a theme with a forms/
 dir of its own would otherwise hide every core post type.
 
-Returns bare filenames, deduped, theme first, and sorted within each dir.  Which
-of the two files a given name resolves to is then up to whoever renders it --
-see template_dirs().
+=over 4
+
+=item path - Str - the name of the subdirectory, such as C<headers>
+
+=item ct - Str - a content type that %Trog::Vars::byct knows, such as C<text/html>
+
+=item is_component - Bool - true for the components directory, false by default
+
+=back
+
+Returns ArrayRef[Str], the bare file names of the C<.tx> templates, deduped,
+theme first, and sorted within each dir.  Which of the two files a given name
+resolves to is then up to whoever renders it -- see template_dirs().
+
+    my $headers = Trog::Themes::themed_templates_in_dir( 'headers', 'text/html', 1 );
 
 =cut
 
@@ -240,10 +359,26 @@ sub themed_templates_in_dir ( $path, $ct, $is_component = 0 ) {
     return \@templates;
 }
 
-=head2 themed_file_in_dir($path, $file, $content_type, $is_component)
+=head2 themed_file_in_dir($path, $file, $ct, $is_component)
 
 The path to a single named file in an abstract template dir, preferring the
-theme's copy.  Returns undef when neither has it.
+theme's copy.
+
+=over 4
+
+=item path - Str - the name of the subdirectory, such as C<forms>
+
+=item file - Str - the name of the file
+
+=item ct - Str - a content type that %Trog::Vars::byct knows, such as C<text/html>
+
+=item is_component - Bool - true for the components directory, false by default
+
+=back
+
+Returns Str|Undef, the path of the file, or undef when neither directory has it.
+
+    my $path = Trog::Themes::themed_file_in_dir( 'forms', "$type.json", 'text/html', 1 );
 
 =cut
 
@@ -254,15 +389,26 @@ sub themed_file_in_dir ( $path, $file, $ct, $is_component = 0 ) {
     return undef;
 }
 
-=head2 themed_component($file, $content_type)
+=head2 themed_component($file, $ct)
 
 The path to a file sitting directly in the components dir rather than in one of
-its subdirectories, preferring the theme's copy.  Returns undef when neither has
-it.
+its subdirectories, preferring the theme's copy.
 
 This is themed_file_in_dir() for the components which are not post types: the
 canned editor blocks every form splices in, and the JSON sidecars beside them
 which say what each one collects -- see Trog::DataModule::include_schema_for().
+
+=over 4
+
+=item file - Str - the name of the file
+
+=item ct - Str - a content type that %Trog::Vars::byct knows, C<text/html> by default
+
+=back
+
+Returns Str|Undef, the path of the file, or undef when neither directory has it.
+
+    my $path = Trog::Themes::themed_component("$name.json");
 
 =cut
 
